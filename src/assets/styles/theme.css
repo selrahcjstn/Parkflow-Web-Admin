@@ -1,0 +1,58 @@
+@import 'tailwindcss';
+
+:root {
+  --color-primary: #d22730;
+  --color-accent: #334155;
+
+  --color-background: #f4f4f5;
+  --color-surface-muted: #ececf0;
+  --color-surface: #ffffff;
+  --color-surface-lighter: #f4f4f5;
+
+  --color-text: #09090b;
+  --color-muted: #71717a;
+  --color-text-inverse: #fafafa;
+
+  --color-border: #e4e4e7;
+
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --color-glow: rgba(210, 39, 48, 0.08);
+
+  --font-regular: 'Inter', sans-serif;
+  --font-book: 'Inter', sans-serif;
+  --font-light: 'Inter', sans-serif;
+  --font-heavy: 'Inter', sans-serif;
+  --font-black: 'Inter', sans-serif;
+
+  --radius-card: 16px;
+  --radius-button: 8px;
+  --radius-pill: 9999px;
+
+  --shadow-soft: 0 2px 10px rgba(15, 23, 42, 0.04);
+  --shadow-card: 0 4px 20px rgba(15, 23, 42, 0.06);
+}
+
+.dark {
+  --color-primary: #f87171;
+  --color-accent: #e3e5e8;
+  --color-secondary: #b5bac1;
+
+  --color-background: #1e1f22;
+  --color-surface-muted: #232428;
+  --color-surface: #2b2d31;
+  --color-surface-lighter: #36393f;
+
+  --color-text: #f2f3f5;
+  --color-muted: #b5bac1;
+
+  --color-border: #3a3c43;
+
+  --color-success: #23a55a;
+  --color-warning: #f0b232;
+  --color-danger: #f87171;
+
+  --color-glow: rgba(248, 113, 113, 0.12);
+}
