@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import authRoutes from '@/features/auth/routes'
 import dashboardRoutes from '@/features/dashboard/routes'
+import usersRoutes from '@/features/users/routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -12,6 +13,7 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/dashboard' },
         ...dashboardRoutes,
+        ...usersRoutes,
       ]
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
