@@ -5,6 +5,7 @@ import usersRoutes from '@/features/users/routes'
 import parkingRoutes from '@/features/parking/routes'
 import violationsRoutes from '@/features/violations/routes'
 import vehiclesRoutes from '@/features/vehicles/routes'
+import reportsRoutes from '@/features/reports/routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -20,6 +21,7 @@ const router = createRouter({
         ...parkingRoutes,
         ...violationsRoutes,
         ...vehiclesRoutes,
+        ...reportsRoutes,
       ]
     },
     { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
