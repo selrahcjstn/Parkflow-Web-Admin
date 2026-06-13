@@ -1,121 +1,31 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
+import api from '@/api/axios'
 
-// Pre-seeded static data matching database layouts
-const users = ref<UserWithDetails[]>([
-  {
-    id: '1',
-    firstName: 'Admin',
-    lastName: 'User',
-    fullName: 'Admin User',
-    email: 'admin@parkflow.edu',
-    phoneNumber: '+639171234567',
-    status: 'Verified',
-    authProvider: 'Manual',
-    role: 'Admin',
-    createdAt: '2026-01-15T08:00:00Z',
-    vehicles: []
-  },
-  {
-    id: '2',
-    firstName: 'Juan',
-    lastName: 'Dela Cruz',
-    fullName: 'Juan Dela Cruz',
-    email: 'juan.delacruz@student.parkflow.edu',
-    phoneNumber: '+639187654321',
-    status: 'Verified',
-    authProvider: 'Manual',
-    role: 'Student',
-    createdAt: '2026-02-10T09:30:00Z',
-    student: {
-      studentNumber: '2022-10492',
-      course: 'BS Computer Science',
-      section: 'CS-4A',
-      yearLevel: 4
-    },
-    vehicles: [
-      { plateNumber: 'ABC-1234', brand: 'Toyota Vios', vehicleType: 'Car', isPrimary: true }
-    ]
-  },
-  {
-    id: '3',
-    firstName: 'Maria',
-    lastName: 'Santos',
-    fullName: 'Maria Santos',
-    email: 'maria.santos@student.parkflow.edu',
-    phoneNumber: '+639198765432',
-    status: 'PendingVerification',
-    authProvider: 'Microsoft',
-    role: 'Student',
-    createdAt: '2026-06-05T14:15:00Z',
-    student: {
-      studentNumber: '2023-01824',
-      course: 'BS Information Technology',
-      section: 'IT-3B',
-      yearLevel: 3
-    },
-    vehicles: [
-      { plateNumber: 'XYZ-5678', brand: 'Honda Click 125i', vehicleType: 'Motorcycle', isPrimary: true }
-    ]
-  },
-  {
-    id: '4',
-    firstName: 'Roger',
-    lastName: 'Ramos',
-    fullName: 'Sec. Roger Ramos',
-    email: 'roger.ramos@parkflow.edu',
-    phoneNumber: '+639201234567',
-    status: 'Verified',
-    authProvider: 'Manual',
-    role: 'Guard',
-    createdAt: '2026-03-01T06:00:00Z',
-    guard: {
-      assignedGate: 1
-    },
-    vehicles: []
-  },
-  {
-    id: '5',
-    firstName: 'Alberto',
-    lastName: 'Reyes',
-    fullName: 'Prof. Alberto Reyes',
-    email: 'alberto.reyes@faculty.parkflow.edu',
-    phoneNumber: '+639217654321',
-    status: 'Verified',
-    authProvider: 'Microsoft',
-    role: 'UniversityStaff',
-    createdAt: '2026-01-20T10:00:00Z',
-    personnel: {
-      idCardNumber: 'FAC-9210',
-      department: 'College of Engineering'
-    },
-    vehicles: [
-      { plateNumber: 'MNO-3456', brand: 'Mazda 3', vehicleType: 'Car', isPrimary: true }
-    ]
-  },
-  {
-    id: '6',
-    firstName: 'Elena',
-    lastName: 'Cruz',
-    fullName: 'Elena Cruz',
-    email: 'elena.cruz@staff.parkflow.edu',
-    phoneNumber: '+639229876543',
-    status: 'Suspended',
-    authProvider: 'Manual',
-    role: 'NonAcademicPersonnel',
-    createdAt: '2026-04-12T11:45:00Z',
-    personnel: {
-      idCardNumber: 'STA-3912',
-      department: 'Registrar Office'
-    },
-    vehicles: [
-      { plateNumber: 'JKL-7890', brand: 'Yamaha Mio', vehicleType: 'Motorcycle', isPrimary: true }
-    ]
+const users = ref<UserWithDetails[]>([])
+
+const fetchUsers = async () => {
+  try {
+    const response = await api.get('/users')
+    if (response.data && response.data.isSuccess) {
+      users.value = response.data.data.map((u: any) => ({
+        ...u,
+        status: u.status === 'Active' ? 'Verified' : u.status
+      }))
+    } else {
+      console.error('Failed to retrieve users:', response.data?.message)
+    }
+  } catch (error) {
+    console.error('Error fetching users:', error)
   }
-])
+}
+
+onMounted(async () => {
+  await fetchUsers()
+})
 
 // Filtering state
 const searchQuery = ref('')
@@ -206,13 +116,23 @@ const openEditUser = (user: UserWithDetails) => {
   isFormOpen.value = true
 }
 
-const handleUpdateStatus = (userId: string, newStatus: AccountStatus) => {
-  const index = users.value.findIndex((u) => u.id === userId)
-  if (index !== -1 && users.value[index]) {
-    users.value[index].status = newStatus
-    if (selectedUser.value && selectedUser.value.id === userId) {
-      selectedUser.value.status = newStatus
+const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
+  try {
+    const backendStatus = newStatus === 'Verified' ? 'Active' : newStatus
+    const response = await api.put(`/users/${userId}/status`, { status: backendStatus })
+    if (response.data && response.data.isSuccess) {
+      const index = users.value.findIndex((u) => u.id === userId)
+      if (index !== -1 && users.value[index]) {
+        users.value[index].status = newStatus
+        if (selectedUser.value && selectedUser.value.id === userId) {
+          selectedUser.value.status = newStatus
+        }
+      }
+    } else {
+      console.error('Failed to update status:', response.data?.message)
     }
+  } catch (error) {
+    console.error('Error updating status:', error)
   }
 }
 
