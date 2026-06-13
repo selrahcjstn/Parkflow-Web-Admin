@@ -1,4 +1,5 @@
-export type AccountStatus = 'Suspended' | 'PendingVerification' | 'Verified'
+export type AccountStatus = 'Suspended' | 'PendingVerification' | 'Active'
+export type CorVerificationStatus = 'NotSubmitted' | 'Pending' | 'Verified' | 'Rejected'
 export type AuthProvider = 'Manual' | 'Microsoft'
 export type UserRole = 'Student' | 'UniversityStaff' | 'NonAcademicPersonnel' | 'Guard' | 'Admin'
 
@@ -34,6 +35,7 @@ export interface UserWithDetails {
   email: string
   phoneNumber: string
   status: AccountStatus
+  corVerificationStatus: CorVerificationStatus
   authProvider: AuthProvider
   role: UserRole
   createdAt: string

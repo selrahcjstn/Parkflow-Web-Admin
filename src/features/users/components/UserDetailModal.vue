@@ -9,7 +9,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'updateStatus', userId: string, newStatus: 'Suspended' | 'Verified'): void
+  (e: 'updateStatus', userId: string, newStatus: 'Suspended' | 'Active'): void
 }>()
 
 const getInitials = (user: UserWithDetails) => {
@@ -18,20 +18,29 @@ const getInitials = (user: UserWithDetails) => {
 
 const statusClass = computed(() => {
   if (!props.user) return ''
-  switch (props.user.status) {
-    case 'Verified':
-      return 'user-detail__status--verified'
-    case 'PendingVerification':
-      return 'user-detail__status--pending'
-    case 'Suspended':
-      return 'user-detail__status--suspended'
-    default:
-      return ''
-  }
+  const status = props.user.status
+  if (status === 'Active') return 'user-detail__status--active'
+  if (status === 'PendingVerification') return 'user-detail__status--pending'
+  if (status === 'Suspended') return 'user-detail__status--suspended'
+  return ''
+})
+
+const corStatusClass = computed(() => {
+  if (!props.user) return ''
+  const status = props.user.corVerificationStatus
+  if (status === 'Verified') return 'user-detail__status--verified'
+  if (status === 'Pending') return 'user-detail__status--pending'
+  if (status === 'Rejected' || status === 'NotSubmitted') return 'user-detail__status--suspended'
+  return ''
 })
 
 const formatStatus = (status: string) => {
   if (status === 'PendingVerification') return 'Pending Verification'
+  return status
+}
+
+const formatCorStatus = (status: string) => {
+  if (status === 'NotSubmitted') return 'Not Submitted'
   return status
 }
 </script>
@@ -83,6 +92,10 @@ const formatStatus = (status: string) => {
               <div class="detail-item">
                 <span class="detail-label">Account Status</span>
                 <span class="detail-value" :class="statusClass">{{ formatStatus(user.status) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">COR Verification Status</span>
+                <span class="detail-value" :class="corStatusClass">{{ formatCorStatus(user.corVerificationStatus) }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">Date Registered</span>
@@ -170,14 +183,7 @@ const formatStatus = (status: string) => {
         <div class="modal-footer">
           <div class="action-buttons">
             <button
-              v-if="user.status === 'PendingVerification'"
-              class="action-btn action-btn--approve"
-              @click="emit('updateStatus', user.id, 'Verified')"
-            >
-              Approve & Verify
-            </button>
-            <button
-              v-if="user.status === 'Verified'"
+              v-if="user.status !== 'Suspended'"
               class="action-btn action-btn--suspend"
               @click="emit('updateStatus', user.id, 'Suspended')"
             >
@@ -186,7 +192,7 @@ const formatStatus = (status: string) => {
             <button
               v-if="user.status === 'Suspended'"
               class="action-btn action-btn--unsuspend"
-              @click="emit('updateStatus', user.id, 'Verified')"
+              @click="emit('updateStatus', user.id, 'Active')"
             >
               Unsuspend Account
             </button>
@@ -369,6 +375,7 @@ const formatStatus = (status: string) => {
   color: var(--color-text);
 }
 
+.user-detail__status--active,
 .user-detail__status--verified {
   color: var(--color-success);
 }

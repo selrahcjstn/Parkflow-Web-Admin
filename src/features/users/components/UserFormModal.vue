@@ -20,7 +20,7 @@ const form = ref({
   email: '',
   phoneNumber: '',
   role: 'Student' as UserRole,
-  status: 'Verified' as 'Verified' | 'Suspended' | 'PendingVerification',
+  status: 'Active' as 'Active' | 'Suspended' | 'PendingVerification',
   // Role specific
   studentNumber: '',
   course: '',
@@ -40,7 +40,7 @@ const resetForm = () => {
     email: '',
     phoneNumber: '',
     role: 'Student',
-    status: 'Verified',
+    status: 'Active',
     studentNumber: '',
     course: '',
     section: '',
@@ -137,7 +137,7 @@ const handleSubmit = () => {
               <div class="form-group">
                 <label for="status">Account Status</label>
                 <select id="status" v-model="form.status" class="form-select">
-                  <option value="Verified">Verified</option>
+                  <option value="Active">Active</option>
                   <option value="PendingVerification">Pending Verification</option>
                   <option value="Suspended">Suspended</option>
                 </select>

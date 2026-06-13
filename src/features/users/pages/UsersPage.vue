@@ -11,10 +11,7 @@ const fetchUsers = async () => {
   try {
     const response = await api.get('/users')
     if (response.data && response.data.isSuccess) {
-      users.value = response.data.data.map((u: any) => ({
-        ...u,
-        status: u.status === 'Active' ? 'Verified' : u.status
-      }))
+      users.value = response.data.data
     } else {
       console.error('Failed to retrieve users:', response.data?.message)
     }
@@ -55,6 +52,11 @@ const stats = computed(() => {
   ]
 })
 
+const displayStatus = (user: UserWithDetails) => {
+  if (user.status === 'Suspended') return 'Suspended'
+  return user.corVerificationStatus
+}
+
 // Filtered Users list
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
@@ -71,7 +73,7 @@ const filteredUsers = computed(() => {
 
     const matchesStatus =
       selectedStatus.value === 'all' ||
-      user.status === selectedStatus.value
+      displayStatus(user) === selectedStatus.value
 
     return matchesSearch && matchesRole && matchesStatus
   })
@@ -100,6 +102,11 @@ const getRoleLabel = (role: UserRole) => {
   }
 }
 
+const formatStatusText = (status: string) => {
+  if (status === 'NotSubmitted') return 'Not Submitted'
+  return status
+}
+
 // Actions
 const openDetails = (user: UserWithDetails) => {
   selectedUser.value = user
@@ -118,14 +125,13 @@ const openEditUser = (user: UserWithDetails) => {
 
 const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
   try {
-    const backendStatus = newStatus === 'Verified' ? 'Active' : newStatus
-    const response = await api.put(`/users/${userId}/status`, { status: backendStatus })
+    const response = await api.put(`/users/${userId}/status`, { status: newStatus })
     if (response.data && response.data.isSuccess) {
-      const index = users.value.findIndex((u) => u.id === userId)
-      if (index !== -1 && users.value[index]) {
-        users.value[index].status = newStatus
-        if (selectedUser.value && selectedUser.value.id === userId) {
-          selectedUser.value.status = newStatus
+      await fetchUsers()
+      if (selectedUser.value && selectedUser.value.id === userId) {
+        const updated = users.value.find(u => u.id === userId)
+        if (updated) {
+          selectedUser.value.status = updated.status
         }
       }
     } else {
@@ -177,6 +183,7 @@ const handleFormSubmit = (formData: any) => {
       phoneNumber: formData.phoneNumber,
       role: formData.role,
       status: formData.status,
+      corVerificationStatus: 'NotSubmitted',
       authProvider: 'Manual',
       createdAt: new Date().toISOString(),
       student: formData.role === 'Student' ? {
@@ -277,7 +284,9 @@ const handleFormSubmit = (formData: any) => {
           <select v-model="selectedStatus" class="filter-select">
             <option value="all">All Statuses</option>
             <option value="Verified">Verified</option>
-            <option value="PendingVerification">Pending</option>
+            <option value="Pending">Pending</option>
+            <option value="NotSubmitted">Not Submitted</option>
+            <option value="Rejected">Rejected</option>
             <option value="Suspended">Suspended</option>
           </select>
         </div>
@@ -332,8 +341,8 @@ const handleFormSubmit = (formData: any) => {
                 </div>
               </td>
               <td>
-                <span class="status-pill" :class="'status-pill--' + user.status.toLowerCase()">
-                  {{ user.status === 'PendingVerification' ? 'Pending' : user.status }}
+                <span class="status-pill" :class="'status-pill--' + displayStatus(user).toLowerCase()">
+                  {{ formatStatusText(displayStatus(user)) }}
                 </span>
               </td>
               <td class="actions-cell" @click.stop>
@@ -344,7 +353,7 @@ const handleFormSubmit = (formData: any) => {
                     </svg>
                   </button>
                   <button
-                    v-if="user.status === 'Verified'"
+                    v-if="user.status !== 'Suspended'"
                     class="action-icon-btn action-icon-btn--suspend"
                     title="Suspend Account"
                     @click="handleUpdateStatus(user.id, 'Suspended')"
@@ -358,7 +367,7 @@ const handleFormSubmit = (formData: any) => {
                     v-else
                     class="action-icon-btn action-icon-btn--verify"
                     title="Verify / Unsuspend Account"
-                    @click="handleUpdateStatus(user.id, 'Verified')"
+                    @click="handleUpdateStatus(user.id, 'Active')"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
@@ -752,9 +761,16 @@ const handleFormSubmit = (formData: any) => {
   color: var(--color-success);
 }
 
-.status-pill--pendingverification {
+.status-pill--pendingverification,
+.status-pill--pending {
   background: rgba(240, 178, 50, 0.12);
   color: var(--color-warning);
+}
+
+.status-pill--notsubmitted,
+.status-pill--rejected {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--color-danger);
 }
 
 .status-pill--suspended {
