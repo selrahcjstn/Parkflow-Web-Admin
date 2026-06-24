@@ -22,129 +22,118 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
   }, 4000)
 }
 
+import api from '@/api/axios'
+
 // Total parking slots capacity
 const TOTAL_CAPACITY = 200
 
-// Today's total check-ins (simulated counter)
-const todaysEntriesCount = ref(148)
+// Today's total check-ins
+const todaysEntriesCount = ref(0)
 
-// Pre-seeded Active Sessions (Real-time Parked/Overstay)
-const activeSessions = ref<ActiveSession[]>([
-  {
-    id: 'act-1',
-    vehiclePlate: 'ABC 1234',
-    brand: 'Toyota Vios',
-    vehicleType: 'Car',
-    ownerName: 'Juan Dela Cruz',
-    role: 'Student',
-    checkInTime: new Date(Date.now() - 3.8 * 60 * 60 * 1000).toISOString(), // 3.8 hours ago
-    duration: '',
-    gate: 1,
-    status: 'Parked'
-  },
-  {
-    id: 'act-2',
-    vehiclePlate: 'XYZ 5678',
-    brand: 'Honda Click 125i',
-    vehicleType: 'Motorcycle',
-    ownerName: 'Maria Santos',
-    role: 'Student',
-    checkInTime: new Date(Date.now() - 8.5 * 60 * 60 * 1000).toISOString(), // 8.5 hours ago (Overstay > 8h)
-    duration: '',
-    gate: 2,
-    status: 'Overstay'
-  },
-  {
-    id: 'act-3',
-    vehiclePlate: 'MNO 3456',
-    brand: 'Mazda 3',
-    vehicleType: 'Car',
-    ownerName: 'Prof. Alberto Reyes',
-    role: 'Faculty',
-    checkInTime: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(), // 1.5 hours ago
-    duration: '',
-    gate: 1,
-    status: 'Parked'
-  },
-  {
-    id: 'act-4',
-    vehiclePlate: 'JKL 7890',
-    brand: 'Yamaha Mio',
-    vehicleType: 'Motorcycle',
-    ownerName: 'Elena Cruz',
-    role: 'Staff',
-    checkInTime: new Date(Date.now() - 0.5 * 60 * 60 * 1000).toISOString(), // 30 mins ago
-    duration: '',
-    gate: 2,
-    status: 'Parked'
-  }
-])
+// Active Sessions
+const activeSessions = ref<ActiveSession[]>([])
 
-// Pre-seeded Parking History
-const historySessions = ref<ParkingHistoryItem[]>([
-  {
-    id: 'hist-1',
-    vehiclePlate: 'TUV 8901',
-    brand: 'Hyundai Tucson',
-    vehicleType: 'Car',
-    ownerName: 'Isabella Garcia',
-    role: 'Student',
-    checkInTime: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(),
-    checkOutTime: new Date(Date.now() - 5.5 * 60 * 60 * 1000).toISOString(),
-    duration: '4h 30m',
-    charge: '₱50.00',
-    status: 'Exited',
-    method: 'QrCode'
-  },
-  {
-    id: 'hist-2',
-    vehiclePlate: 'WXY 2345',
-    brand: 'Vespa Sprint',
-    vehicleType: 'Motorcycle',
-    ownerName: 'Miguel Torres',
-    role: 'Student',
-    checkInTime: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-    checkOutTime: new Date(Date.now() - 3.75 * 60 * 60 * 1000).toISOString(),
-    duration: '2h 15m',
-    charge: '₱20.00',
-    status: 'Exited',
-    method: 'Manual'
-  },
-  {
-    id: 'hist-3',
-    vehiclePlate: 'QRS 4567',
-    brand: 'Toyota Altis',
-    vehicleType: 'Car',
-    ownerName: 'Roberto Villanueva',
-    role: 'Student',
-    checkInTime: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    checkOutTime: new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString(),
-    duration: '1h 30m',
-    charge: '₱30.00',
-    status: 'Exited',
-    method: 'QrCode'
-  },
-  {
-    id: 'hist-4',
-    vehiclePlate: 'ZAB 6789',
-    brand: 'Honda Civic',
-    vehicleType: 'Car',
-    ownerName: 'Sofia Mendoza',
-    role: 'Student',
-    checkInTime: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    checkOutTime: new Date(Date.now() - 1.25 * 60 * 60 * 1000).toISOString(),
-    duration: '2h 45m',
-    charge: '₱30.00',
-    status: 'Exited',
-    method: 'QrCode'
+// Parking History
+const historySessions = ref<ParkingHistoryItem[]>([])
+
+const isLoading = ref(false)
+
+const getLoggedInUserId = (): string => {
+  const token = localStorage.getItem('parkflow_token')
+  if (!token) return ''
+  try {
+    const parts = token.split('.')
+    const base64Url = parts[1]
+    if (!base64Url) return ''
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const payload = JSON.parse(window.atob(base64))
+    return payload.user_id || payload.sub || ''
+  } catch (e) {
+    console.error('Error decoding token:', e)
+    return ''
   }
-])
+}
+
+const isToday = (dateStr: string) => {
+  const date = new Date(dateStr)
+  const today = new Date()
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear()
+}
+
+const updateTodaysEntriesCount = () => {
+  const activeToday = activeSessions.value.filter(s => isToday(s.checkInTime)).length
+  const historyToday = historySessions.value.filter(s => isToday(s.checkInTime)).length
+  todaysEntriesCount.value = activeToday + historyToday
+}
+
+const fetchParkingData = async () => {
+  isLoading.value = true
+  try {
+    const activeRes = await api.get('/parking-logs/active-sessions?parkingCapacity=200')
+    if (activeRes.data && activeRes.data.isSuccess) {
+      activeSessions.value = activeRes.data.data.map((item: any) => ({
+        id: item.plateNumber,
+        vehiclePlate: item.plateNumber,
+        brand: item.brand,
+        vehicleType: item.vehicleType as VehicleType,
+        ownerName: `${item.firstName} ${item.lastName}`,
+        role: item.role || 'Guest',
+        checkInTime: item.entryTime,
+        duration: item.totalParkingHours,
+        gate: 1,
+        status: item.status as ParkingStatus
+      }))
+    }
+
+    const historyRes = await api.get('/parking-history/all/page/1/100')
+    if (historyRes.data && historyRes.data.isSuccess) {
+      historySessions.value = historyRes.data.data.items.map((item: any) => {
+        let durationStr = '0m'
+        if (item.parkingDuration != null) {
+          const totalMins = Math.floor(item.parkingDuration * 60)
+          const hrs = Math.floor(totalMins / 60)
+          const mins = totalMins % 60
+          durationStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
+        }
+
+        const chargeStr = item.parkingDuration != null 
+          ? calculateCharge(item.type, item.entryTime, item.exitTime)
+          : 'Free'
+
+        return {
+          id: `${item.plateNumber}-${item.entryTime}`,
+          vehiclePlate: item.plateNumber,
+          brand: item.brand,
+          vehicleType: item.type as VehicleType,
+          ownerName: `${item.firstName} ${item.lastName}`,
+          role: item.roleName || 'Guest',
+          checkInTime: item.entryTime,
+          checkOutTime: item.exitTime || '',
+          duration: durationStr,
+          charge: chargeStr,
+          status: 'Exited' as ParkingStatus,
+          method: 'Manual' as EntryMethod
+        }
+      })
+    }
+
+    updateTodaysEntriesCount()
+  } catch (error) {
+    console.error('Error fetching parking data:', error)
+    showToast('Failed to fetch parking sessions data.', 'warning')
+  } finally {
+    isLoading.value = false
+  }
+}
 
 // Real-time Clock logic for duration update
 const now = ref(new Date())
 let durationInterval: any = null
 
-onMounted(() => {
+onMounted(async () => {
+  await fetchParkingData()
   durationInterval = setInterval(() => {
     now.value = new Date()
     // Auto-update status to overstay if parked more than 8 hours
@@ -271,13 +260,12 @@ const openDetails = (session: ActiveSession | ParkingHistoryItem) => {
   isSessionDetailOpen.value = true
 }
 
-const handleManualEntrySubmit = (payload: {
+const handleManualEntrySubmit = async (payload: {
   plateNumber: string
   vehicleType: VehicleType
   brand: string
   phoneNumber: string
 }) => {
-  // Check if plate already parked
   const alreadyParked = activeSessions.value.some(
     (s) => s.vehiclePlate.replace(/\s+/g, '').toUpperCase() === payload.plateNumber.replace(/\s+/g, '').toUpperCase()
   )
@@ -287,55 +275,63 @@ const handleManualEntrySubmit = (payload: {
     return
   }
 
-  // Create new active session
-  const newSession: ActiveSession = {
-    id: `act-${Date.now()}`,
-    vehiclePlate: payload.plateNumber,
-    brand: payload.brand || 'Manual Entry',
-    vehicleType: payload.vehicleType,
-    ownerName: payload.phoneNumber ? `Guest (Manual)` : 'Unregistered',
-    role: payload.phoneNumber ? 'Guest' : 'Visitor',
-    checkInTime: new Date().toISOString(),
-    duration: '0m',
-    gate: 1, // Default gate for manual logging
-    status: 'Parked'
+  const loggedInUserId = getLoggedInUserId()
+  if (!loggedInUserId) {
+    showToast('Failed to log entry: admin or guard user ID is not available.', 'warning')
+    return
   }
 
-  activeSessions.value.unshift(newSession)
-  todaysEntriesCount.value++
-  isManualEntryOpen.value = false
-  showToast(`Manual entry logged successfully for ${payload.plateNumber}!`, 'success')
+  try {
+    const response = await api.post('/parking-logs/manual-entry', {
+      plateNumber: payload.plateNumber,
+      vehicleType: payload.vehicleType,
+      phoneNumber: payload.phoneNumber || null,
+      brand: payload.brand || null,
+      userId: loggedInUserId
+    })
+
+    if (response.data && response.data.isSuccess) {
+      showToast(`Manual entry logged successfully for ${payload.plateNumber}!`, 'success')
+      isManualEntryOpen.value = false
+      await fetchParkingData()
+    } else {
+      showToast(response.data?.message || 'Failed to log manual entry.', 'warning')
+    }
+  } catch (error: any) {
+    console.error('Error logging manual entry:', error)
+    const errMessage = error.response?.data?.message || 'Failed to log manual entry.'
+    showToast(errMessage, 'warning')
+  }
 }
 
-const handleManualCheckout = (session: ActiveSession) => {
-  const checkoutTime = new Date().toISOString()
-  const durationStr = getDuration(session)
-  const fee = calculateCharge(session.vehicleType, session.checkInTime, checkoutTime)
-
-  const historyItem: ParkingHistoryItem = {
-    id: `hist-${Date.now()}`,
-    vehiclePlate: session.vehiclePlate,
-    brand: session.brand,
-    vehicleType: session.vehicleType,
-    ownerName: session.ownerName,
-    role: session.role,
-    checkInTime: session.checkInTime,
-    checkOutTime: checkoutTime,
-    duration: durationStr,
-    charge: fee,
-    status: 'Exited',
-    method: 'Manual'
+const handleManualCheckout = async (session: ActiveSession | ParkingHistoryItem) => {
+  const loggedInUserId = getLoggedInUserId()
+  if (!loggedInUserId) {
+    showToast('Failed to checkout: admin or guard user ID is not available.', 'warning')
+    return
   }
 
-  // Add to history and remove from active
-  historySessions.value.unshift(historyItem)
-  activeSessions.value = activeSessions.value.filter((s) => s.id !== session.id)
+  try {
+    const response = await api.patch('/parking-logs/manual-exit', {
+      plateNumber: session.vehiclePlate,
+      userId: loggedInUserId
+    })
 
-  if (isSessionDetailOpen.value) {
-    isSessionDetailOpen.value = false
+    if (response.data && response.data.isSuccess) {
+      const fee = response.data.data?.penaltyFee != null ? `₱${response.data.data.penaltyFee.toFixed(2)}` : 'Free'
+      showToast(`Vehicle ${session.vehiclePlate} checked out. Fee: ${fee}`, 'success')
+      if (isSessionDetailOpen.value) {
+        isSessionDetailOpen.value = false
+      }
+      await fetchParkingData()
+    } else {
+      showToast(response.data?.message || 'Failed to checkout vehicle.', 'warning')
+    }
+  } catch (error: any) {
+    console.error('Error checking out vehicle:', error)
+    const errMessage = error.response?.data?.message || 'Failed to checkout vehicle.'
+    showToast(errMessage, 'warning')
   }
-
-  showToast(`Vehicle ${session.vehiclePlate} checked out. Fee: ${fee}`, 'success')
 }
 
 // Helper methods for label rendering
@@ -359,13 +355,20 @@ const getRoleLabel = (role: string) => {
         <h1 class="parking-title">Parking Operations</h1>
         <p class="parking-subtitle">Monitor real-time gate occupancy, active check-ins, and logs.</p>
       </div>
-      <button class="add-entry-btn" @click="isManualEntryOpen = true">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
-          <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        Log Manual Entry
-      </button>
+      <div class="header-actions">
+        <button class="refresh-btn" @click="fetchParkingData" :disabled="isLoading" title="Refresh Data">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spin-animation': isLoading }">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </button>
+        <button class="add-entry-btn" @click="isManualEntryOpen = true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
+            <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          Log Manual Entry
+        </button>
+      </div>
     </div>
 
     <!-- Stats Grid -->
@@ -743,6 +746,51 @@ const getRoleLabel = (role: string) => {
 .add-entry-btn:hover {
   background: #dc2626;
   transform: translateY(-1px);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.refresh-btn {
+  background: var(--color-surface-lighter);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+  box-sizing: border-box;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border-color: var(--color-muted);
+}
+
+.refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spin-animation {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Stats Grid */
