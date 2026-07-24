@@ -26,7 +26,7 @@ const stats = computed(() => [
   { title: 'Total Users', value: statsData.value.totalUsers.toLocaleString(), trend: '+12.5%', trendUp: true, iconBg: 'linear-gradient(135deg, #6366f1, #818cf8)' },
   { title: 'Active Parking', value: `${statsData.value.activeParking}/${statsData.value.maxCapacity}`, trend: '+5.2%', trendUp: true, iconBg: 'linear-gradient(135deg, #10b981, #34d399)' },
   { title: "Today's Revenue", value: `₱${statsData.value.todayRevenue.toLocaleString()}`, trend: '+8.1%', trendUp: true, iconBg: 'linear-gradient(135deg, #f59e0b, #fbbf24)' },
-  { title: 'Violations', value: statsData.value.violations.toString(), trend: '-3.4%', trendUp: false, iconBg: 'linear-gradient(135deg, #ef4444, #f87171)' },
+  { title: 'Collections', value: statsData.value.violations.toString(), trend: '-3.4%', trendUp: false, iconBg: 'linear-gradient(135deg, #ef4444, #f87171)' },
 ])
 
 const activityData = ref<{ day: string; checkIns: number; checkOuts: number }[]>([])

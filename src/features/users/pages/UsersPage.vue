@@ -281,41 +281,6 @@ const handleFormSubmit = (formData: any) => {
       </div>
     </div>
 
-    <!-- Quick Status Tabs -->
-    <div class="status-quick-tabs">
-      <button
-        class="status-tab"
-        :class="{ active: selectedStatus === 'all' }"
-        @click="selectedStatus = 'all'"
-      >
-        All Clients
-      </button>
-      <button
-        class="status-tab status-tab--pending"
-        :class="{ active: selectedStatus === 'Pending' }"
-        @click="selectedStatus = 'Pending'"
-      >
-        Pending
-        <span class="tab-badge tab-badge--pending" v-if="users.filter(u => displayStatus(u) === 'Pending').length > 0">
-          {{ users.filter(u => displayStatus(u) === 'Pending').length }}
-        </span>
-      </button>
-      <button
-        class="status-tab status-tab--approved"
-        :class="{ active: selectedStatus === 'Verified' }"
-        @click="selectedStatus = 'Verified'"
-      >
-        Approved / Verified
-      </button>
-      <button
-        class="status-tab status-tab--rejected"
-        :class="{ active: selectedStatus === 'Rejected' }"
-        @click="selectedStatus = 'Rejected'"
-      >
-        Rejected
-      </button>
-    </div>
-
     <!-- Filters Bar -->
     <div class="filters-bar">
       <!-- Search Input -->

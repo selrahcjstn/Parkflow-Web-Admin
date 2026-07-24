@@ -39,7 +39,7 @@ const getRoleLabel = (role: string) => {
     <div v-if="isOpen && violation" class="modal-backdrop" @click="emit('close')">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3 class="modal-title">Violation details</h3>
+          <h3 class="modal-title">Collection details</h3>
           <button class="close-btn" @click="emit('close')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />

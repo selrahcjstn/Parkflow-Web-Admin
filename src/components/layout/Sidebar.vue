@@ -47,7 +47,7 @@ const navItems: NavItem[] = [
     ]
   },
   { label: 'Parking', path: '/parking', icon: 'parking' },
-  { label: 'Violations', path: '/violations', icon: 'violations' },
+  { label: 'Collections', path: '/violations', icon: 'violations' },
   { label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
   { label: 'Reports', path: '/reports', icon: 'reports' }
 ]
