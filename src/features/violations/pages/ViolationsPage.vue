@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { Violation } from '../types'
 import ViolationDetailModal from '../components/ViolationDetailModal.vue'
+import api from '@/api/axios'
 
 // Toast type
 interface Toast {
@@ -21,7 +22,9 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
   }, 4000)
 }
 
-// Pre-seeded static data for violations
+const isLoading = ref(false)
+
+// Violations list
 const violations = ref<Violation[]>([
   {
     violationId: 'vio-1',
@@ -54,42 +57,46 @@ const violations = ref<Violation[]>([
     vehicleType: 'Motorcycle',
     entryTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     issuedAt: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    violationId: 'vio-3',
-    referenceNumber: 'VIO-20260610-B9D4',
-    violationType: 'Expired Permit',
-    penaltyFee: 300.0,
-    settlementStatus: 'Paid',
-    isPaid: true,
-    firstName: 'Juan',
-    lastName: 'Dela Cruz',
-    roleName: 'Student',
-    plateNumber: 'ABC 1234',
-    brand: 'Toyota Vios',
-    vehicleType: 'Car',
-    entryTime: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    issuedAt: new Date(Date.now() - 47 * 60 * 60 * 1000).toISOString(),
-    exitTime: new Date(Date.now() - 46 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    violationId: 'vio-4',
-    referenceNumber: 'VIO-20260609-F2A1',
-    violationType: 'Overstay Limit',
-    penaltyFee: 500.0,
-    settlementStatus: 'Paid',
-    isPaid: true,
-    firstName: 'Miguel',
-    lastName: 'Torres',
-    roleName: 'Student',
-    plateNumber: 'WXY 2345',
-    brand: 'Vespa Sprint',
-    vehicleType: 'Motorcycle',
-    entryTime: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
-    issuedAt: new Date(Date.now() - 64 * 60 * 60 * 1000).toISOString(),
-    exitTime: new Date(Date.now() - 63 * 60 * 60 * 1000).toISOString()
   }
 ])
+
+const fetchViolations = async () => {
+  isLoading.value = true
+  try {
+    const response = await api.get('/violations/history/page/1/1000')
+    if (response.data && response.data.isSuccess) {
+      const items = response.data.data?.items || []
+      if (items.length > 0) {
+        violations.value = items.map((item: any) => ({
+          violationId: item.violationId,
+          referenceNumber: item.referenceNumber,
+          violationType: item.violationType,
+          penaltyFee: item.penaltyFee,
+          settlementStatus: (item.settlementStatus === 'Settled' || item.isPaid) ? 'Paid' : 'Unpaid',
+          isPaid: item.settlementStatus === 'Settled' || item.isPaid,
+          firstName: item.firstName,
+          lastName: item.lastName,
+          middleName: item.middleName,
+          roleName: item.roleName,
+          plateNumber: item.plateNumber,
+          brand: item.brand,
+          vehicleType: item.vehicleType,
+          entryTime: item.entryTime,
+          exitTime: item.exitTime,
+          issuedAt: item.issuedAt
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching violations:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchViolations()
+})
 
 // Filter and Search State
 const searchQuery = ref('')

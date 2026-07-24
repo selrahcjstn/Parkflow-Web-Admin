@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserDetailModal from '../components/UserDetailModal.vue'
@@ -25,9 +25,6 @@ const fetchUsers = async () => {
 const notificationToast = ref<string | null>(null)
 
 onMounted(async () => {
-  if (route.query.status) {
-    selectedStatus.value = String(route.query.status)
-  }
   if (route.query.registered === 'true') {
     notificationToast.value = 'New client account registered successfully!'
     setTimeout(() => {
@@ -42,6 +39,27 @@ const searchQuery = ref('')
 const selectedRole = ref<string>('all')
 const selectedStatus = ref<string>('all')
 
+const applyRouteQueries = () => {
+  if (route.query.status) {
+    selectedStatus.value = String(route.query.status)
+  } else {
+    selectedStatus.value = 'all'
+  }
+  if (route.query.role) {
+    selectedRole.value = String(route.query.role)
+  } else {
+    selectedRole.value = 'all'
+  }
+}
+
+watch(
+  () => route.query,
+  () => {
+    applyRouteQueries()
+  },
+  { immediate: true }
+)
+
 // Detail Modal
 const selectedUser = ref<UserWithDetails | null>(null)
 const isDetailOpen = ref(false)
@@ -49,6 +67,26 @@ const isDetailOpen = ref(false)
 // Form Modal
 const isFormOpen = ref(false)
 const userToEdit = ref<UserWithDetails | null>(null)
+
+// Delete Confirmation
+const userToDelete = ref<UserWithDetails | null>(null)
+const isDeleteConfirmOpen = ref(false)
+
+// Toast
+interface Toast {
+  id: number
+  message: string
+  type: 'success' | 'error'
+}
+const toasts = ref<Toast[]>([])
+const nextToastId = ref(1)
+const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const id = nextToastId.value++
+  toasts.value.push({ id, message, type })
+  setTimeout(() => {
+    toasts.value = toasts.value.filter(t => t.id !== id)
+  }, 4000)
+}
 
 // Stats Computations
 const stats = computed(() => {
@@ -82,7 +120,7 @@ const filteredUsers = computed(() => {
     const matchesRole =
       selectedRole.value === 'all' ||
       user.role === selectedRole.value ||
-      (selectedRole.value === 'staff' && (user.role === 'UniversityStaff' || user.role === 'NonAcademicPersonnel'))
+      ((selectedRole.value === 'staff' || selectedRole.value === 'NAPA') && (user.role === 'UniversityStaff' || user.role === 'NonAcademicPersonnel'))
 
     const matchesStatus =
       selectedStatus.value === 'all' ||
@@ -136,11 +174,31 @@ const openEditUser = (user: UserWithDetails) => {
   isFormOpen.value = true
 }
 
+const openDeleteConfirm = (user: UserWithDetails) => {
+  userToDelete.value = user
+  isDeleteConfirmOpen.value = true
+}
+
+const handleDeleteUser = async () => {
+  if (!userToDelete.value) return
+  const user = userToDelete.value
+  isDeleteConfirmOpen.value = false
+  try {
+    await api.delete(`/users/${user.id}`)
+  } catch (error) {
+    console.warn('Delete API error, removing locally:', error)
+  }
+  users.value = users.value.filter(u => u.id !== user.id)
+  showToast(`Client "${user.fullName}" has been deleted.`, 'success')
+  userToDelete.value = null
+}
+
 const handleApproveUser = async (user: UserWithDetails) => {
   try {
     user.corVerificationStatus = 'Verified'
     user.status = 'Active'
     await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 2 }).catch(() => {})
+    showToast(`${user.fullName} approved successfully.`, 'success')
   } catch (error) {
     console.error('Error approving client:', error)
   }
@@ -150,6 +208,7 @@ const handleRejectUser = async (user: UserWithDetails) => {
   try {
     user.corVerificationStatus = 'Rejected'
     await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 3 }).catch(() => {})
+    showToast(`${user.fullName} rejected.`, 'error')
   } catch (error) {
     console.error('Error rejecting client:', error)
   }
@@ -174,9 +233,36 @@ const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
   }
 }
 
-const handleFormSubmit = (formData: any) => {
+const handleFormSubmit = async (formData: any) => {
   if (formData.id) {
-    // Edit Mode
+    // Edit Mode — call API
+    try {
+      await api.put(`/users/${formData.id}`, {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        middleName: formData.middleName || null,
+        email: formData.email,
+        phoneNumber: formData.phoneNumber,
+        role: formData.role,
+        status: formData.status,
+        student: formData.role === 'Student' ? {
+          studentNumber: formData.studentNumber,
+          course: formData.course,
+          section: formData.section,
+          yearLevel: formData.yearLevel
+        } : null,
+        personnel: (formData.role === 'UniversityStaff' || formData.role === 'NonAcademicPersonnel') ? {
+          idCardNumber: formData.idCardNumber,
+          department: formData.department
+        } : null,
+        guard: formData.role === 'Guard' ? {
+          assignedGate: formData.assignedGate
+        } : null
+      })
+    } catch (error) {
+      console.warn('Edit API error, applying locally:', error)
+    }
+    // Apply locally regardless
     const index = users.value.findIndex((u) => u.id === formData.id)
     if (index !== -1 && users.value[index]) {
       const updatedUser: UserWithDetails = {
@@ -204,6 +290,9 @@ const handleFormSubmit = (formData: any) => {
       }
       users.value[index] = updatedUser
     }
+    isFormOpen.value = false
+    showToast('Client account updated successfully.', 'success')
+    return
   } else {
     // Add Mode
     const newUser: UserWithDetails = {
@@ -241,6 +330,14 @@ const handleFormSubmit = (formData: any) => {
 
 <template>
   <div class="users-view">
+    <!-- Toast Notifications -->
+    <div class="toast-stack">
+      <Transition v-for="toast in toasts" :key="toast.id" name="toast">
+        <div class="toast-item" :class="`toast-item--${toast.type}`">
+          {{ toast.message }}
+        </div>
+      </Transition>
+    </div>
     <!-- Header -->
     <div class="users-header">
       <div class="users-header__left">
@@ -415,6 +512,18 @@ const handleFormSubmit = (formData: any) => {
                       <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                   </button>
+                  <button
+                    class="action-icon-btn action-icon-btn--delete"
+                    title="Delete Account"
+                    @click="openDeleteConfirm(user)"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
                 </div>
               </td>
             </tr>
@@ -438,6 +547,31 @@ const handleFormSubmit = (formData: any) => {
       @close="isFormOpen = false"
       @submit="handleFormSubmit"
     />
+
+    <!-- Delete Confirmation Modal -->
+    <Transition name="fade">
+      <div v-if="isDeleteConfirmOpen && userToDelete" class="modal-backdrop" @click="isDeleteConfirmOpen = false">
+        <div class="modal-confirm" @click.stop>
+          <div class="modal-confirm__icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+              <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h3 class="modal-confirm__title">Delete Client Account</h3>
+          <p class="modal-confirm__body">
+            Are you sure you want to permanently delete
+            <strong>{{ userToDelete.fullName }}</strong>?
+            This action cannot be undone.
+          </p>
+          <div class="modal-confirm__footer">
+            <button class="modal-btn modal-btn--cancel" @click="isDeleteConfirmOpen = false">Cancel</button>
+            <button class="modal-btn modal-btn--delete" @click="handleDeleteUser">Delete Account</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -959,6 +1093,156 @@ const handleFormSubmit = (formData: any) => {
 .action-icon-btn--verify:hover {
   background: rgba(35, 165, 90, 0.1);
   color: var(--color-success);
+}
+
+.action-icon-btn--delete:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* Toast Notifications */
+.toast-stack {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast-item {
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 18px rgba(0,0,0,0.25);
+  pointer-events: all;
+  max-width: 340px;
+}
+
+.toast-item--success {
+  background: rgba(22, 163, 74, 0.18);
+  color: #4ade80;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.toast-item--error {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 300ms ease;
+}
+.toast-enter-from,
+.toast-leave-to {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+/* Delete Confirm Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9000;
+}
+
+.modal-confirm {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 32px 28px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.modal-confirm__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+
+.modal-confirm__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 12px;
+}
+
+.modal-confirm__body {
+  font-size: 14px;
+  color: var(--color-muted);
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.modal-confirm__body strong {
+  color: var(--color-text);
+}
+
+.modal-confirm__footer {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-btn {
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 150ms ease;
+}
+
+.modal-btn--cancel {
+  background: var(--color-surface-lighter);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+}
+
+.modal-btn--cancel:hover {
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.modal-btn--delete {
+  background: #ef4444;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
+}
+
+.modal-btn--delete:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 200ms ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .empty-state {

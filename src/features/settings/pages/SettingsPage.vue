@@ -158,12 +158,14 @@ onMounted(() => {
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Academic School Year</label>
-              <input
-                v-model="settings.academicYear"
-                type="text"
-                placeholder="2026-2027"
-                class="form-input"
-              />
+              <select v-model="settings.academicYear" class="form-select">
+                <option value="2024-2025">2024-2025</option>
+                <option value="2025-2026">2025-2026</option>
+                <option value="2026-2027">2026-2027</option>
+                <option value="2027-2028">2027-2028</option>
+                <option value="2028-2029">2028-2029</option>
+                <option value="2029-2030">2029-2030</option>
+              </select>
             </div>
 
             <div class="form-group">
@@ -171,6 +173,7 @@ onMounted(() => {
               <select v-model="settings.currentSemester" class="form-select">
                 <option value="1st Semester">1st Semester</option>
                 <option value="2nd Semester">2nd Semester</option>
+                <option value="3rd Semester">3rd Semester</option>
                 <option value="Summer Term">Summer Term</option>
               </select>
             </div>
@@ -410,7 +413,7 @@ onMounted(() => {
   padding-left: 28px;
 }
 
-.form-input, .form-select {
+.form-input {
   width: 100%;
   height: 40px;
   padding: 0 12px;
@@ -422,8 +425,39 @@ onMounted(() => {
   outline: none;
 }
 
-.form-input:focus, .form-select:focus {
+.form-input:focus {
   border-color: #f59e0b;
+}
+
+.semester-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.preset-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.preset-chip:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text);
+}
+
+.preset-chip--active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #f59e0b;
+  font-weight: 600;
 }
 
 .form-actions {

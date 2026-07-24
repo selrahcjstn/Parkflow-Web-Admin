@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import type { Vehicle, VehicleType } from '../types'
 import VehicleDetailModal from '../components/VehicleDetailModal.vue'
 import VehicleFormModal from '../components/VehicleFormModal.vue'
+import api from '@/api/axios'
 
 // Toast type
 interface Toast {
@@ -22,7 +23,9 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
   }, 4000)
 }
 
-// Pre-seeded vehicles matching layout and users
+const isLoading = ref(false)
+
+// Vehicles list
 const vehicles = ref<Vehicle[]>([
   {
     id: 'veh-1',
@@ -45,52 +48,39 @@ const vehicles = ref<Vehicle[]>([
     isPrimary: true,
     ownerName: 'Maria Santos',
     ownerRole: 'Student'
-  },
-  {
-    id: 'veh-3',
-    plateNumber: 'MNO 3456',
-    brand: 'Mazda 3',
-    qrCodeHash: 'QR-B9C2A4',
-    vehicleType: 'Car',
-    status: 'Active',
-    isPrimary: true,
-    ownerName: 'Prof. Alberto Reyes',
-    ownerRole: 'UniversityStaff'
-  },
-  {
-    id: 'veh-4',
-    plateNumber: 'JKL 7890',
-    brand: 'Yamaha Mio',
-    qrCodeHash: 'QR-E2A4F8',
-    vehicleType: 'Motorcycle',
-    status: 'Suspended',
-    isPrimary: true,
-    ownerName: 'Elena Cruz',
-    ownerRole: 'NonAcademicPersonnel'
-  },
-  {
-    id: 'veh-5',
-    plateNumber: 'TUV 8901',
-    brand: 'Hyundai Tucson',
-    qrCodeHash: 'QR-D3D9E9',
-    vehicleType: 'Car',
-    status: 'Active',
-    isPrimary: false,
-    ownerName: 'Isabella Garcia',
-    ownerRole: 'Student'
-  },
-  {
-    id: 'veh-6',
-    plateNumber: 'WXY 2345',
-    brand: 'Vespa Sprint',
-    qrCodeHash: 'QR-F2A1C3',
-    vehicleType: 'Motorcycle',
-    status: 'Active',
-    isPrimary: true,
-    ownerName: 'Miguel Torres',
-    ownerRole: 'Student'
   }
 ])
+
+const fetchVehicles = async () => {
+  isLoading.value = true
+  try {
+    const response = await api.get('/vehicles')
+    if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
+      const items = response.data.data
+      if (items.length > 0) {
+        vehicles.value = items.map((v: any) => ({
+          id: v.id,
+          plateNumber: v.plateNumber,
+          brand: v.brand,
+          qrCodeHash: v.qrCodeHash || `QR-${v.id?.slice(0, 6)?.toUpperCase() || 'UNKNOWN'}`,
+          vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : (v.vehicleType || 'Car'),
+          status: v.status || 'Active',
+          isPrimary: v.isPrimary,
+          ownerName: v.ownerName || 'Unassigned',
+          ownerRole: v.ownerRole || 'Student'
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching vehicles:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchVehicles()
+})
 
 // Search & Filters State
 const searchQuery = ref('')

@@ -8,17 +8,41 @@ const appStore = useAppStore()
 
 const collapsed = computed(() => appStore.sidebarCollapsed)
 
-const isClientOpen = ref(true)
-
-const isClientActive = computed(() => {
-  return route.path === '/users' || route.path === '/registrations' || route.path === '/users/create'
+const openDropdowns = ref<Record<string, boolean>>({
+  client: true,
+  register: true
 })
 
+const toggleDropdown = (key: string) => {
+  openDropdowns.value[key] = !openDropdowns.value[key]
+}
+
+const isSubActive = (path: string) => {
+  if (path.includes('?')) {
+    const [basePath, queryStr] = path.split('?')
+    if (route.path !== basePath) return false
+    const params = new URLSearchParams(queryStr)
+    for (const [key, val] of params.entries()) {
+      if (route.query[key] !== val) return false
+    }
+    return true
+  }
+  return route.path === path
+}
+
+const isGroupActive = (item: NavItem) => {
+  if (!item.children) return route.path === item.path
+  return item.children.some((child) => isSubActive(child.path))
+}
+
 watch(
-  () => route.path,
-  (newPath) => {
-    if (newPath === '/users' || newPath === '/registrations' || newPath === '/users/create') {
-      isClientOpen.value = true
+  () => route.fullPath,
+  (newFullPath) => {
+    if (newFullPath.startsWith('/users?role=')) {
+      openDropdowns.value['client'] = true
+    }
+    if (newFullPath.startsWith('/registrations') || newFullPath.startsWith('/users/create')) {
+      openDropdowns.value['register'] = true
     }
   },
   { immediate: true }
@@ -30,6 +54,7 @@ interface SubNavItem {
 }
 
 interface NavItem {
+  key: string
   label: string
   path?: string
   icon: string
@@ -37,21 +62,31 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+  { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
   {
+    key: 'client',
     label: 'Client',
     icon: 'users',
     children: [
-      { label: 'Register Client', path: '/users/create' },
-      { label: 'Pending', path: '/registrations' },
-      { label: 'Approved', path: '/users?status=Verified' },
+      { label: 'Student', path: '/users?role=Student' },
+      { label: 'NAPA', path: '/users?role=NAPA' }
     ]
   },
-  { label: 'Parking', path: '/parking', icon: 'parking' },
-  { label: 'Collections', path: '/violations', icon: 'violations' },
-  { label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
-  { label: 'Reports', path: '/reports', icon: 'reports' },
-  { label: 'Settings', path: '/settings', icon: 'settings' }
+  {
+    key: 'register',
+    label: 'Register',
+    icon: 'register',
+    children: [
+      { label: 'Register Client', path: '/users/create' },
+      { label: 'Register Staff / Admin', path: '/users/create-staff' },
+      { label: 'Pending Registration', path: '/registrations' }
+    ]
+  },
+  { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
+  { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
+  { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
+  { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },
+  { key: 'settings', label: 'Settings', path: '/settings', icon: 'settings' }
 ]
 </script>
 
@@ -87,7 +122,7 @@ const navItems: NavItem[] = [
       <nav class="sidebar-nav">
         <span class="nav-section-label">MENU</span>
 
-        <template v-for="item in navItems" :key="item.label">
+        <template v-for="item in navItems" :key="item.key">
           <!-- Standard Single Link -->
           <router-link
             v-if="!item.children"
@@ -109,7 +144,7 @@ const navItems: NavItem[] = [
               <path d="M10 16V8h3a3 3 0 0 1 0 6h-3" />
             </svg>
 
-            <!-- Violations icon -->
+            <!-- Collections icon -->
             <svg v-else-if="item.icon === 'violations'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
               <line x1="12" y1="9" x2="12" y2="13" />
@@ -142,26 +177,34 @@ const navItems: NavItem[] = [
             <span class="nav-tooltip">{{ item.label }}</span>
           </router-link>
 
-          <!-- Dropdown Group (Client -> Pending & Approved) -->
-          <div v-else class="nav-dropdown-group" :class="{ 'is-active': isClientActive }">
+          <!-- Dropdown Group (Client, Register) -->
+          <div v-else class="nav-dropdown-group" :class="{ 'is-active': isGroupActive(item) }">
             <button
               class="nav-item nav-item--dropdown"
-              :class="{ 'router-link-active': isClientActive }"
-              @click="isClientOpen = !isClientOpen"
+              :class="{ 'router-link-active': isGroupActive(item) }"
+              @click="toggleDropdown(item.key)"
             >
               <!-- Users / Client Icon -->
-              <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-if="item.icon === 'users'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="9" cy="7" r="4" />
                 <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
                 <circle cx="17" cy="8" r="3" />
                 <path d="M21 21v-1.5a3 3 0 0 0-2.5-2.96" />
               </svg>
 
+              <!-- Register Icon -->
+              <svg v-else-if="item.icon === 'register'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <line x1="19" y1="8" x2="19" y2="14" />
+                <line x1="16" y1="11" x2="22" y2="11" />
+              </svg>
+
               <span class="nav-label">{{ item.label }}</span>
 
               <svg
                 class="dropdown-chevron"
-                :class="{ rotated: isClientOpen }"
+                :class="{ rotated: openDropdowns[item.key] }"
                 width="16"
                 height="16"
                 viewBox="0 0 24 24"
@@ -176,16 +219,22 @@ const navItems: NavItem[] = [
             </button>
 
             <!-- Sub Nav List -->
-            <div v-show="isClientOpen && !collapsed" class="sub-nav-list">
+            <div v-show="openDropdowns[item.key] && !collapsed" class="sub-nav-list">
               <router-link
                 v-for="sub in item.children"
                 :key="sub.path"
                 :to="sub.path"
-                class="sub-nav-item"
-                @click="appStore.closeMobileSidebar"
+                custom
+                v-slot="{ navigate }"
               >
-                <span class="sub-nav-dot"></span>
-                <span class="sub-nav-label">{{ sub.label }}</span>
+                <a
+                  class="sub-nav-item"
+                  :class="{ 'is-sub-active': isSubActive(sub.path) }"
+                  @click="(e) => { navigate(e); appStore.closeMobileSidebar(); }"
+                >
+                  <span class="sub-nav-dot"></span>
+                  <span class="sub-nav-label">{{ sub.label }}</span>
+                </a>
               </router-link>
             </div>
           </div>
@@ -448,6 +497,7 @@ const navItems: NavItem[] = [
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
+  cursor: pointer;
   transition: all 150ms ease;
 }
 
@@ -456,7 +506,7 @@ const navItems: NavItem[] = [
   color: #f2f3f5;
 }
 
-.sub-nav-item.router-link-active {
+.sub-nav-item.is-sub-active {
   color: #f87171;
   font-weight: 600;
   background: rgba(248, 113, 113, 0.08);
@@ -470,7 +520,7 @@ const navItems: NavItem[] = [
   transition: background 150ms ease;
 }
 
-.sub-nav-item.router-link-active .sub-nav-dot {
+.sub-nav-item.is-sub-active .sub-nav-dot {
   background: #f87171;
 }
 
