@@ -7,6 +7,8 @@ const router = useRouter()
 
 type AccountType = 'Guard' | 'Admin'
 
+const isSuperAdmin = ref(true)
+
 const form = ref({
   accountType: 'Guard' as AccountType,
   firstName: '',
@@ -20,6 +22,14 @@ const form = ref({
   // Admin specific
   roleLevel: 2 // 1 = SuperAdmin, 2 = Admin
 })
+
+function toggleAdminRole(role: AccountType) {
+  if (role === 'Admin' && !isSuperAdmin.value) {
+    showNotification('Admin account creation is restricted to SuperAdmin users.', 'error')
+    return
+  }
+  form.value.accountType = role
+}
 
 const isSendingOtp = ref(false)
 const isVerifyingOtp = ref(false)
@@ -168,26 +178,36 @@ const handleVerifyOtpAndCreate = async () => {
       </div>
     </Transition>
 
-    <!-- Header -->
+    <!-- Header with Privilege Switcher -->
     <div class="page-header">
       <div>
-        <div class="superadmin-badge">
+        <div class="superadmin-badge" :class="{ 'superadmin-badge--standard': !isSuperAdmin }">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
-          SuperAdmin Security Panel Authorized
+          {{ isSuperAdmin ? 'SuperAdmin Privileges Active' : 'Standard Admin Mode (Restricted)' }}
         </div>
-        <h1 class="page-title">Register Guard & Administrator</h1>
-        <p class="page-subtitle">SuperAdmin protected endpoint with 2-Factor OTP verification</p>
+        <h1 class="page-title">Register {{ isSuperAdmin ? 'Guard & Administrator' : 'Campus Guard' }}</h1>
+        <p class="page-subtitle">
+          {{ isSuperAdmin ? 'SuperAdmin authorized endpoint with 2-Factor OTP security code verification' : 'Register official campus security guards for gate access' }}
+        </p>
+      </div>
+
+      <!-- Permission Simulator Switcher -->
+      <div class="privilege-toggle" @click="isSuperAdmin = !isSuperAdmin; if (!isSuperAdmin) form.accountType = 'Guard'">
+        <span class="toggle-label">{{ isSuperAdmin ? 'SuperAdmin Mode' : 'Standard Admin Mode' }}</span>
+        <div class="toggle-switch" :class="{ 'toggle-switch--active': isSuperAdmin }">
+          <div class="toggle-knob"></div>
+        </div>
       </div>
     </div>
 
     <!-- Role Selection Tabs -->
-    <div class="role-selector-card">
+    <div class="role-selector-card" :class="{ 'role-selector-card--single': !isSuperAdmin }">
       <div
         class="role-option"
         :class="{ 'role-option--active': form.accountType === 'Guard' }"
-        @click="form.accountType = 'Guard'"
+        @click="toggleAdminRole('Guard')"
       >
         <div class="role-icon role-icon--blue">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -200,10 +220,12 @@ const handleVerifyOtpAndCreate = async () => {
         </div>
       </div>
 
+      <!-- System Administrator Card: Visible ONLY to SuperAdmin -->
       <div
+        v-if="isSuperAdmin"
         class="role-option"
         :class="{ 'role-option--active': form.accountType === 'Admin' }"
-        @click="form.accountType = 'Admin'"
+        @click="toggleAdminRole('Admin')"
       >
         <div class="role-icon role-icon--purple">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -369,54 +391,69 @@ const handleVerifyOtpAndCreate = async () => {
   align-items: flex-start;
 }
 
-.superadmin-badge {
-  display: inline-flex;
+.superadmin-badge--standard {
+  background: rgba(148, 163, 184, 0.15);
+  border-color: rgba(148, 163, 184, 0.4);
+  color: #94a3b8;
+}
+
+.privilege-toggle {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #f59e0b;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  margin-bottom: 8px;
+  gap: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 180ms ease;
 }
 
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
+.privilege-toggle:hover {
+  border-color: rgba(245, 158, 11, 0.5);
 }
 
-.page-subtitle {
-  font-size: 14px;
-  color: var(--color-muted);
-  margin: 4px 0 0;
-}
-
-/* Toast */
-.toast-banner {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  padding: 12px 20px;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 14px;
+.toggle-label {
+  font-size: 12px;
   font-weight: 600;
-  z-index: 1100;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  color: var(--color-text);
 }
-.toast-banner--success { background: #10b981; }
-.toast-banner--error { background: #ef4444; }
+
+.toggle-switch {
+  width: 36px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 2px;
+  transition: background-color 200ms ease;
+}
+
+.toggle-switch--active {
+  background: #f59e0b;
+}
+
+.toggle-knob {
+  width: 16px;
+  height: 16px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 200ms ease;
+}
+
+.toggle-switch--active .toggle-knob {
+  transform: translateX(16px);
+}
 
 /* Role Selector Tabs */
 .role-selector-card {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.role-selector-card--single {
+  grid-template-columns: 1fr;
 }
 
 .role-option {
