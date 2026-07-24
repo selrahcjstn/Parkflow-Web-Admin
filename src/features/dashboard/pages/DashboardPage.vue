@@ -3,7 +3,6 @@ import { computed, ref, onMounted } from 'vue'
 import StatsCard from '../components/StatsCard.vue'
 import ParkingChart from '../components/ParkingChart.vue'
 import RecentActivity from '../components/RecentActivity.vue'
-import PendingRegistrations from '../components/PendingRegistrations.vue'
 import api from '@/api/axios'
 
 const formattedDate = computed(() =>
@@ -110,7 +109,6 @@ onMounted(async () => {
     <!-- Bottom Grid -->
     <div class="dashboard__bottom-grid">
       <RecentActivity />
-      <PendingRegistrations />
     </div>
   </div>
 </template>
@@ -168,7 +166,7 @@ onMounted(async () => {
 /* Bottom Grid */
 .dashboard__bottom-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: 1fr;
   gap: 20px;
   margin-top: 20px;
 }

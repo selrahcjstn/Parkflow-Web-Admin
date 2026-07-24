@@ -16,6 +16,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+  { label: 'Registrations', path: '/registrations', icon: 'registrations' },
   { label: 'Users', path: '/users', icon: 'users' },
   { label: 'Parking', path: '/parking', icon: 'parking' },
   { label: 'Violations', path: '/violations', icon: 'violations' },
@@ -69,6 +70,13 @@ const navItems: NavItem[] = [
             <rect x="14" y="3" width="7" height="7" rx="2" />
             <rect x="3" y="14" width="7" height="7" rx="2" />
             <rect x="14" y="14" width="7" height="7" rx="2" />
+          </svg>
+
+          <!-- Registrations icon -->
+          <svg v-else-if="item.icon === 'registrations'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="8.5" cy="7" r="4" />
+            <polyline points="17 11 19 13 23 9" />
           </svg>
 
           <!-- Users icon -->

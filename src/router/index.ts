@@ -6,6 +6,7 @@ import parkingRoutes from '@/features/parking/routes'
 import violationsRoutes from '@/features/violations/routes'
 import vehiclesRoutes from '@/features/vehicles/routes'
 import reportsRoutes from '@/features/reports/routes'
+import registrationsRoutes from '@/features/registrations/routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -17,6 +18,7 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/dashboard' },
         ...dashboardRoutes,
+        ...registrationsRoutes,
         ...usersRoutes,
         ...parkingRoutes,
         ...violationsRoutes,
