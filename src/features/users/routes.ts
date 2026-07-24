@@ -1,3 +1,3 @@
 export default [
-  { path: '/users', name: 'Users', component: () => import('./pages/UsersPage.vue'), meta: { title: 'Users' } }
+  { path: '/users', name: 'Users', component: () => import('./pages/UsersPage.vue'), meta: { title: 'Clients' } }
 ]

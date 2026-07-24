@@ -123,6 +123,25 @@ const openEditUser = (user: UserWithDetails) => {
   isFormOpen.value = true
 }
 
+const handleApproveUser = async (user: UserWithDetails) => {
+  try {
+    user.corVerificationStatus = 'Verified'
+    user.status = 'Active'
+    await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 2 }).catch(() => {})
+  } catch (error) {
+    console.error('Error approving client:', error)
+  }
+}
+
+const handleRejectUser = async (user: UserWithDetails) => {
+  try {
+    user.corVerificationStatus = 'Rejected'
+    await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 3 }).catch(() => {})
+  } catch (error) {
+    console.error('Error rejecting client:', error)
+  }
+}
+
 const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
   try {
     const response = await api.put(`/users/${userId}/status`, { status: newStatus })
@@ -212,15 +231,15 @@ const handleFormSubmit = (formData: any) => {
     <!-- Header -->
     <div class="users-header">
       <div class="users-header__left">
-        <h1 class="users-title">User Directory</h1>
-        <p class="users-subtitle">Manage registered accounts, classifications, and system privileges.</p>
+        <h1 class="users-title">Client Directory</h1>
+        <p class="users-subtitle">Manage registered client accounts, pending COR registrations, and system privileges.</p>
       </div>
       <button class="add-user-btn" @click="openAddUser">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
           <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        Register Account
+        Register Client Account
       </button>
     </div>
 
@@ -257,6 +276,41 @@ const handleFormSubmit = (formData: any) => {
       </div>
     </div>
 
+    <!-- Quick Status Tabs -->
+    <div class="status-quick-tabs">
+      <button
+        class="status-tab"
+        :class="{ active: selectedStatus === 'all' }"
+        @click="selectedStatus = 'all'"
+      >
+        All Clients
+      </button>
+      <button
+        class="status-tab status-tab--pending"
+        :class="{ active: selectedStatus === 'Pending' }"
+        @click="selectedStatus = 'Pending'"
+      >
+        Pending
+        <span class="tab-badge tab-badge--pending" v-if="users.filter(u => displayStatus(u) === 'Pending').length > 0">
+          {{ users.filter(u => displayStatus(u) === 'Pending').length }}
+        </span>
+      </button>
+      <button
+        class="status-tab status-tab--approved"
+        :class="{ active: selectedStatus === 'Verified' }"
+        @click="selectedStatus = 'Verified'"
+      >
+        Approved / Verified
+      </button>
+      <button
+        class="status-tab status-tab--rejected"
+        :class="{ active: selectedStatus === 'Rejected' }"
+        @click="selectedStatus = 'Rejected'"
+      >
+        Rejected
+      </button>
+    </div>
+
     <!-- Filters Bar -->
     <div class="filters-bar">
       <!-- Search Input -->
@@ -265,7 +319,7 @@ const handleFormSubmit = (formData: any) => {
           <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <input v-model="searchQuery" type="text" placeholder="Search by name, email, student number..." class="search-input" />
+        <input v-model="searchQuery" type="text" placeholder="Search by client name, email, student number..." class="search-input" />
       </div>
 
       <!-- Filter Dropdowns -->
@@ -283,8 +337,8 @@ const handleFormSubmit = (formData: any) => {
         <div class="select-wrapper">
           <select v-model="selectedStatus" class="filter-select">
             <option value="all">All Statuses</option>
-            <option value="Verified">Verified</option>
-            <option value="Pending">Pending</option>
+            <option value="Pending">Pending Verification</option>
+            <option value="Verified">Approved / Verified</option>
             <option value="NotSubmitted">Not Submitted</option>
             <option value="Rejected">Rejected</option>
             <option value="Suspended">Suspended</option>
@@ -299,17 +353,17 @@ const handleFormSubmit = (formData: any) => {
         <table class="users-table">
           <thead>
             <tr>
-              <th>User</th>
+              <th>Client</th>
               <th>Identification</th>
               <th>Classification</th>
               <th>Vehicles</th>
-              <th>Status</th>
+              <th>Registration Status</th>
               <th class="actions-header">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredUsers.length === 0">
-              <td colspan="6" class="empty-state">No users match your criteria.</td>
+              <td colspan="6" class="empty-state">No client records match your criteria.</td>
             </tr>
             <tr v-else v-for="user in filteredUsers" :key="user.id" class="user-row" @click="openDetails(user)">
               <td>
@@ -347,6 +401,16 @@ const handleFormSubmit = (formData: any) => {
               </td>
               <td class="actions-cell" @click.stop>
                 <div class="actions-group">
+                  <!-- Pending Quick Approve / Reject -->
+                  <div v-if="displayStatus(user) === 'Pending'" class="table-pending-actions">
+                    <button class="table-btn table-btn--approve" title="Approve Registration" @click="handleApproveUser(user)">
+                      Approve
+                    </button>
+                    <button class="table-btn table-btn--reject" title="Reject Registration" @click="handleRejectUser(user)">
+                      Reject
+                    </button>
+                  </div>
+
                   <button class="action-icon-btn" title="Edit Account" @click="openEditUser(user)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round" />
@@ -427,6 +491,106 @@ const handleFormSubmit = (formData: any) => {
   font-size: 14px;
   color: var(--color-muted);
   margin: 4px 0 0 0;
+}
+
+/* Status Quick Tabs */
+.status-quick-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.status-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.status-tab:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text);
+}
+
+.status-tab.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.status-tab--pending.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
+}
+
+.status-tab--approved.active {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.status-tab--rejected.active {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.tab-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  line-height: 1;
+}
+
+.tab-badge--pending {
+  background: #f59e0b;
+  color: #000;
+}
+
+/* Table Actions */
+.table-pending-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.table-btn--approve {
+  background: #10b981;
+  color: #fff;
+}
+.table-btn--approve:hover {
+  opacity: 0.9;
+}
+
+.table-btn--reject {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+.table-btn--reject:hover {
+  background: rgba(239, 68, 68, 0.25);
 }
 
 .add-user-btn {

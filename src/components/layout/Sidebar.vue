@@ -17,7 +17,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
   { label: 'Registrations', path: '/registrations', icon: 'registrations' },
-  { label: 'Users', path: '/users', icon: 'users' },
+  { label: 'Clients', path: '/users', icon: 'users' },
   { label: 'Parking', path: '/parking', icon: 'parking' },
   { label: 'Violations', path: '/violations', icon: 'violations' },
   { label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
