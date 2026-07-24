@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
 import api from '@/api/axios'
 
+const route = useRoute()
 const users = ref<UserWithDetails[]>([])
 
 const fetchUsers = async () => {
@@ -21,6 +23,9 @@ const fetchUsers = async () => {
 }
 
 onMounted(async () => {
+  if (route.query.status) {
+    selectedStatus.value = String(route.query.status)
+  }
   await fetchUsers()
 })
 
