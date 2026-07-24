@@ -11,13 +11,13 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
 const isClientOpen = ref(true)
 
 const isClientActive = computed(() => {
-  return route.path === '/users' || route.path === '/registrations'
+  return route.path === '/users' || route.path === '/registrations' || route.path === '/users/create'
 })
 
 watch(
   () => route.path,
   (newPath) => {
-    if (newPath === '/users' || newPath === '/registrations') {
+    if (newPath === '/users' || newPath === '/registrations' || newPath === '/users/create') {
       isClientOpen.value = true
     }
   },
@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
     label: 'Client',
     icon: 'users',
     children: [
+      { label: 'Register Client', path: '/users/create' },
       { label: 'Pending', path: '/registrations' },
       { label: 'Approved', path: '/users?status=Verified' },
     ]
