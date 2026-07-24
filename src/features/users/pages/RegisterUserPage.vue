@@ -81,15 +81,9 @@ const handleSubmit = async () => {
 
 <template>
   <div class="register-user-page">
-    <!-- Header with Back button -->
+    <!-- Header -->
     <div class="page-header">
       <div class="header-left">
-        <router-link to="/users" class="back-link">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back to Client Directory
-        </router-link>
         <h1 class="page-title">Register Client Account</h1>
         <p class="page-subtitle">Create a new student, faculty, staff, or guard client profile</p>
       </div>
