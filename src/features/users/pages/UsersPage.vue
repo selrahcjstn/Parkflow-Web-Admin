@@ -22,9 +22,17 @@ const fetchUsers = async () => {
   }
 }
 
+const notificationToast = ref<string | null>(null)
+
 onMounted(async () => {
   if (route.query.status) {
     selectedStatus.value = String(route.query.status)
+  }
+  if (route.query.registered === 'true') {
+    notificationToast.value = 'New client account registered successfully!'
+    setTimeout(() => {
+      notificationToast.value = null
+    }, 4000)
   }
   await fetchUsers()
 })
@@ -239,13 +247,13 @@ const handleFormSubmit = (formData: any) => {
         <h1 class="users-title">Client Directory</h1>
         <p class="users-subtitle">Manage registered client accounts, pending COR registrations, and system privileges.</p>
       </div>
-      <button class="add-user-btn" @click="openAddUser">
+      <router-link to="/users/create" class="add-user-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
           <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         Register Client Account
-      </button>
+      </router-link>
     </div>
 
     <!-- Stats Cards -->
