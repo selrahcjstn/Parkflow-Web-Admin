@@ -229,38 +229,40 @@ onMounted(() => {
     </div>
 
     <!-- Confirmation Modal for Reset -->
-    <Transition name="fade">
-      <div v-if="showResetModal" class="modal-backdrop" @click="showResetModal = false">
-        <div class="modal-card" @click.stop>
-          <div class="modal-card__header">
-            <div class="modal-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                <line x1="12" y1="9" x2="12" y2="13" />
-                <line x1="12" y1="17" x2="12.01" y2="17" />
-              </svg>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showResetModal" class="modal-backdrop" @click="showResetModal = false">
+          <div class="modal-card" @click.stop>
+            <div class="modal-card__header">
+              <div class="modal-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+              </div>
+              <h3 class="modal-card__title">Confirm Semester Reset</h3>
             </div>
-            <h3 class="modal-card__title">Confirm Semester Reset</h3>
-          </div>
 
-          <p class="modal-card__body">
-            Are you sure you want to reset all student schedules and COR verifications?
-            <br /><br />
-            This action will require <strong>all student accounts</strong> on the Mobile App to re-upload their Certificate of Registration (COR) and submit their new class schedule for <strong>{{ settings.academicYear }} ({{ settings.currentSemester }})</strong>.
-          </p>
+            <p class="modal-card__body">
+              Are you sure you want to reset all student schedules and COR verifications?
+              <br /><br />
+              This action will require <strong>all student accounts</strong> on the Mobile App to re-upload their Certificate of Registration (COR) and submit their new class schedule for <strong>{{ settings.academicYear }} ({{ settings.currentSemester }})</strong>.
+            </p>
 
-          <div class="modal-card__footer">
-            <button class="modal-btn modal-btn--cancel" @click="showResetModal = false">
-              Cancel
-            </button>
-            <button class="modal-btn modal-btn--confirm" :disabled="isResetting" @click="confirmResetStudentSchedules">
-              <span v-if="isResetting">Resetting...</span>
-              <span v-else>Yes, Reset All Schedules</span>
-            </button>
+            <div class="modal-card__footer">
+              <button class="modal-btn modal-btn--cancel" @click="showResetModal = false">
+                Cancel
+              </button>
+              <button class="modal-btn modal-btn--confirm" :disabled="isResetting" @click="confirmResetStudentSchedules">
+                <span v-if="isResetting">Resetting...</span>
+                <span v-else>Yes, Reset All Schedules</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -538,12 +540,12 @@ onMounted(() => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
 }
 
 .modal-card {

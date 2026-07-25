@@ -420,58 +420,60 @@ const getRoleLabel = (role: string) => {
     />
 
     <!-- Quick Settlement Modal -->
-    <Transition name="fade">
-      <div v-if="isPaymentOpen" class="modal-backdrop" @click="isPaymentOpen = false">
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3 class="modal-title">Settle Violation Fine</h3>
-            <button class="close-btn" @click="isPaymentOpen = false">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6L6 18M6 6l12 12" />
-              </svg>
-            </button>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="isPaymentOpen" class="modal-backdrop" @click="isPaymentOpen = false">
+          <div class="modal-content" @click.stop>
+            <div class="modal-header">
+              <h3 class="modal-title">Settle Violation Fine</h3>
+              <button class="close-btn" @click="isPaymentOpen = false">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form @submit.prevent="handlePaymentSubmit">
+              <div class="modal-body">
+                <div v-if="!activePaymentViolation" class="form-group">
+                  <label for="payReference">Reference Code</label>
+                  <input
+                    id="payReference"
+                    v-model="paymentReferenceInput"
+                    type="text"
+                    placeholder="VIO-YYYYMMDD-XXXX"
+                    class="form-input"
+                    required
+                  />
+                  <span class="help-text">Verify reference code printed on the ticket receipt.</span>
+                </div>
+                <div v-else class="payment-details-card">
+                  <div class="pay-row">
+                    <span class="pay-label">Ticket Reference</span>
+                    <span class="pay-val monospace">{{ activePaymentViolation.referenceNumber }}</span>
+                  </div>
+                  <div class="pay-row">
+                    <span class="pay-label">Violation Type</span>
+                    <span class="pay-val highlight">{{ activePaymentViolation.violationType }}</span>
+                  </div>
+                  <div class="pay-row">
+                    <span class="pay-label">Owner Name</span>
+                    <span class="pay-val">{{ activePaymentViolation.firstName }} {{ activePaymentViolation.lastName }}</span>
+                  </div>
+                  <div class="pay-row border-top">
+                    <span class="pay-label">Amount Charged</span>
+                    <span class="pay-val price-label">₱{{ activePaymentViolation.penaltyFee.toFixed(2) }}</span>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="cancel-btn" @click="isPaymentOpen = false">Cancel</button>
+                <button type="submit" class="submit-btn">Receive Settlement</button>
+              </div>
+            </form>
           </div>
-          <form @submit.prevent="handlePaymentSubmit">
-            <div class="modal-body">
-              <div v-if="!activePaymentViolation" class="form-group">
-                <label for="payReference">Reference Code</label>
-                <input
-                  id="payReference"
-                  v-model="paymentReferenceInput"
-                  type="text"
-                  placeholder="VIO-YYYYMMDD-XXXX"
-                  class="form-input"
-                  required
-                />
-                <span class="help-text">Verify reference code printed on the ticket receipt.</span>
-              </div>
-              <div v-else class="payment-details-card">
-                <div class="pay-row">
-                  <span class="pay-label">Ticket Reference</span>
-                  <span class="pay-val monospace">{{ activePaymentViolation.referenceNumber }}</span>
-                </div>
-                <div class="pay-row">
-                  <span class="pay-label">Violation Type</span>
-                  <span class="pay-val highlight">{{ activePaymentViolation.violationType }}</span>
-                </div>
-                <div class="pay-row">
-                  <span class="pay-label">Owner Name</span>
-                  <span class="pay-val">{{ activePaymentViolation.firstName }} {{ activePaymentViolation.lastName }}</span>
-                </div>
-                <div class="pay-row border-top">
-                  <span class="pay-label">Amount Charged</span>
-                  <span class="pay-val price-label">₱{{ activePaymentViolation.penaltyFee.toFixed(2) }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="cancel-btn" @click="isPaymentOpen = false">Cancel</button>
-              <button type="submit" class="submit-btn">Receive Settlement</button>
-            </div>
-          </form>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
 
     <!-- Toast Notifications -->
     <div class="toast-container">

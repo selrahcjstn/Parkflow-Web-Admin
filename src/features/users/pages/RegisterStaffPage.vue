@@ -323,58 +323,60 @@ const handleVerifyOtpAndCreate = async () => {
     </div>
 
     <!-- OTP Verification Modal -->
-    <Transition name="fade">
-      <div v-if="showOtpModal" class="modal-backdrop" @click="showOtpModal = false">
-        <div class="modal-card" @click.stop>
-          <div class="modal-header">
-            <div class="otp-badge">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-            <div>
-              <h3 class="modal-title">SuperAdmin OTP Verification</h3>
-              <p class="modal-subtitle">Security verification required to execute staff account creation</p>
-            </div>
-          </div>
-
-          <div class="modal-body">
-            <div class="otp-notice">
-              A 6-digit Security OTP has been sent to <strong>{{ otpSentEmail }}</strong>. Enter the code below to authorize creating this <strong>{{ form.accountType }}</strong> account.
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="showOtpModal" class="modal-backdrop" @click="showOtpModal = false">
+          <div class="modal-card" @click.stop>
+            <div class="modal-header">
+              <div class="otp-badge">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="modal-title">SuperAdmin OTP Verification</h3>
+                <p class="modal-subtitle">Security verification required to execute staff account creation</p>
+              </div>
             </div>
 
-            <div v-if="otpError" class="otp-error">
-              {{ otpError }}
+            <div class="modal-body">
+              <div class="otp-notice">
+                A 6-digit Security OTP has been sent to <strong>{{ otpSentEmail }}</strong>. Enter the code below to authorize creating this <strong>{{ form.accountType }}</strong> account.
+              </div>
+
+              <div v-if="otpError" class="otp-error">
+                {{ otpError }}
+              </div>
+
+              <div class="form-group">
+                <label class="form-label required">6-Digit OTP Security Code</label>
+                <input
+                  v-model="otpCode"
+                  type="text"
+                  maxlength="6"
+                  placeholder="123456"
+                  class="otp-input"
+                  autofocus
+                />
+              </div>
+
+              <div class="otp-demo-hint">
+                <span>💡 SuperAdmin Standard Security Active</span>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label required">6-Digit OTP Security Code</label>
-              <input
-                v-model="otpCode"
-                type="text"
-                maxlength="6"
-                placeholder="123456"
-                class="otp-input"
-                autofocus
-              />
+            <div class="modal-footer">
+              <button class="btn btn--secondary" @click="showOtpModal = false">Cancel</button>
+              <button class="btn btn--primary" :disabled="isVerifyingOtp || isSubmitting" @click="handleVerifyOtpAndCreate">
+                <span v-if="isVerifyingOtp || isSubmitting">Verifying & Registering...</span>
+                <span v-else>Verify OTP & Create Account</span>
+              </button>
             </div>
-
-            <div class="otp-demo-hint">
-              <span>💡 SuperAdmin Standard Security Active</span>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button class="btn btn--secondary" @click="showOtpModal = false">Cancel</button>
-            <button class="btn btn--primary" :disabled="isVerifyingOtp || isSubmitting" @click="handleVerifyOtpAndCreate">
-              <span v-if="isVerifyingOtp || isSubmitting">Verifying & Registering...</span>
-              <span v-else>Verify OTP & Create Account</span>
-            </button>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -569,12 +571,12 @@ const handleVerifyOtpAndCreate = async () => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1200;
+  z-index: 9999;
 }
 
 .modal-card {

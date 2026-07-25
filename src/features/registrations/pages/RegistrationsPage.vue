@@ -354,14 +354,16 @@ function openImage(url?: string) {
     </div>
 
     <!-- Image Modal Viewer -->
-    <Transition name="fade">
-      <div v-if="selectedImage" class="modal-backdrop" @click="selectedImage = null">
-        <div class="modal-content" @click.stop>
-          <button class="modal-close" @click="selectedImage = null">&times;</button>
-          <img :src="selectedImage" alt="Document Preview" class="modal-img" />
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="selectedImage" class="modal-backdrop" @click="selectedImage = null">
+          <div class="modal-content" @click.stop>
+            <button class="modal-close" @click="selectedImage = null">&times;</button>
+            <img :src="selectedImage" alt="Document Preview" class="modal-img" />
+          </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -809,12 +811,12 @@ function openImage(url?: string) {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
   padding: 24px;
 }
 

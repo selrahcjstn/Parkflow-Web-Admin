@@ -549,29 +549,31 @@ const handleFormSubmit = async (formData: any) => {
     />
 
     <!-- Delete Confirmation Modal -->
-    <Transition name="fade">
-      <div v-if="isDeleteConfirmOpen && userToDelete" class="modal-backdrop" @click="isDeleteConfirmOpen = false">
-        <div class="modal-confirm" @click.stop>
-          <div class="modal-confirm__icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-              <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </div>
-          <h3 class="modal-confirm__title">Delete Client Account</h3>
-          <p class="modal-confirm__body">
-            Are you sure you want to permanently delete
-            <strong>{{ userToDelete.fullName }}</strong>?
-            This action cannot be undone.
-          </p>
-          <div class="modal-confirm__footer">
-            <button class="modal-btn modal-btn--cancel" @click="isDeleteConfirmOpen = false">Cancel</button>
-            <button class="modal-btn modal-btn--delete" @click="handleDeleteUser">Delete Account</button>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="isDeleteConfirmOpen && userToDelete" class="modal-backdrop" @click="isDeleteConfirmOpen = false">
+          <div class="modal-confirm" @click.stop>
+            <div class="modal-confirm__icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <h3 class="modal-confirm__title">Delete Client Account</h3>
+            <p class="modal-confirm__body">
+              Are you sure you want to permanently delete
+              <strong>{{ userToDelete.fullName }}</strong>?
+              This action cannot be undone.
+            </p>
+            <div class="modal-confirm__footer">
+              <button class="modal-btn modal-btn--cancel" @click="isDeleteConfirmOpen = false">Cancel</button>
+              <button class="modal-btn modal-btn--delete" @click="handleDeleteUser">Delete Account</button>
+            </div>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -1149,12 +1151,12 @@ const handleFormSubmit = async (formData: any) => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9000;
+  z-index: 9999;
 }
 
 .modal-confirm {

@@ -35,9 +35,10 @@ const getRoleLabel = (role: string) => {
 </script>
 
 <template>
-  <Transition name="fade">
-    <div v-if="isOpen && violation" class="modal-backdrop" @click="emit('close')">
-      <div class="modal-content" @click.stop>
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="isOpen && violation" class="modal-backdrop" @click="emit('close')">
+        <div class="modal-content" @click.stop>
         <div class="modal-header">
           <h3 class="modal-title">Collection details</h3>
           <button class="close-btn" @click="emit('close')">
@@ -138,15 +139,16 @@ const getRoleLabel = (role: string) => {
       </div>
     </div>
   </Transition>
+</Teleport>
 </template>
 
 <style scoped>
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  z-index: 100;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
