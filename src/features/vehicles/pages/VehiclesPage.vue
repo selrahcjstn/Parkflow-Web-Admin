@@ -82,6 +82,22 @@ onMounted(() => {
   fetchVehicles()
 })
 
+// Clean & Format helpers
+function cleanOwnerName(name?: string) {
+  if (!name || !name.trim()) return 'Unassigned'
+  const parts = name.split(/\s+/).filter(Boolean)
+  const uniqueParts = parts.filter((item, index) => parts.indexOf(item) === index)
+  return uniqueParts.join(' ')
+}
+
+function formatQrHash(hash?: string) {
+  if (!hash) return 'N/A'
+  if (hash.length > 18) {
+    return hash.slice(0, 10) + '...' + hash.slice(-6)
+  }
+  return hash
+}
+
 // Search & Filters State
 const searchQuery = ref('')
 const filterType = ref<string>('all')
@@ -364,14 +380,13 @@ const getRoleLabel = (role: string) => {
               <th>Owner Name</th>
               <th>Role</th>
               <th>Primary Pass</th>
-              <th>RFID / QR Hash</th>
               <th>Status</th>
               <th class="actions-header">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredVehicles.length === 0">
-              <td colspan="7" class="empty-state">No registered vehicles match your criteria.</td>
+              <td colspan="6" class="empty-state">No registered vehicles match your criteria.</td>
             </tr>
             <tr
               v-else
@@ -404,7 +419,7 @@ const getRoleLabel = (role: string) => {
                 </div>
               </td>
               <td>
-                <span class="owner-name">{{ vehicle.ownerName }}</span>
+                <span class="owner-name" :title="vehicle.ownerName">{{ cleanOwnerName(vehicle.ownerName) }}</span>
               </td>
               <td>
                 <span class="role-badge" :class="'role-badge--' + vehicle.ownerRole.toLowerCase()">
@@ -420,9 +435,6 @@ const getRoleLabel = (role: string) => {
                 >
                   {{ vehicle.isPrimary ? 'Primary' : 'Secondary' }}
                 </span>
-              </td>
-              <td>
-                <span class="qr-hash monospace">{{ vehicle.qrCodeHash || 'N/A' }}</span>
               </td>
               <td>
                 <span
@@ -820,11 +832,18 @@ const getRoleLabel = (role: string) => {
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
+  white-space: nowrap;
 }
 
 .qr-hash {
-  font-size: 13px;
+  display: inline-block;
+  max-width: 150px;
+  font-size: 12px;
   color: #818cf8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 }
 
 /* Badges */
