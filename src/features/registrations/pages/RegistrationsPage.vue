@@ -78,6 +78,16 @@ const filteredRegistrations = computed(() => {
   })
 })
 
+function formatDocUrl(url?: string, fallback: string = ''): string {
+  if (!url || !url.trim()) return fallback
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url
+  }
+  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+  const rootDomain = baseURL.replace(/\/api\/?$/, '')
+  return `${rootDomain}/${url.replace(/^\//, '')}`
+}
+
 async function fetchSubmissions() {
   isLoading.value = true
   try {
@@ -91,6 +101,10 @@ async function fetchSubmissions() {
         if (sub.verificationStatus === 2) mappedStatus = 'approved'
         if (sub.verificationStatus === 3) mappedStatus = 'rejected'
 
+        const cor = sub.corDocumentUrl || sub.corDocumentPath || sub.corUrl
+        const orcr = sub.orcrDocumentUrl || sub.orcrDocumentPath || sub.orcrUrl
+        const motor = sub.motorPictureUrl || sub.motorPicturePath || sub.motorPicUrl
+
         registrations.push({
           id: i + 1,
           guid: sub.id,
@@ -101,9 +115,9 @@ async function fetchSubmissions() {
           vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'ABC 1234',
           vehicleType: sub.vehicleType || 'Motorcycle',
           brand: sub.brand || 'Honda Click 125i',
-          corUrl: sub.corDocumentPath || sub.corUrl || defaultCorImage,
-          orcrUrl: sub.orcrDocumentPath || sub.orcrUrl || defaultOrcrImage,
-          motorPicUrl: sub.motorPicturePath || sub.motorPicUrl || defaultMotorImage,
+          corUrl: formatDocUrl(cor, defaultCorImage),
+          orcrUrl: formatDocUrl(orcr, defaultOrcrImage),
+          motorPicUrl: formatDocUrl(motor, defaultMotorImage),
           status: mappedStatus
         })
       })
