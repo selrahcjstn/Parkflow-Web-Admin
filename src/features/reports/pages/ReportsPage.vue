@@ -509,8 +509,8 @@ const aiInsights = ref<AIInsight[]>([
               <path :d="occupancySvgPath.lineD" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
 
               <!-- Dynamic Highlight Peak Point -->
-              <circle :cx="occupancySvgPath.peakX" :cy="occupancySvgPath.peakY" r="5" fill="#ef4444"/>
-              <circle :cx="occupancySvgPath.peakX" :cy="occupancySvgPath.peakY" r="10" fill="none" stroke="#ef4444" stroke-width="1.5" class="ping-pulse"/>
+              <circle :cx="occupancySvgPath.peakX" :cy="occupancySvgPath.peakY" r="6" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+              <circle :cx="occupancySvgPath.peakX" :cy="occupancySvgPath.peakY" fill="none" stroke="#ef4444" class="ping-pulse"/>
 
               <!-- X Axis labels -->
               <text x="90" y="220" class="chart-axis-text text-center">06 AM</text>
@@ -1307,17 +1307,21 @@ const aiInsights = ref<AIInsight[]>([
   font-family: inherit;
 }
 
-.text-right { text-anchor: end; }
-.text-center { text-anchor: middle; }
-
-@keyframes ping {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(2.2); opacity: 0; }
+.ping-pulse {
+  animation: svgPulse 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
 }
 
-.ping-pulse {
-  transform-origin: 320px 50px;
-  animation: ping 1.5s ease-out infinite;
+@keyframes svgPulse {
+  0% {
+    r: 5px;
+    opacity: 0.9;
+    stroke-width: 2.5px;
+  }
+  100% {
+    r: 18px;
+    opacity: 0;
+    stroke-width: 0.5px;
+  }
 }
 
 /* AI Layout styling */
