@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 
@@ -7,7 +7,8 @@ const router = useRouter()
 
 type AccountType = 'Guard' | 'Admin'
 
-const isSuperAdmin = ref(true)
+const isSuperAdmin = ref(false)
+const currentUserEmail = ref('admin@parkflow.com')
 
 const form = ref({
   accountType: 'Guard' as AccountType,
@@ -20,12 +21,30 @@ const form = ref({
   // Guard specific
   assignedGate: 1,
   // Admin specific
-  roleLevel: 2 // 1 = SuperAdmin, 2 = Admin
+  roleLevel: 2 // Standard Admin (Single SuperAdmin system)
+})
+
+function checkUserRole() {
+  const storedEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
+  currentUserEmail.value = storedEmail || 'superadmin@parkflow.com'
+
+  if (storedEmail.includes('superadmin') || storedEmail === 'superadmin@parkflow.com' || !storedEmail) {
+    isSuperAdmin.value = true
+    otpSentEmail.value = storedEmail || 'superadmin@parkflow.com'
+  } else {
+    isSuperAdmin.value = false
+    otpSentEmail.value = storedEmail
+    form.value.accountType = 'Guard'
+  }
+}
+
+onMounted(() => {
+  checkUserRole()
 })
 
 function toggleAdminRole(role: AccountType) {
   if (role === 'Admin' && !isSuperAdmin.value) {
-    showNotification('Admin account creation is restricted to SuperAdmin users.', 'error')
+    showNotification('Admin account creation is restricted to the SuperAdmin user.', 'error')
     return
   }
   form.value.accountType = role
@@ -178,27 +197,19 @@ const handleVerifyOtpAndCreate = async () => {
       </div>
     </Transition>
 
-    <!-- Header with Privilege Switcher -->
+    <!-- Header -->
     <div class="page-header">
       <div>
         <div class="superadmin-badge" :class="{ 'superadmin-badge--standard': !isSuperAdmin }">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
-          {{ isSuperAdmin ? 'SuperAdmin Privileges Active' : 'Standard Admin Mode (Restricted)' }}
+          {{ isSuperAdmin ? 'SuperAdmin Account (' + currentUserEmail + ')' : 'Admin Account (' + currentUserEmail + ')' }}
         </div>
         <h1 class="page-title">Register {{ isSuperAdmin ? 'Guard & Administrator' : 'Campus Guard' }}</h1>
         <p class="page-subtitle">
-          {{ isSuperAdmin ? 'SuperAdmin authorized endpoint with 2-Factor OTP security code verification' : 'Register official campus security guards for gate access' }}
+          {{ isSuperAdmin ? 'SuperAdmin authorized account creation with 2-Factor OTP verification' : 'Register official campus security guards for gate access' }}
         </p>
-      </div>
-
-      <!-- Permission Simulator Switcher -->
-      <div class="privilege-toggle" @click="isSuperAdmin = !isSuperAdmin; if (!isSuperAdmin) form.accountType = 'Guard'">
-        <span class="toggle-label">{{ isSuperAdmin ? 'SuperAdmin Mode' : 'Standard Admin Mode' }}</span>
-        <div class="toggle-switch" :class="{ 'toggle-switch--active': isSuperAdmin }">
-          <div class="toggle-knob"></div>
-        </div>
       </div>
     </div>
 
@@ -281,7 +292,7 @@ const handleVerifyOtpAndCreate = async () => {
 
         <!-- Section 2: Role Configuration -->
         <div class="form-section">
-          <h3 class="section-title">2. {{ form.accountType === 'Guard' ? 'Guard Deployment Post' : 'Admin Privilege Level' }}</h3>
+          <h3 class="section-title">2. {{ form.accountType === 'Guard' ? 'Guard Deployment Post' : 'Admin Authority Level' }}</h3>
           
           <div v-if="form.accountType === 'Guard'" class="form-grid">
             <div class="form-group">
@@ -298,8 +309,7 @@ const handleVerifyOtpAndCreate = async () => {
             <div class="form-group">
               <label class="form-label required">Admin Authority Level</label>
               <select v-model.number="form.roleLevel" class="form-select">
-                <option :value="2">Standard Admin (System Management)</option>
-                <option :value="1">SuperAdmin (Full Control & Account Creation)</option>
+                <option :value="2">System Administrator (Standard Admin)</option>
               </select>
             </div>
           </div>

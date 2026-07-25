@@ -39,6 +39,7 @@ async function handleSubmit() {
     if (response.data?.isSuccess) {
       const token = response.data.data.token
       localStorage.setItem('parkflow_token', token)
+      localStorage.setItem('parkflow_user_email', email.value.toLowerCase().trim())
       alertType.value = 'success'
       alertMessage.value = 'Login successful! Redirecting...'
       setTimeout(() => {
