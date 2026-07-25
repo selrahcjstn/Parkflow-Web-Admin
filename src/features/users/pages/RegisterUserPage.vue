@@ -128,7 +128,12 @@ const handleSubmit = async () => {
             @click="form.role = 'Student'"
           >
             <div class="role-card-header">
-              <span class="role-icon">🎓</span>
+              <div class="role-icon-box card-icon-badge--blue">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+                  <path d="M6 12.5v5c3 3 9 3 12 0v-5"/>
+                </svg>
+              </div>
               <div class="radio-indicator"></div>
             </div>
             <h4 class="role-card-title">Student</h4>
@@ -141,7 +146,11 @@ const handleSubmit = async () => {
             @click="form.role = 'UniversityStaff'"
           >
             <div class="role-card-header">
-              <span class="role-icon">🏫</span>
+              <div class="role-icon-box card-icon-badge--purple">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
+                </svg>
+              </div>
               <div class="radio-indicator"></div>
             </div>
             <h4 class="role-card-title">Faculty Member</h4>
@@ -154,24 +163,16 @@ const handleSubmit = async () => {
             @click="form.role = 'NonAcademicPersonnel'"
           >
             <div class="role-card-header">
-              <span class="role-icon">💼</span>
+              <div class="role-icon-box card-icon-badge--amber">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                </svg>
+              </div>
               <div class="radio-indicator"></div>
             </div>
             <h4 class="role-card-title">University Staff</h4>
             <p class="role-card-desc">Administrative & non-academic staff personnel</p>
-          </div>
-
-          <div
-            class="role-card"
-            :class="{ active: form.role === 'Guard' }"
-            @click="form.role = 'Guard'"
-          >
-            <div class="role-card-header">
-              <span class="role-icon">🛡️</span>
-              <div class="radio-indicator"></div>
-            </div>
-            <h4 class="role-card-title">Campus Guard</h4>
-            <p class="role-card-desc">Gate officer authorized for vehicle entry/exit scanning</p>
           </div>
         </div>
       </div>
@@ -274,18 +275,6 @@ const handleSubmit = async () => {
             <div class="form-group">
               <label class="form-label">Department / College</label>
               <input v-model="form.department" type="text" placeholder="College of Engineering" class="form-input" />
-            </div>
-          </template>
-
-          <!-- Guard Specifics -->
-          <template v-else-if="form.role === 'Guard'">
-            <div class="form-group">
-              <label class="form-label">Assigned Gate Post</label>
-              <select v-model.number="form.assignedGate" class="form-select">
-                <option :value="1">Gate 1 - Main Entrance</option>
-                <option :value="2">Gate 2 - East Entrance</option>
-                <option :value="3">Gate 3 - South Gate</option>
-              </select>
             </div>
           </template>
 
@@ -417,18 +406,18 @@ const handleSubmit = async () => {
 }
 
 .card-icon-badge--purple {
-  background: rgba(99, 102, 241, 0.15);
-  color: #6366f1;
+  background: rgba(129, 140, 248, 0.2);
+  color: #a5b4fc;
 }
 
 .card-icon-badge--blue {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
+  background: rgba(96, 165, 250, 0.2);
+  color: #93c5fd;
 }
 
 .card-icon-badge--amber {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
+  background: rgba(251, 191, 36, 0.2);
+  color: #fde047;
 }
 
 .card-title {
@@ -447,7 +436,7 @@ const handleSubmit = async () => {
 /* Role Selector Grid */
 .role-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -493,8 +482,14 @@ const handleSubmit = async () => {
   align-items: center;
 }
 
-.role-icon {
-  font-size: 24px;
+.role-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .radio-indicator {
@@ -525,13 +520,13 @@ const handleSubmit = async () => {
 .role-card-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--color-text, #ffffff);
   margin: 0;
 }
 
 .role-card-desc {
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--color-muted, #94a3b8);
   margin: 0;
   line-height: 1.4;
 }
