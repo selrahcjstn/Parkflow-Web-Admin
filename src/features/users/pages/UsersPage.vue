@@ -105,7 +105,8 @@ const stats = computed(() => {
 
 const displayStatus = (user: UserWithDetails) => {
   if (user.status === 'Suspended') return 'Suspended'
-  return user.corVerificationStatus
+  if (user.role !== 'Student') return 'Active'
+  return user.corVerificationStatus || 'Verified'
 }
 
 // Filtered Users list
@@ -485,8 +486,8 @@ const handleFormSubmit = async (formData: any) => {
               </td>
               <td class="actions-cell" @click.stop>
                 <div class="actions-group">
-                  <!-- Pending Quick Approve / Reject -->
-                  <div v-if="displayStatus(user) === 'Pending'" class="table-pending-actions">
+                  <!-- Pending Quick Approve / Reject (Students Only) -->
+                  <div v-if="user.role === 'Student' && displayStatus(user) === 'Pending'" class="table-pending-actions">
                     <button class="table-btn table-btn--approve" title="Approve Registration" @click="handleApproveUser(user)">
                       Approve
                     </button>

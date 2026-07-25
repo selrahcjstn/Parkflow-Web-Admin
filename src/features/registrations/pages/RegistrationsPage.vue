@@ -97,6 +97,9 @@ async function fetchSubmissions() {
       registrations.length = 0
 
       submissions.forEach((sub: any, i: number) => {
+        const userRoleStr = String(sub.userRole || sub.role || 'Student')
+        if (userRoleStr !== 'Student' && userRoleStr !== '0' && userRoleStr.toLowerCase() !== 'student') return
+
         let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
         if (sub.verificationStatus === 2) mappedStatus = 'approved'
         if (sub.verificationStatus === 3) mappedStatus = 'rejected'
