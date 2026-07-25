@@ -69,7 +69,8 @@ const navItems: NavItem[] = [
     icon: 'users',
     children: [
       { label: 'Student', path: '/users?role=Student' },
-      { label: 'NAPA', path: '/users?role=NAPA' }
+      { label: 'NAP', path: '/users?role=NAPA' },
+      { label: 'Admin / Staff', path: '/users?role=AdminStaff' }
     ]
   },
   {
@@ -144,11 +145,10 @@ const navItems: NavItem[] = [
               <path d="M10 16V8h3a3 3 0 0 1 0 6h-3" />
             </svg>
 
-            <!-- Collections icon -->
+            <!-- Collections Ticket icon -->
             <svg v-else-if="item.icon === 'violations'" class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <circle cx="12" cy="16.5" r="0.5" fill="currentColor" />
+              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z" />
+              <path d="M13 5v14" stroke-dasharray="2 2" />
             </svg>
 
             <!-- Vehicles icon -->

@@ -109,6 +109,8 @@ const displayStatus = (user: UserWithDetails) => {
 }
 
 // Filtered Users list
+const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff')
+
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
     const matchesSearch =
@@ -120,7 +122,8 @@ const filteredUsers = computed(() => {
     const matchesRole =
       selectedRole.value === 'all' ||
       user.role === selectedRole.value ||
-      ((selectedRole.value === 'staff' || selectedRole.value === 'NAPA') && (user.role === 'UniversityStaff' || user.role === 'NonAcademicPersonnel'))
+      ((selectedRole.value === 'staff' || selectedRole.value === 'NAPA') && (user.role === 'UniversityStaff' || user.role === 'NonAcademicPersonnel')) ||
+      (selectedRole.value === 'AdminStaff' && (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin'))
 
     const matchesStatus =
       selectedStatus.value === 'all' ||
@@ -147,7 +150,9 @@ const getRoleLabel = (role: UserRole) => {
     case 'UniversityStaff':
       return 'Faculty'
     case 'NonAcademicPersonnel':
-      return 'Staff'
+      return 'NAP'
+    case 'Guard':
+      return 'Security Guard'
     default:
       return role
   }
@@ -339,17 +344,20 @@ const handleFormSubmit = async (formData: any) => {
       </Transition>
     </div>
     <!-- Header -->
+    <!-- Header -->
     <div class="users-header">
       <div class="users-header__left">
-        <h1 class="users-title">Client Directory</h1>
-        <p class="users-subtitle">Manage registered client accounts, pending COR registrations, and system privileges.</p>
+        <h1 class="users-title">{{ isAdminStaffView ? 'Staff & Admin Directory' : 'Client Directory' }}</h1>
+        <p class="users-subtitle">
+          {{ isAdminStaffView ? 'Manage registered campus security guards and system administrator accounts.' : 'Manage registered client accounts, pending COR registrations, and system privileges.' }}
+        </p>
       </div>
-      <router-link to="/users/create" class="add-user-btn">
+      <router-link :to="isAdminStaffView ? '/users/create-staff' : '/users/create'" class="add-user-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
           <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        Register Client Account
+        {{ isAdminStaffView ? 'Register Staff / Admin' : 'Register Client Account' }}
       </router-link>
     </div>
 
@@ -394,7 +402,7 @@ const handleFormSubmit = async (formData: any) => {
           <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <input v-model="searchQuery" type="text" placeholder="Search by client name, email, student number..." class="search-input" />
+        <input v-model="searchQuery" type="text" placeholder="Search by name, email, ID number..." class="search-input" />
       </div>
 
       <!-- Filter Dropdowns -->
@@ -404,6 +412,7 @@ const handleFormSubmit = async (formData: any) => {
             <option value="all">All Roles</option>
             <option value="Student">Student</option>
             <option value="staff">Staff/Faculty</option>
+            <option value="AdminStaff">Admin / Staff</option>
             <option value="Guard">Security Guard</option>
             <option value="Admin">Administrator</option>
           </select>
@@ -428,17 +437,17 @@ const handleFormSubmit = async (formData: any) => {
         <table class="users-table">
           <thead>
             <tr>
-              <th>Client</th>
+              <th>{{ isAdminStaffView ? 'Staff Member' : 'Client' }}</th>
               <th>Identification</th>
               <th>Classification</th>
-              <th>Vehicles</th>
-              <th>Registration Status</th>
+              <th v-if="!isAdminStaffView">Vehicles</th>
+              <th v-if="!isAdminStaffView">Registration Status</th>
               <th class="actions-header">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="filteredUsers.length === 0">
-              <td colspan="6" class="empty-state">No client records match your criteria.</td>
+              <td :colspan="isAdminStaffView ? 4 : 6" class="empty-state">No records match your criteria.</td>
             </tr>
             <tr v-else v-for="user in filteredUsers" :key="user.id" class="user-row" @click="openDetails(user)">
               <td>
@@ -461,7 +470,7 @@ const handleFormSubmit = async (formData: any) => {
                   {{ getRoleLabel(user.role) }}
                 </span>
               </td>
-              <td>
+              <td v-if="!isAdminStaffView">
                 <div class="vehicles-cell">
                   <span v-if="user.vehicles.length === 0" class="vehicles-empty">None</span>
                   <span v-else class="vehicles-count" :title="user.vehicles.map(v => v.plateNumber).join(', ')">
@@ -469,7 +478,7 @@ const handleFormSubmit = async (formData: any) => {
                   </span>
                 </div>
               </td>
-              <td>
+              <td v-if="!isAdminStaffView">
                 <span class="status-pill" :class="'status-pill--' + displayStatus(user).toLowerCase()">
                   {{ formatStatusText(displayStatus(user)) }}
                 </span>
