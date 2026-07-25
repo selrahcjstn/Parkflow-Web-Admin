@@ -199,18 +199,16 @@ const handleVerifyOtpAndCreate = async () => {
 
     <!-- Header -->
     <div class="page-header">
-      <div>
-        <div class="superadmin-badge" :class="{ 'superadmin-badge--standard': !isSuperAdmin }">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          {{ isSuperAdmin ? 'SuperAdmin Account (' + currentUserEmail + ')' : 'Admin Account (' + currentUserEmail + ')' }}
+        <div class="account-status-tag" :class="{ 'account-status-tag--super': isSuperAdmin }">
+          <span class="status-dot"></span>
+          <span class="status-role">{{ isSuperAdmin ? 'SuperAdmin Active' : 'Admin Active' }}</span>
+          <span class="status-sep">|</span>
+          <span class="status-email">{{ currentUserEmail }}</span>
         </div>
         <h1 class="page-title">Register {{ isSuperAdmin ? 'Guard & Administrator' : 'Campus Guard' }}</h1>
         <p class="page-subtitle">
           {{ isSuperAdmin ? 'SuperAdmin authorized account creation with 2-Factor OTP verification' : 'Register official campus security guards for gate access' }}
         </p>
-      </div>
     </div>
 
     <!-- Role Selection Tabs -->
@@ -401,58 +399,50 @@ const handleVerifyOtpAndCreate = async () => {
   align-items: flex-start;
 }
 
-.superadmin-badge--standard {
-  background: rgba(148, 163, 184, 0.15);
-  border-color: rgba(148, 163, 184, 0.4);
-  color: #94a3b8;
-}
-
-.privilege-toggle {
-  display: flex;
+.account-status-tag {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  background: var(--color-surface);
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--color-border);
-  padding: 6px 14px;
-  border-radius: 999px;
-  cursor: pointer;
-  user-select: none;
-  transition: all 180ms ease;
-}
-
-.privilege-toggle:hover {
-  border-color: rgba(245, 158, 11, 0.5);
-}
-
-.toggle-label {
+  padding: 4px 12px;
+  border-radius: 9999px;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text);
+  font-weight: 500;
+  color: var(--color-muted);
+  margin-bottom: 12px;
 }
 
-.toggle-switch {
-  width: 36px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  padding: 2px;
-  transition: background-color 200ms ease;
+.account-status-tag--super {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #f59e0b;
 }
 
-.toggle-switch--active {
-  background: #f59e0b;
-}
-
-.toggle-knob {
-  width: 16px;
-  height: 16px;
-  background: #fff;
+.status-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  transition: transform 200ms ease;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
 }
 
-.toggle-switch--active .toggle-knob {
-  transform: translateX(16px);
+.account-status-tag--super .status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.status-role {
+  font-weight: 700;
+}
+
+.status-sep {
+  opacity: 0.3;
+}
+
+.status-email {
+  font-size: 11px;
+  opacity: 0.85;
 }
 
 /* Role Selector Tabs */
