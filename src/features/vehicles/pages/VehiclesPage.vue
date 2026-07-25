@@ -131,7 +131,7 @@ const stats = computed(() => [
 ])
 
 // Filtered Vehicles
-const filteredVehations = computed(() => {
+const filteredVehicles = computed(() => {
   return vehicles.value.filter((vehicle) => {
     const matchesSearch =
       vehicle.plateNumber.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -370,12 +370,12 @@ const getRoleLabel = (role: string) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="filteredVehations.length === 0">
+            <tr v-if="filteredVehicles.length === 0">
               <td colspan="7" class="empty-state">No registered vehicles match your criteria.</td>
             </tr>
             <tr
               v-else
-              v-for="vehicle in filteredVehations"
+              v-for="vehicle in filteredVehicles"
               :key="vehicle.id"
               class="vehicle-row"
               @click="openDetails(vehicle)"
@@ -723,6 +723,11 @@ const getRoleLabel = (role: string) => {
 .filter-select:focus {
   outline: none;
   border-color: var(--color-primary);
+}
+
+.filter-select option {
+  background-color: #181b20;
+  color: #ffffff;
 }
 
 /* Table Card */
