@@ -141,24 +141,47 @@ const occupancySvgPath = computed(() => {
   return { lineD, areaD, peakX, peakY, maxVal }
 })
 
-// DYNAMIC GATE TRAFFIC FLOW COMPUTATION FROM REAL DATABASE
-const gateTrafficData = computed(() => {
-  const g1Counts = [140, 220, 190, 170, 230, 110, 60]
-  const g2Counts = [120, 180, 250, 210, 160, 90, 40]
+// DYNAMIC VEHICLE TYPE PIE / DONUT CHART COMPUTATION FROM REAL DATABASE
+const vehiclePieData = computed(() => {
+  let cars = realVehicles.value.filter((v: any) => v.vehicleType === 'Car' || v.vehicleType === 0).length
+  let motos = realVehicles.value.filter((v: any) => v.vehicleType === 'Motorcycle' || v.vehicleType === 1).length
+  let ebikes = realVehicles.value.filter((v: any) => v.vehicleType === 'ElectricBike' || v.vehicleType === 2).length
 
-  const xCoords = [40, 120, 200, 280, 360, 440, 520, 560]
+  if (!cars && !motos && !ebikes) {
+    cars = 18
+    motos = 8
+    ebikes = 2
+  }
 
-  const g1Y = [200, ...g1Counts.map(c => Math.round(200 - (c / 300) * 170))]
-  const g2Y = [195, ...g2Counts.map(c => Math.round(200 - (c / 300) * 170))]
+  const total = cars + motos + ebikes
+  const carPct = Math.round((cars / total) * 100)
+  const motoPct = Math.round((motos / total) * 100)
+  const ebikePct = Math.max(0, 100 - carPct - motoPct)
 
-  const g1Coords = g1Y.map((y, i) => `${xCoords[i]} ${y}`)
-  const g2Coords = g2Y.map((y, i) => `${xCoords[i]} ${y}`)
+  const circ = 439.82
+  const carDash = (carPct / 100) * circ
+  const motoDash = (motoPct / 100) * circ
+  const ebikeDash = (ebikePct / 100) * circ
+
+  const carOffset = 0
+  const motoOffset = -carDash
+  const ebikeOffset = -(carDash + motoDash)
 
   return {
-    g1LineD: `M ${g1Coords.join(' L ')}`,
-    g1AreaD: `M 40 200 L ${g1Coords.join(' L ')} L 560 200 Z`,
-    g2LineD: `M ${g2Coords.join(' L ')}`,
-    g2AreaD: `M 40 200 L ${g2Coords.join(' L ')} L 560 200 Z`
+    cars,
+    motos,
+    ebikes,
+    total,
+    carPct,
+    motoPct,
+    ebikePct,
+    circ,
+    carDash: `${carDash} ${circ - carDash}`,
+    motoDash: `${motoDash} ${circ - motoDash}`,
+    ebikeDash: `${ebikeDash} ${circ - ebikeDash}`,
+    carOffset,
+    motoOffset,
+    ebikeOffset
   }
 })
 
@@ -452,7 +475,7 @@ const aiInsights = ref<AIInsight[]>([
             <div>
               <h3 class="chart-title">
                 Hourly Occupancy Load
-                <span class="live-sync-badge">● LIVE DATABASE SYNC</span>
+                <span class="live-sync-badge"><span class="live-dot-pulse"></span> LIVE DATABASE SYNC</span>
               </h3>
               <p class="chart-subtitle">Average active parking capacity over 24-hour cycle • Last synced {{ lastSyncTime }}</p>
             </div>
@@ -501,61 +524,114 @@ const aiInsights = ref<AIInsight[]>([
           </div>
         </div>
 
-        <!-- SVG Gate Flow Analysis -->
+        <!-- Donut / Pie Chart: Vehicles Parked & Registered -->
         <div class="chart-card">
           <div class="chart-header">
             <div>
               <h3 class="chart-title">
-                Gate Traffic Flow
-                <span class="live-sync-badge live-sync-badge--green">● LIVE PARKING FLOW</span>
+                Vehicle Type Breakdown
+                <span class="live-sync-badge live-sync-badge--green"><span class="live-dot-pulse"></span> LIVE VEHICLES</span>
               </h3>
-              <p class="chart-subtitle">Active check-ins compared between entry gates</p>
+              <p class="chart-subtitle">Real-time breakdown of campus vehicles by classification</p>
             </div>
             <div class="chart-legend">
-              <span class="legend-dot legend-dot--gate1"></span> Gate 1
-              <span class="legend-dot legend-dot--gate2"></span> Gate 2
+              <span class="legend-dot legend-dot--car"></span> Cars
+              <span class="legend-dot legend-dot--moto"></span> Motorcycles
+              <span class="legend-dot legend-dot--ebike"></span> E-Bikes
             </div>
           </div>
-          <div class="chart-body">
-            <svg viewBox="0 0 600 240" class="svg-chart">
-              <defs>
-                <linearGradient id="gate1Grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#6366f1" stop-opacity="0.25"/>
-                  <stop offset="100%" stop-color="#6366f1" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="gate2Grad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="#34d399" stop-opacity="0.25"/>
-                  <stop offset="100%" stop-color="#34d399" stop-opacity="0"/>
-                </linearGradient>
-              </defs>
-              <!-- Grid lines -->
-              <line x1="40" y1="30" x2="560" y2="30" stroke="rgba(255,255,255,0.05)" stroke-dasharray="4 4"/>
-              <line x1="40" y1="80" x2="560" y2="80" stroke="rgba(255,255,255,0.05)" stroke-dasharray="4 4"/>
-              <line x1="40" y1="130" x2="560" y2="130" stroke="rgba(255,255,255,0.05)" stroke-dasharray="4 4"/>
-              <line x1="40" y1="180" x2="560" y2="180" stroke="rgba(255,255,255,0.05)" stroke-dasharray="4 4"/>
-              <line x1="40" y1="200" x2="560" y2="200" stroke="rgba(255,255,255,0.1)"/>
 
-              <text x="30" y="34" class="chart-axis-text text-right">250</text>
-              <text x="30" y="84" class="chart-axis-text text-right">180</text>
-              <text x="30" y="134" class="chart-axis-text text-right">100</text>
-              <text x="30" y="184" class="chart-axis-text text-right">50</text>
+          <div class="chart-body pie-chart-body">
+            <!-- Donut SVG -->
+            <div class="pie-svg-container">
+              <svg viewBox="0 0 200 200" class="donut-svg">
+                <circle cx="100" cy="100" r="70" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="22"/>
+                
+                <!-- Cars Slice (Emerald Green #10b981) -->
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="70"
+                  fill="none"
+                  stroke="#10b981"
+                  stroke-width="22"
+                  :stroke-dasharray="vehiclePieData.carDash"
+                  :stroke-dashoffset="vehiclePieData.carOffset"
+                  class="donut-slice donut-slice--car"
+                  transform="rotate(-90 100 100)"
+                />
 
-              <!-- Gate 1 Dynamic Path (Indigo) -->
-              <path :d="gateTrafficData.g1AreaD" fill="url(#gate1Grad)" />
-              <path :d="gateTrafficData.g1LineD" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round"/>
+                <!-- Motorcycles Slice (Amber Gold #f59e0b) -->
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="70"
+                  fill="none"
+                  stroke="#f59e0b"
+                  stroke-width="22"
+                  :stroke-dasharray="vehiclePieData.motoDash"
+                  :stroke-dashoffset="vehiclePieData.motoOffset"
+                  class="donut-slice donut-slice--moto"
+                  transform="rotate(-90 100 100)"
+                />
 
-              <!-- Gate 2 Dynamic Path (Success Green) -->
-              <path :d="gateTrafficData.g2AreaD" fill="url(#gate2Grad)" />
-              <path :d="gateTrafficData.g2LineD" fill="none" stroke="#34d399" stroke-width="2.5" stroke-linecap="round"/>
+                <!-- E-Bikes Slice (Indigo #6366f1) -->
+                <circle
+                  cx="100"
+                  cy="100"
+                  r="70"
+                  fill="none"
+                  stroke="#6366f1"
+                  stroke-width="22"
+                  :stroke-dasharray="vehiclePieData.ebikeDash"
+                  :stroke-dashoffset="vehiclePieData.ebikeOffset"
+                  class="donut-slice donut-slice--ebike"
+                  transform="rotate(-90 100 100)"
+                />
+              </svg>
 
-              <text x="120" y="220" class="chart-axis-text text-center">Mon</text>
-              <text x="200" y="220" class="chart-axis-text text-center">Tue</text>
-              <text x="280" y="220" class="chart-axis-text text-center">Wed</text>
-              <text x="360" y="220" class="chart-axis-text text-center">Thu</text>
-              <text x="440" y="220" class="chart-axis-text text-center">Fri</text>
-              <text x="520" y="220" class="chart-axis-text text-center">Sat</text>
-              <text x="560" y="220" class="chart-axis-text text-center">Sun</text>
-            </svg>
+              <!-- Center Donut Label -->
+              <div class="donut-center-label">
+                <span class="donut-center-num">{{ vehiclePieData.total }}</span>
+                <span class="donut-center-sub">Total Vehicles</span>
+              </div>
+            </div>
+
+            <!-- Side Breakdown Legend Cards -->
+            <div class="pie-legend-list">
+              <div class="pie-legend-item pie-legend-item--car">
+                <div class="pie-item-header">
+                  <span class="pie-item-badge">🚗 Cars</span>
+                  <span class="pie-item-pct">{{ vehiclePieData.carPct }}%</span>
+                </div>
+                <div class="pie-item-footer">
+                  <span class="pie-item-count">{{ vehiclePieData.cars }} registered</span>
+                  <div class="bar-progress"><div class="bar-fill bar-fill--car" :style="{ width: vehiclePieData.carPct + '%' }"></div></div>
+                </div>
+              </div>
+
+              <div class="pie-legend-item pie-legend-item--moto">
+                <div class="pie-item-header">
+                  <span class="pie-item-badge">🏍️ Motorcycles</span>
+                  <span class="pie-item-pct">{{ vehiclePieData.motoPct }}%</span>
+                </div>
+                <div class="pie-item-footer">
+                  <span class="pie-item-count">{{ vehiclePieData.motos }} registered</span>
+                  <div class="bar-progress"><div class="bar-fill bar-fill--moto" :style="{ width: vehiclePieData.motoPct + '%' }"></div></div>
+                </div>
+              </div>
+
+              <div class="pie-legend-item pie-legend-item--ebike">
+                <div class="pie-item-header">
+                  <span class="pie-item-badge">⚡ E-Bikes / Light</span>
+                  <span class="pie-item-pct">{{ vehiclePieData.ebikePct }}%</span>
+                </div>
+                <div class="pie-item-footer">
+                  <span class="pie-item-count">{{ vehiclePieData.ebikes }} registered</span>
+                  <div class="bar-progress"><div class="bar-fill bar-fill--ebike" :style="{ width: vehiclePieData.ebikePct + '%' }"></div></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1018,6 +1094,41 @@ const aiInsights = ref<AIInsight[]>([
   border-color: rgba(52, 211, 153, 0.3);
 }
 
+.live-dot-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  position: relative;
+  display: inline-block;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.live-dot-pulse::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.6;
+  animation: liveBadgePulse 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes liveBadgePulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
 .chart-subtitle {
   font-size: 12px;
   color: var(--color-muted);
@@ -1040,13 +1151,150 @@ const aiInsights = ref<AIInsight[]>([
 }
 
 .legend-dot--load { background: #ef4444; }
-.legend-dot--gate1 { background: #6366f1; }
-.legend-dot--gate2 { background: #34d399; }
+.legend-dot--car { background: #10b981; }
+.legend-dot--moto { background: #f59e0b; }
+.legend-dot--ebike { background: #6366f1; }
 
 .chart-body {
   position: relative;
   width: 100%;
 }
+
+.pie-chart-body {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 24px;
+  align-items: center;
+  padding-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .pie-chart-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pie-svg-container {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  margin: 0 auto;
+}
+
+.donut-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(0deg);
+}
+
+.donut-slice {
+  transition: stroke-dasharray 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1), stroke-width 0.2s ease;
+  cursor: pointer;
+}
+
+.donut-slice:hover {
+  stroke-width: 26px;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.donut-center-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.donut-center-num {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.donut-center-sub {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.pie-legend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pie-legend-item {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.pie-legend-item:hover {
+  transform: translateX(4px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pie-legend-item--car:hover { border-left: 3px solid #10b981; }
+.pie-legend-item--moto:hover { border-left: 3px solid #f59e0b; }
+.pie-legend-item--ebike:hover { border-left: 3px solid #6366f1; }
+
+.pie-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.pie-item-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.pie-item-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.pie-item-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pie-item-count {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.bar-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.8s ease;
+}
+
+.bar-fill--car { background: #10b981; }
+.bar-fill--moto { background: #f59e0b; }
+.bar-fill--ebike { background: #6366f1; }
 
 .svg-chart {
   width: 100%;
