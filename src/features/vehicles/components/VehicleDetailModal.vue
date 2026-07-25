@@ -137,8 +137,8 @@ const getRoleLabel = (role: string) => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -152,7 +152,7 @@ const getRoleLabel = (role: string) => {
   border-radius: var(--radius-card);
   width: 100%;
   max-width: 500px;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -211,12 +211,12 @@ const getRoleLabel = (role: string) => {
 }
 
 .vehicle-banner--active {
-  background: rgba(35, 165, 90, 0.12);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
 .vehicle-banner--suspended {
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(239, 68, 68, 0.1);
   color: var(--color-danger);
 }
 
@@ -302,7 +302,7 @@ const getRoleLabel = (role: string) => {
 }
 
 .code-text {
-  color: #818cf8;
+  color: var(--color-info);
 }
 
 .mini-id {
@@ -321,12 +321,12 @@ const getRoleLabel = (role: string) => {
 }
 
 .status-pill--primary {
-  background: rgba(99, 102, 241, 0.15);
-  color: #818cf8;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
 }
 
 .status-pill--secondary {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-muted);
   color: var(--color-muted);
 }
 
@@ -339,25 +339,25 @@ const getRoleLabel = (role: string) => {
 }
 
 .role-badge--admin {
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(210, 39, 48, 0.1);
   color: var(--color-primary);
 }
 
 .role-badge--student {
-  background: rgba(35, 165, 90, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
 .role-badge--guard {
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
 }
 
 .role-badge--faculty,
 .role-badge--staff,
 .role-badge--universitystaff,
 .role-badge--nonacademicpersonnel {
-  background: rgba(245, 158, 11, 0.1);
+  background: rgba(253, 184, 19, 0.1);
   color: var(--color-warning);
 }
 
@@ -385,7 +385,7 @@ const getRoleLabel = (role: string) => {
 }
 
 .action-btn--primary:hover {
-  background: #dc2626;
+  background: var(--color-primary-dark);
 }
 
 .action-btn--secondary {

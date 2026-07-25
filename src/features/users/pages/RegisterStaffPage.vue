@@ -577,7 +577,7 @@ const handleVerifyOtpAndCreate = async () => {
 }
 
 .role-card:hover {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: var(--color-muted);
   transform: translateY(-2px);
 }
 
@@ -723,13 +723,13 @@ const handleVerifyOtpAndCreate = async () => {
 }
 
 .btn--primary {
-  background: #f59e0b;
+  background: var(--color-gold);
   color: #ffffff;
 }
 
 .btn--primary:hover {
-  background: #d97706;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  background: #e6a714;
+  box-shadow: 0 4px 12px rgba(253, 184, 19, 0.3);
 }
 
 .btn--primary:disabled {
@@ -754,8 +754,8 @@ const handleVerifyOtpAndCreate = async () => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;

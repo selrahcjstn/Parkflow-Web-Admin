@@ -231,7 +231,7 @@ async function reject(reg: PendingRegistration) {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   border-left: 3px solid transparent;
   transition: background 150ms ease, border-left-color 300ms ease;
   border-radius: 4px;
@@ -245,15 +245,15 @@ async function reject(reg: PendingRegistration) {
 }
 
 .pending-card__row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-lighter);
 }
 
 .pending-card__row--approved {
-  border-left-color: #23a55a;
+  border-left-color: var(--color-success);
 }
 
 .pending-card__row--rejected {
-  border-left-color: #f87171;
+  border-left-color: var(--color-danger);
 }
 
 .pending-card__left {
@@ -332,7 +332,7 @@ async function reject(reg: PendingRegistration) {
   display: inline-block;
   padding: 2px 8px;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--color-surface-muted);
   color: var(--color-muted);
   font-size: 11px;
   font-weight: 500;
@@ -362,21 +362,23 @@ async function reject(reg: PendingRegistration) {
 }
 
 .pending-card__btn--approve {
-  background: rgba(35, 165, 90, 0.12);
-  color: #23a55a;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
 }
 
 .pending-card__btn--approve:hover {
-  background: rgba(35, 165, 90, 0.25);
+  background: var(--color-success);
+  color: #fff;
 }
 
 .pending-card__btn--reject {
-  background: rgba(248, 113, 113, 0.12);
-  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
 }
 
 .pending-card__btn--reject:hover {
-  background: rgba(248, 113, 113, 0.25);
+  background: var(--color-danger);
+  color: #fff;
 }
 
 .pending-card__result {
@@ -385,11 +387,11 @@ async function reject(reg: PendingRegistration) {
 }
 
 .pending-card__result--approved {
-  color: #23a55a;
+  color: var(--color-success);
 }
 
 .pending-card__result--rejected {
-  color: #f87171;
+  color: var(--color-danger);
 }
 
 /* Transition for button to status text */

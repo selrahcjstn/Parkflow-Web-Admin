@@ -133,12 +133,12 @@ const xLabelPositions = computed(() =>
       >
         <defs>
           <linearGradient id="checkinGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#f87171" stop-opacity="0.25" />
-            <stop offset="100%" stop-color="#f87171" stop-opacity="0" />
+            <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.25" />
+            <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
           </linearGradient>
           <linearGradient id="checkoutGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#23a55a" stop-opacity="0.15" />
-            <stop offset="100%" stop-color="#23a55a" stop-opacity="0" />
+            <stop offset="0%" stop-color="var(--color-success)" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="var(--color-success)" stop-opacity="0" />
           </linearGradient>
         </defs>
 
@@ -150,7 +150,7 @@ const xLabelPositions = computed(() =>
           :y1="line.y"
           :x2="chartWidth - chartPadding.right"
           :y2="line.y"
-          stroke="rgba(255,255,255,0.05)"
+          stroke="var(--color-border)"
           stroke-dasharray="4 4"
         />
 
@@ -161,7 +161,7 @@ const xLabelPositions = computed(() =>
           :x="chartPadding.left - 12"
           :y="line.y + 4"
           text-anchor="end"
-          fill="#71717a"
+          fill="var(--color-muted)"
           font-size="11"
         >
           {{ line.label }}
@@ -174,7 +174,7 @@ const xLabelPositions = computed(() =>
           :x="pos.x"
           :y="chartHeight - 6"
           text-anchor="middle"
-          fill="#71717a"
+          fill="var(--color-muted)"
           font-size="11"
         >
           {{ pos.label }}
@@ -198,7 +198,7 @@ const xLabelPositions = computed(() =>
         <path
           :d="checkOutLine"
           fill="none"
-          stroke="#23a55a"
+          stroke="var(--color-success)"
           stroke-width="2.5"
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -211,7 +211,7 @@ const xLabelPositions = computed(() =>
         <path
           :d="checkInLine"
           fill="none"
-          stroke="#f87171"
+          stroke="var(--color-primary)"
           stroke-width="2.5"
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -233,7 +233,7 @@ const xLabelPositions = computed(() =>
             :cx="point.x"
             :cy="point.y"
             r="4"
-            fill="#f87171"
+            fill="var(--color-primary)"
             stroke="var(--color-surface)"
             stroke-width="2"
             class="chart-card__dot"
@@ -254,7 +254,7 @@ const xLabelPositions = computed(() =>
             :cx="point.x"
             :cy="point.y"
             r="4"
-            fill="#23a55a"
+            fill="var(--color-success)"
             stroke="var(--color-surface)"
             stroke-width="2"
             class="chart-card__dot"
@@ -320,11 +320,11 @@ const xLabelPositions = computed(() =>
 }
 
 .chart-card__legend-dot--checkin {
-  background: #f87171;
+  background: var(--color-primary);
 }
 
 .chart-card__legend-dot--checkout {
-  background: #23a55a;
+  background: var(--color-success);
 }
 
 .chart-card__chart-wrapper {

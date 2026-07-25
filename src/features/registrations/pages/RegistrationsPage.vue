@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/api/axios'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 interface RegistrationItem {
   id: number
@@ -345,8 +346,7 @@ async function reject(reg: RegistrationItem) {
 
     <!-- Loading State -->
     <div v-if="isLoading" class="registrations-card__loading">
-      <div class="spinner"></div>
-      <span>Loading registration documents...</span>
+      <SkeletonLoader variant="card" v-for="i in 3" :key="i" style="width: 100%; height: 200px" />
     </div>
 
     <!-- Empty State -->
@@ -706,8 +706,8 @@ async function reject(reg: RegistrationItem) {
     <!-- Image Zoom Modal Viewer -->
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="selectedImage" class="modal-backdrop" @click="selectedImage = null">
-          <div class="modal-content" @click.stop>
+        <div v-if="selectedImage" class="modal-backdrop-zoom" @click="selectedImage = null">
+          <div class="modal-content-zoom" @click.stop>
             <button class="modal-close" @click="selectedImage = null">&times;</button>
             <img :src="selectedImage" alt="Document Preview" class="modal-img" />
           </div>
@@ -857,14 +857,14 @@ async function reject(reg: RegistrationItem) {
 }
 
 .tab-item:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text);
+  background: var(--color-surface-lighter);
 }
 
 .tab-item--active {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(253, 184, 19, 0.15);
+  color: var(--color-gold);
+  border-color: rgba(253, 184, 19, 0.4);
 }
 
 .registrations-page__search {
@@ -966,7 +966,7 @@ async function reject(reg: RegistrationItem) {
 }
 
 .registrations-table th {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-surface-muted);
   color: var(--color-muted);
   font-weight: 600;
   text-transform: uppercase;
@@ -978,13 +978,13 @@ async function reject(reg: RegistrationItem) {
 
 .registrations-table td {
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
   vertical-align: middle;
 }
 
 .registrations-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-lighter);
 }
 
 .applicant-cell {
@@ -1393,23 +1393,54 @@ async function reject(reg: RegistrationItem) {
 }
 
 /* Document Review Inspector Modal (Split Panel View) */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-backdrop-zoom {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-content-zoom {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .inspector-modal {
   width: 95vw;
   max-width: 1050px;
   height: 85vh;
   max-height: 720px;
-  background: #111318;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 14px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+  box-shadow: var(--shadow-modal);
 }
 
 .inspector-header {
   padding: 18px 24px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-muted);
   border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
@@ -1427,7 +1458,7 @@ async function reject(reg: RegistrationItem) {
 .inspector-title {
   font-size: 18px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text);
   margin: 2px 0 0;
 }
 
@@ -1479,7 +1510,7 @@ async function reject(reg: RegistrationItem) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #090a0d;
+  background: var(--color-surface-muted);
   border-radius: 10px;
   border: 1px solid var(--color-border);
   padding: 12px;
@@ -1517,7 +1548,7 @@ async function reject(reg: RegistrationItem) {
   flex-direction: column;
   gap: 20px;
   overflow-y: auto;
-  background: #111318;
+  background: var(--color-surface-muted);
 }
 
 .sidebar-section {

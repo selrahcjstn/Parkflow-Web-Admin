@@ -137,12 +137,12 @@ onMounted(async () => {
 }
 
 .activity-card__row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-lighter);
 }
 
 .activity-card__row td {
   padding: 14px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   font-size: 13px;
   color: var(--color-text);
 }
@@ -196,19 +196,19 @@ onMounted(async () => {
 
 .activity-card__status--active,
 .activity-card__status--parked {
-  background: rgba(35, 165, 90, 0.12);
-  color: #23a55a;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
 }
 
 .activity-card__status--completed,
 .activity-card__status--exited {
-  background: rgba(96, 165, 250, 0.12);
-  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
 }
 
 .activity-card__status--overstay {
-  background: rgba(248, 113, 113, 0.12);
-  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  color: #dc2626;
 }
 
 .activity-card__empty {

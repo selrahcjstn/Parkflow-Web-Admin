@@ -235,7 +235,7 @@ onMounted(() => {
           <div class="modal-card" @click.stop>
             <div class="modal-card__header">
               <div class="modal-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-danger)" stroke-width="2">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                   <line x1="12" y1="9" x2="12" y2="13" />
                   <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -303,10 +303,10 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   z-index: 1000;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
-.toast-banner--success { background: #10b981; }
-.toast-banner--error { background: #ef4444; }
+.toast-banner--success { background: var(--color-success); }
+.toast-banner--error { background: var(--color-danger); }
 
 /* Grid & Cards */
 .settings-grid {
@@ -318,12 +318,12 @@ onMounted(() => {
 .settings-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-card, 12px);
+  border-radius: var(--radius-card);
   padding: 24px;
 }
 
 .settings-card--danger {
-  border-color: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .settings-card__header {
@@ -346,13 +346,13 @@ onMounted(() => {
 }
 
 .icon-wrapper--amber {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
+  background: rgba(253, 184, 19, 0.15);
+  color: var(--color-gold);
 }
 
 .icon-wrapper--red {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: rgba(210, 39, 48, 0.15);
+  color: var(--color-primary);
 }
 
 .settings-card__title {
@@ -419,7 +419,7 @@ onMounted(() => {
   width: 100%;
   height: 40px;
   padding: 0 12px;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
   color: var(--color-text);
@@ -428,7 +428,28 @@ onMounted(() => {
 }
 
 .form-input:focus {
-  border-color: #f59e0b;
+  border-color: var(--color-primary);
+}
+
+.form-select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text);
+  font-size: 14px;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+}
+
+.form-select:focus {
+  border-color: var(--color-primary);
 }
 
 .semester-presets {
@@ -439,7 +460,7 @@ onMounted(() => {
 }
 
 .preset-chip {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
   color: var(--color-muted);
   border-radius: 6px;
@@ -451,14 +472,14 @@ onMounted(() => {
 }
 
 .preset-chip:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-surface-lighter);
   color: var(--color-text);
 }
 
 .preset-chip--active {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: rgba(245, 158, 11, 0.5);
-  color: #f59e0b;
+  background: rgba(253, 184, 19, 0.2);
+  border-color: rgba(253, 184, 19, 0.5);
+  color: var(--color-gold);
   font-weight: 600;
 }
 
@@ -468,8 +489,8 @@ onMounted(() => {
 
 .save-btn {
   padding: 10px 20px;
-  background: #f59e0b;
-  color: #000;
+  background: var(--color-primary);
+  color: #fff;
   font-size: 13px;
   font-weight: 700;
   border: none;
@@ -484,7 +505,7 @@ onMounted(() => {
 
 /* Reset Box */
 .reset-info-box {
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--color-surface-muted);
   border-radius: 8px;
   padding: 14px 16px;
   display: flex;
@@ -522,9 +543,9 @@ onMounted(() => {
   width: 100%;
   justify-content: center;
   padding: 12px 20px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #ef4444;
+  background: rgba(210, 39, 48, 0.1);
+  border: 1px solid rgba(210, 39, 48, 0.4);
+  color: var(--color-primary);
   font-size: 14px;
   font-weight: 700;
   border-radius: 8px;
@@ -533,15 +554,15 @@ onMounted(() => {
 }
 
 .reset-btn:hover {
-  background: rgba(239, 68, 68, 0.25);
+  background: rgba(210, 39, 48, 0.2);
 }
 
 /* Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -551,11 +572,11 @@ onMounted(() => {
 .modal-card {
   width: 100%;
   max-width: 440px;
-  background: #111318;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-modal);
 }
 
 .modal-card__header {
@@ -595,13 +616,21 @@ onMounted(() => {
 }
 
 .modal-btn--cancel {
-  background: rgba(255,255,255,0.06);
+  background: var(--color-surface-muted);
   color: var(--color-text);
 }
 
+.modal-btn--cancel:hover {
+  background: var(--color-surface-lighter);
+}
+
 .modal-btn--confirm {
-  background: #ef4444;
+  background: var(--color-primary);
   color: #fff;
+}
+
+.modal-btn--confirm:hover {
+  background: var(--color-primary-dark);
 }
 
 @media (max-width: 1024px) {

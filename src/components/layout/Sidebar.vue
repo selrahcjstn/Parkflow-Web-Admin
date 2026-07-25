@@ -288,8 +288,8 @@ const navItems: NavItem[] = [
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #111318;
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-sidebar-bg);
+  border-right: 1px solid var(--color-border);
   overflow: hidden;
   z-index: 41;
 }
@@ -317,8 +317,8 @@ const navItems: NavItem[] = [
   height: 38px;
   min-width: 38px;
   border-radius: 10px;
-  background: #f87171;
-  box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
+  background: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.25);
 }
 
 .logo-text {
@@ -339,13 +339,13 @@ const navItems: NavItem[] = [
 .logo-title {
   font-size: 18px;
   font-weight: 700;
-  color: #f2f3f5;
+  color: var(--color-text);
   line-height: 1.2;
 }
 
 .logo-subtitle {
   font-size: 11px;
-  color: #71717a;
+  color: var(--color-muted);
   line-height: 1.3;
 }
 
@@ -367,7 +367,7 @@ const navItems: NavItem[] = [
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.5px;
-  color: #71717a;
+  color: var(--color-muted);
   padding-left: 20px;
   margin-top: 8px;
   margin-bottom: 8px;
@@ -395,7 +395,7 @@ const navItems: NavItem[] = [
   padding: 0 12px;
   margin: 2px 8px;
   border-radius: 10px;
-  color: #b5bac1;
+  color: var(--color-sidebar-text);
   text-decoration: none;
   background: transparent;
   border: none;
@@ -414,13 +414,14 @@ const navItems: NavItem[] = [
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #f2f3f5;
+  background: var(--color-sidebar-hover);
+  color: var(--color-text);
 }
 
 .nav-item.router-link-active {
-  background: rgba(248, 113, 113, 0.1);
-  color: #f87171;
+  background: var(--color-sidebar-active-bg);
+  color: var(--color-sidebar-text-active);
+  font-weight: 600;
 }
 
 .nav-item.router-link-active::before {
@@ -431,7 +432,7 @@ const navItems: NavItem[] = [
   transform: translateY(-50%);
   height: 20px;
   width: 3px;
-  background: #f87171;
+  background: var(--color-primary);
   border-radius: 0 4px 4px 0;
 }
 
@@ -462,7 +463,7 @@ const navItems: NavItem[] = [
 
 .dropdown-chevron {
   flex-shrink: 0;
-  color: #71717a;
+  color: var(--color-muted);
   transition: transform 200ms ease;
 }
 
@@ -493,7 +494,7 @@ const navItems: NavItem[] = [
   padding: 0 12px;
   margin: 0 8px;
   border-radius: 8px;
-  color: #9ea3a9;
+  color: var(--color-muted);
   text-decoration: none;
   font-size: 13px;
   font-weight: 500;
@@ -502,26 +503,26 @@ const navItems: NavItem[] = [
 }
 
 .sub-nav-item:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: #f2f3f5;
+  background: var(--color-sidebar-hover);
+  color: var(--color-text);
 }
 
 .sub-nav-item.is-sub-active {
-  color: #f87171;
+  color: var(--color-primary);
   font-weight: 600;
-  background: rgba(248, 113, 113, 0.08);
+  background: var(--color-sidebar-active-bg);
 }
 
 .sub-nav-dot {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #71717a;
+  background: var(--color-muted);
   transition: background 150ms ease;
 }
 
 .sub-nav-item.is-sub-active .sub-nav-dot {
-  background: #f87171;
+  background: var(--color-primary);
 }
 
 /* ── Tooltip ────────────────────────────────────── */
@@ -533,8 +534,8 @@ const navItems: NavItem[] = [
   transform: translateY(-50%);
   padding: 6px 12px;
   border-radius: 8px;
-  background: #1e1f22;
-  color: #f2f3f5;
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
@@ -542,8 +543,8 @@ const navItems: NavItem[] = [
   opacity: 0;
   transition: opacity 150ms ease, transform 150ms ease;
   transform: translateY(-50%) translateX(-4px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-elevated);
+  border: 1px solid var(--color-border);
   z-index: 100;
 }
 
@@ -555,9 +556,9 @@ const navItems: NavItem[] = [
   transform: translateY(-50%) rotate(45deg);
   width: 8px;
   height: 8px;
-  background: #1e1f22;
-  border-left: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .collapsed .nav-item:hover .nav-tooltip {
@@ -578,16 +579,17 @@ const navItems: NavItem[] = [
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.05);
-  color: #b5bac1;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-muted);
   cursor: pointer;
-  transition: background 200ms ease, color 200ms ease;
+  transition: background 200ms ease, color 200ms ease, box-shadow 200ms ease;
 }
 
 .collapse-toggle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f2f3f5;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  box-shadow: var(--shadow-soft);
 }
 
 .collapse-chevron {
@@ -627,7 +629,7 @@ const navItems: NavItem[] = [
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(4px);
     z-index: 39;
   }

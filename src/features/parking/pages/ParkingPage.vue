@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { ActiveSession, ParkingHistoryItem, VehicleType, ParkingStatus, EntryMethod } from '../types'
 import ManualEntryModal from '../components/ManualEntryModal.vue'
 import SessionDetailModal from '../components/SessionDetailModal.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import api from '@/api/axios'
 
 // Toast type
 interface Toast {
@@ -21,8 +23,6 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
     toasts.value = toasts.value.filter((t) => t.id !== id)
   }, 4000)
 }
-
-import api from '@/api/axios'
 
 // Total parking slots capacity
 const TOTAL_CAPACITY = 200
@@ -221,7 +221,7 @@ const stats = computed(() => [
     value: String(overstayCount.value),
     subtitle: 'Exceeded 8-hour limit',
     icon: 'overstay',
-    gradient: 'linear-gradient(135deg, #ef4444, #f87171)'
+    gradient: 'linear-gradient(135deg, #d22730, #f87171)'
   }
 ])
 
@@ -374,27 +374,32 @@ const getRoleLabel = (role: string) => {
     <!-- Stats Grid -->
     <div class="stats-grid">
       <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value">{{ stat.value }}</span>
-          <span class="stat-card__title">{{ stat.title }}</span>
-          <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
+        <div v-if="isLoading">
+          <SkeletonLoader variant="rect" height="100px" style="width: 100%; border-radius: var(--radius-card);" />
         </div>
-        <div class="stat-card__icon" :style="{ background: stat.gradient }">
-          <!-- Occupancy Icon -->
-          <svg v-if="stat.icon === 'occupancy'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-          </svg>
-          <!-- Entries Icon -->
-          <svg v-if="stat.icon === 'entries'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 2v20M17 5l-5-5-5 5M17 19l-5 5-5-5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <!-- Overstay Icon -->
-          <svg v-if="stat.icon === 'overstay'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </div>
+        <template v-else>
+          <div class="stat-card__left">
+            <span class="stat-card__value">{{ stat.value }}</span>
+            <span class="stat-card__title">{{ stat.title }}</span>
+            <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
+          </div>
+          <div class="stat-card__icon" :style="{ background: stat.gradient }">
+            <!-- Occupancy Icon -->
+            <svg v-if="stat.icon === 'occupancy'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
+            </svg>
+            <!-- Entries Icon -->
+            <svg v-if="stat.icon === 'entries'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5l-5-5-5 5M17 19l-5 5-5-5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <!-- Overstay Icon -->
+            <svg v-if="stat.icon === 'overstay'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -477,7 +482,16 @@ const getRoleLabel = (role: string) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="filteredActiveSessions.length === 0">
+            <tr v-if="isLoading">
+              <td colspan="7">
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
+              </td>
+            </tr>
+            <tr v-else-if="filteredActiveSessions.length === 0">
               <td colspan="7" class="empty-state">No active parking sessions found.</td>
             </tr>
             <tr
@@ -573,7 +587,16 @@ const getRoleLabel = (role: string) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="filteredHistorySessions.length === 0">
+            <tr v-if="isLoading">
+              <td colspan="8">
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+              </td>
+            </tr>
+            <tr v-else-if="filteredHistorySessions.length === 0">
               <td colspan="8" class="empty-state">No parking history logs found.</td>
             </tr>
             <tr
@@ -714,6 +737,14 @@ const getRoleLabel = (role: string) => {
   margin-bottom: 24px;
 }
 
+@media (max-width: 640px) {
+  .parking-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+}
+
 .parking-title {
   font-size: 24px;
   font-weight: 700;
@@ -739,12 +770,12 @@ const getRoleLabel = (role: string) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px var(--color-glow);
+  box-shadow: 0 4px 12px var(--color-primary-light);
   transition: background 150ms ease, transform 150ms ease;
 }
 
 .add-entry-btn:hover {
-  background: #dc2626;
+  background: var(--color-primary-dark);
   transform: translateY(-1px);
 }
 
@@ -755,7 +786,7 @@ const getRoleLabel = (role: string) => {
 }
 
 .refresh-btn {
-  background: var(--color-surface-lighter);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-muted);
   width: 40px;
@@ -770,7 +801,7 @@ const getRoleLabel = (role: string) => {
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: var(--color-surface-muted);
+  background: var(--color-surface-lighter);
   color: var(--color-text);
   border-color: var(--color-muted);
 }
@@ -823,6 +854,8 @@ const getRoleLabel = (role: string) => {
   justify-content: space-between;
   box-shadow: var(--shadow-soft);
   transition: transform 200ms ease, box-shadow 200ms ease;
+  min-height: 84px;
+  box-sizing: border-box;
 }
 
 .stat-card:hover {
@@ -920,7 +953,7 @@ const getRoleLabel = (role: string) => {
 .search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-glow);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .toolbar-right {
@@ -965,14 +998,15 @@ const getRoleLabel = (role: string) => {
 }
 
 .tab-btn.active {
-  background: var(--color-surface-lighter);
+  background: var(--color-surface);
   color: var(--color-text);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-soft);
 }
 
 .filters-group {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .select-wrapper {
@@ -988,7 +1022,7 @@ const getRoleLabel = (role: string) => {
   color: var(--color-text);
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b5bac1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
@@ -1033,16 +1067,18 @@ const getRoleLabel = (role: string) => {
   color: var(--color-muted);
   letter-spacing: 1px;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-lighter);
 }
 
 .parking-row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 150ms ease;
+  background: var(--color-surface);
 }
 
 .parking-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-lighter);
 }
 
 .parking-row:last-child {
@@ -1066,7 +1102,7 @@ const getRoleLabel = (role: string) => {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--color-surface-lighter);
+  background: var(--color-surface-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1152,32 +1188,32 @@ const getRoleLabel = (role: string) => {
 }
 
 .role-badge--admin {
-  background: rgba(248, 113, 113, 0.1);
+  background: var(--color-primary-light);
   color: var(--color-primary);
 }
 
 .role-badge--student {
-  background: rgba(35, 165, 90, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
 .role-badge--guard {
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
 }
 
 .role-badge--faculty,
 .role-badge--staff,
 .role-badge--universitystaff,
 .role-badge--nonacademicpersonnel {
-  background: rgba(245, 158, 11, 0.1);
+  background: rgba(253, 184, 19, 0.1);
   color: var(--color-warning);
 }
 
 .role-badge--guest,
 .role-badge--visitor {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--color-accent);
+  background: var(--color-surface-muted);
+  color: var(--color-muted);
 }
 
 .duration-badge {
@@ -1185,7 +1221,7 @@ const getRoleLabel = (role: string) => {
   font-size: 12px;
   font-weight: 700;
   color: var(--color-text);
-  background: var(--color-surface-lighter);
+  background: var(--color-surface);
   padding: 4px 8px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
@@ -1218,13 +1254,13 @@ const getRoleLabel = (role: string) => {
 }
 
 .method-tag--qrcode {
-  background: rgba(99, 102, 241, 0.12);
-  color: #818cf8;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
 }
 
 .method-tag--manual {
-  background: rgba(245, 158, 11, 0.12);
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--color-warning);
 }
 
 /* Status Pills */
@@ -1237,18 +1273,18 @@ const getRoleLabel = (role: string) => {
 }
 
 .status-pill--parked {
-  background: rgba(35, 165, 90, 0.12);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
 .status-pill--overstay {
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(210, 39, 48, 0.1);
   color: var(--color-danger);
 }
 
 .status-pill--exited {
-  background: rgba(96, 165, 250, 0.12);
-  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
 }
 
 /* Actions */
@@ -1266,7 +1302,7 @@ const getRoleLabel = (role: string) => {
 }
 
 .action-icon-btn {
-  background: var(--color-surface-lighter);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-muted);
   width: 32px;
@@ -1285,13 +1321,13 @@ const getRoleLabel = (role: string) => {
 }
 
 .action-icon-btn--checkout {
-  border-color: rgba(248, 113, 113, 0.2);
+  border-color: rgba(210, 39, 48, 0.2);
   color: var(--color-danger);
 }
 
 .action-icon-btn--checkout:hover {
-  background: rgba(248, 113, 113, 0.1);
-  color: #ef4444;
+  background: rgba(210, 39, 48, 0.1);
+  color: var(--color-primary-dark);
 }
 
 .empty-state {
@@ -1314,14 +1350,14 @@ const getRoleLabel = (role: string) => {
 }
 
 .toast-item {
-  background: #1e1f22;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-elevated);
   box-sizing: border-box;
 }
 
@@ -1342,11 +1378,11 @@ const getRoleLabel = (role: string) => {
 }
 
 .toast--info {
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid var(--color-info);
 }
 
 .toast--info .toast-icon {
-  color: #3b82f6;
+  color: var(--color-info);
 }
 
 .toast-icon {

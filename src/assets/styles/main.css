@@ -8,9 +8,11 @@ body {
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: var(--color-background);
+  color: var(--color-text);
 }
 
-/* Smooth scrollbar for dark theme */
+/* ── Scrollbar ─────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -21,15 +23,15 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.12);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.2);
 }
 
-/* Custom Dropdown Select Styling */
+/* ── Form Select ───────────────────────────────── */
 .form-select {
   appearance: none;
   -webkit-appearance: none;
@@ -37,14 +39,14 @@ body {
   width: 100%;
   height: 42px;
   padding: 0 38px 0 14px;
-  background-color: rgba(0, 0, 0, 0.3);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-color: var(--color-surface);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23D22730' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 14px center;
   background-size: 16px 16px;
-  border: 1px solid var(--color-border, rgba(255, 255, 255, 0.12));
-  border-radius: 8px;
-  color: var(--color-text, #f3f4f6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-button);
+  color: var(--color-text);
   font-size: 14px;
   font-weight: 500;
   outline: none;
@@ -53,28 +55,61 @@ body {
 }
 
 .form-select:hover {
-  border-color: rgba(245, 158, 11, 0.5);
-  background-color: rgba(0, 0, 0, 0.4);
+  border-color: rgba(210, 39, 48, 0.4);
 }
 
 .form-select:focus,
 .form-select:active {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
-  background-color: rgba(0, 0, 0, 0.5);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.1);
 }
 
 .form-select option {
-  background-color: #111318;
-  color: #f3f4f6;
+  background-color: var(--color-surface);
+  color: var(--color-text);
   padding: 10px 14px;
   font-size: 14px;
   font-weight: 500;
 }
 
 .form-select option:checked {
-  background-color: #f59e0b;
-  color: #000000;
+  background-color: var(--color-primary);
+  color: white;
   font-weight: 700;
 }
 
+/* ── Skeleton Shimmer Animation ────────────────── */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 25%,
+    #f1f5f9 37%,
+    #e2e8f0 63%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+.skeleton-text {
+  height: 14px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.skeleton-text:last-child {
+  width: 60%;
+}
+
+.skeleton-circle {
+  border-radius: 50%;
+}

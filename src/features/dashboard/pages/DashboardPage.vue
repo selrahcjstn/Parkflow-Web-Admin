@@ -3,7 +3,10 @@ import { computed, ref, onMounted } from 'vue'
 import StatsCard from '../components/StatsCard.vue'
 import ParkingChart from '../components/ParkingChart.vue'
 import RecentActivity from '../components/RecentActivity.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
+
+const isLoading = ref(true)
 
 const formattedDate = computed(() =>
   new Intl.DateTimeFormat('en-US', {
@@ -32,6 +35,7 @@ const stats = computed(() => [
 const activityData = ref<{ day: string; checkIns: number; checkOuts: number }[]>([])
 
 onMounted(async () => {
+  isLoading.value = true
   try {
     const response = await api.get('/dashboard/summary?parkingCapacity=150')
     if (response.data?.isSuccess && response.data?.data) {
@@ -48,6 +52,8 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Error loading dashboard stats:', error)
+  } finally {
+    isLoading.value = false
   }
 })
 </script>
@@ -64,46 +70,56 @@ onMounted(async () => {
 
     <!-- Stats Grid -->
     <div class="dashboard__stats-grid">
-      <StatsCard
-        v-for="(stat, i) in stats"
-        :key="i"
-        :title="stat.title"
-        :value="stat.value"
-        :trend="stat.trend"
-        :trend-up="stat.trendUp"
-        :icon-bg="stat.iconBg"
-      >
-        <template #icon>
-          <!-- Users icon -->
-          <svg v-if="i === 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-          </svg>
-          <!-- Parking icon -->
-          <svg v-else-if="i === 1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-          </svg>
-          <!-- Revenue icon -->
-          <svg v-else-if="i === 2" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 1v22" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-          </svg>
-          <!-- Warning icon -->
-          <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-        </template>
-      </StatsCard>
+      <template v-if="isLoading">
+        <SkeletonLoader v-for="i in 4" :key="`skel-stat-${i}`" variant="rect" height="120px" />
+      </template>
+      <template v-else>
+        <StatsCard
+          v-for="(stat, i) in stats"
+          :key="i"
+          :title="stat.title"
+          :value="stat.value"
+          :trend="stat.trend"
+          :trend-up="stat.trendUp"
+          :icon-bg="stat.iconBg"
+        >
+          <template #icon>
+            <!-- Users icon -->
+            <svg v-if="i === 0" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <!-- Parking icon -->
+            <svg v-else-if="i === 1" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
+            </svg>
+            <!-- Revenue icon -->
+            <svg v-else-if="i === 2" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1v22" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+            <!-- Warning icon -->
+            <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </template>
+        </StatsCard>
+      </template>
     </div>
 
     <!-- Chart -->
     <div class="dashboard__chart">
-      <ParkingChart :activity-data="activityData" />
+      <template v-if="isLoading">
+        <SkeletonLoader variant="rect" height="300px" />
+      </template>
+      <template v-else>
+        <ParkingChart :activity-data="activityData" />
+      </template>
     </div>
 
     <!-- Bottom Grid -->

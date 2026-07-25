@@ -39,7 +39,7 @@ defineProps<{
 
 .stats-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-card);
 }
 
 .stats-card__header {
@@ -70,13 +70,13 @@ defineProps<{
 }
 
 .stats-card__trend--up {
-  background: rgba(35, 165, 90, 0.12);
-  color: #23a55a;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success);
 }
 
 .stats-card__trend--down {
-  background: rgba(248, 113, 113, 0.12);
-  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
 }
 
 .stats-card__trend-arrow {

@@ -612,13 +612,13 @@ const handleSubmit = async () => {
 }
 
 .btn--primary {
-  background: #ef4444;
+  background: var(--color-primary);
   color: #ffffff;
 }
 
 .btn--primary:hover {
-  background: #dc2626;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  background: var(--color-primary-dark);
+  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.3);
 }
 
 .btn--primary:disabled {

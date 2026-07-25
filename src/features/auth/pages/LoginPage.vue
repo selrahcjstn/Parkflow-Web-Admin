@@ -60,7 +60,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="dark flex min-h-screen items-center justify-center px-4" style="background: var(--color-background)">
+  <div class="flex min-h-screen items-center justify-center px-4" style="background: var(--color-background)">
     <div class="w-full max-w-md">
       <!-- Branding -->
       <div class="mb-8 flex flex-col items-center gap-3">
@@ -83,7 +83,7 @@ async function handleSubmit() {
       <!-- Card -->
       <div
         class="rounded-2xl border p-8"
-        style="background: var(--color-surface); border-color: var(--color-border)"
+        style="background: var(--color-surface); border-color: var(--color-border); box-shadow: var(--shadow-card);"
       >
         <!-- Header -->
         <div class="mb-6 text-center">
@@ -98,9 +98,9 @@ async function handleSubmit() {
           v-if="alertMessage"
           class="mb-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm"
           :style="{
-            background: alertType === 'error' ? 'rgba(248,113,113,0.1)' : 'rgba(35,165,90,0.1)',
-            color: alertType === 'error' ? 'var(--color-danger)' : 'var(--color-success)',
-            border: `1px solid ${alertType === 'error' ? 'rgba(248,113,113,0.2)' : 'rgba(35,165,90,0.2)'}`
+            background: alertType === 'error' ? 'var(--color-primary-light)' : 'rgba(16,185,129,0.1)',
+            color: alertType === 'error' ? 'var(--color-primary)' : 'var(--color-success)',
+            border: `1px solid ${alertType === 'error' ? 'rgba(210,39,48,0.2)' : 'rgba(16,185,129,0.2)'}`
           }"
         >
           <svg v-if="alertType === 'error'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -119,7 +119,7 @@ async function handleSubmit() {
         <form @submit.prevent="handleSubmit" class="flex flex-col gap-4">
           <!-- Email -->
           <div>
-            <label class="mb-1.5 block text-sm font-medium" style="color: var(--color-muted)">
+            <label class="mb-1.5 block text-sm font-medium" style="color: var(--color-text)">
               Email Address
             </label>
             <div class="input-wrapper">
@@ -141,7 +141,7 @@ async function handleSubmit() {
 
           <!-- Password -->
           <div>
-            <label class="mb-1.5 block text-sm font-medium" style="color: var(--color-muted)">
+            <label class="mb-1.5 block text-sm font-medium" style="color: var(--color-text)">
               Password
             </label>
             <div class="input-wrapper">
@@ -180,7 +180,7 @@ async function handleSubmit() {
 
           <!-- Remember / Forgot -->
           <div class="flex items-center justify-between">
-            <label class="flex cursor-pointer items-center gap-2 text-sm" style="color: var(--color-muted)">
+            <label class="flex cursor-pointer items-center gap-2 text-sm" style="color: var(--color-text)">
               <input
                 v-model="rememberMe"
                 type="checkbox"
@@ -203,8 +203,9 @@ async function handleSubmit() {
             :disabled="isLoading"
             class="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-white transition-all duration-200"
             :style="{
-              background: isLoading ? 'rgba(248,113,113,0.6)' : 'var(--color-primary)',
-              cursor: isLoading ? 'not-allowed' : 'pointer'
+              background: isLoading ? 'var(--color-primary-dark)' : 'var(--color-primary)',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? '0.7' : '1'
             }"
           >
             <svg
@@ -226,7 +227,7 @@ async function handleSubmit() {
       </div>
 
       <!-- Security note -->
-      <div class="mt-5 flex items-center justify-center gap-1.5 text-xs" style="color: #71717a">
+      <div class="mt-5 flex items-center justify-center gap-1.5 text-xs" style="color: var(--color-muted)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           <polyline points="9 12 11 14 15 10" />
@@ -249,7 +250,7 @@ async function handleSubmit() {
   left: 14px;
   display: flex;
   align-items: center;
-  color: #71717a;
+  color: var(--color-muted);
   pointer-events: none;
 }
 
@@ -257,9 +258,9 @@ async function handleSubmit() {
   width: 100%;
   height: 48px;
   padding: 0 14px 0 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-button);
   border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  background: var(--color-surface);
   color: var(--color-text);
   font-size: 14px;
   outline: none;
@@ -268,11 +269,11 @@ async function handleSubmit() {
 
 .login-input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.1);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .login-input::placeholder {
-  color: #52525b;
+  color: var(--color-muted);
 }
 
 .toggle-password {
@@ -286,14 +287,14 @@ async function handleSubmit() {
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: #71717a;
+  color: var(--color-muted);
   cursor: pointer;
   transition: color 200ms ease, background 200ms ease;
 }
 
 .toggle-password:hover {
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-surface-muted);
 }
 
 .login-checkbox {
@@ -301,7 +302,7 @@ async function handleSubmit() {
   height: 16px;
   border-radius: 4px;
   border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  background: var(--color-surface);
   accent-color: var(--color-primary);
   cursor: pointer;
 }

@@ -177,8 +177,8 @@ const handleSubmit = () => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -192,7 +192,7 @@ const handleSubmit = () => {
   border-radius: var(--radius-card);
   width: 100%;
   max-width: 480px;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -277,7 +277,7 @@ label {
 }
 
 .form-input, .form-select {
-  background: var(--color-surface-lighter);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
   padding: 10px 14px;
@@ -291,12 +291,12 @@ label {
 .form-input:focus, .form-select:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-glow);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .form-select {
   appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b5bac1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 14px center;
   background-size: 16px;
@@ -333,7 +333,7 @@ label {
 .checkmark {
   height: 18px;
   width: 18px;
-  background-color: var(--color-surface-lighter);
+  background-color: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 4px;
   display: inline-block;
@@ -404,7 +404,7 @@ label {
 }
 
 .submit-btn:hover {
-  background: #dc2626;
+  background: var(--color-primary-dark);
 }
 
 .fade-enter-active,

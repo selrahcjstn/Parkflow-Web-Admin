@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import type { Violation } from '../types'
 import ViolationDetailModal from '../components/ViolationDetailModal.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
 // Toast type
@@ -133,7 +134,7 @@ const stats = computed(() => [
     value: String(unpaidCount.value),
     subtitle: 'Awaiting settlement',
     icon: 'unpaid',
-    gradient: 'linear-gradient(135deg, #ef4444, #f87171)'
+    gradient: 'linear-gradient(135deg, #d22730, #f87171)'
   },
   {
     title: 'Paid Settlements',
@@ -147,7 +148,7 @@ const stats = computed(() => [
     value: `₱${totalCollection.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     subtitle: 'Revenue from penalties',
     icon: 'collection',
-    gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)'
+    gradient: 'linear-gradient(135deg, #fdb813, #fbbf24)'
   }
 ])
 
@@ -255,37 +256,42 @@ const getRoleLabel = (role: string) => {
     <!-- Stats Cards -->
     <div class="stats-grid">
       <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value">{{ stat.value }}</span>
-          <span class="stat-card__title">{{ stat.title }}</span>
-          <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
+        <div v-if="isLoading">
+          <SkeletonLoader variant="rect" height="100px" style="width: 100%; border-radius: var(--radius-card);" />
         </div>
-        <div class="stat-card__icon" :style="{ background: stat.gradient }">
-          <!-- Total Icon -->
-          <svg v-if="stat.icon === 'total'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-          <!-- Unpaid Icon -->
-          <svg v-if="stat.icon === 'unpaid'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
-          <!-- Paid Icon -->
-          <svg v-if="stat.icon === 'paid'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-          <!-- Collection Icon -->
-          <svg v-if="stat.icon === 'collection'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="1" x2="12" y2="23" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-          </svg>
-        </div>
+        <template v-else>
+          <div class="stat-card__left">
+            <span class="stat-card__value">{{ stat.value }}</span>
+            <span class="stat-card__title">{{ stat.title }}</span>
+            <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
+          </div>
+          <div class="stat-card__icon" :style="{ background: stat.gradient }">
+            <!-- Total Icon -->
+            <svg v-if="stat.icon === 'total'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+            <!-- Unpaid Icon -->
+            <svg v-if="stat.icon === 'unpaid'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <!-- Paid Icon -->
+            <svg v-if="stat.icon === 'paid'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <!-- Collection Icon -->
+            <svg v-if="stat.icon === 'collection'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -339,7 +345,16 @@ const getRoleLabel = (role: string) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="filteredViolations.length === 0">
+            <tr v-if="isLoading">
+              <td colspan="8">
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+              </td>
+            </tr>
+            <tr v-else-if="filteredViolations.length === 0">
               <td colspan="8" class="empty-state">No violation tickets found.</td>
             </tr>
             <tr
@@ -543,12 +558,12 @@ const getRoleLabel = (role: string) => {
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(35, 165, 90, 0.15);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
   transition: background 150ms ease, transform 150ms ease;
 }
 
 .settle-btn:hover {
-  background: #1e874b;
+  background: #059669;
   transform: translateY(-1px);
 }
 
@@ -582,6 +597,8 @@ const getRoleLabel = (role: string) => {
   justify-content: space-between;
   box-shadow: var(--shadow-soft);
   transition: transform 200ms ease, box-shadow 200ms ease;
+  min-height: 84px; /* Ensure skeleton height matches */
+  box-sizing: border-box;
 }
 
 .stat-card:hover {
@@ -678,12 +695,13 @@ const getRoleLabel = (role: string) => {
 .search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-glow);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .filters-group {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .select-wrapper {
@@ -699,7 +717,7 @@ const getRoleLabel = (role: string) => {
   color: var(--color-text);
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b5bac1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
@@ -744,16 +762,18 @@ const getRoleLabel = (role: string) => {
   color: var(--color-muted);
   letter-spacing: 1px;
   border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-lighter);
 }
 
 .violation-row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 150ms ease;
+  background: var(--color-surface);
 }
 
 .violation-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-lighter);
 }
 
 .violation-row:last-child {
@@ -850,25 +870,25 @@ const getRoleLabel = (role: string) => {
 }
 
 .role-badge--admin {
-  background: rgba(248, 113, 113, 0.1);
+  background: var(--color-primary-light);
   color: var(--color-primary);
 }
 
 .role-badge--student {
-  background: rgba(35, 165, 90, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
 .role-badge--guard {
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
 }
 
 .role-badge--faculty,
 .role-badge--staff,
 .role-badge--universitystaff,
 .role-badge--nonacademicpersonnel {
-  background: rgba(245, 158, 11, 0.1);
+  background: rgba(253, 184, 19, 0.1);
   color: var(--color-warning);
 }
 
@@ -885,12 +905,12 @@ const getRoleLabel = (role: string) => {
 }
 
 .status-pill--paid {
-  background: rgba(35, 165, 90, 0.12);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
 .status-pill--unpaid {
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(210, 39, 48, 0.1);
   color: var(--color-danger);
 }
 
@@ -928,13 +948,13 @@ const getRoleLabel = (role: string) => {
 }
 
 .action-icon-btn--settle {
-  border-color: rgba(35, 165, 90, 0.2);
+  border-color: rgba(16, 185, 129, 0.2);
   color: var(--color-success);
 }
 
 .action-icon-btn--settle:hover {
-  background: rgba(35, 165, 90, 0.1);
-  color: #1a8a4b;
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
 }
 
 .empty-state {
@@ -948,8 +968,8 @@ const getRoleLabel = (role: string) => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
   z-index: 100;
   display: flex;
   align-items: center;
@@ -963,9 +983,15 @@ const getRoleLabel = (role: string) => {
   border-radius: var(--radius-card);
   width: 100%;
   max-width: 460px;
-  box-shadow: var(--shadow-card);
+  box-shadow: var(--shadow-modal);
   overflow: hidden;
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    max-width: 90vw;
+  }
 }
 
 .modal-header {
@@ -1023,7 +1049,7 @@ label {
 }
 
 .form-input {
-  background: var(--color-surface-lighter);
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
   padding: 10px 14px;
@@ -1037,7 +1063,7 @@ label {
 .form-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-glow);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
 }
 
 .help-text {
@@ -1125,7 +1151,7 @@ label {
 }
 
 .submit-btn:hover {
-  background: #1e874b;
+  background: #059669;
 }
 
 /* Toast styling */
@@ -1141,14 +1167,14 @@ label {
 }
 
 .toast-item {
-  background: #1e1f22;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-elevated);
   box-sizing: border-box;
 }
 
@@ -1169,11 +1195,11 @@ label {
 }
 
 .toast--info {
-  border-left: 4px solid #3b82f6;
+  border-left: 4px solid var(--color-info);
 }
 
 .toast--info .toast-icon {
-  color: #3b82f6;
+  color: var(--color-info);
 }
 
 .toast-icon {

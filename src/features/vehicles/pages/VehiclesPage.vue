@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { Vehicle, VehicleType } from '../types'
 import VehicleDetailModal from '../components/VehicleDetailModal.vue'
 import VehicleFormModal from '../components/VehicleFormModal.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
 // Toast type
@@ -385,7 +386,12 @@ const getRoleLabel = (role: string) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="filteredVehicles.length === 0">
+            <tr v-if="isLoading">
+              <td colspan="6">
+                <SkeletonLoader variant="table-row" :columns="6" v-for="i in 5" :key="i" />
+              </td>
+            </tr>
+            <tr v-else-if="filteredVehicles.length === 0">
               <td colspan="6" class="empty-state">No registered vehicles match your criteria.</td>
             </tr>
             <tr
@@ -738,8 +744,8 @@ const getRoleLabel = (role: string) => {
 }
 
 .filter-select option {
-  background-color: #181b20;
-  color: #ffffff;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 /* Table Card */
@@ -772,13 +778,13 @@ const getRoleLabel = (role: string) => {
 }
 
 .vehicle-row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 150ms ease;
 }
 
 .vehicle-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-lighter);
 }
 
 .vehicle-row:last-child {
@@ -858,12 +864,12 @@ const getRoleLabel = (role: string) => {
 }
 
 .role-badge--admin {
-  background: rgba(248, 113, 113, 0.1);
+  background: rgba(210, 39, 48, 0.1);
   color: var(--color-primary);
 }
 
 .role-badge--student {
-  background: rgba(35, 165, 90, 0.1);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
@@ -893,31 +899,31 @@ const getRoleLabel = (role: string) => {
 }
 
 .status-pill--active {
-  background: rgba(35, 165, 90, 0.12);
+  background: rgba(16, 185, 129, 0.1);
   color: var(--color-success);
 }
 
 .status-pill--suspended {
-  background: rgba(248, 113, 113, 0.12);
+  background: rgba(210, 39, 48, 0.1);
   color: var(--color-danger);
 }
 
 .status-pill--primary {
-  background: rgba(99, 102, 241, 0.12);
-  color: #818cf8;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
   cursor: pointer;
 }
 
 .status-pill--secondary {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-muted);
   color: var(--color-muted);
   cursor: pointer;
   transition: background 150ms ease;
 }
 
 .status-pill--secondary:hover {
-  background: rgba(99, 102, 241, 0.12);
-  color: #818cf8;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--color-info);
 }
 
 /* Actions */
@@ -1003,14 +1009,14 @@ const getRoleLabel = (role: string) => {
 }
 
 .toast-item {
-  background: #1e1f22;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 10px;
   padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-elevated);
   box-sizing: border-box;
 }
 

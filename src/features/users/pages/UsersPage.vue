@@ -4,12 +4,15 @@ import { useRoute } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
 const route = useRoute()
 const users = ref<UserWithDetails[]>([])
+const isLoading = ref(true)
 
 const fetchUsers = async () => {
+  isLoading.value = true
   try {
     const response = await api.get('/users')
     if (response.data && response.data.isSuccess) {
@@ -19,6 +22,8 @@ const fetchUsers = async () => {
     }
   } catch (error) {
     console.error('Error fetching users:', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -364,35 +369,40 @@ const handleFormSubmit = async (formData: any) => {
 
     <!-- Stats Cards -->
     <div class="stats-grid">
-      <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value">{{ stat.value }}</span>
-          <span class="stat-card__title">{{ stat.title }}</span>
+      <template v-if="isLoading">
+        <SkeletonLoader v-for="i in 4" :key="'stat-skel-'+i" variant="rect" height="120px" style="border-radius: var(--radius-card);" />
+      </template>
+      <template v-else>
+        <div v-for="stat in stats" :key="stat.title" class="stat-card">
+          <div class="stat-card__left">
+            <span class="stat-card__value">{{ stat.value }}</span>
+            <span class="stat-card__title">{{ stat.title }}</span>
+          </div>
+          <div class="stat-card__icon" :style="{ background: stat.gradient }">
+            <!-- People Icon -->
+            <svg v-if="stat.icon === 'people'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="9" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <!-- Student Icon -->
+            <svg v-if="stat.icon === 'student'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <!-- Briefcase Icon -->
+            <svg v-if="stat.icon === 'briefcase'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <!-- Shield Icon -->
+            <svg v-if="stat.icon === 'shield'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
         </div>
-        <div class="stat-card__icon" :style="{ background: stat.gradient }">
-          <!-- People Icon -->
-          <svg v-if="stat.icon === 'people'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round" />
-            <circle cx="9" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <!-- Student Icon -->
-          <svg v-if="stat.icon === 'student'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 10v6M2 10l10-5 10 5-10 5z" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <!-- Briefcase Icon -->
-          <svg v-if="stat.icon === 'briefcase'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <!-- Shield Icon -->
-          <svg v-if="stat.icon === 'shield'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </div>
-      </div>
+      </template>
     </div>
 
     <!-- Filters Bar -->
@@ -447,10 +457,20 @@ const handleFormSubmit = async (formData: any) => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="filteredUsers.length === 0">
-              <td :colspan="isAdminStaffView ? 4 : 6" class="empty-state">No records match your criteria.</td>
-            </tr>
-            <tr v-else v-for="user in filteredUsers" :key="user.id" class="user-row" @click="openDetails(user)">
+            <template v-if="isLoading">
+              <tr v-for="i in 6" :key="'skel-'+i">
+                <td :colspan="isAdminStaffView ? 4 : 6" style="padding: 16px;">
+                  <SkeletonLoader variant="table-row" :columns="isAdminStaffView ? 4 : 6" />
+                </td>
+              </tr>
+            </template>
+            <template v-else-if="filteredUsers.length === 0">
+              <tr>
+                <td :colspan="isAdminStaffView ? 4 : 6" class="empty-state">No records match your criteria.</td>
+              </tr>
+            </template>
+            <template v-else>
+              <tr v-for="user in filteredUsers" :key="user.id" class="user-row" @click="openDetails(user)">
               <td>
                 <div class="user-cell">
                   <div class="user-cell__avatar">
@@ -537,6 +557,7 @@ const handleFormSubmit = async (formData: any) => {
                 </div>
               </td>
             </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -642,13 +663,13 @@ const handleFormSubmit = async (formData: any) => {
 }
 
 .status-tab:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--color-surface-muted);
   color: var(--color-text);
 }
 
 .status-tab.active {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--color-primary);
+  border-color: var(--color-primary-dark);
   color: #fff;
 }
 
@@ -921,13 +942,13 @@ const handleFormSubmit = async (formData: any) => {
 }
 
 .user-row {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 150ms ease;
 }
 
 .user-row:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--color-surface-lighter);
 }
 
 .user-row:last-child {
@@ -1023,7 +1044,7 @@ const handleFormSubmit = async (formData: any) => {
 .vehicles-count {
   font-size: 13px;
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
   padding: 2px 8px;
   border-radius: 6px;

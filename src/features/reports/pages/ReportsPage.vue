@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { ReportSummary, AIInsight } from '../types'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
 // Toast type
@@ -399,7 +400,10 @@ const aiInsights = ref<AIInsight[]>([
     <!-- Standard Reports Tab -->
     <div v-if="activeTab === 'standard'" class="tab-content-wrapper">
       <!-- Stats Grid -->
-      <div class="stats-grid">
+      <div v-if="isLoading" class="stats-grid">
+        <SkeletonLoader variant="card" v-for="i in 4" :key="i" />
+      </div>
+      <div v-else class="stats-grid">
         <div v-for="stat in stats" :key="stat.title" class="stat-card">
           <div class="stat-card__left">
             <span class="stat-card__value">{{ stat.value }}</span>
@@ -468,7 +472,10 @@ const aiInsights = ref<AIInsight[]>([
       </div>
 
       <!-- Charts & Visuals Layout -->
-      <div class="visuals-grid">
+      <div v-if="isLoading" class="visuals-grid">
+        <SkeletonLoader variant="card" v-for="i in 2" :key="i" style="height: 300px" />
+      </div>
+      <div v-else class="visuals-grid">
         <!-- SVG Occupancy Load Chart -->
         <div class="chart-card">
           <div class="chart-header">
@@ -1494,7 +1501,7 @@ const aiInsights = ref<AIInsight[]>([
 .ai-chat-input-wrapper {
   padding: 12px 20px;
   border-top: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  background: var(--color-surface);
 }
 
 .input-form {

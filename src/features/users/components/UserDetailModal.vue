@@ -212,8 +212,8 @@ const formatCorStatus = (status: string) => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(6px);
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
   align-items: center;
@@ -422,7 +422,7 @@ const formatCorStatus = (status: string) => {
 }
 
 .vehicle-icon {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-surface-muted);
   color: var(--color-muted);
   width: 36px;
   height: 36px;
@@ -458,7 +458,7 @@ const formatCorStatus = (status: string) => {
 .vehicle-badge {
   font-size: 11px;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-surface-muted);
   color: var(--color-muted);
   padding: 2px 8px;
   border-radius: 6px;

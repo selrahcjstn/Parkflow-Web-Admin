@@ -74,7 +74,7 @@ function handleLogout() {
   justify-content: space-between;
   height: 64px;
   padding: 0 24px;
-  background: rgba(43, 45, 49, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--color-border);
@@ -101,7 +101,7 @@ function handleLogout() {
 }
 
 .hamburger-btn:hover {
-  background: var(--color-surface-lighter);
+  background: var(--color-surface-muted);
   color: var(--color-text);
 }
 
@@ -134,7 +134,7 @@ function handleLogout() {
 }
 
 .header-icon-btn:hover {
-  background: var(--color-surface-lighter);
+  background: var(--color-surface-muted);
   color: var(--color-text);
 }
 
@@ -150,7 +150,7 @@ function handleLogout() {
   height: 8px;
   border-radius: 50%;
   background: var(--color-primary);
-  border: 2px solid rgba(43, 45, 49, 0.8);
+  border: 2px solid white;
   box-sizing: content-box;
 }
 
@@ -162,14 +162,14 @@ function handleLogout() {
   height: 36px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, #f87171, #ef4444);
+  background: linear-gradient(135deg, #D22730, #A81D24);
   cursor: pointer;
   margin-left: 6px;
   transition: box-shadow 200ms ease, transform 200ms ease;
 }
 
 .user-avatar:hover {
-  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.2);
+  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.15);
   transform: scale(1.05);
 }
 
