@@ -199,16 +199,10 @@ const handleVerifyOtpAndCreate = async () => {
 
     <!-- Header -->
     <div class="page-header">
-        <div class="account-status-tag" :class="{ 'account-status-tag--super': isSuperAdmin }">
-          <span class="status-dot"></span>
-          <span class="status-role">{{ isSuperAdmin ? 'SuperAdmin Active' : 'Admin Active' }}</span>
-          <span class="status-sep">|</span>
-          <span class="status-email">{{ currentUserEmail }}</span>
-        </div>
-        <h1 class="page-title">Register {{ isSuperAdmin ? 'Guard & Administrator' : 'Campus Guard' }}</h1>
-        <p class="page-subtitle">
-          {{ isSuperAdmin ? 'SuperAdmin authorized account creation with 2-Factor OTP verification' : 'Register official campus security guards for gate access' }}
-        </p>
+      <div>
+        <h1 class="page-title">Register Staff Account</h1>
+        <p class="page-subtitle">Create official campus security guard or administrator profiles</p>
+      </div>
     </div>
 
     <!-- Role Selection Tabs -->
@@ -393,56 +387,17 @@ const handleVerifyOtpAndCreate = async () => {
   margin: 0 auto;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.account-status-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--color-border);
-  padding: 4px 12px;
-  border-radius: 9999px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-muted);
-  margin-bottom: 12px;
-}
-
-.account-status-tag--super {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #f59e0b;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  box-shadow: 0 0 8px #10b981;
-}
-
-.account-status-tag--super .status-dot {
-  background: #f59e0b;
-  box-shadow: 0 0 8px #f59e0b;
-}
-
-.status-role {
+.page-title {
+  font-size: 24px;
   font-weight: 700;
+  color: #ffffff;
+  margin: 0;
 }
 
-.status-sep {
-  opacity: 0.3;
-}
-
-.status-email {
-  font-size: 11px;
-  opacity: 0.85;
+.page-subtitle {
+  font-size: 14px;
+  color: #cbd5e1;
+  margin: 4px 0 0;
 }
 
 /* Role Selector Tabs */
@@ -474,7 +429,7 @@ const handleVerifyOtpAndCreate = async () => {
 
 .role-option--active {
   border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.05);
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .role-icon {
@@ -486,19 +441,19 @@ const handleVerifyOtpAndCreate = async () => {
   justify-content: center;
   flex-shrink: 0;
 }
-.role-icon--blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-.role-icon--purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.role-icon--blue { background: rgba(59, 130, 246, 0.18); color: #60a5fa; }
+.role-icon--purple { background: rgba(168, 85, 247, 0.18); color: #c084fc; }
 
 .role-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--color-text);
+  color: #ffffff;
   margin: 0;
 }
 
 .role-desc {
   font-size: 12px;
-  color: var(--color-muted);
+  color: #cbd5e1;
   margin: 2px 0 0;
 }
 
@@ -525,7 +480,7 @@ const handleVerifyOtpAndCreate = async () => {
 .section-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--color-text);
+  color: #f8fafc;
   margin: 0;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--color-border);
@@ -546,7 +501,7 @@ const handleVerifyOtpAndCreate = async () => {
 .form-label {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #f1f5f9;
 }
 
 .form-label.required::after {
@@ -557,16 +512,21 @@ const handleVerifyOtpAndCreate = async () => {
 .form-input {
   height: 42px;
   padding: 0 14px;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(15, 23, 42, 0.6);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  color: var(--color-text);
+  color: #ffffff;
   font-size: 14px;
   outline: none;
 }
 
+.form-input::placeholder {
+  color: #94a3b8;
+}
+
 .form-input:focus {
   border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
 }
 
 .form-footer {
