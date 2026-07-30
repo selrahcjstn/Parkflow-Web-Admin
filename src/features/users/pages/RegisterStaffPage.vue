@@ -137,10 +137,13 @@ const handleVerifyOtpAndCreate = async () => {
           middleName: form.value.middleName || null,
           profilePictureUrl: null
         },
-        assignedGate: form.value.assignedGate
+        assignedGate: Number(form.value.assignedGate) || 1
       }
 
-      await api.post('/guards/create', guardPayload)
+      const res = await api.post('/guards/create', guardPayload)
+      if (!res.data?.isSuccess && res.data?.isSuccess === false) {
+        throw new Error(res.data?.message || 'Guard creation failed.')
+      }
     } else {
       const adminPayload = {
         account: {
@@ -154,11 +157,14 @@ const handleVerifyOtpAndCreate = async () => {
           middleName: form.value.middleName || null,
           profilePictureUrl: null
         },
-        roleLevel: form.value.roleLevel,
+        roleLevel: Number(form.value.roleLevel) || 2,
         registrationKey: 'ParkFlowSecretBootstrapAdminKey2026'
       }
 
-      await api.post('/admin/register', adminPayload)
+      const res = await api.post('/admin/register', adminPayload)
+      if (!res.data?.isSuccess && res.data?.isSuccess === false) {
+        throw new Error(res.data?.message || 'Admin creation failed.')
+      }
     }
 
     showOtpModal.value = false
@@ -171,10 +177,8 @@ const handleVerifyOtpAndCreate = async () => {
   } catch (error: any) {
     console.error('Account creation error:', error)
     showOtpModal.value = false
-    showNotification(`New ${form.value.accountType} account registered successfully!`, 'success')
-    setTimeout(() => {
-      router.push({ path: '/users' })
-    }, 1200)
+    const errMsg = error.response?.data?.message || error.message || `Failed to create ${form.value.accountType} account.`
+    showNotification(errMsg, 'error')
   } finally {
     isVerifyingOtp.value = false
     isSubmitting.value = false
