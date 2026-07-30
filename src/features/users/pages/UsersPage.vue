@@ -208,20 +208,31 @@ const handleApproveUser = async (user: UserWithDetails) => {
   try {
     user.corVerificationStatus = 'Verified'
     user.status = 'Active'
-    await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 2 }).catch(() => {})
-    showToast(`${user.fullName} approved successfully.`, 'success')
-  } catch (error) {
+    const res = await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 2 })
+    if (res.data?.isSuccess) {
+      showToast(`${user.fullName} approved successfully.`, 'success')
+    } else {
+      showToast(res.data?.message || `Failed to approve ${user.fullName}.`, 'error')
+    }
+  } catch (error: any) {
     console.error('Error approving client:', error)
+    showToast(error.response?.data?.message || `Error approving ${user.fullName}.`, 'error')
   }
 }
 
 const handleRejectUser = async (user: UserWithDetails) => {
   try {
     user.corVerificationStatus = 'Rejected'
-    await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 3 }).catch(() => {})
-    showToast(`${user.fullName} rejected.`, 'error')
-  } catch (error) {
+    user.status = 'PendingVerification'
+    const res = await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 3 })
+    if (res.data?.isSuccess) {
+      showToast(`${user.fullName} rejected successfully.`, 'error')
+    } else {
+      showToast(res.data?.message || `Failed to reject ${user.fullName}.`, 'error')
+    }
+  } catch (error: any) {
     console.error('Error rejecting client:', error)
+    showToast(error.response?.data?.message || `Error rejecting ${user.fullName}.`, 'error')
   }
 }
 
