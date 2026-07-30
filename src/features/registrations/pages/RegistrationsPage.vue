@@ -84,7 +84,9 @@ function formatDocUrl(url?: string, fallback: string = ''): string {
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url
   }
-  const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+  const isProduction = import.meta.env.PROD
+  const defaultBase = isProduction ? window.location.origin : 'http://localhost:5000'
+  const baseURL = import.meta.env.VITE_API_BASE_URL || defaultBase
   const rootDomain = baseURL.replace(/\/api\/?$/, '')
   return `${rootDomain}/${url.replace(/^\//, '')}`
 }
