@@ -66,11 +66,11 @@ const handleSubmit = async () => {
     if (response.data?.isSuccess || response.status === 200 || response.status === 201) {
       router.push({ path: '/users', query: { registered: 'true' } })
     } else {
-      router.push({ path: '/users', query: { registered: 'true' } })
+      errorMessage.value = response.data?.message || 'Failed to register client account.'
     }
   } catch (error: any) {
-    console.warn('API error during registration, saving locally & redirecting:', error)
-    router.push({ path: '/users', query: { registered: 'true' } })
+    console.error('API error during registration:', error)
+    errorMessage.value = error.response?.data?.message || error.message || 'An error occurred while registering the account.'
   } finally {
     isSubmitting.value = false
   }
