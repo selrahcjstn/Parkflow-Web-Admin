@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
-import type { ParkingReservationItem } from '../types'
+import type { ParkingReservationItem, ReservationStatusType } from '../types'
 
 const reservations = ref<ParkingReservationItem[]>([])
 const isLoading = ref(true)
@@ -26,64 +26,17 @@ const createForm = ref({
   reason: 'Campus Special Event / Administrative Schedule'
 })
 
-// Demo mock data if backend has no records yet
-const fallbackReservations: ParkingReservationItem[] = [
-  {
-    id: 'res-101-demo',
-    userId: 'u-101',
-    userFullName: 'Dr. Maria Santos',
-    userEmail: 'msantos@university.edu.ph',
-    referenceNumber: 'RES-20260928-1049',
-    reservationDate: '2026-09-28',
-    startTime: '08:00:00',
-    endTime: '17:00:00',
-    reason: 'Academic Consultation & Special Board Meeting',
-    status: 'Pending',
-    createdAt: '2026-09-04T08:30:00Z'
-  },
-  {
-    id: 'res-102-demo',
-    userId: 'u-102',
-    userFullName: 'Engr. Juan Dela Cruz',
-    userEmail: 'jdelacruz@university.edu.ph',
-    referenceNumber: 'RES-20260929-4820',
-    reservationDate: '2026-09-29',
-    startTime: '07:30:00',
-    endTime: '12:00:00',
-    reason: 'Engineering Research Laboratory Evaluation',
-    status: 'Approved',
-    adminNotes: 'Verified official department clearance.',
-    approvedAt: '2026-09-04T10:15:00Z',
-    createdAt: '2026-09-03T14:20:00Z'
-  },
-  {
-    id: 'res-103-demo',
-    userId: 'u-103',
-    userFullName: 'Alyssa Valdez',
-    userEmail: 'avaldez@student.university.edu.ph',
-    referenceNumber: 'RES-20260930-9182',
-    reservationDate: '2026-09-30',
-    startTime: '13:00:00',
-    endTime: '18:00:00',
-    reason: 'Varsity Athletics Training & Tournament Setup',
-    status: 'Pending',
-    createdAt: '2026-09-04T11:05:00Z'
-  },
-  {
-    id: 'res-104-demo',
-    userId: 'u-104',
-    userFullName: 'Prof. Ricardo Alonzo',
-    userEmail: 'ralonzo@university.edu.ph',
-    referenceNumber: 'RES-20261001-3310',
-    reservationDate: '2026-10-01',
-    startTime: '09:00:00',
-    endTime: '15:00:00',
-    reason: 'Guest Lecturer Parking Accommodation',
-    status: 'Rejected',
-    adminNotes: 'Slot limit reached for central parking zone.',
-    createdAt: '2026-09-02T09:00:00Z'
-  }
-]
+function formatStatus(status: ReservationStatusType): string {
+  if (status === 0 || String(status).toLowerCase() === 'pending') return 'Pending'
+  if (status === 1 || String(status).toLowerCase() === 'approved') return 'Approved'
+  if (status === 2 || String(status).toLowerCase() === 'rejected') return 'Rejected'
+  if (status === 3 || String(status).toLowerCase() === 'cancelled') return 'Cancelled'
+  return String(status || 'Pending')
+}
+
+function getStatusKey(status: ReservationStatusType): string {
+  return formatStatus(status).toLowerCase()
+}
 
 async function fetchReservations() {
   isLoading.value = true
@@ -94,11 +47,11 @@ async function fetchReservations() {
     } else if (Array.isArray(response.data)) {
       reservations.value = response.data
     } else {
-      reservations.value = fallbackReservations
+      reservations.value = []
     }
   } catch (error) {
-    console.warn('API reservations fetch fallback to demo data:', error)
-    reservations.value = fallbackReservations
+    console.error('API reservations fetch error:', error)
+    reservations.value = []
   } finally {
     isLoading.value = false
   }
@@ -117,19 +70,19 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
 
 // Stats computations
 const totalCount = computed(() => reservations.value.length)
-const pendingCount = computed(() => reservations.value.filter(r => String(r.status).toLowerCase() === 'pending' || r.status === 0).length)
-const approvedCount = computed(() => reservations.value.filter(r => String(r.status).toLowerCase() === 'approved' || r.status === 1).length)
-const rejectedCount = computed(() => reservations.value.filter(r => String(r.status).toLowerCase() === 'rejected' || r.status === 2 || String(r.status).toLowerCase() === 'cancelled' || r.status === 3).length)
+const pendingCount = computed(() => reservations.value.filter(r => getStatusKey(r.status) === 'pending').length)
+const approvedCount = computed(() => reservations.value.filter(r => getStatusKey(r.status) === 'approved').length)
+const rejectedCount = computed(() => reservations.value.filter(r => getStatusKey(r.status) === 'rejected' || getStatusKey(r.status) === 'cancelled').length)
 
 // Filtered list
 const filteredReservations = computed(() => {
   return reservations.value.filter(item => {
-    const statusStr = String(item.status).toLowerCase()
+    const statusKey = getStatusKey(item.status)
     
     // Tab filter
-    if (selectedStatusTab.value === 'pending' && statusStr !== 'pending' && item.status !== 0) return false
-    if (selectedStatusTab.value === 'approved' && statusStr !== 'approved' && item.status !== 1) return false
-    if (selectedStatusTab.value === 'rejected' && statusStr !== 'rejected' && statusStr !== 'cancelled' && item.status !== 2 && item.status !== 3) return false
+    if (selectedStatusTab.value === 'pending' && statusKey !== 'pending') return false
+    if (selectedStatusTab.value === 'approved' && statusKey !== 'approved') return false
+    if (selectedStatusTab.value === 'rejected' && statusKey !== 'rejected' && statusKey !== 'cancelled') return false
 
     // Date filter
     if (selectedDateFilter.value) {
@@ -210,11 +163,7 @@ async function handleApprove(item: ParkingReservationItem) {
     showToast(`Reservation ${item.referenceNumber} approved successfully.`)
     closeReviewModal()
   } catch (error: any) {
-    // If demo item or local update needed
-    item.status = 'Approved'
-    item.adminNotes = reviewNotes.value
-    showToast(`Reservation ${item.referenceNumber} approved.`)
-    closeReviewModal()
+    showToast(`Failed to approve reservation: ${error.response?.data?.message || error.message}`, 'error')
   } finally {
     isSubmittingReview.value = false
   }
@@ -229,11 +178,7 @@ async function handleReject(item: ParkingReservationItem) {
     showToast(`Reservation ${item.referenceNumber} rejected.`, 'error')
     closeReviewModal()
   } catch (error: any) {
-    // Local fallback update
-    item.status = 'Rejected'
-    item.adminNotes = reviewNotes.value
-    showToast(`Reservation ${item.referenceNumber} rejected.`, 'error')
-    closeReviewModal()
+    showToast(`Failed to reject reservation: ${error.response?.data?.message || error.message}`, 'error')
   } finally {
     isSubmittingReview.value = false
   }
@@ -256,21 +201,7 @@ async function handleCreateReservation() {
     if (response.data && response.data.data) {
       reservations.value.unshift(response.data.data)
     } else {
-      // Local addition
-      const newRef = 'RES-' + createForm.value.reservationDate.replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000)
-      reservations.value.unshift({
-        id: 'res-' + Date.now(),
-        userId: 'admin-id',
-        userFullName: 'Administrator (System Schedule)',
-        userEmail: 'admin@parkflow.com',
-        referenceNumber: newRef,
-        reservationDate: createForm.value.reservationDate,
-        startTime: createForm.value.startTime + ':00',
-        endTime: createForm.value.endTime + ':00',
-        reason: createForm.value.reason,
-        status: 'Approved',
-        createdAt: new Date().toISOString()
-      })
+      await fetchReservations()
     }
     showToast('Schedule reservation created & reserved successfully.')
     showCreateModal.value = false
@@ -287,7 +218,14 @@ async function handleCreateReservation() {
     <!-- Notification Toast -->
     <Transition name="toast">
       <div v-if="notificationToast" class="toast-notification" :class="`toast--${notificationToast.type}`">
-        <span class="toast-icon">{{ notificationToast.type === 'success' ? '✓' : '⚠️' }}</span>
+        <svg v-if="notificationToast.type === 'success'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
         <span>{{ notificationToast.message }}</span>
       </div>
     </Transition>
@@ -459,7 +397,14 @@ async function handleCreateReservation() {
           <tr v-else-if="filteredReservations.length === 0">
             <td colspan="6" class="empty-cell">
               <div class="empty-state">
-                <span class="empty-icon">📅</span>
+                <div class="empty-icon-box">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
                 <h3 class="empty-title">No schedule reservations found</h3>
                 <p class="empty-desc">There are no reservation requests matching your search query or tab filter.</p>
               </div>
@@ -480,8 +425,8 @@ async function handleCreateReservation() {
                   {{ getInitials(item.userFullName) }}
                 </div>
                 <div class="applicant-meta">
-                  <span class="applicant-name">{{ item.userFullName }}</span>
-                  <span class="applicant-email">{{ item.userEmail }}</span>
+                  <span class="applicant-name">{{ item.userFullName || 'Campus User' }}</span>
+                  <span class="applicant-email">{{ item.userEmail || 'N/A' }}</span>
                 </div>
               </div>
             </td>
@@ -489,8 +434,14 @@ async function handleCreateReservation() {
             <!-- Date & Time Slot -->
             <td>
               <div class="schedule-meta">
-                <span class="date-text">📅 {{ formatReservationDate(item.reservationDate) }}</span>
-                <span class="time-text">⏰ {{ formatTimeSlot(item.startTime, item.endTime) }}</span>
+                <span class="date-text">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                  {{ formatReservationDate(item.reservationDate) }}
+                </span>
+                <span class="time-text">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  {{ formatTimeSlot(item.startTime, item.endTime) }}
+                </span>
               </div>
             </td>
 
@@ -503,10 +454,10 @@ async function handleCreateReservation() {
             <td>
               <span
                 class="status-badge"
-                :class="`status-badge--${String(item.status).toLowerCase()}`"
+                :class="`status-badge--${getStatusKey(item.status)}`"
               >
                 <span class="status-dot"></span>
-                {{ String(item.status).charAt(0).toUpperCase() + String(item.status).slice(1) }}
+                {{ formatStatus(item.status) }}
               </span>
             </td>
 
@@ -514,7 +465,7 @@ async function handleCreateReservation() {
             <td class="text-right">
               <div class="action-buttons">
                 <button
-                  v-if="String(item.status).toLowerCase() === 'pending' || item.status === 0"
+                  v-if="getStatusKey(item.status) === 'pending'"
                   class="btn-action btn-approve"
                   @click="handleApprove(item)"
                   title="Approve Reservation"
@@ -522,7 +473,7 @@ async function handleCreateReservation() {
                   Approve
                 </button>
                 <button
-                  v-if="String(item.status).toLowerCase() === 'pending' || item.status === 0"
+                  v-if="getStatusKey(item.status) === 'pending'"
                   class="btn-action btn-reject"
                   @click="handleReject(item)"
                   title="Decline Reservation"
@@ -561,11 +512,11 @@ async function handleCreateReservation() {
                 <h4 class="section-label">Applicant Details</h4>
                 <div class="meta-row">
                   <span class="meta-key">Full Name</span>
-                  <span class="meta-val">{{ reviewModalItem.userFullName }}</span>
+                  <span class="meta-val">{{ reviewModalItem.userFullName || 'Campus User' }}</span>
                 </div>
                 <div class="meta-row">
                   <span class="meta-key">Email Address</span>
-                  <span class="meta-val">{{ reviewModalItem.userEmail }}</span>
+                  <span class="meta-val">{{ reviewModalItem.userEmail || 'N/A' }}</span>
                 </div>
               </div>
 
@@ -586,8 +537,8 @@ async function handleCreateReservation() {
                 <div class="meta-row">
                   <span class="meta-key">Current Status</span>
                   <span class="meta-val">
-                    <span class="status-badge" :class="`status-badge--${String(reviewModalItem.status).toLowerCase()}`">
-                      {{ String(reviewModalItem.status) }}
+                    <span class="status-badge" :class="`status-badge--${getStatusKey(reviewModalItem.status)}`">
+                      {{ formatStatus(reviewModalItem.status) }}
                     </span>
                   </span>
                 </div>
@@ -984,15 +935,21 @@ async function handleCreateReservation() {
 .schedule-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 .date-text {
   font-weight: 700;
   color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .time-text {
   font-size: 12px;
   color: var(--color-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .reason-text {
@@ -1072,8 +1029,17 @@ async function handleCreateReservation() {
   align-items: center;
   gap: 8px;
 }
-.empty-icon {
-  font-size: 36px;
+.empty-icon-box {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-muted);
+  margin-bottom: 4px;
 }
 .empty-title {
   font-size: 16px;

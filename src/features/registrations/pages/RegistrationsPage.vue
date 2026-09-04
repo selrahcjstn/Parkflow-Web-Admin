@@ -412,7 +412,7 @@ async function reject(reg: RegistrationItem) {
               </div>
             </div>
             <div class="doc-thumb-info">
-              <span class="doc-thumb-title">📄 COR Document</span>
+              <span class="doc-thumb-title">COR Document</span>
               <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
             </div>
           </div>
@@ -426,7 +426,7 @@ async function reject(reg: RegistrationItem) {
               </div>
             </div>
             <div class="doc-thumb-info">
-              <span class="doc-thumb-title">📑 OR/CR Receipt</span>
+              <span class="doc-thumb-title">OR/CR Receipt</span>
               <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
             </div>
           </div>
@@ -440,7 +440,7 @@ async function reject(reg: RegistrationItem) {
               </div>
             </div>
             <div class="doc-thumb-info">
-              <span class="doc-thumb-title">🏍️ Vehicle Photo</span>
+              <span class="doc-thumb-title">Vehicle Photo</span>
               <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
             </div>
           </div>
@@ -461,10 +461,10 @@ async function reject(reg: RegistrationItem) {
             <button class="btn-card-approve" @click="approve(reg)">Approve & Verify</button>
           </div>
           <span v-else-if="reg.status === 'approved'" class="result-text result-text--approved">
-            ✓ Clearance Verified
+            Clearance Verified
           </span>
           <span v-else class="result-text result-text--rejected">
-            ✗ Registration Declined
+            Registration Declined
           </span>
         </div>
       </div>
@@ -519,13 +519,13 @@ async function reject(reg: RegistrationItem) {
               <td>
                 <div class="doc-links">
                   <button class="doc-badge-btn doc-badge-btn--cor" @click="openInspector(reg, 'cor')">
-                    📄 COR
+                    COR
                   </button>
                   <button class="doc-badge-btn doc-badge-btn--orcr" @click="openInspector(reg, 'orcr')">
-                    📑 OR/CR
+                    OR/CR
                   </button>
                   <button class="doc-badge-btn doc-badge-btn--pic" @click="openInspector(reg, 'motorPic')">
-                    🏍️ Photo
+                    Photo
                   </button>
                 </div>
               </td>
@@ -547,10 +547,10 @@ async function reject(reg: RegistrationItem) {
                   </button>
                 </div>
                 <span v-else-if="reg.status === 'approved'" class="result-text result-text--approved">
-                  ✓ Verified
+                  Verified
                 </span>
                 <span v-else class="result-text result-text--rejected">
-                  ✗ Declined
+                  Declined
                 </span>
               </td>
             </tr>
@@ -584,21 +584,21 @@ async function reject(reg: RegistrationItem) {
                     :class="{ 'doc-tab-btn--active': activeDocType === 'cor' }"
                     @click="activeDocType = 'cor'"
                   >
-                    📄 COR Certificate
+                    COR Certificate
                   </button>
                   <button
                     class="doc-tab-btn"
                     :class="{ 'doc-tab-btn--active': activeDocType === 'orcr' }"
                     @click="activeDocType = 'orcr'"
                   >
-                    📑 OR/CR Receipt
+                    OR/CR Receipt
                   </button>
                   <button
                     class="doc-tab-btn"
                     :class="{ 'doc-tab-btn--active': activeDocType === 'motorPic' }"
                     @click="activeDocType = 'motorPic'"
                   >
-                    🏍️ Vehicle Photo
+                    Vehicle Photo
                   </button>
                 </div>
 
@@ -625,7 +625,7 @@ async function reject(reg: RegistrationItem) {
                     class="inspector-img"
                     @click="openZoomImage(inspectorItem.motorPicUrl || defaultMotorImage)"
                   />
-                  <span class="zoom-hint">🔍 Click image to enlarge full screen</span>
+                  <span class="zoom-hint">Click image to enlarge full screen</span>
                 </div>
               </div>
 
@@ -670,15 +670,15 @@ async function reject(reg: RegistrationItem) {
                 <div class="sidebar-section">
                   <h4 class="sidebar-label">Verification Checklist</h4>
                   <div class="check-item">
-                    <span class="check-dot check-dot--ok">✓</span>
+                    <span class="check-dot check-dot--ok">•</span>
                     <span>COR Document Uploaded & Scanned</span>
                   </div>
                   <div class="check-item">
-                    <span class="check-dot check-dot--ok">✓</span>
+                    <span class="check-dot check-dot--ok">•</span>
                     <span>OR/CR Registration Active</span>
                   </div>
                   <div class="check-item">
-                    <span class="check-dot check-dot--ok">✓</span>
+                    <span class="check-dot check-dot--ok">•</span>
                     <span>Vehicle Photo Verification</span>
                   </div>
                 </div>
@@ -694,8 +694,8 @@ async function reject(reg: RegistrationItem) {
                     </button>
                   </div>
                   <div v-else class="inspector-status-notice" :class="`notice--${inspectorItem.status}`">
-                    <span v-if="inspectorItem.status === 'approved'">✓ Clearance Approved & Verified</span>
-                    <span v-else>✗ Registration Rejected</span>
+                    <span v-if="inspectorItem.status === 'approved'">Clearance Approved & Verified</span>
+                    <span v-else>Registration Rejected</span>
                   </div>
                 </div>
               </div>
