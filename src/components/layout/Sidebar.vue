@@ -95,6 +95,28 @@ const navItems: NavItem[] = [
 ]
 
 const userEmail = computed(() => localStorage.getItem('parkflow_user_email') || 'admin@parkflow.com')
+const isSuperAdmin = computed(() => {
+  const email = userEmail.value.toLowerCase().trim()
+  return email.includes('superadmin') || email === 'superadmin@parkflow.com' || !email
+})
+
+const filteredNavItems = computed(() => {
+  return navItems.map(item => {
+    if (item.children) {
+      return {
+        ...item,
+        children: item.children.filter(sub => {
+          if (sub.path === '/users/create-staff' && !isSuperAdmin.value) {
+            return false
+          }
+          return true
+        })
+      }
+    }
+    return item
+  })
+})
+
 const userInitials = computed(() => {
   const email = userEmail.value
   const local = email.split('@')[0] || 'A'
@@ -140,7 +162,7 @@ const userInitials = computed(() => {
 
       <!-- Nav section -->
       <nav class="sidebar-nav">
-        <template v-for="item in navItems" :key="item.key">
+        <template v-for="item in filteredNavItems" :key="item.key">
 
           <!-- Section Divider Label -->
           <div v-if="item.section" class="nav-section-group">
@@ -262,7 +284,7 @@ const userInitials = computed(() => {
       <div class="sidebar-user">
         <div class="user-avatar-mini">{{ userInitials }}</div>
         <div class="user-info">
-          <span class="user-role">Administrator</span>
+          <span class="user-role">{{ isSuperAdmin ? 'Super Administrator' : 'Administrator' }}</span>
           <span class="user-email">{{ userEmail }}</span>
         </div>
       </div>

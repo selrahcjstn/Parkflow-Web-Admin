@@ -18,6 +18,10 @@ const dropdownRef = ref<HTMLElement | null>(null)
 
 // User info from localStorage
 const userEmail = computed(() => localStorage.getItem('parkflow_user_email') || 'admin@parkflow.com')
+const isSuperAdmin = computed(() => {
+  const email = userEmail.value.toLowerCase().trim()
+  return email.includes('superadmin') || email === 'superadmin@parkflow.com' || !email
+})
 const userInitials = computed(() => {
   const email = userEmail.value
   const local = email.split('@')[0] || 'A'
@@ -127,7 +131,7 @@ onBeforeUnmount(() => {
             <div class="dropdown-header">
               <div class="dropdown-avatar">{{ userInitials }}</div>
               <div class="dropdown-user-info">
-                <span class="dropdown-role">Administrator</span>
+                <span class="dropdown-role">{{ isSuperAdmin ? 'Super Administrator' : 'Administrator' }}</span>
                 <span class="dropdown-email">{{ userEmail }}</span>
               </div>
             </div>

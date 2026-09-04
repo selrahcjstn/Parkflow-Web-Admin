@@ -33,8 +33,7 @@ function checkUserRole() {
     otpSentEmail.value = storedEmail || 'superadmin@parkflow.com'
   } else {
     isSuperAdmin.value = false
-    otpSentEmail.value = storedEmail
-    form.value.accountType = 'Guard'
+    router.replace('/dashboard')
   }
 }
 

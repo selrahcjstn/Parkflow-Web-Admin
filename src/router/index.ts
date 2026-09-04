@@ -40,6 +40,14 @@ router.beforeEach((to, from, next) => {
     next({ name: 'Login' })
   } else if (to.name === 'Login' && token) {
     next({ name: 'Dashboard' })
+  } else if (to.meta.requiresSuperAdmin) {
+    const storedEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
+    const isSuperAdmin = storedEmail.includes('superadmin') || storedEmail === 'superadmin@parkflow.com' || !storedEmail
+    if (!isSuperAdmin) {
+      next({ name: 'Dashboard' })
+    } else {
+      next()
+    }
   } else {
     next()
   }

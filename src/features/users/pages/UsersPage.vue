@@ -11,6 +11,9 @@ const route = useRoute()
 const users = ref<UserWithDetails[]>([])
 const isLoading = ref(true)
 
+const userEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
+const isSuperAdmin = computed(() => userEmail.includes('superadmin') || userEmail === 'superadmin@parkflow.com' || !userEmail)
+
 const fetchUsers = async () => {
   isLoading.value = true
   try {
@@ -369,7 +372,7 @@ const handleFormSubmit = async (formData: any) => {
           {{ isAdminStaffView ? 'Manage registered campus security guards and system administrator accounts.' : 'Manage registered client accounts, pending COR registrations, and system privileges.' }}
         </p>
       </div>
-      <router-link :to="isAdminStaffView ? '/users/create-staff' : '/users/create'" class="add-user-btn">
+      <router-link v-if="!isAdminStaffView || isSuperAdmin" :to="isAdminStaffView ? '/users/create-staff' : '/users/create'" class="add-user-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
           <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
