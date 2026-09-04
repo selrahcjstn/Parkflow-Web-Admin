@@ -212,7 +212,7 @@ const formatCorStatus = (status: string) => {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--color-overlay);
   backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;

@@ -758,7 +758,7 @@ const handleVerifyOtpAndCreate = async () => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--color-overlay);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;

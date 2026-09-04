@@ -1398,7 +1398,7 @@ async function reject(reg: RegistrationItem) {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
+  background: var(--color-overlay);
   backdrop-filter: blur(8px);
   z-index: 9999;
   display: flex;
@@ -1410,8 +1410,8 @@ async function reject(reg: RegistrationItem) {
 .modal-backdrop-zoom {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(4px);
+  background: var(--color-overlay-dark);
+  backdrop-filter: blur(8px);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -1681,17 +1681,6 @@ async function reject(reg: RegistrationItem) {
 }
 
 /* Image Modal */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  padding: 24px;
-}
 
 .modal-content {
   position: relative;
