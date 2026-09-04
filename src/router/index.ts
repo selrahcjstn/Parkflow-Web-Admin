@@ -7,6 +7,7 @@ import violationsRoutes from '@/features/violations/routes'
 import vehiclesRoutes from '@/features/vehicles/routes'
 import reportsRoutes from '@/features/reports/routes'
 import registrationsRoutes from '@/features/registrations/routes'
+import reservationsRoutes from '@/features/reservations/routes'
 import settingsRoutes from '@/features/settings/routes'
 
 const router = createRouter({
@@ -20,6 +21,7 @@ const router = createRouter({
         { path: '', redirect: '/dashboard' },
         ...dashboardRoutes,
         ...registrationsRoutes,
+        ...reservationsRoutes,
         ...usersRoutes,
         ...parkingRoutes,
         ...violationsRoutes,

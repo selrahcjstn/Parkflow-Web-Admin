@@ -87,6 +87,7 @@ const navItems: NavItem[] = [
   },
   { key: 'divider-2', label: 'Operations', icon: '', section: true },
   { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
+  { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
   { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
   { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
   { key: 'divider-3', label: 'System', icon: '', section: true },
@@ -188,6 +189,13 @@ const userInitials = computed(() => {
               <svg v-else-if="item.icon === 'parking'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="3" />
                 <path d="M10 16V8h3a3 3 0 0 1 0 6h-3" />
+              </svg>
+              <!-- Calendar / Reservations icon -->
+              <svg v-else-if="item.icon === 'calendar'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
               <!-- Collections icon -->
               <svg v-else-if="item.icon === 'violations'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
