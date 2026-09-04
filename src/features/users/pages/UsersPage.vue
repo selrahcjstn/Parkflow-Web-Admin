@@ -54,7 +54,12 @@ const applyRouteQueries = () => {
     selectedStatus.value = 'all'
   }
   if (route.query.role) {
-    selectedRole.value = String(route.query.role)
+    const roleVal = String(route.query.role)
+    if ((roleVal === 'AdminStaff' || roleVal === 'Guard' || roleVal === 'Admin') && !isSuperAdmin.value) {
+      selectedRole.value = 'all'
+    } else {
+      selectedRole.value = roleVal
+    }
   } else {
     selectedRole.value = 'all'
   }
@@ -122,6 +127,11 @@ const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff')
 
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
+    // Security restriction: Only SuperAdmin can see Admin/Staff/Guard user accounts
+    if (!isSuperAdmin.value && (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin')) {
+      return false
+    }
+
     const matchesSearch =
       user.fullName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
@@ -132,7 +142,7 @@ const filteredUsers = computed(() => {
       selectedRole.value === 'all' ||
       user.role === selectedRole.value ||
       ((selectedRole.value === 'staff' || selectedRole.value === 'NAPA') && (user.role === 'UniversityStaff' || user.role === 'NonAcademicPersonnel')) ||
-      (selectedRole.value === 'AdminStaff' && (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin'))
+      (selectedRole.value === 'AdminStaff' && isSuperAdmin.value && (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin'))
 
     const matchesStatus =
       selectedStatus.value === 'all' ||
@@ -437,9 +447,9 @@ const handleFormSubmit = async (formData: any) => {
             <option value="all">All Roles</option>
             <option value="Student">Student</option>
             <option value="staff">Staff/Faculty</option>
-            <option value="AdminStaff">Admin / Staff</option>
-            <option value="Guard">Security Guard</option>
-            <option value="Admin">Administrator</option>
+            <option v-if="isSuperAdmin" value="AdminStaff">Admin / Staff</option>
+            <option v-if="isSuperAdmin" value="Guard">Security Guard</option>
+            <option v-if="isSuperAdmin" value="Admin">Administrator</option>
           </select>
         </div>
 

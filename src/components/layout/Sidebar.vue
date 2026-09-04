@@ -110,6 +110,9 @@ const filteredNavItems = computed(() => {
           if (sub.path === '/users/create-staff' && !isSuperAdmin.value) {
             return false
           }
+          if (sub.path === '/users?role=AdminStaff' && !isSuperAdmin.value) {
+            return false
+          }
           return true
         })
       }
