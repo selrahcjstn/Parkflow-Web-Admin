@@ -35,11 +35,21 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  const token = localStorage.getItem('parkflow_token')
+  const rawToken = localStorage.getItem('parkflow_token')
+  const token = rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken.trim() !== '' ? rawToken.trim() : null
+
+  if (!token && rawToken) {
+    localStorage.removeItem('parkflow_token')
+  }
+
   const requiresAuth = to.meta.requiresAuth !== false
 
   if (requiresAuth && !token) {
-    next({ name: 'Login' })
+    if (to.name !== 'Login') {
+      next({ name: 'Login' })
+    } else {
+      next()
+    }
   } else if (to.name === 'Login' && token) {
     next({ name: 'Dashboard' })
   } else if (to.meta.requiresSuperAdmin) {

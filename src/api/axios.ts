@@ -20,7 +20,9 @@ api.interceptors.request.use((config) => {
     url.includes('/users/login') ||
     url.includes('/login')
 
-  const token = localStorage.getItem('parkflow_token')
+  const rawToken = localStorage.getItem('parkflow_token')
+  const token = rawToken && rawToken !== 'undefined' && rawToken !== 'null' ? rawToken.trim() : null
+
   if (token && !isPublicAuthRoute) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -44,7 +46,9 @@ api.interceptors.response.use(
 
       if (!isPublicAuthRoute) {
         localStorage.removeItem('parkflow_token')
-        window.location.href = '/login'
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
       }
     }
     return Promise.reject(error)
