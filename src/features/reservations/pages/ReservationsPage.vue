@@ -1135,18 +1135,18 @@ async function handleCreateReservation() {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  overflow-x: auto;
+  overflow: hidden;
+  width: 100%;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  min-width: 1080px;
 }
 
 .data-table th {
-  padding: 14px 18px;
+  padding: 12px 14px;
   font-size: 12px;
   font-weight: 700;
   color: var(--color-muted);
@@ -1158,7 +1158,7 @@ async function handleCreateReservation() {
 }
 
 .data-table td {
-  padding: 14px 18px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--color-border);
   font-size: 13px;
   vertical-align: middle;
@@ -1167,9 +1167,9 @@ async function handleCreateReservation() {
 .ref-badge {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--color-border);
-  padding: 5px 10px;
+  padding: 4px 8px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-primary);
   font-weight: 700;
   white-space: nowrap;
@@ -1183,16 +1183,15 @@ async function handleCreateReservation() {
 .applicant-cell {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-width: 220px;
+  gap: 10px;
 }
 .avatar-circle {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   color: #ffffff;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1201,62 +1200,63 @@ async function handleCreateReservation() {
 .applicant-meta {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 .applicant-name {
   font-weight: 700;
   color: var(--color-text);
+  font-size: 13px;
 }
 .applicant-email {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-muted);
+  word-break: break-all;
 }
 
 .schedule-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   white-space: nowrap;
-  min-width: 190px;
 }
 .date-text {
   font-weight: 700;
   color: var(--color-text);
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 .time-text {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--color-muted);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .reason-text {
   color: var(--color-text);
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12px;
+  line-height: 1.4;
   white-space: normal;
   word-break: break-word;
   display: block;
-  min-width: 240px;
-  max-width: 380px;
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
 .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -1276,16 +1276,15 @@ async function handleCreateReservation() {
 
 .action-buttons {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   justify-content: flex-end;
   align-items: center;
   white-space: nowrap;
-  min-width: 250px;
 }
 .btn-action {
-  padding: 6px 12px;
+  padding: 5px 9px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   border: none;
