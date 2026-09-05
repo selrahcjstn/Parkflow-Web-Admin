@@ -20,6 +20,7 @@ const isSubmittingReview = ref(false)
 
 // QR Pass modal state
 const qrPassModalItem = ref<ParkingReservationItem | null>(null)
+const isQrZoomed = ref(false)
 
 function openQrPassModal(item: ParkingReservationItem) {
   qrPassModalItem.value = item
@@ -27,6 +28,7 @@ function openQrPassModal(item: ParkingReservationItem) {
 
 function closeQrPassModal() {
   qrPassModalItem.value = null
+  isQrZoomed.value = false
 }
 
 function printPass() {
@@ -737,15 +739,44 @@ async function handleCreateReservation() {
             <div class="qr-pass-body">
               <!-- QR Code Display Box -->
               <div class="qr-display-box">
-                <div class="qr-code-frame">
+                <div class="qr-code-frame" @click="isQrZoomed = true" title="Click to zoom QR Code">
                   <img
                     :src="`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrPassModalItem.referenceNumber)}`"
                     alt="Parking Pass QR Code"
                     class="qr-code-img"
                   />
+                  <div class="qr-zoom-indicator">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      <line x1="11" y1="8" x2="11" y2="14"></line>
+                      <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg>
+                    Tap to Zoom
+                  </div>
                 </div>
                 <p class="qr-scan-hint">Present code to campus gate scanner or security guard</p>
               </div>
+
+              <!-- Fullscreen Zoomed QR Modal -->
+              <Teleport to="body">
+                <Transition name="fade">
+                  <div v-if="isQrZoomed && qrPassModalItem" class="qr-fullscreen-zoom-backdrop" @click="isQrZoomed = false">
+                    <div class="qr-zoom-modal-card" @click.stop>
+                      <button class="qr-zoom-close-btn" @click="isQrZoomed = false">&times;</button>
+                      <div class="qr-zoom-img-wrapper">
+                        <img
+                          :src="`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrPassModalItem.referenceNumber)}`"
+                          alt="Zoomed QR Code"
+                          class="qr-zoomed-img"
+                        />
+                      </div>
+                      <p class="qr-zoom-ref-text">{{ qrPassModalItem.referenceNumber }}</p>
+                      <p class="qr-zoom-hint-text">Digital Permit Pass • High Resolution Scan</p>
+                    </div>
+                  </div>
+                </Transition>
+              </Teleport>
 
               <!-- Pass Info Ticket Details -->
               <div class="qr-pass-details">
@@ -1831,5 +1862,121 @@ async function handleCreateReservation() {
   .qr-pass-footer, .close-btn {
     display: none !important;
   }
+}
+
+/* QR Code Zoom Modal with Backdrop Blur */
+.qr-code-frame {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.qr-code-frame:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.qr-zoom-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.qr-fullscreen-zoom-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.qr-zoom-modal-card {
+  position: relative;
+  background: #ffffff;
+  padding: 32px;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 380px;
+  width: 100%;
+  animation: qrZoomPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes qrZoomPop {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.qr-zoom-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  background: rgba(0, 0, 0, 0.06);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.qr-zoom-close-btn:hover {
+  background: rgba(0, 0, 0, 0.12);
+  color: #0f172a;
+}
+
+.qr-zoom-img-wrapper {
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.qr-zoomed-img {
+  width: 260px;
+  height: 260px;
+  display: block;
+}
+
+.qr-zoom-ref-text {
+  font-family: monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 16px 0 2px;
+  letter-spacing: 0.5px;
+}
+
+.qr-zoom-hint-text {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
 }
 </style>
