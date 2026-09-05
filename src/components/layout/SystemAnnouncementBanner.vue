@@ -107,7 +107,7 @@ onBeforeUnmount(() => {
           <div class="banner-badge">
             <span v-if="announcement.iconType === 'caution'">CAUTION</span>
             <span v-else-if="announcement.iconType === 'good_news'">ANNOUNCEMENT</span>
-            <span v-else-if="announcement.iconType === 'info'">NOTICE</span>
+            <span v-else-if="announcement.iconType === 'info'">INFO</span>
             <span v-else-if="announcement.iconType === 'maintenance'">MAINTENANCE</span>
             <span v-else>URGENT</span>
           </div>
