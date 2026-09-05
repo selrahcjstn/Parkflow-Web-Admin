@@ -33,9 +33,9 @@ const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21c
 const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
 
 const vehicleTypeLabels: Record<number, string> = {
-  0: 'Motorcycle',
-  1: 'Electric Bike',
-  2: 'Car'
+  1: 'Car',
+  2: 'Motorcycle',
+  3: 'Bicycle'
 }
 
 function formatDocUrl(url?: string, fallback: string = ''): string {
@@ -54,21 +54,15 @@ async function fetchVehicles() {
   isLoading.value = true
   try {
     const response = await api.get('/vehicles')
-    const rawData = response.data
-    const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : [])
-    
-    vehicles.value = items.map((v: any) => ({
-      ...v,
-      orcrDocumentUrl: formatDocUrl(v.orcrDocumentUrl, defaultOrcrImage),
-      vehiclePictureUrl: formatDocUrl(v.vehiclePictureUrl, defaultMotorImage)
-    }))
-
-    if (vehicles.value.length > 0) {
-      const pendingFirst = vehicles.value.find(v => v.verificationStatus === 1 || v.verificationStatus === 0 || v.verificationStatus === undefined || v.verificationStatus === null)
-      selectedVehicle.value = pendingFirst || vehicles.value[0] || null
-
-      if (pendingCount.value === 0) {
-        selectedTab.value = 'all'
+    if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
+      vehicles.value = response.data.data.map((v: any) => ({
+        ...v,
+        orcrDocumentUrl: formatDocUrl(v.orcrDocumentUrl, defaultOrcrImage),
+        vehiclePictureUrl: formatDocUrl(v.vehiclePictureUrl, defaultMotorImage)
+      }))
+      if (vehicles.value.length > 0) {
+        const pendingFirst = vehicles.value.find(v => v.verificationStatus === 1)
+        selectedVehicle.value = pendingFirst || vehicles.value[0] || null
       }
     }
   } catch (err) {
@@ -82,13 +76,13 @@ onMounted(() => {
   fetchVehicles()
 })
 
-const pendingCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 1 || v.verificationStatus === 0 || v.verificationStatus === undefined || v.verificationStatus === null).length)
+const pendingCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 1).length)
 const verifiedCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 2).length)
 const rejectedCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 3).length)
 
 const filteredVehicles = computed(() => {
   return vehicles.value.filter(item => {
-    if (selectedTab.value === 'pending' && item.verificationStatus !== 1 && item.verificationStatus !== 0 && item.verificationStatus !== undefined && item.verificationStatus !== null) return false
+    if (selectedTab.value === 'pending' && item.verificationStatus !== 1) return false
     if (selectedTab.value === 'verified' && item.verificationStatus !== 2) return false
     if (selectedTab.value === 'rejected' && item.verificationStatus !== 3) return false
 

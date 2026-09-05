@@ -74,21 +74,16 @@ async function fetchSubmissions() {
   isLoading.value = true
   try {
     const response = await api.get('/cor-submissions')
-    const rawData = response.data
-    const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : [])
-
-    submissions.value = items.map((s: any) => ({
-      ...s,
-      corDocumentUrl: formatDocUrl(s.corDocumentUrl, defaultCorImage),
-      orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, defaultOrcrImage),
-      motorPictureUrl: formatDocUrl(s.motorPictureUrl, defaultMotorImage)
-    }))
-    if (submissions.value.length > 0) {
-      const pendingFirst = submissions.value.find(s => s.verificationStatus === 1 || s.verificationStatus === 0 || s.verificationStatus === undefined || s.verificationStatus === null)
-      selectedSubmission.value = pendingFirst || submissions.value[0] || null
-
-      if (pendingCount.value === 0) {
-        selectedTab.value = 'all'
+    if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
+      submissions.value = response.data.data.map((s: any) => ({
+        ...s,
+        corDocumentUrl: formatDocUrl(s.corDocumentUrl, defaultCorImage),
+        orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, defaultOrcrImage),
+        motorPictureUrl: formatDocUrl(s.motorPictureUrl, defaultMotorImage)
+      }))
+      if (submissions.value.length > 0) {
+        const pendingFirst = submissions.value.find(s => s.verificationStatus === 1)
+        selectedSubmission.value = pendingFirst || submissions.value[0] || null
       }
     }
   } catch (err) {
@@ -102,21 +97,21 @@ onMounted(() => {
   fetchSubmissions()
 })
 
-const pendingCount = computed(() => submissions.value.filter(s => s.verificationStatus === 1 || s.verificationStatus === 0 || s.verificationStatus === undefined || s.verificationStatus === null).length)
+const pendingCount = computed(() => submissions.value.filter(s => s.verificationStatus === 1).length)
 const verifiedCount = computed(() => submissions.value.filter(s => s.verificationStatus === 2).length)
 const rejectedCount = computed(() => submissions.value.filter(s => s.verificationStatus === 3).length)
 
 const filteredSubmissions = computed(() => {
   return submissions.value.filter(item => {
-    if (selectedTab.value === 'pending' && item.verificationStatus !== 1 && item.verificationStatus !== 0 && item.verificationStatus !== undefined && item.verificationStatus !== null) return false
+    if (selectedTab.value === 'pending' && item.verificationStatus !== 1) return false
     if (selectedTab.value === 'verified' && item.verificationStatus !== 2) return false
     if (selectedTab.value === 'rejected' && item.verificationStatus !== 3) return false
 
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()
-      const nameMatch = (item.fullName || '').toLowerCase().includes(q)
-      const emailMatch = (item.email || '').toLowerCase().includes(q)
-      const plateMatch = (item.vehiclePlate || '').toLowerCase().includes(q)
+      const nameMatch = item.fullName.toLowerCase().includes(q)
+      const emailMatch = item.email.toLowerCase().includes(q)
+      const plateMatch = item.vehiclePlate.toLowerCase().includes(q)
       return nameMatch || emailMatch || plateMatch
     }
     return true

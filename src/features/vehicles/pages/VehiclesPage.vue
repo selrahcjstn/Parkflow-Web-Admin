@@ -56,21 +56,21 @@ const fetchVehicles = async () => {
   isLoading.value = true
   try {
     const response = await api.get('/vehicles')
-    const rawData = response.data
-    const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : [])
-    
-    if (items.length > 0) {
-      vehicles.value = items.map((v: any) => ({
-        id: v.id,
-        plateNumber: v.plateNumber,
-        brand: v.brand,
-        qrCodeHash: v.qrCodeHash || `QR-${v.id?.slice(0, 6)?.toUpperCase() || 'UNKNOWN'}`,
-        vehicleType: v.vehicleType === 0 ? 'Motorcycle' : v.vehicleType === 1 ? 'ElectricBike' : v.vehicleType === 2 ? 'Car' : (typeof v.vehicleType === 'string' ? v.vehicleType : 'Car'),
-        status: v.status || 'Active',
-        isPrimary: v.isPrimary,
-        ownerName: v.ownerName || 'Unassigned',
-        ownerRole: v.ownerRole || 'Student'
-      }))
+    if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
+      const items = response.data.data
+      if (items.length > 0) {
+        vehicles.value = items.map((v: any) => ({
+          id: v.id,
+          plateNumber: v.plateNumber,
+          brand: v.brand,
+          qrCodeHash: v.qrCodeHash || `QR-${v.id?.slice(0, 6)?.toUpperCase() || 'UNKNOWN'}`,
+          vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : (v.vehicleType || 'Car'),
+          status: v.status || 'Active',
+          isPrimary: v.isPrimary,
+          ownerName: v.ownerName || 'Unassigned',
+          ownerRole: v.ownerRole || 'Student'
+        }))
+      }
     }
   } catch (error) {
     console.error('Error fetching vehicles:', error)
