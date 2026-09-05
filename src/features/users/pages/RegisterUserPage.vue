@@ -27,6 +27,36 @@ const form = ref({
 
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
+const showPassword = ref(false)
+const successModalVisible = ref(false)
+const registeredUserEmail = ref('')
+
+const resetFormAndContinue = () => {
+  form.value = {
+    firstName: '',
+    lastName: '',
+    middleName: '',
+    email: '',
+    password: 'Password123!',
+    phoneNumber: '',
+    role: 'Student',
+    status: 'Active',
+    studentNumber: '',
+    course: '',
+    section: '',
+    yearLevel: 1,
+    idCardNumber: '',
+    department: '',
+    assignedGate: 1
+  }
+  successModalVisible.value = false
+  errorMessage.value = null
+}
+
+const goToAccountsList = () => {
+  successModalVisible.value = false
+  router.push({ path: '/users', query: { registered: 'true' } })
+}
 
 const handleSubmit = async () => {
   if (!form.value.firstName || !form.value.lastName || !form.value.email) {
@@ -46,7 +76,7 @@ const handleSubmit = async () => {
       password: form.value.password,
       phoneNumber: form.value.phoneNumber,
       role: form.value.role,
-      status: form.value.status,
+      status: 'Active', // Default active upon admin creation
       student: form.value.role === 'Student' ? {
         studentNumber: form.value.studentNumber,
         course: form.value.course,
@@ -64,7 +94,8 @@ const handleSubmit = async () => {
 
     const response = await api.post('/auth/register-manual', payload)
     if (response.data?.isSuccess || response.status === 200 || response.status === 201) {
-      router.push({ path: '/users', query: { registered: 'true' } })
+      registeredUserEmail.value = form.value.email
+      successModalVisible.value = true
     } else {
       errorMessage.value = response.data?.message || 'Failed to register client account.'
     }
@@ -220,12 +251,34 @@ const handleSubmit = async () => {
 
           <div class="form-group">
             <label class="form-label">Initial Password</label>
-            <input v-model="form.password" type="password" placeholder="••••••••" class="form-input" />
+            <div class="password-input-wrapper">
+              <input
+                v-model="form.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="••••••••"
+                class="form-input password-input"
+              />
+              <button
+                type="button"
+                class="toggle-password-btn"
+                @click="showPassword = !showPassword"
+                :title="showPassword ? 'Hide password' : 'Show password'"
+              >
+                <svg v-if="!showPassword" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                  <line x1="1" y1="1" x2="23" y2="23" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Card 3: Profile Specifics & Initial Status -->
+      <!-- Card 3: Profile Specifics -->
       <div class="form-card">
         <div class="card-header">
           <div class="card-icon-badge card-icon-badge--amber">
@@ -234,8 +287,8 @@ const handleSubmit = async () => {
             </svg>
           </div>
           <div>
-            <h3 class="card-title">3. Profile Specifics & Initial Status</h3>
-            <p class="card-subtitle">Role-dependent metadata and verification status</p>
+            <h3 class="card-title">3. Profile Specifics</h3>
+            <p class="card-subtitle">Role-dependent metadata details</p>
           </div>
         </div>
 
@@ -277,16 +330,6 @@ const handleSubmit = async () => {
               <input v-model="form.department" type="text" placeholder="College of Engineering" class="form-input" />
             </div>
           </template>
-
-          <!-- Initial Status -->
-          <div class="form-group">
-            <label class="form-label required">Initial Account Status</label>
-            <select v-model="form.status" class="form-select">
-              <option value="Active">Active (Instant Access)</option>
-              <option value="PendingVerification">Pending Document Verification</option>
-              <option value="Suspended">Suspended</option>
-            </select>
-          </div>
         </div>
       </div>
 
@@ -307,6 +350,28 @@ const handleSubmit = async () => {
         </button>
       </div>
     </form>
+
+    <!-- Success Registration Confirmation Modal -->
+    <Teleport to="body">
+      <div v-if="successModalVisible" class="success-modal-backdrop">
+        <div class="success-modal-card">
+          <div class="success-icon-badge">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <h3 class="success-modal-title">Client Account Provisioned!</h3>
+          <p class="success-modal-msg">
+            The client account for <strong>{{ registeredUserEmail }}</strong> was successfully created. An email containing their initial password credentials has been dispatched to their inbox.
+          </p>
+          <div class="success-modal-actions">
+            <button type="button" class="btn btn--secondary" @click="resetFormAndContinue">Provision Another Account</button>
+            <button type="button" class="btn btn--primary" @click="goToAccountsList">Go to Accounts List</button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -634,5 +699,109 @@ const handleSubmit = async () => {
 
 .btn--secondary:hover {
   background: var(--color-border);
+}
+
+/* Password Input & Toggle Button */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input-wrapper .form-input {
+  width: 100%;
+  padding-right: 42px;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 150ms ease;
+}
+
+.toggle-password-btn:hover {
+  color: var(--color-text);
+}
+
+/* Success Modal Styles */
+.success-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.success-modal-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.success-icon-badge {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.success-modal-msg {
+  font-size: 14px;
+  color: var(--color-muted);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.success-modal-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.success-modal-actions .btn {
+  flex: 1;
+  justify-content: center;
 }
 </style>

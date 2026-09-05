@@ -135,7 +135,7 @@ const handleSubmit = () => {
                   <option value="Admin">Administrator</option>
                 </select>
               </div>
-              <div class="form-group">
+              <div v-if="userToEdit" class="form-group">
                 <label for="status">Account Status</label>
                 <select id="status" v-model="form.status" class="form-select">
                   <option value="Active">Active</option>
