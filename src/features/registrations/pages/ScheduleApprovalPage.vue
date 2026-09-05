@@ -711,7 +711,6 @@ watch(selectedSubmission, () => {
               </button>
             </div>
           </div>
-          </div>
         </div>
       </div>
     </div>
