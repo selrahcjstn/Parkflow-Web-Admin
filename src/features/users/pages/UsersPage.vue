@@ -344,7 +344,7 @@ const handleFormSubmit = async (formData: any) => {
       phoneNumber: formData.phoneNumber,
       role: formData.role,
       status: formData.status,
-      corVerificationStatus: 'NotSubmitted',
+      corVerificationStatus: 'Verified',
       authProvider: 'Manual',
       createdAt: new Date().toISOString(),
       student: formData.role === 'Student' ? {
