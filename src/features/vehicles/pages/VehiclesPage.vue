@@ -392,7 +392,20 @@ const getRoleLabel = (role: string) => {
               </td>
             </tr>
             <tr v-else-if="filteredVehicles.length === 0">
-              <td colspan="6" class="empty-state">No registered vehicles match your criteria.</td>
+              <td colspan="6" class="empty-state">
+                <div class="empty-state-content">
+                  <div class="empty-icon-wrapper">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
+                      <circle cx="7" cy="17" r="2"/>
+                      <path d="M9 17h6"/>
+                      <circle cx="17" cy="17" r="2"/>
+                    </svg>
+                  </div>
+                  <h3>No Registered Vehicles Found</h3>
+                  <p>There are no vehicles matching your search or filter criteria.</p>
+                </div>
+              </td>
             </tr>
             <tr
               v-else
@@ -991,9 +1004,44 @@ const getRoleLabel = (role: string) => {
 
 .empty-state {
   text-align: center;
-  padding: 48px !important;
+  padding: 56px 24px !important;
   color: var(--color-muted);
-  font-size: 14px;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 380px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.empty-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  margin-bottom: 16px;
+}
+
+.empty-state h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-muted);
 }
 
 /* Toast styling */

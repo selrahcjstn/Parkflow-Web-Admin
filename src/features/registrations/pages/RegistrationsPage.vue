@@ -353,13 +353,17 @@ async function reject(reg: RegistrationItem) {
 
     <!-- Empty State -->
     <div v-else-if="filteredRegistrations.length === 0" class="registrations-card__empty">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <rect x="3" y="4" width="18" height="16" rx="2" />
-        <line x1="7" y1="8" x2="17" y2="8" />
-        <line x1="7" y1="12" x2="13" y2="12" />
-      </svg>
-      <p class="empty-title">No submissions found</p>
-      <p class="empty-sub">There are currently no document submissions matching your criteria.</p>
+      <div class="empty-state-content">
+        <div class="empty-icon-wrapper">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="4" width="18" height="16" rx="2" />
+            <line x1="7" y1="8" x2="17" y2="8" />
+            <line x1="7" y1="12" x2="13" y2="12" />
+          </svg>
+        </div>
+        <p class="empty-title">No submissions found</p>
+        <p class="empty-sub">There are currently no document submissions matching your criteria.</p>
+      </div>
     </div>
 
     <!-- REVIEW GRID MODE (Professional Document Inspector Cards) -->
@@ -940,13 +944,36 @@ async function reject(reg: RegistrationItem) {
   padding: 60px 20px;
   color: var(--color-muted);
   text-align: center;
+  min-height: 360px;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.empty-icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  margin-bottom: 16px;
 }
 
 .empty-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: var(--color-text);
-  margin: 12px 0 4px;
+  margin: 0 0 6px;
 }
 
 .empty-sub {
