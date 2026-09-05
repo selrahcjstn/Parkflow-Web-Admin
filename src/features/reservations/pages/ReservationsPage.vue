@@ -25,7 +25,9 @@ const createForm = ref({
   reservationDate: new Date().toISOString().split('T')[0],
   startTime: '07:00',
   endTime: '17:00',
-  reason: 'Campus Special Event / Administrative Schedule'
+  reason: 'Campus Special Event / Administrative Schedule',
+  sendEmail: false,
+  notifyEmail: ''
 })
 
 function formatStatus(status: ReservationStatusType): string {
@@ -214,13 +216,20 @@ async function handleCreateReservation() {
     showToast('Please select a reservation date.', 'error')
     return
   }
+  if (createForm.value.sendEmail && !createForm.value.notifyEmail.trim()) {
+    showToast('Please enter a notification email address.', 'error')
+    return
+  }
   isCreating.value = true
   try {
-    const payload = {
+    const payload: Record<string, any> = {
       reservationDate: createForm.value.reservationDate,
       startTime: createForm.value.startTime + ':00',
       endTime: createForm.value.endTime + ':00',
       reason: createForm.value.reason
+    }
+    if (createForm.value.sendEmail && createForm.value.notifyEmail.trim()) {
+      payload.notifyEmail = createForm.value.notifyEmail.trim()
     }
     const response = await api.post('/parking-reservations', payload)
     if (response.data && response.data.data) {
@@ -228,8 +237,18 @@ async function handleCreateReservation() {
     } else {
       await fetchReservations()
     }
-    showToast('Schedule reservation created & reserved successfully.')
+    const emailMsg = createForm.value.sendEmail ? ' Notification email sent.' : ''
+    showToast('Schedule reservation created & reserved successfully.' + emailMsg)
     showCreateModal.value = false
+    // reset form
+    createForm.value = {
+      reservationDate: new Date().toISOString().split('T')[0],
+      startTime: '07:00',
+      endTime: '17:00',
+      reason: 'Campus Special Event / Administrative Schedule',
+      sendEmail: false,
+      notifyEmail: ''
+    }
   } catch (error: any) {
     showToast('Failed to create reservation: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
@@ -668,6 +687,40 @@ async function handleCreateReservation() {
                   class="form-textarea"
                   placeholder="Describe the campus event or special pass reason..."
                 ></textarea>
+              </div>
+
+              <!-- Email Notification Toggle -->
+              <div class="notify-toggle-section">
+                <div class="notify-toggle-row">
+                  <div class="notify-toggle-info">
+                    <span class="notify-toggle-label">Send Email Notification</span>
+                    <span class="notify-toggle-desc">Notify a recipient about this special schedule via email</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="toggle-switch"
+                    :class="{ 'toggle-switch--on': createForm.sendEmail }"
+                    @click="createForm.sendEmail = !createForm.sendEmail"
+                    :aria-checked="createForm.sendEmail"
+                    role="switch"
+                  >
+                    <span class="toggle-knob"></span>
+                  </button>
+                </div>
+
+                <Transition name="slide-down">
+                  <div v-if="createForm.sendEmail" class="notify-email-field">
+                    <label class="form-label">Recipient Email Address</label>
+                    <input
+                      v-model="createForm.notifyEmail"
+                      type="email"
+                      class="form-input"
+                      placeholder="e.g. student@university.edu"
+                      autocomplete="off"
+                    />
+                    <p class="notify-hint">A special schedule notice will be sent to this email after reservation is created.</p>
+                  </div>
+                </Transition>
               </div>
             </div>
 
@@ -1237,6 +1290,94 @@ async function handleCreateReservation() {
 }
 .form-input:focus, .form-textarea:focus {
   border-color: var(--color-primary);
+}
+
+/* Email Notification Toggle */
+.notify-toggle-section {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: var(--color-surface-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.notify-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.notify-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.notify-toggle-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.notify-toggle-desc {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.toggle-switch {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--color-border);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 200ms ease;
+  padding: 0;
+}
+.toggle-switch--on {
+  background: var(--color-primary);
+}
+.toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: transform 200ms ease;
+  display: block;
+}
+.toggle-switch--on .toggle-knob {
+  transform: translateX(20px);
+}
+.notify-email-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.notify-hint {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+/* slide-down transition */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 200ms ease;
+  overflow: hidden;
+}
+.slide-down-enter-from,
+.slide-down-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+.slide-down-enter-to,
+.slide-down-leave-from {
+  opacity: 1;
+  max-height: 120px;
 }
 
 .modal-footer {
