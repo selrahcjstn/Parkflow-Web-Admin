@@ -197,6 +197,12 @@ function getNotifyEmailFromNotes(notes?: string | null): string | null {
   return match ? match[1].trim() : null
 }
 
+function getDisplayEmail(item: ParkingReservationItem): string {
+  const notify = getNotifyEmailFromNotes(item.adminNotes)
+  if (notify) return notify
+  return item.userEmail || 'N/A'
+}
+
 function openReviewModal(item: ParkingReservationItem) {
   reviewModalItem.value = item
   reviewNotes.value = item.adminNotes || ''
@@ -509,7 +515,7 @@ async function handleCreateReservation() {
                 </div>
                 <div class="applicant-meta">
                   <span class="applicant-name">{{ item.userFullName || 'Campus User' }}</span>
-                  <span class="applicant-email">{{ item.userEmail || 'N/A' }}</span>
+                  <span class="applicant-email">{{ getDisplayEmail(item) }}</span>
                 </div>
               </div>
             </td>
@@ -606,15 +612,8 @@ async function handleCreateReservation() {
                   <span class="meta-val">{{ reviewModalItem.userFullName || 'Campus User' }}</span>
                 </div>
                 <div class="meta-row">
-                  <span class="meta-key">Account Email</span>
-                  <span class="meta-val">{{ reviewModalItem.userEmail || 'No email provided' }}</span>
-                </div>
-                <div class="meta-row" v-if="getNotifyEmailFromNotes(reviewModalItem.adminNotes)">
-                  <span class="meta-key">Notification Email</span>
-                  <span class="meta-val text-indigo font-600">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    {{ getNotifyEmailFromNotes(reviewModalItem.adminNotes) }}
-                  </span>
+                  <span class="meta-key">Email Address</span>
+                  <span class="meta-val font-600 text-indigo">{{ getDisplayEmail(reviewModalItem) }}</span>
                 </div>
               </div>
 
@@ -727,9 +726,9 @@ async function handleCreateReservation() {
                   <span class="qr-detail-label">Creator of the reservation</span>
                   <span class="qr-detail-val bold">{{ qrPassModalItem.userFullName || 'Campus Visitor / Staff' }}</span>
                 </div>
-                <div class="qr-detail-row" v-if="getNotifyEmailFromNotes(qrPassModalItem.adminNotes) || qrPassModalItem.userEmail">
-                  <span class="qr-detail-label">Contact / Notification Email</span>
-                  <span class="qr-detail-val">{{ getNotifyEmailFromNotes(qrPassModalItem.adminNotes) || qrPassModalItem.userEmail }}</span>
+                <div class="qr-detail-row" v-if="getDisplayEmail(qrPassModalItem) !== 'N/A'">
+                  <span class="qr-detail-label">Contact / Recipient Email</span>
+                  <span class="qr-detail-val">{{ getDisplayEmail(qrPassModalItem) }}</span>
                 </div>
                 <div class="qr-detail-row">
                   <span class="qr-detail-label">Reserved Date</span>
