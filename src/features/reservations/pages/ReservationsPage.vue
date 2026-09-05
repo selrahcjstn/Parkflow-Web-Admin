@@ -18,6 +18,26 @@ const reviewModalItem = ref<ParkingReservationItem | null>(null)
 const reviewNotes = ref('')
 const isSubmittingReview = ref(false)
 
+// QR Pass modal state
+const qrPassModalItem = ref<ParkingReservationItem | null>(null)
+
+function openQrPassModal(item: ParkingReservationItem) {
+  qrPassModalItem.value = item
+}
+
+function closeQrPassModal() {
+  qrPassModalItem.value = null
+}
+
+function printPass() {
+  window.print()
+}
+
+function downloadQrCode(item: ParkingReservationItem) {
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(item.referenceNumber)}`
+  window.open(url, '_blank')
+}
+
 // Create modal state
 const showCreateModal = ref(false)
 const isCreating = ref(false)
@@ -538,6 +558,14 @@ async function handleCreateReservation() {
                   Decline
                 </button>
                 <button
+                  class="btn-action btn-qr-pass"
+                  @click="openQrPassModal(item)"
+                  title="View Official QR Pass"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  QR Pass
+                </button>
+                <button
                   class="btn-action btn-review"
                   @click="openReviewModal(item)"
                   title="Review Details"
@@ -617,6 +645,14 @@ async function handleCreateReservation() {
               <button class="btn-secondary" @click="closeReviewModal">Close</button>
               <div class="footer-actions">
                 <button
+                  class="btn-action btn-qr-pass"
+                  style="margin-right: 8px;"
+                  @click="openQrPassModal(reviewModalItem); closeReviewModal();"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  View QR Pass
+                </button>
+                <button
                   class="btn-reject"
                   :disabled="isSubmittingReview"
                   @click="handleReject(reviewModalItem)"
@@ -632,6 +668,94 @@ async function handleCreateReservation() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- DIGITAL QR PARKING PASS TICKET MODAL -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="qrPassModalItem" class="modal-backdrop" @click="closeQrPassModal">
+          <div class="modal-card qr-pass-card" @click.stop>
+            
+            <!-- Pass Header Ticket Banner -->
+            <div class="qr-pass-header">
+              <div class="qr-pass-header-content">
+                <div class="qr-pass-badge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4z"/></svg>
+                  PARKFLOW OFFICIAL PARKING PERMIT
+                </div>
+                <h2 class="qr-pass-title">Digital Entry Pass</h2>
+                <div class="qr-pass-ref-wrapper">
+                  <span class="qr-pass-ref monospace">{{ qrPassModalItem.referenceNumber }}</span>
+                </div>
+              </div>
+              <button class="close-btn qr-close-btn" @click="closeQrPassModal">&times;</button>
+            </div>
+
+            <!-- Pass Body -->
+            <div class="qr-pass-body">
+              <!-- QR Code Display Box -->
+              <div class="qr-display-box">
+                <div class="qr-code-frame">
+                  <img
+                    :src="`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrPassModalItem.referenceNumber)}`"
+                    alt="Parking Pass QR Code"
+                    class="qr-code-img"
+                  />
+                </div>
+                <p class="qr-scan-hint">Present code to campus gate scanner or security guard</p>
+              </div>
+
+              <!-- Pass Info Ticket Details -->
+              <div class="qr-pass-details">
+                <div class="qr-detail-row">
+                  <span class="qr-detail-label">Pass Holder / Applicant</span>
+                  <span class="qr-detail-val bold">{{ qrPassModalItem.userFullName || 'Campus Visitor / Staff' }}</span>
+                </div>
+                <div class="qr-detail-row" v-if="qrPassModalItem.userEmail">
+                  <span class="qr-detail-label">Contact Email</span>
+                  <span class="qr-detail-val">{{ qrPassModalItem.userEmail }}</span>
+                </div>
+                <div class="qr-detail-row">
+                  <span class="qr-detail-label">Reserved Date</span>
+                  <span class="qr-detail-val text-amber font-600">{{ formatReservationDate(qrPassModalItem.reservationDate) }}</span>
+                </div>
+                <div class="qr-detail-row">
+                  <span class="qr-detail-label">Authorized Window</span>
+                  <span class="qr-detail-val text-indigo font-600">{{ formatTimeSlot(qrPassModalItem.startTime, qrPassModalItem.endTime) }}</span>
+                </div>
+                <div class="qr-detail-row">
+                  <span class="qr-detail-label">Event / Purpose</span>
+                  <span class="qr-detail-val">{{ qrPassModalItem.reason }}</span>
+                </div>
+                <div class="qr-detail-row">
+                  <span class="qr-detail-label">Pass Status</span>
+                  <span class="qr-detail-val">
+                    <span class="status-badge" :class="`status-badge--${getStatusKey(qrPassModalItem.status)}`">
+                      {{ formatStatus(qrPassModalItem.status) }}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pass Footer Actions -->
+            <div class="qr-pass-footer">
+              <button class="btn-secondary" @click="closeQrPassModal">Close</button>
+              <div class="footer-actions">
+                <button class="btn-action btn-outline" @click="downloadQrCode(qrPassModalItem)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Get QR Image
+                </button>
+                <button class="btn-action btn-print" @click="printPass">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  Print Pass
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </Transition>
@@ -1407,5 +1531,220 @@ async function handleCreateReservation() {
 
 .text-right {
   text-align: right;
+}
+
+/* QR Pass Styling */
+.btn-qr-pass {
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #6366f1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+.btn-qr-pass:hover {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.qr-pass-card {
+  max-width: 480px;
+  padding: 0 !important;
+  overflow: hidden;
+  border-radius: 20px !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  background: var(--color-surface, #ffffff);
+}
+
+.qr-pass-header {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  padding: 24px 28px;
+  position: relative;
+  color: #ffffff;
+}
+
+.qr-pass-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffffff;
+  margin-bottom: 8px;
+}
+
+.qr-pass-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+}
+
+.qr-pass-ref-wrapper {
+  margin-top: 8px;
+}
+
+.qr-pass-ref {
+  font-size: 13px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px 12px;
+  border-radius: 6px;
+  letter-spacing: 1.5px;
+  color: #a5b4fc;
+}
+
+.qr-close-btn {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.qr-pass-body {
+  padding: 24px 28px;
+}
+
+.qr-display-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background: var(--color-surface-muted, #f8fafc);
+  border: 2px dashed var(--color-border, #cbd5e1);
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+.qr-code-frame {
+  padding: 14px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-code-img {
+  width: 210px;
+  height: 210px;
+  display: block;
+}
+
+.qr-scan-hint {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-top: 12px;
+  margin-bottom: 0;
+  text-align: center;
+  font-weight: 500;
+}
+
+.qr-pass-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qr-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  font-size: 13px;
+}
+.qr-detail-row:last-child {
+  border-bottom: none;
+}
+
+.qr-detail-label {
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.qr-detail-val {
+  color: var(--color-text);
+  text-align: right;
+}
+
+.qr-pass-footer {
+  padding: 16px 28px;
+  background: var(--color-surface-muted);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-print {
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+.btn-print:hover {
+  background: #4338ca;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .qr-pass-card, .qr-pass-card * {
+    visibility: visible;
+  }
+  .qr-pass-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    box-shadow: none;
+  }
+  .qr-pass-footer, .close-btn {
+    display: none !important;
+  }
 }
 </style>
