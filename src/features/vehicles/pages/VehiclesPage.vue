@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import type { Vehicle, VehicleType } from '../types'
+import type { Vehicle } from '../types'
 import VehicleDetailModal from '../components/VehicleDetailModal.vue'
-import VehicleFormModal from '../components/VehicleFormModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
@@ -56,21 +55,23 @@ const fetchVehicles = async () => {
   isLoading.value = true
   try {
     const response = await api.get('/vehicles')
-    if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
-      const items = response.data.data
-      if (items.length > 0) {
-        vehicles.value = items.map((v: any) => ({
-          id: v.id,
-          plateNumber: v.plateNumber,
-          brand: v.brand,
-          qrCodeHash: v.qrCodeHash || `QR-${v.id?.slice(0, 6)?.toUpperCase() || 'UNKNOWN'}`,
-          vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : (v.vehicleType || 'Car'),
-          status: v.status || 'Active',
-          isPrimary: v.isPrimary,
-          ownerName: v.ownerName || 'Unassigned',
-          ownerRole: v.ownerRole || 'Student'
-        }))
-      }
+    const rawData = response.data
+    const items = Array.isArray(rawData)
+      ? rawData
+      : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
+
+    if (items && items.length > 0) {
+      vehicles.value = items.map((v: any) => ({
+        id: v.id,
+        plateNumber: v.plateNumber,
+        brand: v.brand,
+        qrCodeHash: v.qrCodeHash || `QR-${v.id?.slice(0, 6)?.toUpperCase() || 'UNKNOWN'}`,
+        vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : v.vehicleType === 2 ? 'ElectricBike' : (v.vehicleType || 'Car'),
+        status: v.status || (v.verificationStatus === 3 ? 'Suspended' : 'Active'),
+        isPrimary: v.isPrimary,
+        ownerName: cleanOwnerName(v.ownerName || v.ownerEmail || 'Unassigned'),
+        ownerRole: v.ownerRole || 'Student'
+      }))
     }
   } catch (error) {
     console.error('Error fetching vehicles:', error)
@@ -91,14 +92,6 @@ function cleanOwnerName(name?: string) {
   return uniqueParts.join(' ')
 }
 
-function formatQrHash(hash?: string) {
-  if (!hash) return 'N/A'
-  if (hash.length > 18) {
-    return hash.slice(0, 10) + '...' + hash.slice(-6)
-  }
-  return hash
-}
-
 // Search & Filters State
 const searchQuery = ref('')
 const filterType = ref<string>('all')
@@ -107,8 +100,6 @@ const filterStatus = ref<string>('all')
 // Modals State
 const selectedVehicle = ref<Vehicle | null>(null)
 const isDetailOpen = ref(false)
-const isFormOpen = ref(false)
-const vehicleToEdit = ref<Vehicle | null>(null)
 
 // Stats computations
 const totalCount = computed(() => vehicles.value.length)
@@ -168,16 +159,6 @@ const openDetails = (vehicle: Vehicle) => {
   isDetailOpen.value = true
 }
 
-const openAddVehicle = () => {
-  vehicleToEdit.value = null
-  isFormOpen.value = true
-}
-
-const openEditVehicle = (vehicle: Vehicle) => {
-  vehicleToEdit.value = vehicle
-  isFormOpen.value = true
-}
-
 const handleTogglePrimary = (vehicleId: string) => {
   const index = vehicles.value.findIndex((v) => v.id === vehicleId)
   if (index !== -1 && vehicles.value[index]) {
@@ -198,7 +179,7 @@ const handleTogglePrimary = (vehicleId: string) => {
       selectedVehicle.value.isPrimary = true
     }
 
-    showToast(`Vehicle ${vehicles.value[index].plateNumber} is now set as Primary.`, 'success')
+    showToast(`Vehicle ${vehicles.value[index].plateNumber} is now set as Primary clearance pass.`, 'success')
   }
 }
 
@@ -222,56 +203,11 @@ const handleToggleStatus = (vehicleId: string) => {
 const handleDeleteVehicle = (vehicleId: string) => {
   const target = vehicles.value.find((v) => v.id === vehicleId)
   if (target) {
-    if (confirm(`Are you sure you want to delete vehicle ${target.plateNumber}?`)) {
+    if (confirm(`Are you sure you want to delete vehicle record ${target.plateNumber}?`)) {
       vehicles.value = vehicles.value.filter((v) => v.id !== vehicleId)
-      showToast(`Vehicle ${target.plateNumber} has been removed.`, 'info')
+      showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'info')
     }
   }
-}
-
-const handleFormSubmit = (payload: Omit<Vehicle, 'id' | 'qrCodeHash'> & { id?: string }) => {
-  if (payload.id) {
-    // Edit Mode
-    const index = vehicles.value.findIndex((v) => v.id === payload.id)
-    if (index !== -1 && vehicles.value[index]) {
-      vehicles.value[index] = {
-        ...vehicles.value[index],
-        plateNumber: payload.plateNumber,
-        brand: payload.brand,
-        vehicleType: payload.vehicleType,
-        status: payload.status,
-        isPrimary: payload.isPrimary,
-        ownerName: payload.ownerName,
-        ownerRole: payload.ownerRole
-      }
-      if (payload.isPrimary) {
-        handleTogglePrimary(payload.id)
-      }
-      showToast(`Vehicle ${payload.plateNumber} updated successfully!`, 'success')
-    }
-  } else {
-    // Register Mode
-    const randHex = Math.floor(Math.random() * 16777215).toString(16).toUpperCase().padStart(6, '0')
-    const newId = `veh-${Date.now()}`
-    const newVehicle: Vehicle = {
-      id: newId,
-      plateNumber: payload.plateNumber,
-      brand: payload.brand,
-      qrCodeHash: `QR-${randHex}`,
-      vehicleType: payload.vehicleType,
-      status: payload.status,
-      isPrimary: payload.isPrimary,
-      ownerName: payload.ownerName,
-      ownerRole: payload.ownerRole
-    }
-
-    vehicles.value.unshift(newVehicle)
-    if (payload.isPrimary) {
-      handleTogglePrimary(newId)
-    }
-    showToast(`Vehicle ${payload.plateNumber} registered successfully!`, 'success')
-  }
-  isFormOpen.value = false
 }
 
 const getRoleLabel = (role: string) => {
@@ -286,15 +222,24 @@ const getRoleLabel = (role: string) => {
     <!-- Header -->
     <div class="vehicles-header">
       <div class="vehicles-header__left">
-        <h1 class="vehicles-title">Vehicle Database</h1>
-        <p class="vehicles-subtitle">Manage registered vehicles, classifications, and system RFID passes.</p>
+        <div class="header-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
+            <circle cx="7" cy="17" r="2"/>
+            <path d="M9 17h6"/>
+            <circle cx="17" cy="17" r="2"/>
+          </svg>
+          Campus Fleet & RFID Registry
+        </div>
+        <h1 class="vehicles-title">Registered Vehicle Directory & Clearance</h1>
+        <p class="vehicles-subtitle">Inspect active vehicle plate records, RFID pass statuses, owner roles, and primary clearance passes across campus gates.</p>
       </div>
-      <button class="add-vehicle-btn" @click="openAddVehicle">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
-          <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
+
+      <button class="refresh-btn" @click="fetchVehicles" title="Refresh">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
+          <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
         </svg>
-        Register Vehicle
       </button>
     </div>
 
@@ -380,7 +325,7 @@ const getRoleLabel = (role: string) => {
               <th>Vehicle / Brand</th>
               <th>Owner Name</th>
               <th>Role</th>
-              <th>Primary Pass</th>
+              <th>Primary Clearance Pass</th>
               <th>Status</th>
               <th class="actions-header">Actions</th>
             </tr>
@@ -465,9 +410,10 @@ const getRoleLabel = (role: string) => {
               </td>
               <td class="actions-cell" @click.stop>
                 <div class="actions-group">
-                  <button class="action-icon-btn" title="Edit Vehicle" @click="openEditVehicle(vehicle)">
+                  <button class="action-icon-btn" title="Inspect Vehicle Details" @click="openDetails(vehicle)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round" />
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
                     </svg>
                   </button>
                   <button
@@ -505,13 +451,6 @@ const getRoleLabel = (role: string) => {
       @close="isDetailOpen = false"
       @togglePrimary="handleTogglePrimary"
       @toggleStatus="handleToggleStatus"
-    />
-
-    <VehicleFormModal
-      :is-open="isFormOpen"
-      :vehicleToEdit="vehicleToEdit"
-      @close="isFormOpen = false"
-      @submit="handleFormSubmit"
     />
 
     <!-- Toast Notifications -->
@@ -553,42 +492,63 @@ const getRoleLabel = (role: string) => {
 .vehicles-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 24px;
+}
+
+.vehicles-header__left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  align-self: flex-start;
+  width: fit-content;
 }
 
 .vehicles-title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text);
   margin: 0;
 }
 
 .vehicles-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-muted);
   margin: 4px 0 0 0;
 }
 
-.add-vehicle-btn {
-  background: var(--color-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-button);
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
+.refresh-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px var(--color-glow);
-  transition: background 150ms ease, transform 150ms ease;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 150ms ease;
+  flex-shrink: 0;
 }
 
-.add-vehicle-btn:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
+.refresh-btn:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-primary, #d22730);
 }
 
 /* Stats Grid */
@@ -854,17 +814,6 @@ const getRoleLabel = (role: string) => {
   white-space: nowrap;
 }
 
-.qr-hash {
-  display: inline-block;
-  max-width: 150px;
-  font-size: 12px;
-  color: #818cf8;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  vertical-align: middle;
-}
-
 /* Badges */
 .role-badge {
   display: inline-block;
@@ -902,12 +851,11 @@ const getRoleLabel = (role: string) => {
 /* Status pills */
 .status-pill {
   display: inline-block;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 20px;
   text-transform: uppercase;
-  font-size: 10px;
   letter-spacing: 0.5px;
 }
 
