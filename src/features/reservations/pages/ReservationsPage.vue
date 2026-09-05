@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
@@ -10,6 +10,7 @@ const searchQuery = ref('')
 const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
 const selectedDateFilter = ref<string>('')
 const notificationToast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
+let pollTimer: number | null = null
 
 // Modal states
 const reviewModalItem = ref<ParkingReservationItem | null>(null)
@@ -38,8 +39,10 @@ function getStatusKey(status: ReservationStatusType): string {
   return formatStatus(status).toLowerCase()
 }
 
-async function fetchReservations() {
-  isLoading.value = true
+async function fetchReservations(silent = false) {
+  if (!silent) {
+    isLoading.value = true
+  }
   try {
     const response = await api.get('/parking-reservations/admin/all')
     if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
@@ -51,14 +54,27 @@ async function fetchReservations() {
     }
   } catch (error) {
     console.error('API reservations fetch error:', error)
-    reservations.value = []
+    if (!silent) {
+      reservations.value = []
+    }
   } finally {
-    isLoading.value = false
+    if (!silent) {
+      isLoading.value = false
+    }
   }
 }
 
 onMounted(() => {
   fetchReservations()
+  pollTimer = window.setInterval(() => {
+    fetchReservations(true)
+  }, 4000)
+})
+
+onUnmounted(() => {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer)
+  }
 })
 
 function showToast(message: string, type: 'success' | 'error' = 'success') {
