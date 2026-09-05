@@ -1286,7 +1286,7 @@ watch(selectedSubmission, () => {
   width: 100%;
   height: 100%;
   border: none;
-  background: #ffffff;
+  background: var(--color-surface-muted);
   border-radius: 8px;
 }
 
@@ -1476,7 +1476,7 @@ watch(selectedSubmission, () => {
   height: 85vh;
   border: none;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--color-surface-muted);
 }
 
 .zoom-close-btn {
@@ -1486,10 +1486,10 @@ watch(selectedSubmission, () => {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #ffffff;
-  color: #000000;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
   font-size: 24px;
-  border: none;
+  border: 1px solid var(--color-border);
   cursor: pointer;
   display: flex;
   align-items: center;

@@ -1764,6 +1764,7 @@ async function reject(reg: RegistrationItem) {
   height: 100%;
   border: none;
   pointer-events: none;
+  background: var(--color-surface-muted);
 }
 
 .doc-pdf-iframe {
@@ -1771,6 +1772,6 @@ async function reject(reg: RegistrationItem) {
   height: 480px;
   border: none;
   border-radius: 12px;
-  background: #0f172a;
+  background: var(--color-surface-muted);
 }
 </style>

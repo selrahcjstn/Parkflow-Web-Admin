@@ -991,7 +991,7 @@ function closeZoom() {
   width: 100%;
   height: 100%;
   border: none;
-  background: #ffffff;
+  background: var(--color-surface-muted);
 }
 
 /* Bottom Vehicle Details & Action Card */
@@ -1154,11 +1154,11 @@ function closeZoom() {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #ffffff;
-  color: #000000;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
   font-size: 16px;
   font-weight: bold;
-  border: none;
+  border: 1px solid var(--color-border);
   cursor: pointer;
   display: flex;
   align-items: center;
