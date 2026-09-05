@@ -163,7 +163,7 @@ const closeDetailModal = () => {
   activeFeedback.value = null
 }
 
-// Send Admin Reply & Optional Invoice
+// Send Admin Reply & Email User
 const handleSendReply = async () => {
   const current = activeFeedback.value
   if (!current) return
@@ -176,8 +176,6 @@ const handleSendReply = async () => {
   try {
     const payload = {
       replyMessage: replyMessage.value.trim(),
-      invoiceAmount: shouldIssueInvoice.value ? Number(invoiceAmount.value || 0) : null,
-      invoiceDescription: shouldIssueInvoice.value ? invoiceDescription.value.trim() : null,
       markResolved: markAsResolved.value
     }
 
@@ -197,16 +195,11 @@ const handleSendReply = async () => {
           item.adminRepliedAt = new Date().toISOString()
           item.status = payload.markResolved ? 'Resolved' : 'Reviewed'
           item.statusName = payload.markResolved ? 'Resolved' : 'Reviewed'
-          if (shouldIssueInvoice.value && payload.invoiceAmount) {
-            item.invoiceAmount = payload.invoiceAmount
-            item.invoiceDescription = payload.invoiceDescription
-            item.invoiceStatus = 'Issued'
-          }
         }
       }
     }
 
-    showToast('Reply and invoice details sent successfully!', 'success')
+    showToast('Reply and automated email sent successfully to user!', 'success')
     closeDetailModal()
   } catch (err: any) {
     console.error('Failed to send reply:', err)
@@ -631,35 +624,11 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
               ></textarea>
             </div>
 
-            <!-- Issue Invoice Toggle Section -->
-            <div class="section-block">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="shouldIssueInvoice" />
-                <span class="checkbox-title">Issue Invoice / Fee Receipt to Sender</span>
-              </label>
-
-              <div v-if="shouldIssueInvoice" class="invoice-form-group">
-                <div class="form-row">
-                  <div class="form-col">
-                    <label class="block-label">Invoice Amount (₱)</label>
-                    <input
-                      type="number"
-                      v-model="invoiceAmount"
-                      placeholder="0.00"
-                      class="search-input"
-                      step="0.01"
-                    />
-                  </div>
-                  <div class="form-col flex-2">
-                    <label class="block-label">Line Item Description</label>
-                    <input
-                      type="text"
-                      v-model="invoiceDescription"
-                      placeholder="e.g., Permit Fee, Violation Clearance, Service Fee"
-                      class="search-input"
-                    />
-                  </div>
-                </div>
+            <!-- Email Notification Info Banner -->
+            <div class="email-notice-box">
+              <span class="email-notice-icon">📧</span>
+              <div class="email-notice-text">
+                <strong>Automated Email Notification:</strong> Submitting this response will automatically email <strong>{{ getUserEmail(activeFeedback) }}</strong>. Replies for further inquiries are processed within a few hours.
               </div>
             </div>
 
@@ -688,8 +657,8 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
             <button class="btn btn-secondary" @click="closeDetailModal" :disabled="isSendingReply || isSaving">Cancel</button>
             <button class="btn btn-secondary" @click="handleUpdateStatus" :disabled="isSendingReply || isSaving">Save Status Only</button>
             <button class="btn btn-primary" @click="handleSendReply" :disabled="isSendingReply || isSaving">
-              <span v-if="isSendingReply">Sending Response...</span>
-              <span v-else>Send Reply & Invoice</span>
+              <span v-if="isSendingReply">Sending Email...</span>
+              <span v-else>Send Reply & Email User</span>
             </button>
           </div>
         </div>
@@ -1377,6 +1346,35 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
 .toast-danger { background: #ef4444; }
 .toast-warning { background: #f59e0b; }
 .toast-info { background: #3b82f6; }
+
+/* Email Notice Card */
+.email-notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
+
+.email-notice-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.email-notice-text {
+  font-size: 13px;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+.email-notice-text strong {
+  color: #2563eb;
+}
 
 /* Transitions */
 .toast-enter-active, .toast-leave-active { transition: all 300ms ease; }
