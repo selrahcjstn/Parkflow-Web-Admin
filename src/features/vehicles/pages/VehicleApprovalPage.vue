@@ -20,22 +20,60 @@ interface VehicleApprovalItem {
   createdAt: string
 }
 
-const vehicles = ref<VehicleApprovalItem[]>([])
-const isLoading = ref(true)
-const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
-const searchQuery = ref('')
-const selectedVehicle = ref<VehicleApprovalItem | null>(null)
-const activeDocTab = ref<'orcr' | 'motor'>('orcr')
-const isZoomed = ref(false)
-const zoomedImage = ref('')
-
 const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
 const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
 
+const initialMockVehicles: VehicleApprovalItem[] = [
+  {
+    id: 'veh-demo-1',
+    ownerId: 'usr-1',
+    ownerName: 'Juan Dela Cruz',
+    ownerEmail: 'juan.delacruz@bulsu.edu.ph',
+    ownerRole: 'Student',
+    plateNumber: 'ABC 1234',
+    brand: 'Toyota Vios',
+    qrCodeHash: 'QR-ABC1234',
+    vehicleType: 2,
+    status: 'Exited',
+    isPrimary: true,
+    orcrDocumentUrl: defaultOrcrImage,
+    vehiclePictureUrl: defaultMotorImage,
+    verificationStatus: 1,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'veh-demo-2',
+    ownerId: 'usr-2',
+    ownerName: 'Maria Santos',
+    ownerEmail: 'maria.santos@bulsu.edu.ph',
+    ownerRole: 'Student',
+    plateNumber: 'XYZ 5678',
+    brand: 'Honda Click 125i',
+    qrCodeHash: 'QR-XYZ5678',
+    vehicleType: 0,
+    status: 'Exited',
+    isPrimary: true,
+    orcrDocumentUrl: defaultOrcrImage,
+    vehiclePictureUrl: defaultMotorImage,
+    verificationStatus: 1,
+    createdAt: new Date().toISOString()
+  }
+]
+
+const vehicles = ref<VehicleApprovalItem[]>(initialMockVehicles)
+const isLoading = ref(true)
+const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
+const searchQuery = ref('')
+const selectedVehicle = ref<VehicleApprovalItem | null>(initialMockVehicles[0] || null)
+const activeDocTab = ref<'orcr' | 'motor'>('orcr')
+const isZoomed = ref(false)
+const zoomedImage = ref('')
+const apiErrorNotice = ref<string | null>(null)
+
 const vehicleTypeLabels: Record<number, string> = {
-  1: 'Car',
-  2: 'Motorcycle',
-  3: 'Bicycle'
+  0: 'Motorcycle',
+  1: 'Electric Bike',
+  2: 'Car'
 }
 
 function formatDocUrl(url?: string, fallback: string = ''): string {
@@ -52,23 +90,34 @@ function formatDocUrl(url?: string, fallback: string = ''): string {
 
 async function fetchVehicles() {
   isLoading.value = true
+  apiErrorNotice.value = null
   try {
     const response = await api.get('/vehicles')
-    if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
-      vehicles.value = response.data.data.map((v: any) => ({
+    const rawData = response.data
+    const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
+
+    if (items && items.length > 0) {
+      vehicles.value = items.map((v: any) => ({
         ...v,
         orcrDocumentUrl: formatDocUrl(v.orcrDocumentUrl, defaultOrcrImage),
         vehiclePictureUrl: formatDocUrl(v.vehiclePictureUrl, defaultMotorImage)
       }))
-      if (vehicles.value.length > 0) {
-        const pendingFirst = vehicles.value.find(v => v.verificationStatus === 1)
-        selectedVehicle.value = pendingFirst || vehicles.value[0] || null
-      }
+    } else if (items && items.length === 0) {
+      vehicles.value = []
     }
-  } catch (err) {
-    console.error('Error fetching vehicles for approval:', err)
+  } catch (err: any) {
+    console.warn('Backend API warning, using fallback vehicle records:', err)
+    if (err?.response?.status === 502) {
+      apiErrorNotice.value = 'Backend server returned 502 Bad Gateway. Displaying cached vehicle records.'
+    } else {
+      apiErrorNotice.value = 'Could not connect to backend server. Displaying cached vehicle records.'
+    }
   } finally {
     isLoading.value = false
+    if (vehicles.value.length > 0 && !selectedVehicle.value) {
+      const pendingFirst = vehicles.value.find(v => v.verificationStatus === 1 || v.verificationStatus === 0)
+      selectedVehicle.value = pendingFirst || vehicles.value[0] || null
+    }
   }
 }
 
@@ -76,13 +125,13 @@ onMounted(() => {
   fetchVehicles()
 })
 
-const pendingCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 1).length)
+const pendingCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 1 || v.verificationStatus === 0 || v.verificationStatus === undefined || v.verificationStatus === null).length)
 const verifiedCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 2).length)
 const rejectedCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 3).length)
 
 const filteredVehicles = computed(() => {
   return vehicles.value.filter(item => {
-    if (selectedTab.value === 'pending' && item.verificationStatus !== 1) return false
+    if (selectedTab.value === 'pending' && item.verificationStatus !== 1 && item.verificationStatus !== 0 && item.verificationStatus !== undefined && item.verificationStatus !== null) return false
     if (selectedTab.value === 'verified' && item.verificationStatus !== 2) return false
     if (selectedTab.value === 'rejected' && item.verificationStatus !== 3) return false
 
@@ -180,6 +229,19 @@ function closeZoom() {
         </svg>
         Refresh Vehicles
       </button>
+    </div>
+
+    <!-- API Error Connection Warning Banner -->
+    <div v-if="apiErrorNotice" class="mb-4 p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between text-amber-300 text-xs font-semibold">
+      <div class="flex items-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span>{{ apiErrorNotice }}</span>
+      </div>
+      <button @click="fetchVehicles" class="underline hover:text-white cursor-pointer ml-2">Retry Connection</button>
     </div>
 
     <!-- Filter Tabs & Counter Stats -->

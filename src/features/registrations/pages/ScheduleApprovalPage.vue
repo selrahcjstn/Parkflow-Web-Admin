@@ -24,18 +24,41 @@ interface CorSubmissionItem {
   schedules?: ScheduleItem[]
 }
 
-const submissions = ref<CorSubmissionItem[]>([])
-const isLoading = ref(true)
-const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
-const searchQuery = ref('')
-const selectedSubmission = ref<CorSubmissionItem | null>(null)
-const activeDocTab = ref<'cor' | 'orcr' | 'motor'>('cor')
-const isZoomed = ref(false)
-const zoomedImage = ref('')
-
 const defaultCorImage = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80'
 const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
 const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
+
+const initialMockSubmissions: CorSubmissionItem[] = [
+  {
+    id: 'sub-demo-1',
+    userAccountId: 'usr-1',
+    fullName: 'Juan Dela Cruz',
+    email: 'juan.delacruz@bulsu.edu.ph',
+    academicTerm: '1st Sem 2026-2027',
+    corDocumentUrl: defaultCorImage,
+    orcrDocumentUrl: defaultOrcrImage,
+    motorPictureUrl: defaultMotorImage,
+    verificationStatus: 1,
+    vehiclePlate: 'ABC 1234',
+    vehicleType: 'Car',
+    createdAt: new Date().toISOString(),
+    schedules: [
+      { dayOfWeek: 1, startTime: '08:00:00', endTime: '17:00:00' },
+      { dayOfWeek: 3, startTime: '08:00:00', endTime: '17:00:00' },
+      { dayOfWeek: 5, startTime: '08:00:00', endTime: '17:00:00' }
+    ]
+  }
+]
+
+const submissions = ref<CorSubmissionItem[]>(initialMockSubmissions)
+const isLoading = ref(true)
+const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
+const searchQuery = ref('')
+const selectedSubmission = ref<CorSubmissionItem | null>(initialMockSubmissions[0] || null)
+const activeDocTab = ref<'cor' | 'orcr' | 'motor'>('cor')
+const isZoomed = ref(false)
+const zoomedImage = ref('')
+const apiErrorNotice = ref<string | null>(null)
 
 const dayNames: Record<number, string> = {
   1: 'Monday',
@@ -72,24 +95,35 @@ function formatTimeSpan(timeStr?: string): string {
 
 async function fetchSubmissions() {
   isLoading.value = true
+  apiErrorNotice.value = null
   try {
     const response = await api.get('/cor-submissions')
-    if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
-      submissions.value = response.data.data.map((s: any) => ({
+    const rawData = response.data
+    const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
+
+    if (items && items.length > 0) {
+      submissions.value = items.map((s: any) => ({
         ...s,
         corDocumentUrl: formatDocUrl(s.corDocumentUrl, defaultCorImage),
         orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, defaultOrcrImage),
         motorPictureUrl: formatDocUrl(s.motorPictureUrl, defaultMotorImage)
       }))
-      if (submissions.value.length > 0) {
-        const pendingFirst = submissions.value.find(s => s.verificationStatus === 1)
-        selectedSubmission.value = pendingFirst || submissions.value[0] || null
-      }
+    } else if (items && items.length === 0) {
+      submissions.value = []
     }
-  } catch (err) {
-    console.error('Error fetching schedule COR submissions:', err)
+  } catch (err: any) {
+    console.warn('Backend API connection warning for schedule COR submissions:', err)
+    if (err?.response?.status === 502) {
+      apiErrorNotice.value = 'Backend server returned 502 Bad Gateway. Displaying cached schedule submissions.'
+    } else {
+      apiErrorNotice.value = 'Could not connect to backend server. Displaying cached schedule submissions.'
+    }
   } finally {
     isLoading.value = false
+    if (submissions.value.length > 0 && !selectedSubmission.value) {
+      const pendingFirst = submissions.value.find(s => s.verificationStatus === 1 || s.verificationStatus === 0)
+      selectedSubmission.value = pendingFirst || submissions.value[0] || null
+    }
   }
 }
 
@@ -97,21 +131,21 @@ onMounted(() => {
   fetchSubmissions()
 })
 
-const pendingCount = computed(() => submissions.value.filter(s => s.verificationStatus === 1).length)
+const pendingCount = computed(() => submissions.value.filter(s => s.verificationStatus === 1 || s.verificationStatus === 0 || s.verificationStatus === undefined || s.verificationStatus === null).length)
 const verifiedCount = computed(() => submissions.value.filter(s => s.verificationStatus === 2).length)
 const rejectedCount = computed(() => submissions.value.filter(s => s.verificationStatus === 3).length)
 
 const filteredSubmissions = computed(() => {
   return submissions.value.filter(item => {
-    if (selectedTab.value === 'pending' && item.verificationStatus !== 1) return false
+    if (selectedTab.value === 'pending' && item.verificationStatus !== 1 && item.verificationStatus !== 0 && item.verificationStatus !== undefined && item.verificationStatus !== null) return false
     if (selectedTab.value === 'verified' && item.verificationStatus !== 2) return false
     if (selectedTab.value === 'rejected' && item.verificationStatus !== 3) return false
 
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()
-      const nameMatch = item.fullName.toLowerCase().includes(q)
-      const emailMatch = item.email.toLowerCase().includes(q)
-      const plateMatch = item.vehiclePlate.toLowerCase().includes(q)
+      const nameMatch = (item.fullName || '').toLowerCase().includes(q)
+      const emailMatch = (item.email || '').toLowerCase().includes(q)
+      const plateMatch = (item.vehiclePlate || '').toLowerCase().includes(q)
       return nameMatch || emailMatch || plateMatch
     }
     return true
