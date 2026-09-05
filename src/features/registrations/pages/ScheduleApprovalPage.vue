@@ -158,9 +158,13 @@ function openZoom(url: string) {
 
 const activeImageUrl = computed(() => {
   if (!selectedSubmission.value) return defaultCorImage
-  if (activeDocTab.value === 'orcr') return selectedSubmission.value.orcrDocumentUrl || defaultOrcrImage
-  if (activeDocTab.value === 'motor') return selectedSubmission.value.motorPictureUrl || defaultMotorImage
   return selectedSubmission.value.corDocumentUrl || defaultCorImage
+})
+
+const isPdf = computed(() => {
+  if (!activeImageUrl.value) return false
+  const cleanUrl = activeImageUrl.value.split('?')[0]?.toLowerCase() || ''
+  return cleanUrl.endsWith('.pdf')
 })
 
 const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
@@ -335,7 +339,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
         </div>
 
         <div class="side-by-side-grid">
-          <!-- LEFT SIDE: Document Viewer -->
+          <!-- LEFT SIDE: Document Viewer (COR Only) -->
           <div class="side-panel doc-panel">
             <div class="panel-header">
               <h3 class="panel-title">
@@ -343,44 +347,46 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                 </svg>
-                Uploaded Proof Document
+                Certificate of Registration (COR)
               </h3>
-              <div class="doc-tabs">
-                <button
-                  class="doc-tab-btn"
-                  :class="{ active: activeDocTab === 'cor' }"
-                  @click="activeDocTab = 'cor'"
-                >
-                  COR Document
-                </button>
-                <button
-                  class="doc-tab-btn"
-                  :class="{ active: activeDocTab === 'orcr' }"
-                  @click="activeDocTab = 'orcr'"
-                >
-                  OR / CR
-                </button>
-                <button
-                  class="doc-tab-btn"
-                  :class="{ active: activeDocTab === 'motor' }"
-                  @click="activeDocTab = 'motor'"
-                >
-                  Vehicle Photo
-                </button>
-              </div>
+              <span class="cor-type-tag">Official Proof Document</span>
             </div>
 
             <div class="doc-viewer-box">
-              <img :src="activeImageUrl" alt="Proof Document" class="doc-image" @click="openZoom(activeImageUrl)" />
-              <button class="zoom-btn" @click="openZoom(activeImageUrl)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="8"/>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  <line x1="11" y1="8" x2="11" y2="14"/>
-                  <line x1="8" y1="11" x2="14" y2="11"/>
-                </svg>
-                Click to Expand Fullscreen
-              </button>
+              <template v-if="isPdf">
+                <iframe :src="activeImageUrl" class="doc-pdf-iframe" title="Certificate of Registration PDF"></iframe>
+                <div class="pdf-toolbar">
+                  <a :href="activeImageUrl" target="_blank" rel="noopener noreferrer" class="pdf-open-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    Open PDF in New Tab
+                  </a>
+                  <button class="zoom-btn" @click="openZoom(activeImageUrl)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8"/>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                      <line x1="11" y1="8" x2="11" y2="14"/>
+                      <line x1="8" y1="11" x2="14" y2="11"/>
+                    </svg>
+                    Fullscreen
+                  </button>
+                </div>
+              </template>
+              <template v-else>
+                <img :src="activeImageUrl" alt="COR Document" class="doc-image" @click="openZoom(activeImageUrl)" />
+                <button class="zoom-btn" @click="openZoom(activeImageUrl)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/>
+                    <line x1="8" y1="11" x2="14" y2="11"/>
+                  </svg>
+                  Click to Expand Fullscreen
+                </button>
+              </template>
             </div>
           </div>
 
@@ -446,12 +452,13 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
       </div>
     </div>
 
-    <!-- Image Zoom Modal -->
+    <!-- Image / PDF Zoom Modal -->
     <Teleport to="body">
       <div v-if="isZoomed" class="zoom-modal-backdrop" @click="isZoomed = false">
         <div class="zoom-modal-content" @click.stop>
           <button class="zoom-close-btn" @click="isZoomed = false">&times;</button>
-          <img :src="zoomedImage" alt="Expanded Document" class="zoomed-img" />
+          <iframe v-if="isPdf" :src="zoomedImage" class="zoomed-pdf" title="Full COR PDF Document"></iframe>
+          <img v-else :src="zoomedImage" alt="Expanded Document" class="zoomed-img" />
         </div>
       </div>
     </Teleport>
@@ -799,29 +806,14 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   gap: 8px;
 }
 
-.doc-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--color-surface);
-  padding: 3px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-}
-
-.doc-tab-btn {
-  background: transparent;
-  border: none;
-  padding: 4px 8px;
+.cor-type-tag {
   font-size: 11px;
-  font-weight: 600;
-  color: var(--color-muted);
-  cursor: pointer;
+  font-weight: 700;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 3px 8px;
   border-radius: 4px;
-}
-
-.doc-tab-btn.active {
-  background: var(--color-primary, #d22730);
-  color: #ffffff;
+  color: var(--color-muted);
 }
 
 .doc-viewer-box {
@@ -843,10 +835,43 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   cursor: pointer;
 }
 
-.zoom-btn {
+.doc-pdf-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #ffffff;
+  border-radius: 8px;
+}
+
+.pdf-toolbar {
   position: absolute;
   bottom: 12px;
   right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+
+.pdf-open-btn {
+  background: rgba(0, 0, 0, 0.75);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  transition: all 150ms ease;
+}
+
+.pdf-open-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+}
+
+.zoom-btn {
   background: rgba(0, 0, 0, 0.75);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -942,6 +967,14 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
+}
+
+.zoomed-pdf {
+  width: 85vw;
+  height: 85vh;
+  border: none;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .zoom-close-btn {
