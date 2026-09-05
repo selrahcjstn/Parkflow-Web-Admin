@@ -11,6 +11,10 @@ export interface ParkingReservationItem {
   endTime: string
   reason: string
   status: ReservationStatusType
+  type?: 'Normal' | 'Special' | 0 | 1
+  vehicleId?: string
+  plateNumber?: string
+  brand?: string
   adminNotes?: string
   approvedAt?: string
   approvedByAdminId?: string

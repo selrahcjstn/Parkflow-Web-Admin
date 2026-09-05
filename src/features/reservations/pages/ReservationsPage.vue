@@ -46,6 +46,7 @@ const createForm = ref({
   startTime: '07:00',
   endTime: '17:00',
   reason: 'Campus Special Event / Administrative Schedule',
+  type: 1, // 1 = Special (No Fees), 0 = Normal
   sendEmail: false,
   notifyEmail: ''
 })
@@ -258,7 +259,8 @@ async function handleCreateReservation() {
       reservationDate: createForm.value.reservationDate,
       startTime: createForm.value.startTime + ':00',
       endTime: createForm.value.endTime + ':00',
-      reason: createForm.value.reason
+      reason: createForm.value.reason,
+      type: createForm.value.type
     }
     if (createForm.value.sendEmail && createForm.value.notifyEmail.trim()) {
       payload.notifyEmail = createForm.value.notifyEmail.trim()
@@ -278,6 +280,7 @@ async function handleCreateReservation() {
       startTime: '07:00',
       endTime: '17:00',
       reason: 'Campus Special Event / Administrative Schedule',
+      type: 1,
       sendEmail: false,
       notifyEmail: ''
     }
@@ -505,6 +508,9 @@ async function handleCreateReservation() {
             <!-- Reference Number -->
             <td>
               <span class="ref-badge monospace">{{ item.referenceNumber }}</span>
+              <span v-if="item.type === 1 || item.type === 'Special'" class="special-pass-chip">
+                ⭐ Special (No Fees)
+              </span>
             </td>
 
             <!-- Applicant Info -->
@@ -812,6 +818,14 @@ async function handleCreateReservation() {
                   v-model="createForm.reservationDate"
                   class="form-input"
                 />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Reservation Type</label>
+                <select v-model.number="createForm.type" class="form-select">
+                  <option :value="1">Special (Admin Pass - ₱0 No Fees)</option>
+                  <option :value="0">Normal (Standard Pass)</option>
+                </select>
               </div>
 
               <div class="form-row">
@@ -1777,6 +1791,19 @@ async function handleCreateReservation() {
   align-items: center;
   gap: 6px;
   cursor: pointer;
+}
+
+.special-pass-chip {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-top: 4px;
+  width: fit-content;
 }
 
 @media print {
