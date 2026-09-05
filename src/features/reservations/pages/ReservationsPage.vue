@@ -6,6 +6,7 @@ import type { ParkingReservationItem, ReservationStatusType } from '../types'
 
 const reservations = ref<ParkingReservationItem[]>([])
 const isLoading = ref(true)
+const fetchError = ref<string | null>(null)
 const searchQuery = ref('')
 const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
 const selectedDateFilter = ref<string>('')
@@ -42,18 +43,26 @@ function getStatusKey(status: ReservationStatusType): string {
 async function fetchReservations(silent = false) {
   if (!silent) {
     isLoading.value = true
+    fetchError.value = null
   }
   try {
     const response = await api.get('/parking-reservations/admin/all')
     if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
       reservations.value = response.data.data
+      fetchError.value = null
     } else if (Array.isArray(response.data)) {
       reservations.value = response.data
+      fetchError.value = null
     } else {
       reservations.value = []
     }
-  } catch (error) {
-    console.error('API reservations fetch error:', error)
+  } catch (error: any) {
+    const status = error.response?.status
+    const msg = error.response?.data?.message || error.message || 'Unknown error'
+    const errText = status ? `API Error ${status}: ${msg}` : `Network Error: ${msg}`
+    console.error('Reservations fetch error:', errText, error)
+    // Always surface the error (even on silent poll) so it's never invisible
+    fetchError.value = errText
     if (!silent) {
       reservations.value = []
     }
@@ -231,6 +240,19 @@ async function handleCreateReservation() {
 
 <template>
   <div class="reservations-page">
+    <!-- API Error Banner -->
+    <div v-if="fetchError" class="error-banner">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      <div>
+        <strong>Failed to load reservations</strong>
+        <span style="margin-left: 8px; opacity: 0.85;">{{ fetchError }}</span>
+      </div>
+      <button class="error-retry-btn" @click="fetchReservations()">Retry</button>
+    </div>
     <!-- Notification Toast -->
     <Transition name="toast">
       <div v-if="notificationToast" class="toast-notification" :class="`toast--${notificationToast.type}`">
@@ -696,6 +718,34 @@ async function handleCreateReservation() {
 .toast--error {
   background: rgba(239, 68, 68, 0.95);
   color: #ffffff;
+}
+
+/* Error Banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 10px;
+  color: #ef4444;
+  font-size: 13px;
+}
+.error-retry-btn {
+  margin-left: auto;
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.error-retry-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
 }
 
 /* Header */
