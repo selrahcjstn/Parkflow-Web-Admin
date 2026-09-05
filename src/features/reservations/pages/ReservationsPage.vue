@@ -515,7 +515,10 @@ async function handleCreateReservation() {
                 </div>
                 <div class="applicant-meta">
                   <span class="applicant-name">{{ item.userFullName || 'Campus User' }}</span>
-                  <span class="applicant-email">{{ getDisplayEmail(item) }}</span>
+                  <span class="applicant-email">{{ item.userEmail || 'N/A' }}</span>
+                  <span class="applicant-receiver-badge" v-if="getNotifyEmailFromNotes(item.adminNotes)">
+                    📩 Recipient: {{ getNotifyEmailFromNotes(item.adminNotes) }}
+                  </span>
                 </div>
               </div>
             </td>
@@ -608,12 +611,23 @@ async function handleCreateReservation() {
               <div class="info-section">
                 <h4 class="section-label">Creator of the reservation</h4>
                 <div class="meta-row">
-                  <span class="meta-key">Full Name</span>
+                  <span class="meta-key">Creator Name</span>
                   <span class="meta-val">{{ reviewModalItem.userFullName || 'Campus User' }}</span>
                 </div>
                 <div class="meta-row">
-                  <span class="meta-key">Email Address</span>
-                  <span class="meta-val font-600 text-indigo">{{ getDisplayEmail(reviewModalItem) }}</span>
+                  <span class="meta-key">Creator Email</span>
+                  <span class="meta-val">{{ reviewModalItem.userEmail || 'N/A' }}</span>
+                </div>
+              </div>
+
+              <div class="info-section" v-if="getNotifyEmailFromNotes(reviewModalItem.adminNotes)">
+                <h4 class="section-label" style="color: #6366f1;">Pass Receiver / Notification</h4>
+                <div class="meta-row">
+                  <span class="meta-key">Receiver Email</span>
+                  <span class="meta-val text-indigo font-600">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    {{ getNotifyEmailFromNotes(reviewModalItem.adminNotes) }}
+                  </span>
                 </div>
               </div>
 
@@ -723,12 +737,16 @@ async function handleCreateReservation() {
               <!-- Pass Info Ticket Details -->
               <div class="qr-pass-details">
                 <div class="qr-detail-row">
-                  <span class="qr-detail-label">Creator of the reservation</span>
+                  <span class="qr-detail-label">Creator Name</span>
                   <span class="qr-detail-val bold">{{ qrPassModalItem.userFullName || 'Campus Visitor / Staff' }}</span>
                 </div>
-                <div class="qr-detail-row" v-if="getDisplayEmail(qrPassModalItem) !== 'N/A'">
-                  <span class="qr-detail-label">Contact / Recipient Email</span>
-                  <span class="qr-detail-val">{{ getDisplayEmail(qrPassModalItem) }}</span>
+                <div class="qr-detail-row" v-if="qrPassModalItem.userEmail">
+                  <span class="qr-detail-label">Creator Email</span>
+                  <span class="qr-detail-val">{{ qrPassModalItem.userEmail }}</span>
+                </div>
+                <div class="qr-detail-row" v-if="getNotifyEmailFromNotes(qrPassModalItem.adminNotes)">
+                  <span class="qr-detail-label">Receiver Email</span>
+                  <span class="qr-detail-val text-indigo font-600">{{ getNotifyEmailFromNotes(qrPassModalItem.adminNotes) }}</span>
                 </div>
                 <div class="qr-detail-row">
                   <span class="qr-detail-label">Reserved Date</span>
@@ -1514,6 +1532,14 @@ async function handleCreateReservation() {
 .slide-down-leave-from {
   opacity: 1;
   max-height: 120px;
+}
+
+.applicant-receiver-badge {
+  font-size: 11px;
+  color: #6366f1;
+  font-weight: 600;
+  display: block;
+  margin-top: 2px;
 }
 
 .modal-footer {
