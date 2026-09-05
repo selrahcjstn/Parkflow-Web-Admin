@@ -32,6 +32,17 @@ const getInitials = (user: UserWithDetails) => {
   return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
 }
 
+const formatYearLevel = (level?: number): string => {
+  if (!level) return 'N/A'
+  if (level >= 7 && level <= 12) return `Grade ${level}`
+  if (level === 1) return '1st Year'
+  if (level === 2) return '2nd Year'
+  if (level === 3) return '3rd Year'
+  if (level === 4) return '4th Year'
+  if (level >= 5) return '5th Year+'
+  return `${level}`
+}
+
 const statusClass = computed(() => {
   if (!props.user) return ''
   const status = props.user.status
@@ -128,7 +139,7 @@ const formatCorStatus = (status: string) => {
             <!-- Student Details -->
             <div v-if="user.student" class="details-grid">
               <div class="detail-item">
-                <span class="detail-label">Student Number</span>
+                <span class="detail-label">Client ID</span>
                 <span class="detail-value">{{ user.student.studentNumber }}</span>
               </div>
               <div class="detail-item">
@@ -141,14 +152,14 @@ const formatCorStatus = (status: string) => {
               </div>
               <div class="detail-item">
                 <span class="detail-label">Year Level</span>
-                <span class="detail-value">{{ user.student.yearLevel }}</span>
+                <span class="detail-value">{{ formatYearLevel(user.student.yearLevel) }}</span>
               </div>
             </div>
 
             <!-- Personnel Details -->
             <div v-if="user.personnel" class="details-grid">
               <div class="detail-item">
-                <span class="detail-label">ID Card Number</span>
+                <span class="detail-label">Client ID</span>
                 <span class="detail-value">{{ user.personnel.idCardNumber }}</span>
               </div>
               <div class="detail-item">

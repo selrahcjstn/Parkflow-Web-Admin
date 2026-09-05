@@ -236,7 +236,7 @@ const handleSubmit = async () => {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Middle Name</label>
+            <label class="form-label">Middle Name (Optional)</label>
             <input v-model="form.middleName" type="text" placeholder="e.g. Santos" class="form-input" />
           </div>
 
@@ -270,7 +270,7 @@ const handleSubmit = async () => {
           <!-- Student Specifics -->
           <template v-if="form.role === 'Student'">
             <div class="form-group">
-              <label class="form-label">Student Number</label>
+              <label class="form-label">Client ID</label>
               <input v-model="form.studentNumber" type="text" placeholder="2026-00123" class="form-input" />
             </div>
             <div class="form-group">
@@ -278,12 +278,24 @@ const handleSubmit = async () => {
               <input v-model="form.course" type="text" placeholder="BS Computer Science" class="form-input" />
             </div>
             <div class="form-group">
-              <label class="form-label">Section</label>
-              <input v-model="form.section" type="text" placeholder="4A" class="form-input" />
+              <label class="form-label">Section (Letters Only)</label>
+              <input
+                v-model="form.section"
+                type="text"
+                placeholder="A"
+                class="form-input"
+                @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').toUpperCase()"
+              />
             </div>
             <div class="form-group">
               <label class="form-label">Year Level</label>
               <select v-model.number="form.yearLevel" class="form-select">
+                <option :value="7">Grade 7</option>
+                <option :value="8">Grade 8</option>
+                <option :value="9">Grade 9</option>
+                <option :value="10">Grade 10</option>
+                <option :value="11">Grade 11</option>
+                <option :value="12">Grade 12</option>
                 <option :value="1">1st Year</option>
                 <option :value="2">2nd Year</option>
                 <option :value="3">3rd Year</option>
@@ -296,7 +308,7 @@ const handleSubmit = async () => {
           <!-- Personnel Specifics -->
           <template v-else-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'">
             <div class="form-group">
-              <label class="form-label">Employee ID Number</label>
+              <label class="form-label">Client ID</label>
               <input v-model="form.idCardNumber" type="text" placeholder="EMP-9082" class="form-input" />
             </div>
             <div class="form-group">

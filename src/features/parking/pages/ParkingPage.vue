@@ -486,7 +486,8 @@ const getRoleLabel = (role: string) => {
           <thead>
             <tr>
               <th>Vehicle</th>
-              <th>Owner / Role</th>
+              <th>Owner</th>
+              <th>Role</th>
               <th>Check-in Time</th>
               <th>Duration</th>
               <th>Gate</th>
@@ -496,16 +497,16 @@ const getRoleLabel = (role: string) => {
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="7">
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
+              <td colspan="8">
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
+                <SkeletonLoader variant="table-row" :columns="8" />
               </td>
             </tr>
             <tr v-else-if="filteredActiveSessions.length === 0">
-              <td colspan="7" class="empty-state">No active parking sessions found.</td>
+              <td colspan="8" class="empty-state">No active parking sessions found.</td>
             </tr>
             <tr
               v-else
@@ -539,12 +540,12 @@ const getRoleLabel = (role: string) => {
                 </div>
               </td>
               <td>
-                <div class="owner-cell">
-                  <span class="owner-name">{{ session.ownerName }}</span>
-                  <span class="role-badge" :class="'role-badge--' + session.role.toLowerCase()">
-                    {{ getRoleLabel(session.role) }}
-                  </span>
-                </div>
+                <span class="owner-name">{{ session.ownerName }}</span>
+              </td>
+              <td>
+                <span class="role-badge" :class="'role-badge--' + session.role.toLowerCase()">
+                  {{ getRoleLabel(session.role) }}
+                </span>
               </td>
               <td>
                 <span class="time-text">{{ new Date(session.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
@@ -590,7 +591,8 @@ const getRoleLabel = (role: string) => {
           <thead>
             <tr>
               <th>Vehicle</th>
-              <th>Owner / Role</th>
+              <th>Owner</th>
+              <th>Role</th>
               <th>Check-in / Out</th>
               <th>Duration</th>
               <th>Fee Charged</th>
@@ -601,16 +603,16 @@ const getRoleLabel = (role: string) => {
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="8">
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
+              <td colspan="9">
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
               </td>
             </tr>
             <tr v-else-if="filteredHistorySessions.length === 0">
-              <td colspan="8" class="empty-state">No parking history logs found.</td>
+              <td colspan="9" class="empty-state">No parking history logs found.</td>
             </tr>
             <tr
               v-else
@@ -643,12 +645,12 @@ const getRoleLabel = (role: string) => {
                 </div>
               </td>
               <td>
-                <div class="owner-cell">
-                  <span class="owner-name">{{ session.ownerName }}</span>
-                  <span class="role-badge" :class="'role-badge--' + session.role.toLowerCase()">
-                    {{ getRoleLabel(session.role) }}
-                  </span>
-                </div>
+                <span class="owner-name">{{ session.ownerName }}</span>
+              </td>
+              <td>
+                <span class="role-badge" :class="'role-badge--' + session.role.toLowerCase()">
+                  {{ getRoleLabel(session.role) }}
+                </span>
               </td>
               <td>
                 <div class="history-time">

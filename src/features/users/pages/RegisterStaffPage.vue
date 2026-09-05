@@ -291,7 +291,7 @@ const handleVerifyOtpAndCreate = async () => {
           </div>
 
           <div class="form-group">
-            <label class="form-label">Middle Name</label>
+            <label class="form-label">Middle Name (Optional)</label>
             <input v-model="form.middleName" type="text" placeholder="e.g. Alonzo" class="form-input" />
           </div>
 

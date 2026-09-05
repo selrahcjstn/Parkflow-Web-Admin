@@ -127,6 +127,10 @@ const handleSubmit = () => {
                   <input id="firstName" v-model="form.firstName" type="text" required />
                 </div>
                 <div class="form-group">
+                  <label for="middleName">Middle Name (Optional)</label>
+                  <input id="middleName" v-model="form.middleName" type="text" placeholder="e.g. Santos" />
+                </div>
+                <div class="form-group">
                   <label for="lastName">Last Name</label>
                   <input id="lastName" v-model="form.lastName" type="text" required />
                 </div>
@@ -192,7 +196,7 @@ const handleSubmit = () => {
                 <h4 class="fields-title">Student Credentials</h4>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="studentNum">Student Number</label>
+                    <label for="studentNum">Client ID</label>
                     <input id="studentNum" v-model="form.studentNumber" type="text" placeholder="202X-XXXXX" required />
                   </div>
                   <div class="form-group">
@@ -202,12 +206,31 @@ const handleSubmit = () => {
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="section">Section</label>
-                    <input id="section" v-model="form.section" type="text" placeholder="CS-4A" required />
+                    <label for="section">Section (Letters Only)</label>
+                    <input
+                      id="section"
+                      v-model="form.section"
+                      type="text"
+                      placeholder="A"
+                      required
+                      @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').toUpperCase()"
+                    />
                   </div>
                   <div class="form-group">
                     <label for="yearLvl">Year Level</label>
-                    <input id="yearLvl" v-model.number="form.yearLevel" type="number" min="1" max="6" required />
+                    <select id="yearLvl" v-model.number="form.yearLevel" class="form-select">
+                      <option :value="7">Grade 7</option>
+                      <option :value="8">Grade 8</option>
+                      <option :value="9">Grade 9</option>
+                      <option :value="10">Grade 10</option>
+                      <option :value="11">Grade 11</option>
+                      <option :value="12">Grade 12</option>
+                      <option :value="1">1st Year</option>
+                      <option :value="2">2nd Year</option>
+                      <option :value="3">3rd Year</option>
+                      <option :value="4">4th Year</option>
+                      <option :value="5">5th Year+</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -217,7 +240,7 @@ const handleSubmit = () => {
                 <h4 class="fields-title">Employee Details</h4>
                 <div class="form-row">
                   <div class="form-group">
-                    <label for="idCard">ID Card Number</label>
+                    <label for="idCard">Client ID</label>
                     <input id="idCard" v-model="form.idCardNumber" type="text" placeholder="EMP-XXXX" required />
                   </div>
                   <div class="form-group">

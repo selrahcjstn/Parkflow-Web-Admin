@@ -512,7 +512,7 @@ const handleFormSubmit = async (formData: any) => {
           <thead>
             <tr>
               <th>{{ isAdminStaffView ? 'Staff Member' : 'Client' }}</th>
-              <th>Identification</th>
+              <th>Client ID</th>
               <th>Classification</th>
               <th v-if="!isAdminStaffView">Vehicles</th>
               <th v-if="!isAdminStaffView">Registration Status</th>

@@ -336,7 +336,8 @@ const getRoleLabel = (role: string) => {
             <tr>
               <th>Reference Code</th>
               <th>Vehicle</th>
-              <th>Owner / Role</th>
+              <th>Owner</th>
+              <th>Role</th>
               <th>Violation Type</th>
               <th>Penalty Fine</th>
               <th>Issued At</th>
@@ -346,16 +347,16 @@ const getRoleLabel = (role: string) => {
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="8">
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
+              <td colspan="9">
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
+                <SkeletonLoader variant="table-row" :columns="9" />
               </td>
             </tr>
             <tr v-else-if="filteredViolations.length === 0">
-              <td colspan="8" class="empty-state">No violation tickets found.</td>
+              <td colspan="9" class="empty-state">No violation tickets found.</td>
             </tr>
             <tr
               v-else
@@ -374,12 +375,12 @@ const getRoleLabel = (role: string) => {
                 </div>
               </td>
               <td>
-                <div class="owner-cell">
-                  <span class="owner-name">{{ violation.firstName }} {{ violation.lastName }}</span>
-                  <span class="role-badge" :class="'role-badge--' + violation.roleName.toLowerCase()">
-                    {{ getRoleLabel(violation.roleName) }}
-                  </span>
-                </div>
+                <span class="owner-name">{{ violation.firstName }} {{ violation.lastName }}</span>
+              </td>
+              <td>
+                <span class="role-badge" :class="'role-badge--' + violation.roleName.toLowerCase()">
+                  {{ getRoleLabel(violation.roleName) }}
+                </span>
               </td>
               <td>
                 <span class="violation-type-text">{{ violation.violationType }}</span>
