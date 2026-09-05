@@ -127,6 +127,34 @@ const displayStatus = (user: UserWithDetails) => {
   return user.corVerificationStatus || 'Verified'
 }
 
+// Dynamic Header Properties
+const headerTitle = computed(() => {
+  if (selectedRole.value === 'Student') return 'Student Client Directory'
+  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Non-Academic Personnel (NAP) & Faculty Directory'
+  if (selectedRole.value === 'AdminStaff') return 'Staff & Admin Directory'
+  if (selectedRole.value === 'Guard') return 'Security Guards Directory'
+  if (selectedRole.value === 'Admin') return 'System Administrators Directory'
+  return 'Client & User Account Directory'
+})
+
+const headerSubtitle = computed(() => {
+  if (selectedRole.value === 'Student') return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
+  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Manage non-academic personnel (NAP), faculty staff accounts, department assignments, and vehicle clearance.'
+  if (selectedRole.value === 'AdminStaff') return 'Manage registered campus security guards and system administrator accounts.'
+  if (selectedRole.value === 'Guard') return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
+  if (selectedRole.value === 'Admin') return 'Manage system administrators and elevated system privileges.'
+  return 'Manage registered client accounts, pending COR registrations, and system privileges.'
+})
+
+const headerBadge = computed(() => {
+  if (selectedRole.value === 'Student') return 'Student Accounts & COR Clearance'
+  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Non-Academic & Faculty Personnel'
+  if (selectedRole.value === 'AdminStaff') return 'Administration & Security'
+  if (selectedRole.value === 'Guard') return 'Campus Security Operations'
+  if (selectedRole.value === 'Admin') return 'SuperAdmin System Control'
+  return 'Campus Client Directory'
+})
+
 // Filtered Users list
 const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff')
 
@@ -379,13 +407,19 @@ const handleFormSubmit = async (formData: any) => {
       </Transition>
     </div>
     <!-- Header -->
-    <!-- Header -->
     <div class="users-header">
       <div class="users-header__left">
-        <h1 class="users-title">{{ isAdminStaffView ? 'Staff & Admin Directory' : 'Client Directory' }}</h1>
-        <p class="users-subtitle">
-          {{ isAdminStaffView ? 'Manage registered campus security guards and system administrator accounts.' : 'Manage registered client accounts, pending COR registrations, and system privileges.' }}
-        </p>
+        <div class="header-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          {{ headerBadge }}
+        </div>
+        <h1 class="users-title">{{ headerTitle }}</h1>
+        <p class="users-subtitle">{{ headerSubtitle }}</p>
       </div>
       <router-link v-if="!isAdminStaffView || isSuperAdmin" :to="isAdminStaffView ? '/users/create-staff' : '/users/create'" class="add-user-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -650,19 +684,40 @@ const handleFormSubmit = async (formData: any) => {
 .users-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 24px;
+}
+
+.users-header__left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  align-self: flex-start;
+  width: fit-content;
 }
 
 .users-title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text);
   margin: 0;
 }
 
 .users-subtitle {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-muted);
   margin: 4px 0 0 0;
 }
