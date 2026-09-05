@@ -125,6 +125,7 @@ async function confirmResetStudentSchedules() {
 // System Announcement State
 interface SystemAnnouncement {
   id?: string
+  title?: string
   message: string
   iconType: 'caution' | 'good_news' | 'info' | 'maintenance' | 'urgent'
   isActive: boolean
@@ -133,6 +134,7 @@ interface SystemAnnouncement {
 }
 
 const announcement = ref<SystemAnnouncement>({
+  title: '',
   message: '',
   iconType: 'info',
   isActive: true
@@ -201,14 +203,19 @@ async function loadAnnouncement() {
 }
 
 async function saveAnnouncement() {
-  if (!announcement.value.message.trim()) {
+  if (!announcement.value.message.trim() && !(announcement.value.title || '').trim()) {
     showNotification('Please enter announcement message content.', 'error')
+    return
+  }
+  if ((announcement.value.title || '').length > 60) {
+    showNotification('Title or header must not exceed 60 characters.', 'error')
     return
   }
   isAnnouncementSaving.value = true
   try {
     const res = await api.post('/system-announcement', {
-      message: announcement.value.message,
+      title: (announcement.value.title || '').trim(),
+      message: announcement.value.message.trim(),
       iconType: announcement.value.iconType,
       isActive: announcement.value.isActive
     })
@@ -562,6 +569,24 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Title / Header Input (Max 60 chars) -->
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <label class="form-label" style="margin-bottom: 0;">Announcement Title / Header</label>
+                <span class="char-counter" :class="{ 'char-counter--limit': (announcement.title || '').length >= 60 }">
+                  {{ (announcement.title || '').length }} / 60
+                </span>
+              </div>
+              <input
+                v-model="announcement.title"
+                type="text"
+                maxlength="60"
+                placeholder="e.g. Scheduled System Maintenance"
+                class="form-input"
+              />
+              <span class="form-help">Short title or header for the banner notification (max 60 characters).</span>
+            </div>
+
             <!-- Message Textarea -->
             <div class="form-group">
               <label class="form-label">Announcement Message</label>
@@ -591,7 +616,7 @@ onMounted(() => {
             </div>
 
             <!-- Live Banner Preview Card -->
-            <div v-if="announcement.message" class="preview-box">
+            <div v-if="announcement.message || announcement.title" class="preview-box">
               <span class="preview-title">LIVE PREVIEW</span>
               <div
                 class="announcement-banner-preview"
@@ -605,7 +630,10 @@ onMounted(() => {
                     <span v-else-if="announcement.iconType === 'maintenance'">MAINTENANCE</span>
                     <span v-else>URGENT</span>
                   </div>
-                  <span class="banner-text">{{ announcement.message }}</span>
+                  <div class="banner-content-text">
+                    <strong v-if="announcement.title" class="banner-title-text">{{ announcement.title }}</strong>
+                    <span class="banner-text">{{ announcement.message }}</span>
+                  </div>
                 </div>
                 <div class="preview-close">✕</div>
               </div>
@@ -1468,6 +1496,28 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.banner-content-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-title-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: inherit;
+}
+
+.char-counter {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.char-counter--limit {
+  color: #ef4444;
 }
 
 .preview-close {

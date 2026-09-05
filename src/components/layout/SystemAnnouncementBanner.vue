@@ -4,6 +4,7 @@ import api from '@/api/axios'
 
 interface SystemAnnouncement {
   id: string
+  title?: string
   message: string
   iconType: 'caution' | 'good_news' | 'info' | 'maintenance' | 'urgent'
   isActive: boolean
@@ -111,7 +112,10 @@ onBeforeUnmount(() => {
             <span v-else>URGENT</span>
           </div>
 
-          <p class="banner-text">{{ announcement.message }}</p>
+          <div class="banner-text-wrap">
+            <span v-if="announcement.title" class="banner-title">{{ announcement.title }} &bull;</span>
+            <span class="banner-text">{{ announcement.message }}</span>
+          </div>
         </div>
 
         <button class="banner-close-btn" aria-label="Dismiss banner" @click="dismissBanner">
@@ -172,9 +176,24 @@ onBeforeUnmount(() => {
   text-transform: uppercase;
 }
 
+.banner-text-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.banner-title {
+  font-size: 13.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .banner-text {
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   margin: 0;
   white-space: nowrap;
@@ -183,6 +202,11 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 768px) {
+  .banner-text-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+  }
   .banner-text {
     white-space: normal;
   }
