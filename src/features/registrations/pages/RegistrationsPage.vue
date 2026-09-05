@@ -1093,18 +1093,20 @@ async function reject(reg: RegistrationItem) {
 
 .doc-btn {
   padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
   border-radius: 6px;
-  color: #60a5fa;
+  color: var(--color-text);
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: all 150ms ease;
 }
 
 .doc-btn:hover {
   background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+  border-color: #60a5fa;
 }
 
 .doc-empty {
@@ -1708,19 +1710,58 @@ async function reject(reg: RegistrationItem) {
 
 /* List Table Badges */
 .doc-badge-btn {
-  padding: 4px 8px;
+  padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   margin-right: 4px;
+  transition: all 150ms ease;
 }
 
 .doc-badge-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--color-surface-lighter, rgba(245, 158, 11, 0.15));
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.doc-badge-btn--cor {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
+  color: #6366f1;
+}
+
+.doc-badge-btn--cor:hover {
+  background: rgba(99, 102, 241, 0.25);
+  color: #4f46e5;
+  border-color: #6366f1;
+}
+
+.doc-badge-btn--orcr {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+}
+
+.doc-badge-btn--orcr:hover {
+  background: rgba(16, 185, 129, 0.25);
+  color: #059669;
+  border-color: #10b981;
+}
+
+.doc-badge-btn--pic {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #d97706;
+}
+
+.doc-badge-btn--pic:hover {
+  background: rgba(245, 158, 11, 0.25);
+  color: #b45309;
+  border-color: #f59e0b;
 }
 
 /* Image Modal */
