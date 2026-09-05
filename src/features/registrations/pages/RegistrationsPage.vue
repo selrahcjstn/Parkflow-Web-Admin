@@ -257,12 +257,11 @@ async function reject(reg: RegistrationItem) {
           </button>
         </div>
 
-        <button class="registrations-page__refresh-btn" @click="fetchSubmissions">
+        <button class="registrations-page__refresh-btn" @click="fetchSubmissions" title="Refresh">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
-          Refresh Portal
         </button>
       </div>
     </div>
@@ -763,23 +762,25 @@ async function reject(reg: RegistrationItem) {
 }
 
 .registrations-page__refresh-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
   border-radius: var(--radius-button, 8px);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  font-size: 13px;
-  font-weight: 500;
   cursor: pointer;
   transition: all 150ms ease;
+  flex-shrink: 0;
 }
 
 .registrations-page__refresh-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--color-surface-muted);
+  color: var(--color-primary, #d22730);
+  border-color: var(--color-border);
 }
 
 /* Stats Cards */

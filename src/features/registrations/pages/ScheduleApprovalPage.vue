@@ -357,12 +357,11 @@ watch(selectedSubmission, () => {
         <h1 class="page-title">COR & Attendance Schedule Verification</h1>
         <p class="page-subtitle">Inspect Certificate of Registration (COR) side-by-side with user declared schedule, edit access slots, and grant vehicle parking approvals.</p>
       </div>
-      <button class="refresh-btn" @click="fetchSubmissions">
+      <button class="refresh-btn" @click="fetchSubmissions" title="Refresh">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
           <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
         </svg>
-        Refresh Submissions
       </button>
     </div>
 
@@ -726,11 +725,15 @@ watch(selectedSubmission, () => {
 .header-left {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
 }
 
 .header-badge {
   display: inline-flex;
   align-items: center;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: max-content;
   gap: 6px;
   background: rgba(210, 39, 48, 0.1);
   color: var(--color-primary, #d22730);
@@ -757,20 +760,22 @@ watch(selectedSubmission, () => {
 .refresh-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 8px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 150ms ease;
+  flex-shrink: 0;
 }
 
 .refresh-btn:hover {
   background: var(--color-surface-muted);
+  color: var(--color-primary, #d22730);
 }
 
 .notice-bar {
