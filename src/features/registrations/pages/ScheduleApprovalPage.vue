@@ -24,7 +24,7 @@ interface CorSubmissionItem {
   schedules?: ScheduleItem[]
 }
 
-const defaultCorImage = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80'
+const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
 const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
 const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
 
@@ -47,7 +47,7 @@ const initialMockSubmissions: CorSubmissionItem[] = [
     fullName: 'Juan Dela Cruz',
     email: 'juan.delacruz@bulsu.edu.ph',
     academicTerm: '1st Sem 2026-2027',
-    corDocumentUrl: defaultCorImage,
+    corDocumentUrl: defaultCorPdf,
     orcrDocumentUrl: defaultOrcrImage,
     motorPictureUrl: defaultMotorImage,
     verificationStatus: 1,
@@ -66,7 +66,7 @@ const initialMockSubmissions: CorSubmissionItem[] = [
     fullName: 'Maria Santos',
     email: 'maria.santos@bulsu.edu.ph',
     academicTerm: '1st Sem 2026-2027',
-    corDocumentUrl: defaultCorImage,
+    corDocumentUrl: defaultCorPdf,
     orcrDocumentUrl: defaultOrcrImage,
     motorPictureUrl: defaultMotorImage,
     verificationStatus: 1,
@@ -104,7 +104,7 @@ function createDefaultEditForm(): Record<number, { active: boolean; startTime: s
 
 const scheduleEditForm = ref<Record<number, { active: boolean; startTime: string; endTime: string }>>(createDefaultEditForm())
 
-function formatDocUrl(url?: string, fallback: string = ''): string {
+function formatDocUrl(url?: string, fallback: string = defaultCorPdf): string {
   if (!url || !url.trim()) return fallback
   const trimmed = url.trim()
   if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
@@ -150,7 +150,7 @@ async function fetchSubmissions() {
     if (items && items.length > 0) {
       submissions.value = items.map((s: any) => ({
         ...s,
-        corDocumentUrl: formatDocUrl(s.corDocumentUrl, defaultCorImage),
+        corDocumentUrl: formatDocUrl(s.corDocumentUrl, defaultCorPdf),
         orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, defaultOrcrImage),
         motorPictureUrl: formatDocUrl(s.motorPictureUrl, defaultMotorImage)
       }))
@@ -329,15 +329,11 @@ function openZoom(url: string) {
 }
 
 const activeImageUrl = computed(() => {
-  if (!selectedSubmission.value) return defaultCorImage
-  return selectedSubmission.value.corDocumentUrl || defaultCorImage
+  if (!selectedSubmission.value) return defaultCorPdf
+  return selectedSubmission.value.corDocumentUrl || defaultCorPdf
 })
 
-const isPdf = computed(() => {
-  if (!activeImageUrl.value) return false
-  const cleanUrl = activeImageUrl.value.split('?')[0]?.toLowerCase() || ''
-  return cleanUrl.endsWith('.pdf')
-})
+const isPdf = computed(() => true)
 
 watch(selectedSubmission, () => {
   isEditingSchedule.value = false
@@ -555,46 +551,26 @@ watch(selectedSubmission, () => {
             </div>
 
             <div class="doc-viewer-box">
-              <template v-if="isPdf && activeImageUrl && (activeImageUrl.startsWith('http://') || activeImageUrl.startsWith('https://'))">
-                <iframe :src="activeImageUrl" class="doc-pdf-iframe" title="Certificate of Registration PDF"></iframe>
-                <div class="pdf-toolbar">
-                  <a :href="activeImageUrl" target="_blank" rel="noopener noreferrer" class="pdf-open-btn">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                      <polyline points="15 3 21 3 21 9"/>
-                      <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                    Open PDF in New Tab
-                  </a>
-                  <button class="zoom-btn" @click="openZoom(activeImageUrl)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="11" cy="11" r="8"/>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      <line x1="11" y1="8" x2="11" y2="14"/>
-                      <line x1="8" y1="11" x2="14" y2="11"/>
-                    </svg>
-                    Fullscreen
-                  </button>
-                </div>
-              </template>
-              <template v-else>
-                <img
-                  :src="activeImageUrl"
-                  alt="COR Document"
-                  class="doc-image"
-                  @error="handleImageError($event, defaultCorImage)"
-                  @click="openZoom(activeImageUrl)"
-                />
+              <iframe :src="activeImageUrl" class="doc-pdf-iframe" title="Certificate of Registration PDF Document"></iframe>
+              <div class="pdf-toolbar">
+                <a :href="activeImageUrl" target="_blank" rel="noopener noreferrer" class="pdf-open-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                    <polyline points="15 3 21 3 21 9"/>
+                    <line x1="10" y1="14" x2="21" y2="3"/>
+                  </svg>
+                  Open PDF in New Tab
+                </a>
                 <button class="zoom-btn" @click="openZoom(activeImageUrl)">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"/>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     <line x1="11" y1="8" x2="11" y2="14"/>
                     <line x1="8" y1="11" x2="14" y2="11"/>
                   </svg>
-                  Click to Expand Fullscreen
+                  Fullscreen PDF
                 </button>
-              </template>
+              </div>
             </div>
           </div>
 

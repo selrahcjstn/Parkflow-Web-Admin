@@ -30,7 +30,7 @@ const inspectorItem = ref<RegistrationItem | null>(null)
 const activeDocType = ref<'cor' | 'orcr' | 'motorPic'>('cor')
 const selectedImage = ref<string | null>(null)
 
-const defaultCorImage = 'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?auto=format&fit=crop&w=800&q=80'
+const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
 const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
 const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
 
@@ -133,7 +133,7 @@ async function fetchSubmissions() {
           vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'ABC 1234',
           vehicleType: sub.vehicleType || 'Motorcycle',
           brand: sub.brand || 'Honda Click 125i',
-          corUrl: formatDocUrl(cor, defaultCorImage),
+          corUrl: formatDocUrl(cor, defaultCorPdf),
           orcrUrl: formatDocUrl(orcr, defaultOrcrImage),
           motorPicUrl: formatDocUrl(motor, defaultMotorImage),
           status: mappedStatus
@@ -422,7 +422,7 @@ async function reject(reg: RegistrationItem) {
           <!-- 1. COR Document Card -->
           <div class="doc-thumb-box" @click="openInspector(reg, 'cor')">
             <div class="doc-thumb-img-wrapper">
-              <img :src="reg.corUrl || defaultCorImage" alt="COR Document" class="doc-thumb-img" />
+              <iframe :src="reg.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
               <div class="doc-hover-overlay">
                 <span>Inspect COR</span>
               </div>
@@ -620,14 +620,12 @@ async function reject(reg: RegistrationItem) {
 
                 <!-- Preview Display -->
                 <div class="doc-preview-box">
-                  <img
+                  <iframe
                     v-if="activeDocType === 'cor'"
-                    :src="inspectorItem.corUrl || defaultCorImage"
-                    alt="COR Certificate"
-                    class="inspector-img"
-                    @error="handleImageError($event, defaultCorImage)"
-                    @click="openZoomImage(inspectorItem.corUrl || defaultCorImage)"
-                  />
+                    :src="inspectorItem.corUrl || defaultCorPdf"
+                    class="doc-pdf-iframe"
+                    title="COR Certificate PDF"
+                  ></iframe>
                   <img
                     v-else-if="activeDocType === 'orcr'"
                     :src="inspectorItem.orcrUrl || defaultOrcrImage"
@@ -1756,5 +1754,20 @@ async function reject(reg: RegistrationItem) {
   max-height: 80vh;
   object-fit: contain;
   border-radius: 8px;
+}
+
+.doc-thumb-pdf {
+  width: 100%;
+  height: 100%;
+  border: none;
+  pointer-events: none;
+}
+
+.doc-pdf-iframe {
+  width: 100%;
+  height: 480px;
+  border: none;
+  border-radius: 12px;
+  background: #0f172a;
 }
 </style>
