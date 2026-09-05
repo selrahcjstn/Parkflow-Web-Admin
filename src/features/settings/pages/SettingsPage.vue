@@ -623,13 +623,6 @@ onMounted(() => {
                 :class="`announcement-banner--${announcement.iconType}`"
               >
                 <div class="banner-left">
-                  <div class="banner-badge">
-                    <span v-if="announcement.iconType === 'caution'">CAUTION</span>
-                    <span v-else-if="announcement.iconType === 'good_news'">ANNOUNCEMENT</span>
-                    <span v-else-if="announcement.iconType === 'info'">INFO</span>
-                    <span v-else-if="announcement.iconType === 'maintenance'">MAINTENANCE</span>
-                    <span v-else>URGENT</span>
-                  </div>
                   <div class="banner-content-text">
                     <strong v-if="announcement.title" class="banner-title-text">{{ announcement.title }}</strong>
                     <span class="banner-text">{{ announcement.message }}</span>
