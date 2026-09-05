@@ -3,6 +3,6 @@ export default [
     path: '/settings',
     name: 'Settings',
     component: () => import('./pages/SettingsPage.vue'),
-    meta: { title: 'Settings & Customization' }
+    meta: { title: 'Settings & Customization', requiresSuperAdmin: true }
   }
 ]

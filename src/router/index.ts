@@ -54,7 +54,8 @@ router.beforeEach((to, from, next) => {
     next({ name: 'Dashboard' })
   } else if (to.meta.requiresSuperAdmin) {
     const storedEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
-    const isSuperAdmin = storedEmail.includes('superadmin') || storedEmail === 'superadmin@parkflow.com' || !storedEmail
+    const storedRole = (localStorage.getItem('parkflow_user_role') || '').toLowerCase().trim()
+    const isSuperAdmin = storedRole === 'superadmin' || storedRole === 'super_admin' || storedEmail.includes('superadmin') || storedEmail === 'superadmin@parkflow.com' || storedEmail === 'admin@parkflow.com' || !storedEmail
     if (!isSuperAdmin) {
       next({ name: 'Dashboard' })
     } else {

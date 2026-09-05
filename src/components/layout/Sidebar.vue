@@ -98,29 +98,39 @@ const navItems: NavItem[] = [
 ]
 
 const userEmail = computed(() => localStorage.getItem('parkflow_user_email') || 'admin@parkflow.com')
+const userRole = computed(() => localStorage.getItem('parkflow_user_role') || '')
+
 const isSuperAdmin = computed(() => {
   const email = userEmail.value.toLowerCase().trim()
-  return email.includes('superadmin') || email === 'superadmin@parkflow.com' || !email
+  const role = userRole.value.toLowerCase().trim()
+  return role === 'superadmin' || role === 'super_admin' || email.includes('superadmin') || email === 'superadmin@parkflow.com' || email === 'admin@parkflow.com' || !email
 })
 
 const filteredNavItems = computed(() => {
-  return navItems.map(item => {
-    if (item.children) {
-      return {
-        ...item,
-        children: item.children.filter(sub => {
-          if (sub.path === '/users/create-staff' && !isSuperAdmin.value) {
-            return false
-          }
-          if (sub.path === '/users?role=AdminStaff' && !isSuperAdmin.value) {
-            return false
-          }
-          return true
-        })
+  return navItems
+    .filter(item => {
+      if (item.key === 'settings' && !isSuperAdmin.value) {
+        return false
       }
-    }
-    return item
-  })
+      return true
+    })
+    .map(item => {
+      if (item.children) {
+        return {
+          ...item,
+          children: item.children.filter(sub => {
+            if (sub.path === '/users/create-staff' && !isSuperAdmin.value) {
+              return false
+            }
+            if (sub.path === '/users?role=AdminStaff' && !isSuperAdmin.value) {
+              return false
+            }
+            return true
+          })
+        }
+      }
+      return item
+    })
 })
 
 const userInitials = computed(() => {
