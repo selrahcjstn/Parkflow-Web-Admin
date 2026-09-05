@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import Header from '@/components/layout/Header.vue'
+import SystemAnnouncementBanner from '@/components/layout/SystemAnnouncementBanner.vue'
 import { useAppStore } from '@/stores/app.store'
 
 const appStore = useAppStore()
@@ -30,6 +31,7 @@ const mainContentStyle = computed(() => ({
     <Sidebar />
     <div class="main-content" :style="mainContentStyle">
       <Header />
+      <SystemAnnouncementBanner />
       <main class="page-content">
         <router-view />
       </main>

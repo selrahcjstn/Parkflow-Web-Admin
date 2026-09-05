@@ -122,6 +122,130 @@ async function confirmResetStudentSchedules() {
   }
 }
 
+// System Announcement State
+interface SystemAnnouncement {
+  id?: string
+  message: string
+  iconType: 'caution' | 'good_news' | 'info' | 'maintenance' | 'urgent'
+  isActive: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+const announcement = ref<SystemAnnouncement>({
+  message: '',
+  iconType: 'info',
+  isActive: true
+})
+const isAnnouncementSaving = ref(false)
+
+const iconOptions: Array<{
+  type: 'caution' | 'good_news' | 'info' | 'maintenance' | 'urgent'
+  label: string
+  color: string
+  bgColor: string
+  borderColor: string
+  desc: string
+}> = [
+  {
+    type: 'caution',
+    label: 'Caution',
+    color: '#b45309',
+    bgColor: '#fef3c7',
+    borderColor: '#fde68a',
+    desc: 'Warning / Caution alert'
+  },
+  {
+    type: 'good_news',
+    label: 'Good News',
+    color: '#047857',
+    bgColor: '#d1fae5',
+    borderColor: '#a7f3d0',
+    desc: 'Positive update / news'
+  },
+  {
+    type: 'info',
+    label: 'Notice',
+    color: '#1d4ed8',
+    bgColor: '#dbeafe',
+    borderColor: '#bfdbfe',
+    desc: 'General info / notice'
+  },
+  {
+    type: 'maintenance',
+    label: 'Maintenance',
+    color: '#7e22ce',
+    bgColor: '#f3e8ff',
+    borderColor: '#e9d5ff',
+    desc: 'System maintenance'
+  },
+  {
+    type: 'urgent',
+    label: 'Urgent',
+    color: '#be123c',
+    bgColor: '#ffe4e6',
+    borderColor: '#fecdd3',
+    desc: 'Critical urgent alert'
+  }
+]
+
+async function loadAnnouncement() {
+  try {
+    const res = await api.get('/system-announcement/active')
+    if (res.data?.isSuccess && res.data?.data) {
+      announcement.value = res.data.data
+    }
+  } catch (err) {
+    console.error('Error loading announcement:', err)
+  }
+}
+
+async function saveAnnouncement() {
+  if (!announcement.value.message.trim()) {
+    showNotification('Please enter announcement message content.', 'error')
+    return
+  }
+  isAnnouncementSaving.value = true
+  try {
+    const res = await api.post('/system-announcement', {
+      message: announcement.value.message,
+      iconType: announcement.value.iconType,
+      isActive: announcement.value.isActive
+    })
+    if (res.data?.isSuccess) {
+      showNotification('System announcement published successfully!', 'success')
+      if (res.data.data) {
+        announcement.value = res.data.data
+      }
+      window.dispatchEvent(new CustomEvent('system-announcement-updated'))
+    } else {
+      showNotification(res.data?.message || 'Failed to save announcement', 'error')
+    }
+  } catch (err: any) {
+    console.error('Error saving announcement:', err)
+    showNotification('Failed to publish system announcement', 'error')
+  } finally {
+    isAnnouncementSaving.value = false
+  }
+}
+
+async function deactivateAnnouncement() {
+  isAnnouncementSaving.value = true
+  try {
+    const res = await api.delete('/system-announcement')
+    if (res.data?.isSuccess) {
+      announcement.value.isActive = false
+      showNotification('System announcement deactivated!', 'success')
+      window.dispatchEvent(new CustomEvent('system-announcement-updated'))
+    }
+  } catch (err) {
+    console.error('Error deactivating announcement:', err)
+    showNotification('Failed to deactivate announcement', 'error')
+  } finally {
+    isAnnouncementSaving.value = false
+  }
+}
+
 function exportBackupConfig() {
   const jsonStr = JSON.stringify(settings.value, null, 2)
   const blob = new Blob([jsonStr], { type: 'application/json' })
@@ -138,6 +262,7 @@ function exportBackupConfig() {
 onMounted(() => {
   if (isSuperAdmin.value) {
     loadSettings()
+    loadAnnouncement()
   }
 })
 </script>
@@ -367,6 +492,145 @@ onMounted(() => {
                 @click="toggleFeature('autoApproveVerification')"
               >
                 <span class="switch-handle"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: System-wide Message Banner -->
+        <div class="settings-card settings-card--full">
+          <div class="settings-card__header">
+            <div class="icon-wrapper icon-wrapper--purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+            <div>
+              <h3 class="settings-card__title">System-wide Message Banner</h3>
+              <p class="settings-card__subtitle">Broadcast immediate notices across the Web Admin header & Mobile App dashboard</p>
+            </div>
+            <div class="banner-status-badge" :class="announcement.isActive ? 'badge--active' : 'badge--inactive'">
+              <span class="status-dot"></span>
+              {{ announcement.isActive ? 'BANNER LIVE' : 'INACTIVE' }}
+            </div>
+          </div>
+
+          <div class="settings-form">
+            <!-- Icon Type Selection (5 Options) -->
+            <div class="form-group">
+              <label class="form-label">Select Banner Icon & Theme Style (5 Options)</label>
+              <div class="icon-options-grid">
+                <button
+                  v-for="option in iconOptions"
+                  :key="option.type"
+                  type="button"
+                  class="icon-option-card"
+                  :class="{ active: announcement.iconType === option.type }"
+                  @click="announcement.iconType = option.type"
+                >
+                  <div
+                    class="option-icon-wrap"
+                    :style="{ backgroundColor: option.bgColor, color: option.color, borderColor: option.borderColor }"
+                  >
+                    <svg v-if="option.type === 'caution'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/>
+                      <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <svg v-else-if="option.type === 'good_news'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="12 2 15 8 22 9 17 14 18 21 12 18 6 21 7 14 2 9 9 8 12 2"/>
+                    </svg>
+                    <svg v-else-if="option.type === 'info'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <line x1="12" y1="16" x2="12" y2="12"/>
+                      <line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    <svg v-else-if="option.type === 'maintenance'" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                    </svg>
+                    <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/>
+                      <line x1="12" y1="8" x2="12" y2="12"/>
+                      <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                  </div>
+                  <div class="option-info">
+                    <span class="option-title">{{ option.label }}</span>
+                    <span class="option-desc">{{ option.desc }}</span>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <!-- Message Textarea -->
+            <div class="form-group">
+              <label class="form-label">Announcement Message</label>
+              <textarea
+                v-model="announcement.message"
+                rows="3"
+                placeholder="e.g. Campus parking maintenance scheduled tonight from 10 PM to 2 AM."
+                class="form-textarea"
+              ></textarea>
+              <span class="form-help">Users can dismiss this banner by clicking the X button at any time.</span>
+            </div>
+
+            <!-- Active Status Toggle -->
+            <div class="toggle-item" style="margin-bottom: 20px;">
+              <div class="toggle-info">
+                <span class="toggle-title">Enable System-wide Banner</span>
+                <span class="toggle-desc">When enabled, this banner will appear below Web Admin header and Mobile App dashboard.</span>
+              </div>
+              <button
+                type="button"
+                class="switch-btn"
+                :class="{ 'switch-btn--on': announcement.isActive }"
+                @click="announcement.isActive = !announcement.isActive"
+              >
+                <span class="switch-handle"></span>
+              </button>
+            </div>
+
+            <!-- Live Banner Preview Card -->
+            <div v-if="announcement.message" class="preview-box">
+              <span class="preview-title">LIVE PREVIEW</span>
+              <div
+                class="announcement-banner-preview"
+                :class="`announcement-banner--${announcement.iconType}`"
+              >
+                <div class="banner-left">
+                  <div class="banner-badge">
+                    <span v-if="announcement.iconType === 'caution'">CAUTION</span>
+                    <span v-else-if="announcement.iconType === 'good_news'">ANNOUNCEMENT</span>
+                    <span v-else-if="announcement.iconType === 'info'">NOTICE</span>
+                    <span v-else-if="announcement.iconType === 'maintenance'">MAINTENANCE</span>
+                    <span v-else>URGENT</span>
+                  </div>
+                  <span class="banner-text">{{ announcement.message }}</span>
+                </div>
+                <div class="preview-close">✕</div>
+              </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions-row">
+              <button
+                type="button"
+                class="save-btn"
+                :disabled="isAnnouncementSaving"
+                @click="saveAnnouncement"
+              >
+                <span v-if="isAnnouncementSaving">Saving Announcement...</span>
+                <span v-else>Publish / Save Announcement</span>
+              </button>
+
+              <button
+                v-if="announcement.isActive"
+                type="button"
+                class="deactivate-btn"
+                :disabled="isAnnouncementSaving"
+                @click="deactivateAnnouncement"
+              >
+                Deactivate Banner
               </button>
             </div>
           </div>
@@ -1069,6 +1333,168 @@ onMounted(() => {
 
 .modal-btn--confirm:hover {
   opacity: 0.9;
+}
+
+/* ── System Announcement Custom Styles ── */
+.banner-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-left: auto;
+}
+
+.badge--active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge--inactive {
+  background: var(--color-surface-muted);
+  color: var(--color-muted);
+  border: 1px solid var(--color-border);
+}
+
+.icon-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.icon-option-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.icon-option-card:hover {
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.icon-option-card.active {
+  border-color: var(--color-primary);
+  background: var(--color-surface-muted);
+  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.12);
+}
+
+.option-icon-wrap {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.option-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.option-desc {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s ease;
+}
+
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.12);
+}
+
+.preview-box {
+  margin-bottom: 20px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--color-surface-muted);
+  border: 1px dashed var(--color-border);
+}
+
+.preview-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-muted);
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.announcement-banner-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+
+.banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.preview-close {
+  font-weight: 700;
+  opacity: 0.7;
+}
+
+.form-actions-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.deactivate-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deactivate-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
 }
 
 @media (max-width: 1024px) {
