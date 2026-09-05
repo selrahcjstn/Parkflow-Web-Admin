@@ -1135,13 +1135,14 @@ async function handleCreateReservation() {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .data-table {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
+  min-width: 1080px;
 }
 
 .data-table th {
@@ -1153,6 +1154,7 @@ async function handleCreateReservation() {
   letter-spacing: 0.5px;
   background: var(--color-surface-muted);
   border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
 }
 
 .data-table td {
@@ -1165,11 +1167,13 @@ async function handleCreateReservation() {
 .ref-badge {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--color-border);
-  padding: 4px 8px;
+  padding: 5px 10px;
   border-radius: 6px;
   font-size: 12px;
   color: var(--color-primary);
   font-weight: 700;
+  white-space: nowrap;
+  display: inline-block;
 }
 
 .monospace {
@@ -1180,6 +1184,7 @@ async function handleCreateReservation() {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 220px;
 }
 .avatar-circle {
   width: 36px;
@@ -1191,6 +1196,7 @@ async function handleCreateReservation() {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .applicant-meta {
   display: flex;
@@ -1209,6 +1215,8 @@ async function handleCreateReservation() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  white-space: nowrap;
+  min-width: 190px;
 }
 .date-text {
   font-weight: 700;
@@ -1227,11 +1235,13 @@ async function handleCreateReservation() {
 
 .reason-text {
   color: var(--color-text);
-  max-width: 240px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: inline-block;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
+  display: block;
+  min-width: 240px;
+  max-width: 380px;
 }
 
 .status-badge {
@@ -1242,6 +1252,7 @@ async function handleCreateReservation() {
   border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 .status-dot {
   width: 6px;
@@ -1267,6 +1278,9 @@ async function handleCreateReservation() {
   display: flex;
   gap: 6px;
   justify-content: flex-end;
+  align-items: center;
+  white-space: nowrap;
+  min-width: 250px;
 }
 .btn-action {
   padding: 6px 12px;
