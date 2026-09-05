@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="banner-text-wrap">
-            <span v-if="announcement.title" class="banner-title">{{ announcement.title }} &bull;</span>
+            <strong v-if="announcement.title" class="banner-title">{{ announcement.title }}</strong>
             <span class="banner-text">{{ announcement.message }}</span>
           </div>
         </div>
@@ -178,27 +178,25 @@ onBeforeUnmount(() => {
 
 .banner-text-wrap {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
-  overflow: hidden;
 }
 
 .banner-title {
   font-size: 13.5px;
   font-weight: 800;
-  white-space: nowrap;
-  flex-shrink: 0;
+  line-height: 1.3;
 }
 
 .banner-text {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.35;
   margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 @media (max-width: 768px) {
