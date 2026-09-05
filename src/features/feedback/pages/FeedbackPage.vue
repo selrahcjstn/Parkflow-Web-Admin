@@ -36,6 +36,14 @@ const editStatus = ref<FeedbackStatus>('Pending')
 const editAdminNotes = ref('')
 const isSaving = ref(false)
 
+// Reply & Invoice Form state
+const replyMessage = ref('')
+const shouldIssueInvoice = ref(false)
+const invoiceAmount = ref<number | null>(null)
+const invoiceDescription = ref('')
+const markAsResolved = ref(true)
+const isSendingReply = ref(false)
+
 const categories = ['All', 'Bug Report', 'Feature Request', 'UI/UX', 'General']
 const statuses = ['All', 'Pending', 'Reviewed', 'Resolved']
 
@@ -59,12 +67,20 @@ const getNormalizedCategory = (category?: string): string => {
   return 'General'
 }
 
+// Calculate hours elapsed since submission
+const getHoursElapsed = (createdAt?: string) => {
+  if (!createdAt) return 0
+  const created = new Date(createdAt).getTime()
+  const now = new Date().getTime()
+  const diffHours = (now - created) / (1000 * 60 * 60)
+  return Math.max(0, Math.round(diffHours * 10) / 10)
+}
+
 // Fetch Feedback items from API
 const fetchFeedbacks = async () => {
   isLoading.value = true
   try {
     const res = await api.get<any>('/feedbacks')
-    // Support direct array or Result<T> wrapped array
     const rawData = Array.isArray(res.data) ? res.data : (res.data?.data || [])
     feedbacks.value = Array.isArray(rawData) ? rawData : []
   } catch (err: any) {
@@ -131,6 +147,14 @@ const openDetailModal = (item: FeedbackItem) => {
   activeFeedback.value = item
   editStatus.value = getNormalizedStatus(item)
   editAdminNotes.value = item.adminNotes || ''
+  
+  // Reset reply/invoice fields
+  replyMessage.value = item.adminReplyMessage || ''
+  shouldIssueInvoice.value = Boolean(item.invoiceNumber || (item.invoiceAmount && item.invoiceAmount > 0))
+  invoiceAmount.value = item.invoiceAmount || null
+  invoiceDescription.value = item.invoiceDescription || ''
+  markAsResolved.value = getNormalizedStatus(item) === 'Resolved'
+
   isDetailModalOpen.value = true
 }
 
@@ -139,7 +163,60 @@ const closeDetailModal = () => {
   activeFeedback.value = null
 }
 
-// Update Feedback Status API Call
+// Send Admin Reply & Optional Invoice
+const handleSendReply = async () => {
+  const current = activeFeedback.value
+  if (!current) return
+  if (!replyMessage.value.trim()) {
+    showToast('Please type a response / thank you message.', 'warning')
+    return
+  }
+
+  isSendingReply.value = true
+  try {
+    const payload = {
+      replyMessage: replyMessage.value.trim(),
+      invoiceAmount: shouldIssueInvoice.value ? Number(invoiceAmount.value || 0) : null,
+      invoiceDescription: shouldIssueInvoice.value ? invoiceDescription.value.trim() : null,
+      markResolved: markAsResolved.value
+    }
+
+    const targetId = current.id
+    const res = await api.post(`/feedbacks/${targetId}/reply`, payload)
+    const updatedDto = res.data?.data || res.data
+
+    // Update local state
+    const index = feedbacks.value.findIndex((f) => f.id === targetId)
+    if (index !== -1) {
+      const item = feedbacks.value[index]
+      if (item) {
+        if (updatedDto) {
+          feedbacks.value[index] = { ...item, ...updatedDto }
+        } else {
+          item.adminReplyMessage = payload.replyMessage
+          item.adminRepliedAt = new Date().toISOString()
+          item.status = payload.markResolved ? 'Resolved' : 'Reviewed'
+          item.statusName = payload.markResolved ? 'Resolved' : 'Reviewed'
+          if (shouldIssueInvoice.value && payload.invoiceAmount) {
+            item.invoiceAmount = payload.invoiceAmount
+            item.invoiceDescription = payload.invoiceDescription
+            item.invoiceStatus = 'Issued'
+          }
+        }
+      }
+    }
+
+    showToast('Reply and invoice details sent successfully!', 'success')
+    closeDetailModal()
+  } catch (err: any) {
+    console.error('Failed to send reply:', err)
+    showToast(err.response?.data?.message || 'Failed to send reply to user.', 'danger')
+  } finally {
+    isSendingReply.value = false
+  }
+}
+
+// Update Status API Call
 const handleUpdateStatus = async () => {
   const current = activeFeedback.value
   if (!current) return
@@ -240,7 +317,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
     <div class="page-header">
       <div class="header-left">
         <h1 class="page-title">Feedback & Suggestions</h1>
-        <p class="page-subtitle">Review user ratings, feature suggestions, UI issues, and operational feedback.</p>
+        <p class="page-subtitle">Review user inquiries, issue response thank-you notes, and generate invoices.</p>
       </div>
       <div class="header-actions">
         <button class="btn btn-secondary" @click="fetchFeedbacks" :disabled="isLoading">
@@ -287,7 +364,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
           </svg>
         </div>
         <div class="kpi-content">
-          <span class="kpi-label">Pending Review</span>
+          <span class="kpi-label">Pending Inquiry SLA</span>
           <span class="kpi-value text-amber">{{ pendingCount }}</span>
         </div>
       </div>
@@ -383,7 +460,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
               <th>Category</th>
               <th>Rating</th>
               <th>Feedback Message</th>
-              <th>Submitted Date</th>
+              <th>Inquiry SLA</th>
               <th>Status</th>
               <th class="text-right">Action</th>
             </tr>
@@ -423,14 +500,22 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
               <!-- Message preview -->
               <td class="message-cell">
                 <p class="message-text" :title="getMessageText(item)">{{ getMessageText(item) }}</p>
-                <span v-if="item.attachmentUrl" class="attachment-tag">
-                  📎 Attachment attached
+                <span v-if="item.adminReplyMessage" class="reply-tag">
+                  💬 Replied: "{{ item.adminReplyMessage }}"
+                </span>
+                <span v-if="item.invoiceNumber" class="invoice-tag">
+                  📄 Invoice Issued (₱{{ Number(item.invoiceAmount || 0).toFixed(2) }})
                 </span>
               </td>
 
-              <!-- Submitted Date -->
+              <!-- Inquiry SLA Timer -->
               <td class="date-cell">
-                {{ formatDate(item.createdAt) }}
+                <div class="sla-wrap">
+                  <span class="sla-time">{{ formatDate(item.createdAt) }}</span>
+                  <span class="sla-pill" :class="getHoursElapsed(item.createdAt) <= 24 ? 'sla-active' : 'sla-overdue'">
+                    ⏱ {{ getHoursElapsed(item.createdAt) }}h ago
+                  </span>
+                </div>
               </td>
 
               <!-- Status -->
@@ -443,7 +528,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
               <!-- Action -->
               <td class="text-right">
                 <button class="btn btn-sm btn-inspect" @click="openDetailModal(item)">
-                  Inspect
+                  Inspect & Reply
                 </button>
               </td>
             </tr>
@@ -452,14 +537,14 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
       </div>
     </div>
 
-    <!-- Inspection / Detail Modal -->
+    <!-- Inspection & Reply / Invoice Modal -->
     <Transition name="modal-fade">
       <div v-if="isDetailModalOpen && activeFeedback" class="modal-overlay" @click.self="closeDetailModal">
         <div class="modal-card">
           <!-- Modal Header -->
           <div class="modal-header">
             <div>
-              <h2 class="modal-title">Inspect Feedback</h2>
+              <h2 class="modal-title">Inspect Feedback & Answer Inquiry</h2>
               <span class="modal-subtitle">ID: {{ activeFeedback.id }}</span>
             </div>
             <button class="modal-close" @click="closeDetailModal">✕</button>
@@ -467,6 +552,16 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
 
           <!-- Modal Body -->
           <div class="modal-body">
+            <!-- Inquiry Response Window SLA Banner -->
+            <div class="sla-banner">
+              <span class="sla-icon">⏱</span>
+              <div>
+                <strong>Inquiry Reply Window SLA:</strong> Submitted {{ getHoursElapsed(activeFeedback.createdAt) }} hours ago.
+                <span v-if="getHoursElapsed(activeFeedback.createdAt) <= 24" class="text-green-600 font-bold"> (Active SLA Window)</span>
+                <span v-else class="text-amber-600 font-bold"> (Follow-up Window)</span>
+              </div>
+            </div>
+
             <!-- User Info Bar -->
             <div class="modal-user-bar">
               <div class="avatar-circle large">
@@ -506,55 +601,95 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
               </div>
             </div>
 
-            <!-- Attachment if present -->
-            <div v-if="activeFeedback.attachmentUrl" class="section-block">
-              <label class="block-label">Attachment</label>
-              <div class="attachment-box">
-                <a :href="activeFeedback.attachmentUrl" target="_blank" rel="noopener" class="attachment-link">
-                  📎 View Attached Media / Screenshot
-                </a>
+            <!-- Existing Reply & Invoice Display if present -->
+            <div v-if="activeFeedback.adminReplyMessage" class="reply-card">
+              <div class="reply-header">
+                <span>💬 Sent Admin Response</span>
+                <span class="reply-date">{{ formatDate(activeFeedback.adminRepliedAt || activeFeedback.createdAt) }}</span>
+              </div>
+              <p class="reply-body">{{ activeFeedback.adminReplyMessage }}</p>
+              
+              <div v-if="activeFeedback.invoiceNumber" class="invoice-box">
+                <div class="invoice-row">
+                  <span class="inv-badge">📄 INVOICE {{ activeFeedback.invoiceNumber }}</span>
+                  <span class="inv-amount">₱{{ Number(activeFeedback.invoiceAmount || 0).toFixed(2) }}</span>
+                </div>
+                <p class="inv-desc">{{ activeFeedback.invoiceDescription || 'Service Fee' }}</p>
               </div>
             </div>
 
             <hr class="modal-divider" />
 
-            <!-- Resolution & Status Update -->
+            <!-- Send Response & Invoice Form Section -->
             <div class="section-block">
-              <label class="block-label">Update Resolution Status</label>
-              <div class="status-radio-group">
-                <label class="radio-label" :class="{ selected: editStatus === 'Pending' }">
-                  <input type="radio" v-model="editStatus" value="Pending" />
-                  <span class="radio-badge status-pending">Pending</span>
-                </label>
-                <label class="radio-label" :class="{ selected: editStatus === 'Reviewed' }">
-                  <input type="radio" v-model="editStatus" value="Reviewed" />
-                  <span class="radio-badge status-reviewed">Reviewed</span>
-                </label>
-                <label class="radio-label" :class="{ selected: editStatus === 'Resolved' }">
-                  <input type="radio" v-model="editStatus" value="Resolved" />
-                  <span class="radio-badge status-resolved">Resolved</span>
-                </label>
+              <label class="block-label">Answer Inquiry & Send Thank You Message</label>
+              <textarea
+                v-model="replyMessage"
+                placeholder="Type your thank you message, inquiry response, or service resolution details to the user..."
+                class="admin-notes-textarea"
+                rows="3"
+              ></textarea>
+            </div>
+
+            <!-- Issue Invoice Toggle Section -->
+            <div class="section-block">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="shouldIssueInvoice" />
+                <span class="checkbox-title">Issue Invoice / Fee Receipt to Sender</span>
+              </label>
+
+              <div v-if="shouldIssueInvoice" class="invoice-form-group">
+                <div class="form-row">
+                  <div class="form-col">
+                    <label class="block-label">Invoice Amount (₱)</label>
+                    <input
+                      type="number"
+                      v-model="invoiceAmount"
+                      placeholder="0.00"
+                      class="search-input"
+                      step="0.01"
+                    />
+                  </div>
+                  <div class="form-col flex-2">
+                    <label class="block-label">Line Item Description</label>
+                    <input
+                      type="text"
+                      v-model="invoiceDescription"
+                      placeholder="e.g., Permit Fee, Violation Clearance, Service Fee"
+                      class="search-input"
+                    />
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <!-- Mark Resolved Checkbox -->
+            <div class="section-block">
+              <label class="checkbox-label">
+                <input type="checkbox" v-model="markAsResolved" />
+                <span class="checkbox-title">Mark Feedback as Resolved</span>
+              </label>
             </div>
 
             <!-- Admin Notes Input -->
             <div class="section-block">
-              <label class="block-label">Admin Resolution Notes</label>
+              <label class="block-label">Internal Admin Notes (Private)</label>
               <textarea
                 v-model="editAdminNotes"
-                placeholder="Add notes about actions taken or responses provided..."
+                placeholder="Add internal notes for security staff..."
                 class="admin-notes-textarea"
-                rows="3"
+                rows="2"
               ></textarea>
             </div>
           </div>
 
           <!-- Modal Footer -->
           <div class="modal-footer">
-            <button class="btn btn-secondary" @click="closeDetailModal" :disabled="isSaving">Cancel</button>
-            <button class="btn btn-primary" @click="handleUpdateStatus" :disabled="isSaving">
-              <span v-if="isSaving">Saving Changes...</span>
-              <span v-else>Save Resolution</span>
+            <button class="btn btn-secondary" @click="closeDetailModal" :disabled="isSendingReply || isSaving">Cancel</button>
+            <button class="btn btn-secondary" @click="handleUpdateStatus" :disabled="isSendingReply || isSaving">Save Status Only</button>
+            <button class="btn btn-primary" @click="handleSendReply" :disabled="isSendingReply || isSaving">
+              <span v-if="isSendingReply">Sending Response...</span>
+              <span v-else>Send Reply & Invoice</span>
             </button>
           </div>
         </div>
@@ -695,7 +830,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
 .search-input {
   width: 100%;
   height: 42px;
-  padding: 0 36px 0 40px;
+  padding: 0 16px 0 40px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-surface-muted);
@@ -916,12 +1051,23 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
   color: var(--color-text-secondary);
 }
 
-.attachment-tag {
-  display: inline-block;
-  font-size: 10.5px;
+.reply-tag {
+  display: block;
+  font-size: 11px;
   font-weight: 600;
-  color: #3b82f6;
-  margin-top: 4px;
+  color: #2563eb;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.invoice-tag {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #059669;
+  margin-top: 2px;
 }
 
 .date-cell {
@@ -929,6 +1075,23 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
   color: var(--color-muted);
   font-size: 12px;
 }
+
+.sla-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sla-time { font-size: 11.5px; color: var(--color-muted); }
+.sla-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.sla-active { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.sla-overdue { background: rgba(245, 158, 11, 0.12); color: #d97706; }
 
 /* Status Badges */
 .status-badge {
@@ -1010,7 +1173,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
   border: 1px solid var(--color-border);
   border-radius: 20px;
   width: 100%;
-  max-width: 580px;
+  max-width: 620px;
   box-shadow: var(--shadow-modal);
   display: flex;
   flex-direction: column;
@@ -1035,8 +1198,22 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
+
+.sla-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: var(--color-text);
+}
+
+.sla-icon { font-size: 16px; }
 
 .modal-user-bar {
   display: flex;
@@ -1074,39 +1251,85 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
   color: var(--color-text);
 }
 
-.attachment-box {
-  background: rgba(59, 130, 246, 0.05);
-  border: 1px dashed rgba(59, 130, 246, 0.3);
-  border-radius: 10px;
-  padding: 12px;
+.reply-card {
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.attachment-link { font-size: 13px; font-weight: 600; color: #3b82f6; text-decoration: none; }
-.attachment-link:hover { text-decoration: underline; }
+
+.reply-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  color: #059669;
+}
+
+.reply-date { font-size: 11px; font-weight: 500; color: var(--color-muted); }
+.reply-body { font-size: 13px; color: var(--color-text); margin: 0; line-height: 1.4; }
+
+.invoice-box {
+  background: var(--color-surface);
+  border: 1px dashed #10b981;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 4px;
+}
+
+.invoice-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.inv-badge { color: #059669; }
+.inv-amount { color: var(--color-primary); font-size: 14px; }
+.inv-desc { font-size: 11.5px; color: var(--color-muted); margin: 4px 0 0; }
 
 .modal-divider { border: 0; border-top: 1px solid var(--color-border); margin: 4px 0; }
 
-.status-radio-group {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.radio-label {
+.checkbox-label {
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  transition: all var(--transition-fast);
+  user-select: none;
 }
 
-.radio-label.selected {
-  border-color: var(--color-primary);
-  background: var(--color-primary-lighter);
+.checkbox-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
 }
+
+.invoice-form-group {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 4px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.flex-2 { flex: 2; }
 
 .admin-notes-textarea {
   width: 100%;
@@ -1125,7 +1348,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
+  gap: 10px;
   padding: 16px 24px;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface-muted);
