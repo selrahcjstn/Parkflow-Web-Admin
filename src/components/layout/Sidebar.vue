@@ -83,7 +83,8 @@ const navItems: NavItem[] = [
       { label: 'Register Client', path: '/users/create' },
       { label: 'Register Staff / Admin', path: '/users/create-staff' },
       { label: 'Pending Registrations', path: '/registrations' },
-      { label: 'Schedule Approvals', path: '/schedule-approvals' }
+      { label: 'Schedule Approvals', path: '/schedule-approvals' },
+      { label: 'Vehicle Approvals', path: '/vehicle-approvals' }
     ]
   },
   { key: 'divider-2', label: 'Operations', icon: '', section: true },
