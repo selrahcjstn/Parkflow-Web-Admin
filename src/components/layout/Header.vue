@@ -8,6 +8,13 @@ const router = useRouter()
 const appStore = useAppStore()
 
 const pageTitle = computed(() => {
+  if (route.path === '/users') {
+    const role = route.query.role as string
+    if (role === 'Student') return 'Students'
+    if (role === 'NAPA' || role === 'NonAcademicPersonnel') return 'NAP & Faculty'
+    if (role === 'AdminStaff' || role === 'Guard' || role === 'Admin') return 'Staff & Admin'
+    return 'Clients'
+  }
   return (route.meta?.title as string) || (route.name as string) || 'Dashboard'
 })
 
