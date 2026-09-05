@@ -73,10 +73,11 @@ const handleSubmit = async () => {
       lastName: form.value.lastName,
       middleName: form.value.middleName || null,
       email: form.value.email,
-      password: form.value.password,
+      password: form.value.password || undefined,
       phoneNumber: form.value.phoneNumber,
       role: form.value.role,
       status: 'Active', // Default active upon admin creation
+      isAdminCreated: true,
       student: form.value.role === 'Student' ? {
         studentNumber: form.value.studentNumber,
         course: form.value.course,

@@ -127,7 +127,7 @@ const handleVerifyOtpAndCreate = async () => {
       const guardPayload = {
         account: {
           email: form.value.email,
-          password: form.value.password,
+          password: form.value.password || undefined,
           phoneNumber: form.value.phoneNumber
         },
         profile: {
@@ -147,7 +147,7 @@ const handleVerifyOtpAndCreate = async () => {
       const adminPayload = {
         account: {
           email: form.value.email,
-          password: form.value.password,
+          password: form.value.password || undefined,
           phoneNumber: form.value.phoneNumber
         },
         profile: {
