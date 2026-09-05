@@ -85,7 +85,7 @@ const submissions = ref<CorSubmissionItem[]>(initialMockSubmissions)
 const isLoading = ref(true)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
-const selectedSubmission = ref<CorSubmissionItem | null>(initialMockSubmissions[0] || null)
+const selectedSubmission = ref<CorSubmissionItem | null>(null)
 const isZoomed = ref(false)
 const zoomedImage = ref('')
 const apiErrorNotice = ref<string | null>(null)
@@ -154,7 +154,7 @@ async function fetchSubmissions() {
     }
   } finally {
     isLoading.value = false
-    if (submissions.value.length > 0 && !selectedSubmission.value) {
+    if (submissions.value.length > 0) {
       const pendingFirst = submissions.value.find(s => s.verificationStatus === 1 || s.verificationStatus === 0)
       selectedSubmission.value = pendingFirst || submissions.value[0] || null
     }
@@ -185,6 +185,16 @@ const filteredSubmissions = computed(() => {
     return true
   })
 })
+
+watch(filteredSubmissions, (newList) => {
+  if (newList.length > 0) {
+    if (!selectedSubmission.value || !newList.some(item => item.id === selectedSubmission.value?.id)) {
+      selectedSubmission.value = newList[0] || null
+    }
+  } else {
+    selectedSubmission.value = null
+  }
+}, { immediate: true })
 
 function selectSubmission(item: CorSubmissionItem) {
   selectedSubmission.value = item

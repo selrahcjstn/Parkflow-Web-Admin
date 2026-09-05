@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 
 interface VehicleApprovalItem {
@@ -64,7 +64,7 @@ const vehicles = ref<VehicleApprovalItem[]>(initialMockVehicles)
 const isLoading = ref(true)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
-const selectedVehicle = ref<VehicleApprovalItem | null>(initialMockVehicles[0] || null)
+const selectedVehicle = ref<VehicleApprovalItem | null>(null)
 const isZoomed = ref(false)
 const zoomedImage = ref('')
 const apiErrorNotice = ref<string | null>(null)
@@ -113,7 +113,7 @@ async function fetchVehicles() {
     }
   } finally {
     isLoading.value = false
-    if (vehicles.value.length > 0 && !selectedVehicle.value) {
+    if (vehicles.value.length > 0) {
       const pendingFirst = vehicles.value.find(v => v.verificationStatus === 1 || v.verificationStatus === 0)
       selectedVehicle.value = pendingFirst || vehicles.value[0] || null
     }
@@ -145,6 +145,16 @@ const filteredVehicles = computed(() => {
     return true
   })
 })
+
+watch(filteredVehicles, (newList) => {
+  if (newList.length > 0) {
+    if (!selectedVehicle.value || !newList.some(v => v.id === selectedVehicle.value?.id)) {
+      selectedVehicle.value = newList[0] || null
+    }
+  } else {
+    selectedVehicle.value = null
+  }
+}, { immediate: true })
 
 function selectVehicle(item: VehicleApprovalItem) {
   selectedVehicle.value = item
