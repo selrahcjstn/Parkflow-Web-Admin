@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { UserWithDetails } from '../types'
+
+const router = useRouter()
 
 const props = defineProps<{
   user: UserWithDetails | null
@@ -11,6 +14,19 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'updateStatus', userId: string, newStatus: 'Suspended' | 'Active'): void
 }>()
+
+const handleChangePassword = () => {
+  if (!props.user) return
+  emit('close')
+  router.push({
+    path: '/users/change-password',
+    query: {
+      email: props.user.email,
+      name: `${props.user.firstName} ${props.user.lastName}`,
+      role: props.user.role
+    }
+  })
+}
 
 const getInitials = (user: UserWithDetails) => {
   return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
@@ -183,6 +199,16 @@ const formatCorStatus = (status: string) => {
         <!-- Action Footer -->
         <div class="modal-footer">
           <div class="action-buttons">
+            <button
+              class="action-btn action-btn--password"
+              @click="handleChangePassword"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Change Password
+            </button>
             <button
               v-if="user.status !== 'Suspended'"
               class="action-btn action-btn--suspend"
@@ -493,6 +519,20 @@ const formatCorStatus = (status: string) => {
   cursor: pointer;
   border: none;
   transition: background 150ms ease;
+}
+
+.action-btn--password {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.action-btn--password:hover {
+  background: var(--color-border);
+  color: var(--color-primary);
 }
 
 .action-btn--approve {

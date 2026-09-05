@@ -38,6 +38,11 @@ onMounted(async () => {
     setTimeout(() => {
       notificationToast.value = null
     }, 4000)
+  } else if (route.query.passwordChanged === 'true') {
+    notificationToast.value = 'User account password updated successfully!'
+    setTimeout(() => {
+      notificationToast.value = null
+    }, 4000)
   }
   await fetchUsers()
 })
