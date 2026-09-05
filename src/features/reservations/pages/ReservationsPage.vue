@@ -194,7 +194,7 @@ function getAvatarGradient(index: number): string {
 function getNotifyEmailFromNotes(notes?: string | null): string | null {
   if (!notes) return null
   const match = notes.match(/\[NotifyEmail:(.*?)\]/)
-  return match ? match[1].trim() : null
+  return (match && match[1]) ? match[1].trim() : null
 }
 
 function getDisplayEmail(item: ParkingReservationItem): string {
