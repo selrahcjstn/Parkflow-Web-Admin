@@ -191,6 +191,12 @@ function getAvatarGradient(index: number): string {
   return avatarGradients[index % avatarGradients.length]!
 }
 
+function getNotifyEmailFromNotes(notes?: string | null): string | null {
+  if (!notes) return null
+  const match = notes.match(/\[NotifyEmail:(.*?)\]/)
+  return match ? match[1].trim() : null
+}
+
 function openReviewModal(item: ParkingReservationItem) {
   reviewModalItem.value = item
   reviewNotes.value = item.adminNotes || ''
@@ -455,7 +461,7 @@ async function handleCreateReservation() {
         <thead>
           <tr>
             <th>Reference #</th>
-            <th>Applicant Details</th>
+            <th>Creator of the reservation</th>
             <th>Date & Time Slot</th>
             <th>Purpose / Reason</th>
             <th>Status</th>
@@ -594,14 +600,21 @@ async function handleCreateReservation() {
 
             <div class="modal-body">
               <div class="info-section">
-                <h4 class="section-label">Applicant Details</h4>
+                <h4 class="section-label">Creator of the reservation</h4>
                 <div class="meta-row">
                   <span class="meta-key">Full Name</span>
                   <span class="meta-val">{{ reviewModalItem.userFullName || 'Campus User' }}</span>
                 </div>
                 <div class="meta-row">
-                  <span class="meta-key">Email Address</span>
-                  <span class="meta-val">{{ reviewModalItem.userEmail || 'N/A' }}</span>
+                  <span class="meta-key">Account Email</span>
+                  <span class="meta-val">{{ reviewModalItem.userEmail || 'No email provided' }}</span>
+                </div>
+                <div class="meta-row" v-if="getNotifyEmailFromNotes(reviewModalItem.adminNotes)">
+                  <span class="meta-key">Notification Email</span>
+                  <span class="meta-val text-indigo font-600">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                    {{ getNotifyEmailFromNotes(reviewModalItem.adminNotes) }}
+                  </span>
                 </div>
               </div>
 
@@ -711,12 +724,12 @@ async function handleCreateReservation() {
               <!-- Pass Info Ticket Details -->
               <div class="qr-pass-details">
                 <div class="qr-detail-row">
-                  <span class="qr-detail-label">Pass Holder / Applicant</span>
+                  <span class="qr-detail-label">Creator of the reservation</span>
                   <span class="qr-detail-val bold">{{ qrPassModalItem.userFullName || 'Campus Visitor / Staff' }}</span>
                 </div>
-                <div class="qr-detail-row" v-if="qrPassModalItem.userEmail">
-                  <span class="qr-detail-label">Contact Email</span>
-                  <span class="qr-detail-val">{{ qrPassModalItem.userEmail }}</span>
+                <div class="qr-detail-row" v-if="getNotifyEmailFromNotes(qrPassModalItem.adminNotes) || qrPassModalItem.userEmail">
+                  <span class="qr-detail-label">Contact / Notification Email</span>
+                  <span class="qr-detail-val">{{ getNotifyEmailFromNotes(qrPassModalItem.adminNotes) || qrPassModalItem.userEmail }}</span>
                 </div>
                 <div class="qr-detail-row">
                   <span class="qr-detail-label">Reserved Date</span>
