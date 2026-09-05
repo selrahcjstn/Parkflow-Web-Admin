@@ -46,87 +46,96 @@ const handleSubmit = () => {
 </script>
 
 <template>
-  <Transition name="fade">
-    <div v-if="isOpen" class="modal-backdrop" @click="emit('close')">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3 class="modal-title">Log Manual Entry</h3>
-          <button class="close-btn" @click="emit('close')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </div>
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="isOpen" class="modal-backdrop" @click="emit('close')">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-title">Log Manual Entry</h3>
+            <button class="close-btn" @click="emit('close')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
 
-        <form @submit.prevent="handleSubmit">
-          <div class="modal-body">
-            <div class="form-group">
-              <label for="plateNumber">Plate Number</label>
-              <input
-                id="plateNumber"
-                v-model="plateNumber"
-                type="text"
-                placeholder="ABC 1234"
-                class="form-input"
-                required
-              />
-            </div>
-
-            <div class="form-row">
+          <form @submit.prevent="handleSubmit">
+            <div class="modal-body">
               <div class="form-group">
-                <label for="vehicleType">Vehicle Type</label>
-                <select id="vehicleType" v-model="vehicleType" class="form-select" required>
-                  <option value="Car">Car</option>
-                  <option value="Motorcycle">Motorcycle</option>
-                  <option value="ElectricBike">E-Bike</option>
-                </select>
+                <label for="plateNumber">Plate Number</label>
+                <input
+                  id="plateNumber"
+                  v-model="plateNumber"
+                  type="text"
+                  placeholder="ABC 1234"
+                  class="form-input"
+                  required
+                />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="vehicleType">Vehicle Type</label>
+                  <select id="vehicleType" v-model="vehicleType" class="form-select" required>
+                    <option value="Car">Car</option>
+                    <option value="Motorcycle">Motorcycle</option>
+                    <option value="ElectricBike">E-Bike</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="brand">Brand / Model</label>
+                  <input
+                    id="brand"
+                    v-model="brand"
+                    type="text"
+                    placeholder="Toyota Vios, Yamaha Mio"
+                    class="form-input"
+                  />
+                </div>
               </div>
 
               <div class="form-group">
-                <label for="brand">Brand / Model</label>
+                <label for="phoneNumber">Owner Contact (Phone Number)</label>
                 <input
-                  id="brand"
-                  v-model="brand"
+                  id="phoneNumber"
+                  v-model="phoneNumber"
                   type="text"
-                  placeholder="Toyota Vios, Yamaha Mio"
+                  placeholder="+639..."
                   class="form-input"
                 />
               </div>
             </div>
 
-            <div class="form-group">
-              <label for="phoneNumber">Owner Contact (Phone Number)</label>
-              <input
-                id="phoneNumber"
-                v-model="phoneNumber"
-                type="text"
-                placeholder="+639..."
-                class="form-input"
-              />
+            <div class="modal-footer">
+              <button type="button" class="cancel-btn" @click="emit('close')">Cancel</button>
+              <button type="submit" class="submit-btn">Register Entry</button>
             </div>
-          </div>
-
-          <div class="modal-footer">
-            <button type="button" class="cancel-btn" @click="emit('close')">Cancel</button>
-            <button type="submit" class="submit-btn">Register Entry</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
 .modal-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background: var(--color-overlay);
   backdrop-filter: blur(8px);
-  z-index: 100;
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .modal-content {

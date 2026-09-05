@@ -38,117 +38,126 @@ const getEntryMethod = computed(() => {
 </script>
 
 <template>
-  <Transition name="fade">
-    <div v-if="isOpen && session" class="modal-backdrop" @click="emit('close')">
-      <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3 class="modal-title">Parking Session Info</h3>
-          <button class="close-btn" @click="emit('close')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Status Alert -->
-          <div class="status-banner" :class="getStatusClass(session.status)">
-            <span class="status-banner__label">Status:</span>
-            <span class="status-banner__value">{{ session.status }}</span>
+  <Teleport to="body">
+    <Transition name="fade">
+      <div v-if="isOpen && session" class="modal-backdrop" @click="emit('close')">
+        <div class="modal-content" @click.stop>
+          <div class="modal-header">
+            <h3 class="modal-title">Parking Session Info</h3>
+            <button class="close-btn" @click="emit('close')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
           </div>
 
-          <!-- Vehicle Block -->
-          <div class="info-section">
-            <h4 class="section-title">Vehicle details</h4>
-            <div class="details-grid">
-              <div class="detail-item">
-                <span class="detail-label">Plate Number</span>
-                <span class="detail-value plate-number">{{ session.vehiclePlate }}</span>
+          <div class="modal-body">
+            <!-- Status Alert -->
+            <div class="status-banner" :class="getStatusClass(session.status)">
+              <span class="status-banner__label">Status:</span>
+              <span class="status-banner__value">{{ session.status }}</span>
+            </div>
+
+            <!-- Vehicle Block -->
+            <div class="info-section">
+              <h4 class="section-title">Vehicle details</h4>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Plate Number</span>
+                  <span class="detail-value plate-number">{{ session.vehiclePlate }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Brand / Model</span>
+                  <span class="detail-value">{{ session.brand || 'Unknown Brand' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Vehicle Type</span>
+                  <span class="detail-value">{{ session.vehicleType }}</span>
+                </div>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Brand / Model</span>
-                <span class="detail-value">{{ session.brand || 'Unknown Brand' }}</span>
+            </div>
+
+            <!-- Owner Block -->
+            <div class="info-section">
+              <h4 class="section-title">Owner Information</h4>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Name</span>
+                  <span class="detail-value">{{ session.ownerName }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Classification</span>
+                  <span class="detail-value">{{ session.role }}</span>
+                </div>
+                <div class="detail-item" v-if="getEntryMethod">
+                  <span class="detail-label">Entry Method</span>
+                  <span class="detail-value">{{ getEntryMethod }}</span>
+                </div>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Vehicle Type</span>
-                <span class="detail-value">{{ session.vehicleType }}</span>
+            </div>
+
+            <!-- Session Timing Block -->
+            <div class="info-section">
+              <h4 class="section-title">Session Timing & Costs</h4>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Check-in Time</span>
+                  <span class="detail-value">{{ new Date(session.checkInTime).toLocaleString() }}</span>
+                </div>
+                <div class="detail-item" v-if="!isActive">
+                  <span class="detail-label">Check-out Time</span>
+                  <span class="detail-value">{{ new Date((session as ParkingHistoryItem).checkOutTime).toLocaleString() }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Duration</span>
+                  <span class="detail-value">{{ session.duration }}</span>
+                </div>
+                <div class="detail-item" v-if="isActive">
+                  <span class="detail-label">Entry Gate</span>
+                  <span class="detail-value">Gate {{ (session as ActiveSession).gate || 1 }}</span>
+                </div>
+                <div class="detail-item" v-else>
+                  <span class="detail-label">Parking Fee</span>
+                  <span class="detail-value cost-value">{{ (session as ParkingHistoryItem).charge }}</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Owner Block -->
-          <div class="info-section">
-            <h4 class="section-title">Owner Information</h4>
-            <div class="details-grid">
-              <div class="detail-item">
-                <span class="detail-label">Name</span>
-                <span class="detail-value">{{ session.ownerName }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Classification</span>
-                <span class="detail-value">{{ session.role }}</span>
-              </div>
-              <div class="detail-item" v-if="getEntryMethod">
-                <span class="detail-label">Entry Method</span>
-                <span class="detail-value">{{ getEntryMethod }}</span>
-              </div>
-            </div>
+          <div class="modal-footer">
+            <button
+              v-if="isActive"
+              class="action-btn action-btn--exit"
+              @click="emit('exit', session as ActiveSession)"
+            >
+              Manual Checkout
+            </button>
+            <button class="action-btn action-btn--close" @click="emit('close')">Close</button>
           </div>
-
-          <!-- Session Timing Block -->
-          <div class="info-section">
-            <h4 class="section-title">Session Timing & Costs</h4>
-            <div class="details-grid">
-              <div class="detail-item">
-                <span class="detail-label">Check-in Time</span>
-                <span class="detail-value">{{ new Date(session.checkInTime).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item" v-if="!isActive">
-                <span class="detail-label">Check-out Time</span>
-                <span class="detail-value">{{ new Date((session as ParkingHistoryItem).checkOutTime).toLocaleString() }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Duration</span>
-                <span class="detail-value">{{ session.duration }}</span>
-              </div>
-              <div class="detail-item" v-if="isActive">
-                <span class="detail-label">Entry Gate</span>
-                <span class="detail-value">Gate {{ (session as ActiveSession).gate || 1 }}</span>
-              </div>
-              <div class="detail-item" v-else>
-                <span class="detail-label">Parking Fee</span>
-                <span class="detail-value cost-value">{{ (session as ParkingHistoryItem).charge }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button
-            v-if="isActive"
-            class="action-btn action-btn--exit"
-            @click="emit('exit', session as ActiveSession)"
-          >
-            Manual Checkout
-          </button>
-          <button class="action-btn action-btn--close" @click="emit('close')">Close</button>
         </div>
       </div>
-    </div>
-  </Transition>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
 .modal-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
   background: var(--color-overlay);
   backdrop-filter: blur(8px);
-  z-index: 100;
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  box-sizing: border-box;
 }
 
 .modal-content {

@@ -68,23 +68,37 @@ const updateTodaysEntriesCount = () => {
   todaysEntriesCount.value = activeToday + historyToday
 }
 
+// Real-time Clock & Overstay Tracking
+const now = ref(new Date())
+let durationInterval: any = null
+const notifiedOverstayPlates = new Set<string>()
+
 const fetchParkingData = async () => {
   isLoading.value = true
   try {
     const activeRes = await api.get('/parking-logs/active-sessions?parkingCapacity=200')
     if (activeRes.data && activeRes.data.isSuccess) {
-      activeSessions.value = activeRes.data.data.map((item: any) => ({
-        id: item.plateNumber,
-        vehiclePlate: item.plateNumber,
-        brand: item.brand,
-        vehicleType: item.vehicleType as VehicleType,
-        ownerName: `${item.firstName} ${item.lastName}`,
-        role: item.role || 'Guest',
-        checkInTime: item.entryTime,
-        duration: item.totalParkingHours,
-        gate: 1,
-        status: item.status as ParkingStatus
-      }))
+      activeSessions.value = activeRes.data.data.map((item: any) => {
+        const checkIn = new Date(item.entryTime).getTime()
+        const diffHrs = (now.value.getTime() - checkIn) / (3600 * 1000)
+        const isOverstay = diffHrs >= 8
+        if (isOverstay) {
+          notifiedOverstayPlates.add(item.plateNumber)
+        }
+
+        return {
+          id: item.plateNumber,
+          vehiclePlate: item.plateNumber,
+          brand: item.brand,
+          vehicleType: item.vehicleType as VehicleType,
+          ownerName: `${item.firstName} ${item.lastName}`,
+          role: item.role || 'Guest',
+          checkInTime: item.entryTime,
+          duration: item.totalParkingHours,
+          gate: 1,
+          status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked')
+        }
+      })
     }
 
     const historyRes = await api.get('/parking-history/all/page/1/100')
@@ -128,10 +142,6 @@ const fetchParkingData = async () => {
   }
 }
 
-// Real-time Clock logic for duration update
-const now = ref(new Date())
-let durationInterval: any = null
-
 onMounted(async () => {
   await fetchParkingData()
   durationInterval = setInterval(() => {
@@ -139,9 +149,12 @@ onMounted(async () => {
     // Auto-update status to overstay if parked more than 8 hours
     activeSessions.value.forEach((session) => {
       const diffHrs = (now.value.getTime() - new Date(session.checkInTime).getTime()) / (3600 * 1000)
-      if (diffHrs >= 8 && session.status === 'Parked') {
+      if (diffHrs >= 8) {
         session.status = 'Overstay'
-        showToast(`Warning: Vehicle ${session.vehiclePlate} has exceeded 8 hours.`, 'warning')
+        if (!notifiedOverstayPlates.has(session.vehiclePlate)) {
+          notifiedOverstayPlates.add(session.vehiclePlate)
+          showToast(`Warning: Vehicle ${session.vehiclePlate} has exceeded 8 hours.`, 'warning')
+        }
       }
     })
   }, 10000) // update every 10s
