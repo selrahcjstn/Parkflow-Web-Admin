@@ -81,14 +81,26 @@ const filteredRegistrations = computed(() => {
 
 function formatDocUrl(url?: string, fallback: string = ''): string {
   if (!url || !url.trim()) return fallback
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url
+  const trimmed = url.trim()
+  if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
+  if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('ph://')) {
+    return fallback
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed
   }
   const isProduction = import.meta.env.PROD
   const defaultBase = isProduction ? window.location.origin : 'http://localhost:5000'
   const baseURL = import.meta.env.VITE_API_BASE_URL || defaultBase
   const rootDomain = baseURL.replace(/\/api\/?$/, '')
-  return `${rootDomain}/${url.replace(/^\//, '')}`
+  return `${rootDomain}/${trimmed.replace(/^\//, '')}`
+}
+
+function handleImageError(event: Event, fallback: string) {
+  const target = event.target as HTMLImageElement
+  if (target && target.src !== fallback) {
+    target.src = fallback
+  }
 }
 
 async function fetchSubmissions() {
@@ -613,6 +625,7 @@ async function reject(reg: RegistrationItem) {
                     :src="inspectorItem.corUrl || defaultCorImage"
                     alt="COR Certificate"
                     class="inspector-img"
+                    @error="handleImageError($event, defaultCorImage)"
                     @click="openZoomImage(inspectorItem.corUrl || defaultCorImage)"
                   />
                   <img
@@ -620,6 +633,7 @@ async function reject(reg: RegistrationItem) {
                     :src="inspectorItem.orcrUrl || defaultOrcrImage"
                     alt="OR/CR Receipt"
                     class="inspector-img"
+                    @error="handleImageError($event, defaultOrcrImage)"
                     @click="openZoomImage(inspectorItem.orcrUrl || defaultOrcrImage)"
                   />
                   <img
@@ -627,6 +641,7 @@ async function reject(reg: RegistrationItem) {
                     :src="inspectorItem.motorPicUrl || defaultMotorImage"
                     alt="Vehicle Photo"
                     class="inspector-img"
+                    @error="handleImageError($event, defaultMotorImage)"
                     @click="openZoomImage(inspectorItem.motorPicUrl || defaultMotorImage)"
                   />
                   <span class="zoom-hint">Click image to enlarge full screen</span>

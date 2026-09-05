@@ -106,14 +106,26 @@ const scheduleEditForm = ref<Record<number, { active: boolean; startTime: string
 
 function formatDocUrl(url?: string, fallback: string = ''): string {
   if (!url || !url.trim()) return fallback
-  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
-    return url
+  const trimmed = url.trim()
+  if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
+  if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('ph://')) {
+    return fallback
+  }
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    return trimmed
   }
   const isProduction = import.meta.env.PROD
   const defaultBase = isProduction ? window.location.origin : 'http://localhost:5000'
   const baseURL = import.meta.env.VITE_API_BASE_URL || defaultBase
   const rootDomain = baseURL.replace(/\/api\/?$/, '')
-  return `${rootDomain}/${url.replace(/^\//, '')}`
+  return `${rootDomain}/${trimmed.replace(/^\//, '')}`
+}
+
+function handleImageError(event: Event, fallback: string) {
+  const target = event.target as HTMLImageElement
+  if (target && target.src !== fallback) {
+    target.src = fallback
+  }
 }
 
 function formatTimeSpan(timeStr?: string): string {
@@ -543,7 +555,7 @@ watch(selectedSubmission, () => {
             </div>
 
             <div class="doc-viewer-box">
-              <template v-if="isPdf">
+              <template v-if="isPdf && activeImageUrl && (activeImageUrl.startsWith('http://') || activeImageUrl.startsWith('https://'))">
                 <iframe :src="activeImageUrl" class="doc-pdf-iframe" title="Certificate of Registration PDF"></iframe>
                 <div class="pdf-toolbar">
                   <a :href="activeImageUrl" target="_blank" rel="noopener noreferrer" class="pdf-open-btn">
@@ -566,7 +578,13 @@ watch(selectedSubmission, () => {
                 </div>
               </template>
               <template v-else>
-                <img :src="activeImageUrl" alt="COR Document" class="doc-image" @click="openZoom(activeImageUrl)" />
+                <img
+                  :src="activeImageUrl"
+                  alt="COR Document"
+                  class="doc-image"
+                  @error="handleImageError($event, defaultCorImage)"
+                  @click="openZoom(activeImageUrl)"
+                />
                 <button class="zoom-btn" @click="openZoom(activeImageUrl)">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"/>
@@ -692,17 +710,7 @@ watch(selectedSubmission, () => {
                 Save Schedule Updates
               </button>
             </div>
-
-            <div class="verification-guide-box">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12.01" y2="8"/>
-              </svg>
-              <div>
-                <strong>Dual Verification Checklist:</strong> Match the class schedule on the uploaded COR document with the student's entry/exit times. Click <strong>Edit Schedule</strong> above to modify access windows if necessary before approving.
-              </div>
-            </div>
+          </div>
           </div>
         </div>
       </div>
