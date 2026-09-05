@@ -39,12 +39,34 @@ const isSaving = ref(false)
 const categories = ['All', 'Bug Report', 'Feature Request', 'UI/UX', 'General']
 const statuses = ['All', 'Pending', 'Reviewed', 'Resolved']
 
+// Helpers for normalizing backend fields
+const getUserName = (f: FeedbackItem) => f.fullName || f.userFullName || 'Anonymous User'
+const getUserEmail = (f: FeedbackItem) => f.email || f.userEmail || 'N/A'
+const getMessageText = (f: FeedbackItem) => f.description || f.message || ''
+
+const getNormalizedStatus = (f: FeedbackItem): FeedbackStatus => {
+  const s = f.statusName || f.status
+  if (String(s) === '3' || s === 'Resolved') return 'Resolved'
+  if (String(s) === '2' || s === 'Reviewed') return 'Reviewed'
+  return 'Pending'
+}
+
+const getNormalizedCategory = (category?: string): string => {
+  const cat = (category || '').toLowerCase()
+  if (cat.includes('bug')) return 'Bug Report'
+  if (cat.includes('feature')) return 'Feature Request'
+  if (cat.includes('ui') || cat.includes('ux')) return 'UI/UX'
+  return 'General'
+}
+
 // Fetch Feedback items from API
 const fetchFeedbacks = async () => {
   isLoading.value = true
   try {
-    const res = await api.get<FeedbackItem[]>('/feedbacks')
-    feedbacks.value = res.data || []
+    const res = await api.get<any>('/feedbacks')
+    // Support direct array or Result<T> wrapped array
+    const rawData = Array.isArray(res.data) ? res.data : (res.data?.data || [])
+    feedbacks.value = Array.isArray(rawData) ? rawData : []
   } catch (err: any) {
     console.error('Failed to fetch feedbacks:', err)
     showToast(err.response?.data?.message || 'Failed to load feedbacks.', 'danger')
@@ -59,9 +81,9 @@ onMounted(() => {
 
 // KPI Computations
 const totalCount = computed(() => feedbacks.value.length)
-const pendingCount = computed(() => feedbacks.value.filter((f) => f.status === 'Pending').length)
-const reviewedCount = computed(() => feedbacks.value.filter((f) => f.status === 'Reviewed').length)
-const resolvedCount = computed(() => feedbacks.value.filter((f) => f.status === 'Resolved').length)
+const pendingCount = computed(() => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Pending').length)
+const reviewedCount = computed(() => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Reviewed').length)
+const resolvedCount = computed(() => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Resolved').length)
 
 const averageRating = computed(() => {
   if (feedbacks.value.length === 0) return '0.0'
@@ -73,24 +95,29 @@ const averageRating = computed(() => {
 const filteredFeedbacks = computed(() => {
   return feedbacks.value.filter((f) => {
     // Category match
-    if (selectedCategory.value !== 'All' && f.category !== selectedCategory.value) {
-      return false
+    if (selectedCategory.value !== 'All') {
+      const normCat = getNormalizedCategory(f.category)
+      if (normCat !== selectedCategory.value) return false
     }
+
     // Status match
-    if (selectedStatus.value !== 'All' && f.status !== selectedStatus.value) {
-      return false
+    if (selectedStatus.value !== 'All') {
+      const normStatus = getNormalizedStatus(f)
+      if (normStatus !== selectedStatus.value) return false
     }
+
     // Rating match
     if (selectedRating.value !== 'All' && f.rating !== Number(selectedRating.value)) {
       return false
     }
+
     // Search query match
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()
-      const name = (f.userFullName || '').toLowerCase()
-      const email = (f.userEmail || '').toLowerCase()
-      const msg = (f.message || '').toLowerCase()
-      const cat = (f.category || '').toLowerCase()
+      const name = getUserName(f).toLowerCase()
+      const email = getUserEmail(f).toLowerCase()
+      const msg = getMessageText(f).toLowerCase()
+      const cat = getNormalizedCategory(f.category).toLowerCase()
       if (!name.includes(q) && !email.includes(q) && !msg.includes(q) && !cat.includes(q)) {
         return false
       }
@@ -102,7 +129,7 @@ const filteredFeedbacks = computed(() => {
 // Open Inspection Modal
 const openDetailModal = (item: FeedbackItem) => {
   activeFeedback.value = item
-  editStatus.value = item.status || 'Pending'
+  editStatus.value = getNormalizedStatus(item)
   editAdminNotes.value = item.adminNotes || ''
   isDetailModalOpen.value = true
 }
@@ -129,6 +156,7 @@ const handleUpdateStatus = async () => {
     const targetItem = feedbacks.value.find((f) => f.id === current.id)
     if (targetItem) {
       targetItem.status = editStatus.value
+      targetItem.statusName = editStatus.value
       targetItem.adminNotes = editAdminNotes.value
       targetItem.updatedAt = new Date().toISOString()
     }
@@ -172,7 +200,8 @@ const getInitials = (name?: string, email?: string) => {
 }
 
 const getCategoryBadgeClass = (category?: string) => {
-  switch (category) {
+  const norm = getNormalizedCategory(category)
+  switch (norm) {
     case 'Bug Report':
       return 'badge-bug'
     case 'Feature Request':
@@ -184,7 +213,7 @@ const getCategoryBadgeClass = (category?: string) => {
   }
 }
 
-const getStatusBadgeClass = (status?: string) => {
+const getStatusBadgeClass = (status?: FeedbackStatus) => {
   switch (status) {
     case 'Resolved':
       return 'status-resolved'
@@ -365,11 +394,11 @@ const getStatusBadgeClass = (status?: string) => {
               <td>
                 <div class="user-cell">
                   <div class="avatar-circle">
-                    {{ getInitials(item.userFullName, item.userEmail) }}
+                    {{ getInitials(getUserName(item), getUserEmail(item)) }}
                   </div>
                   <div class="user-details">
-                    <span class="user-name">{{ item.userFullName || 'Anonymous User' }}</span>
-                    <span class="user-email">{{ item.userEmail || 'N/A' }}</span>
+                    <span class="user-name">{{ getUserName(item) }}</span>
+                    <span class="user-email">{{ getUserEmail(item) }}</span>
                   </div>
                 </div>
               </td>
@@ -377,7 +406,7 @@ const getStatusBadgeClass = (status?: string) => {
               <!-- Category -->
               <td>
                 <span class="category-badge" :class="getCategoryBadgeClass(item.category)">
-                  {{ item.category || 'General' }}
+                  {{ getNormalizedCategory(item.category) }}
                 </span>
               </td>
 
@@ -393,7 +422,7 @@ const getStatusBadgeClass = (status?: string) => {
 
               <!-- Message preview -->
               <td class="message-cell">
-                <p class="message-text" :title="item.message">{{ item.message }}</p>
+                <p class="message-text" :title="getMessageText(item)">{{ getMessageText(item) }}</p>
                 <span v-if="item.attachmentUrl" class="attachment-tag">
                   📎 Attachment attached
                 </span>
@@ -406,8 +435,8 @@ const getStatusBadgeClass = (status?: string) => {
 
               <!-- Status -->
               <td>
-                <span class="status-badge" :class="getStatusBadgeClass(item.status)">
-                  {{ item.status || 'Pending' }}
+                <span class="status-badge" :class="getStatusBadgeClass(getNormalizedStatus(item))">
+                  {{ getNormalizedStatus(item) }}
                 </span>
               </td>
 
@@ -441,11 +470,11 @@ const getStatusBadgeClass = (status?: string) => {
             <!-- User Info Bar -->
             <div class="modal-user-bar">
               <div class="avatar-circle large">
-                {{ getInitials(activeFeedback.userFullName, activeFeedback.userEmail) }}
+                {{ getInitials(getUserName(activeFeedback), getUserEmail(activeFeedback)) }}
               </div>
               <div class="user-meta">
-                <h4>{{ activeFeedback.userFullName || 'Anonymous User' }}</h4>
-                <p>{{ activeFeedback.userEmail }} &bull; {{ activeFeedback.userRole || 'User' }}</p>
+                <h4>{{ getUserName(activeFeedback) }}</h4>
+                <p>{{ getUserEmail(activeFeedback) }} &bull; {{ activeFeedback.userRole || 'User' }}</p>
                 <span class="modal-date">Submitted on {{ formatDate(activeFeedback.createdAt) }}</span>
               </div>
             </div>
@@ -455,7 +484,7 @@ const getStatusBadgeClass = (status?: string) => {
               <div class="meta-item">
                 <span class="meta-label">Category:</span>
                 <span class="category-badge" :class="getCategoryBadgeClass(activeFeedback.category)">
-                  {{ activeFeedback.category }}
+                  {{ getNormalizedCategory(activeFeedback.category) }}
                 </span>
               </div>
               <div class="meta-item">
@@ -473,7 +502,7 @@ const getStatusBadgeClass = (status?: string) => {
             <div class="section-block">
               <label class="block-label">Feedback Content</label>
               <div class="message-box">
-                <p>{{ activeFeedback.message }}</p>
+                <p>{{ getMessageText(activeFeedback) }}</p>
               </div>
             </div>
 
