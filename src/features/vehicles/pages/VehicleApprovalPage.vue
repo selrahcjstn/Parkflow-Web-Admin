@@ -11,7 +11,7 @@ interface VehicleApprovalItem {
   plateNumber: string
   brand: string
   qrCodeHash: string
-  vehicleType: number // 1=Car, 2=Motorcycle, 3=Bicycle
+  vehicleType: number // 0=Motorcycle, 1=E-Bike, 2=Car
   status: string
   isPrimary: boolean
   orcrDocumentUrl?: string
@@ -65,7 +65,6 @@ const isLoading = ref(true)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
 const selectedVehicle = ref<VehicleApprovalItem | null>(initialMockVehicles[0] || null)
-const activeDocTab = ref<'orcr' | 'motor'>('orcr')
 const isZoomed = ref(false)
 const zoomedImage = ref('')
 const apiErrorNotice = ref<string | null>(null)
@@ -149,7 +148,6 @@ const filteredVehicles = computed(() => {
 
 function selectVehicle(item: VehicleApprovalItem) {
   selectedVehicle.value = item
-  activeDocTab.value = 'orcr'
 }
 
 async function approveVehicle(item: VehicleApprovalItem) {
@@ -180,19 +178,11 @@ async function rejectVehicle(item: VehicleApprovalItem) {
   }
 }
 
-const activeImageUrl = computed(() => {
-  if (!selectedVehicle.value) return defaultOrcrImage
-  if (activeDocTab.value === 'orcr') {
-    return selectedVehicle.value.orcrDocumentUrl || defaultOrcrImage
-  }
-  return selectedVehicle.value.vehiclePictureUrl || defaultMotorImage
-})
-
-const isPdf = computed(() => {
-  if (!activeImageUrl.value) return false
-  const cleanUrl = activeImageUrl.value.split('?')[0]?.toLowerCase() || ''
+function checkIsPdf(url?: string): boolean {
+  if (!url) return false
+  const cleanUrl = url.split('?')[0]?.toLowerCase() || ''
   return cleanUrl.endsWith('.pdf')
-})
+}
 
 function openZoom(url: string) {
   zoomedImage.value = url
@@ -211,7 +201,7 @@ function closeZoom() {
     <div class="page-header">
       <div class="header-left">
         <div class="header-badge">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
             <circle cx="7" cy="17" r="2"/>
             <path d="M9 17h6"/>
@@ -220,20 +210,20 @@ function closeZoom() {
           Vehicle & OR/CR Verification Portal
         </div>
         <h1 class="page-title">Vehicle Registration Verification</h1>
-        <p class="page-subtitle">Inspect uploaded Official Receipt / Certificate of Registration (OR/CR) and proof of vehicle photos to verify user vehicles.</p>
+        <p class="page-subtitle">Inspect uploaded Official Receipt / Certificate of Registration (OR/CR) and proof of vehicle photos side-by-side.</p>
       </div>
       <button class="refresh-btn" @click="fetchVehicles">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
           <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
         </svg>
-        Refresh Vehicles
+        Refresh
       </button>
     </div>
 
-    <!-- API Error Connection Warning Banner -->
-    <div v-if="apiErrorNotice" class="mb-4 p-3.5 bg-amber-500/15 border border-amber-500/30 rounded-xl flex items-center justify-between text-amber-300 text-xs font-semibold">
-      <div class="flex items-center gap-2">
+    <!-- API Error Notice -->
+    <div v-if="apiErrorNotice" class="notice-bar">
+      <div class="notice-left">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
           <line x1="12" y1="9" x2="12" y2="13"/>
@@ -241,10 +231,10 @@ function closeZoom() {
         </svg>
         <span>{{ apiErrorNotice }}</span>
       </div>
-      <button @click="fetchVehicles" class="underline hover:text-white cursor-pointer ml-2">Retry Connection</button>
+      <button @click="fetchVehicles" class="notice-retry">Retry Connection</button>
     </div>
 
-    <!-- Filter Tabs & Counter Stats -->
+    <!-- Filter Toolbar -->
     <div class="filter-toolbar">
       <div class="tab-group">
         <button
@@ -282,14 +272,14 @@ function closeZoom() {
       </div>
 
       <div class="search-wrapper">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/>
           <line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search owner, email, plate number, or brand..."
+          placeholder="Search owner, email, plate, or brand..."
           class="search-input"
         />
       </div>
@@ -303,7 +293,7 @@ function closeZoom() {
 
     <!-- Empty State -->
     <div v-else-if="filteredVehicles.length === 0" class="empty-state">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
         <circle cx="7" cy="17" r="2"/>
         <path d="M9 17h6"/>
@@ -313,7 +303,7 @@ function closeZoom() {
       <p>There are no vehicle registrations matching your current filter criteria.</p>
     </div>
 
-    <!-- Main Dual Verification Layout -->
+    <!-- Main Dual Verification Viewport (Fixed Non-Scrollable Container) -->
     <div v-else class="dual-workspace">
       <!-- Left Column: Vehicle List -->
       <div class="applicants-sidebar">
@@ -333,7 +323,7 @@ function closeZoom() {
               <span
                 class="status-chip"
                 :class="{
-                  'status--pending': item.verificationStatus === 1,
+                  'status--pending': item.verificationStatus === 1 || item.verificationStatus === 0,
                   'status--verified': item.verificationStatus === 2,
                   'status--rejected': item.verificationStatus === 3
                 }"
@@ -342,8 +332,8 @@ function closeZoom() {
               </span>
             </div>
             <div class="applicant-details">
-              <span class="detail-item font-semibold text-slate-300">{{ item.brand }}</span>
-              <span class="detail-item">{{ item.ownerName || item.ownerEmail || 'Unknown Owner' }}</span>
+              <span class="brand-text">{{ item.brand }}</span>
+              <span class="owner-text">{{ item.ownerName || item.ownerEmail || 'Unknown Owner' }}</span>
             </div>
             <div class="card-footer-tags">
               <span class="vtype-pill">{{ vehicleTypeLabels[item.vehicleType] || 'Vehicle' }}</span>
@@ -353,86 +343,112 @@ function closeZoom() {
         </div>
       </div>
 
-      <!-- Right Column: Detail & Document Verification Workspace -->
+      <!-- Right Column: Side-by-Side Dual Document & Info Workspace -->
       <div v-if="selectedVehicle" class="verification-main">
-        <!-- Dual Tabs: Document Viewer vs Motor Picture -->
-        <div class="doc-viewer-card">
-          <div class="doc-viewer-header">
-            <div class="doc-tabs">
-              <button
-                class="doc-tab-btn"
-                :class="{ active: activeDocTab === 'orcr' }"
-                @click="activeDocTab = 'orcr'"
-              >
+        <!-- Dual Side-by-Side Viewers: OR/CR vs Proof of Vehicle -->
+        <div class="side-by-side-grid">
+          <!-- Panel 1: OR / CR Document -->
+          <div class="side-panel">
+            <div class="panel-header">
+              <h3 class="panel-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                   <polyline points="14 2 14 8 20 8"/>
                 </svg>
                 OR / CR Document
-              </button>
-              <button
-                class="doc-tab-btn"
-                :class="{ active: activeDocTab === 'motor' }"
-                @click="activeDocTab = 'motor'"
+              </h3>
+              <a
+                :href="selectedVehicle.orcrDocumentUrl || defaultOrcrImage"
+                target="_blank"
+                class="open-link-btn"
+                title="Open in new tab"
               >
+                Open Original ↗
+              </a>
+            </div>
+
+            <div class="doc-viewer-box">
+              <iframe
+                v-if="checkIsPdf(selectedVehicle.orcrDocumentUrl)"
+                :src="selectedVehicle.orcrDocumentUrl || defaultOrcrImage"
+                class="doc-pdf-iframe"
+                title="OR/CR PDF Document"
+              />
+              <img
+                v-else
+                :src="selectedVehicle.orcrDocumentUrl || defaultOrcrImage"
+                alt="OR/CR Document"
+                class="doc-image"
+                @click="openZoom(selectedVehicle.orcrDocumentUrl || defaultOrcrImage)"
+              />
+            </div>
+          </div>
+
+          <!-- Panel 2: Proof of Vehicle (Photo) -->
+          <div class="side-panel">
+            <div class="panel-header">
+              <h3 class="panel-title">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                   <circle cx="8.5" cy="8.5" r="1.5"/>
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
                 Proof of Vehicle (Photo)
-              </button>
-            </div>
-            <div class="doc-actions">
-              <a :href="activeImageUrl" target="_blank" class="icon-btn" title="Open original document in new tab">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                  <polyline points="15 3 21 3 21 9"/>
-                  <line x1="10" y1="14" x2="21" y2="3"/>
-                </svg>
+              </h3>
+              <a
+                :href="selectedVehicle.vehiclePictureUrl || defaultMotorImage"
+                target="_blank"
+                class="open-link-btn"
+                title="Open in new tab"
+              >
+                Open Original ↗
               </a>
             </div>
-          </div>
 
-          <!-- Document Content Preview Area -->
-          <div class="doc-body">
-            <div v-if="isPdf" class="pdf-container">
-              <iframe :src="activeImageUrl" class="doc-pdf-iframe" title="PDF Document Viewer" />
-            </div>
-            <div v-else class="image-container">
-              <img
-                :src="activeImageUrl"
-                alt="Uploaded Document"
-                class="doc-image"
-                @click="openZoom(activeImageUrl)"
+            <div class="doc-viewer-box">
+              <iframe
+                v-if="checkIsPdf(selectedVehicle.vehiclePictureUrl)"
+                :src="selectedVehicle.vehiclePictureUrl || defaultMotorImage"
+                class="doc-pdf-iframe"
+                title="Proof of Vehicle PDF"
               />
-              <div class="zoom-overlay-hint" @click="openZoom(activeImageUrl)">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="11" cy="11" r="8"/>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                  <line x1="11" y1="8" x2="11" y2="14"/>
-                  <line x1="8" y1="11" x2="14" y2="11"/>
-                </svg>
-                Click image to enlarge
-              </div>
+              <img
+                v-else
+                :src="selectedVehicle.vehiclePictureUrl || defaultMotorImage"
+                alt="Proof of Vehicle"
+                class="doc-image"
+                @click="openZoom(selectedVehicle.vehiclePictureUrl || defaultMotorImage)"
+              />
             </div>
           </div>
         </div>
 
-        <!-- Vehicle Details Panel -->
-        <div class="schedule-details-card">
-          <div class="card-header">
-            <h3 class="card-title">Vehicle & Owner Information</h3>
-            <div class="user-meta">
+        <!-- Vehicle Details & Action Footer Card -->
+        <div class="details-action-card">
+          <div class="details-header">
+            <div class="owner-meta">
               <span class="user-name">{{ selectedVehicle.ownerName }}</span>
               <span class="user-email">({{ selectedVehicle.ownerEmail }})</span>
+            </div>
+            <div class="status-summary">
+              <span class="status-label">Verification Status:</span>
+              <span
+                class="status-chip"
+                :class="{
+                  'status--pending': selectedVehicle.verificationStatus === 1 || selectedVehicle.verificationStatus === 0,
+                  'status--verified': selectedVehicle.verificationStatus === 2,
+                  'status--rejected': selectedVehicle.verificationStatus === 3
+                }"
+              >
+                {{ selectedVehicle.verificationStatus === 2 ? 'Verified' : selectedVehicle.verificationStatus === 3 ? 'Rejected' : 'Pending Review' }}
+              </span>
             </div>
           </div>
 
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Plate Number</span>
-              <span class="info-value font-black text-lg text-emerald-400 tracking-wider">{{ selectedVehicle.plateNumber }}</span>
+              <span class="info-value font-plate">{{ selectedVehicle.plateNumber }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Brand / Model</span>
@@ -447,37 +463,19 @@ function closeZoom() {
               <span class="info-value">{{ selectedVehicle.ownerRole || 'Client' }}</span>
             </div>
             <div class="info-item">
-              <span class="info-label">Parking Status</span>
-              <span class="info-value">{{ selectedVehicle.status }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">Is Primary</span>
+              <span class="info-label">Primary Vehicle</span>
               <span class="info-value">{{ selectedVehicle.isPrimary ? 'Yes' : 'No' }}</span>
             </div>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="decision-footer">
-            <div class="current-status-box">
-              <span class="label">Current Status:</span>
-              <span
-                class="status-chip"
-                :class="{
-                  'status--pending': selectedVehicle.verificationStatus === 1,
-                  'status--verified': selectedVehicle.verificationStatus === 2,
-                  'status--rejected': selectedVehicle.verificationStatus === 3
-                }"
-              >
-                {{ selectedVehicle.verificationStatus === 2 ? 'Verified' : selectedVehicle.verificationStatus === 3 ? 'Rejected' : 'Pending Review' }}
-              </span>
-            </div>
+          <div class="action-footer">
             <div class="btn-group">
               <button
                 class="btn btn--reject"
                 :disabled="selectedVehicle.verificationStatus === 3"
                 @click="rejectVehicle(selectedVehicle)"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="15" y1="9" x2="9" y2="15"/>
                   <line x1="9" y1="9" x2="15" y2="15"/>
@@ -489,7 +487,7 @@ function closeZoom() {
                 :disabled="selectedVehicle.verificationStatus === 2"
                 @click="approveVehicle(selectedVehicle)"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
                   <polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
@@ -504,12 +502,7 @@ function closeZoom() {
     <!-- Zoom Modal -->
     <div v-if="isZoomed" class="zoom-modal-backdrop" @click="closeZoom">
       <div class="zoom-modal-content" @click.stop>
-        <button class="close-zoom-btn" @click="closeZoom">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
-        </button>
+        <button class="close-zoom-btn" @click="closeZoom">✕</button>
         <img :src="zoomedImage" alt="Zoomed Document" class="zoomed-image" />
       </div>
     </div>
@@ -518,542 +511,511 @@ function closeZoom() {
 
 <style scoped>
 .vehicle-approval-page {
-  padding: 1.5rem;
-  min-height: 100vh;
-  background-color: #0f172a;
-  color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  height: calc(100vh - 105px);
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1.5rem;
-  padding: 1.25rem 1.5rem;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid #334155;
-  border-radius: 12px;
+  flex-shrink: 0;
 }
 
 .header-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.25rem 0.75rem;
-  background-color: rgba(59, 130, 246, 0.15);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--color-success, #10b981);
+  padding: 4px 12px;
   border-radius: 20px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #60a5fa;
-  margin-bottom: 0.5rem;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
 .page-title {
-  font-size: 1.5rem;
+  font-size: 22px;
   font-weight: 800;
-  color: #f8fafc;
-  margin-bottom: 0.25rem;
+  color: var(--color-text);
+  margin: 0;
 }
 
 .page-subtitle {
-  font-size: 0.875rem;
-  color: #94a3b8;
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 2px 0 0;
 }
 
 .refresh-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1rem;
-  background-color: #1e293b;
-  border: 1px solid #334155;
+  gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 8px 14px;
   border-radius: 8px;
-  color: #e2e8f0;
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 150ms ease;
 }
 
 .refresh-btn:hover {
-  background-color: #334155;
-  color: #ffffff;
+  background: var(--color-surface-muted);
+}
+
+.notice-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 10px;
+  color: #f59e0b;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.notice-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notice-retry {
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: inherit;
+  font-weight: 700;
 }
 
 .filter-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  flex-shrink: 0;
 }
 
 .tab-group {
   display: flex;
-  gap: 0.5rem;
-  background-color: #1e293b;
-  padding: 0.25rem;
-  border-radius: 10px;
-  border: 1px solid #334155;
+  gap: 8px;
 }
 
 .tab-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: transparent;
-  border: none;
+  gap: 8px;
+  padding: 6px 12px;
   border-radius: 8px;
-  color: #94a3b8;
-  font-size: 0.875rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 150ms ease;
 }
 
 .tab-btn:hover {
-  color: #f8fafc;
+  color: var(--color-text);
+  background: var(--color-surface-muted);
 }
 
 .tab-btn.active {
-  background-color: #0f172a;
-  color: #38bdf8;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+  color: var(--color-text);
 }
 
 .count-pill {
-  padding: 0.125rem 0.5rem;
+  padding: 2px 7px;
   border-radius: 12px;
-  font-size: 0.75rem;
+  font-size: 11px;
   font-weight: 700;
 }
 
-.pill--amber {
-  background-color: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
-}
-
-.pill--green {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-}
-
-.pill--red {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-}
-
-.pill--gray {
-  background-color: rgba(148, 163, 184, 0.2);
-  color: #cbd5e1;
-}
+.pill--amber { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.pill--green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.pill--red { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.pill--gray { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
 
 .search-wrapper {
-  position: relative;
   display: flex;
   align-items: center;
-  flex: 1;
-  max-width: 380px;
-}
-
-.search-wrapper svg {
-  position: absolute;
-  left: 0.75rem;
-  color: #64748b;
+  gap: 8px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  width: 300px;
+  color: var(--color-muted);
 }
 
 .search-input {
-  width: 100%;
-  padding: 0.625rem 0.75rem 0.625rem 2.25rem;
-  background-color: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  color: #f8fafc;
-  font-size: 0.875rem;
-}
-
-.search-input:focus {
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font-size: 13px;
   outline: none;
-  border-color: #38bdf8;
+  width: 100%;
 }
 
 .loading-state,
 .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  background-color: #1e293b;
-  border: 1px dashed #334155;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
+  padding: 48px;
   text-align: center;
-  color: #94a3b8;
+  color: var(--color-muted);
+  flex: 1;
 }
 
 .spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(56, 189, 248, 0.2);
-  border-top-color: #38bdf8;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary, #d22730);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin-bottom: 1rem;
+  margin: 0 auto 12px;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
+/* Dual Workspace (Non-Scrollable Layout Container) */
 .dual-workspace {
   display: grid;
-  grid-template-columns: 340px 1fr;
-  gap: 1.5rem;
-  align-items: start;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
+/* Sidebar List */
 .applicants-sidebar {
-  background-color: #1e293b;
-  border: 1px solid #334155;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
-  overflow: hidden;
-  max-height: calc(100vh - 230px);
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar-header {
-  padding: 1rem;
-  background-color: #0f172a;
-  border-bottom: 1px solid #334155;
-}
-
-.sidebar-title {
-  font-size: 0.875rem;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
   font-weight: 700;
-  color: #cbd5e1;
+  font-size: 12px;
+  color: var(--color-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .applicants-list {
-  overflow-y: auto;
-  padding: 0.75rem;
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  overflow-y: auto;
+  flex: 1;
+  padding: 8px;
+  gap: 8px;
 }
 
 .applicant-card {
-  padding: 0.875rem;
-  background-color: #0f172a;
-  border: 1px solid #334155;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 150ms ease;
 }
 
 .applicant-card:hover {
-  border-color: #475569;
+  background: var(--color-surface);
 }
 
 .applicant-card.active {
-  border-color: #38bdf8;
-  background-color: rgba(56, 189, 248, 0.08);
+  background: rgba(16, 185, 129, 0.08);
+  border-color: var(--color-success, #10b981);
 }
 
 .applicant-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.375rem;
+  margin-bottom: 4px;
 }
 
 .applicant-name {
+  font-size: 14px;
   font-weight: 800;
-  font-size: 1.05rem;
-  color: #f8fafc;
-  letter-spacing: 0.05em;
+  color: var(--color-text);
+  font-family: monospace;
 }
 
 .applicant-details {
   display: flex;
   flex-direction: column;
-  gap: 0.125rem;
-  font-size: 0.8rem;
-  color: #94a3b8;
-  margin-bottom: 0.5rem;
+  gap: 2px;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.brand-text {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.owner-text {
+  color: var(--color-muted);
 }
 
 .card-footer-tags {
   display: flex;
-  gap: 0.375rem;
+  gap: 4px;
 }
 
 .vtype-pill {
-  padding: 0.125rem 0.5rem;
-  background-color: #334155;
+  padding: 2px 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 10px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: var(--color-muted);
 }
 
 .primary-pill {
-  padding: 0.125rem 0.5rem;
-  background-color: rgba(59, 130, 246, 0.2);
-  border: 1px solid rgba(59, 130, 246, 0.4);
+  padding: 2px 6px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 10px;
   font-weight: 700;
   color: #60a5fa;
 }
 
 .status-chip {
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 10px;
   font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
   text-transform: uppercase;
 }
 
-.status--pending {
-  background-color: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
-}
+.status--pending { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+.status--verified { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.status--rejected { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
-.status--verified {
-  background-color: rgba(16, 185, 129, 0.2);
-  color: #34d399;
-}
-
-.status--rejected {
-  background-color: rgba(239, 68, 68, 0.2);
-  color: #f87171;
-}
-
+/* Main Right Inspector Workspace */
 .verification-main {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-.doc-viewer-card {
-  background-color: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 12px;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
-.doc-viewer-header {
+/* Side-by-Side Dual Document Viewers Grid */
+.side-by-side-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.side-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 1rem;
-  background-color: #0f172a;
-  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
 }
 
-.doc-tabs {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.doc-tab-btn {
+.panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.4rem 0.75rem;
-  background-color: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  color: #94a3b8;
-  font-size: 0.8rem;
+  gap: 6px;
+}
+
+.open-link-btn {
+  font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
-}
-
-.doc-tab-btn.active {
-  background-color: #38bdf8;
-  border-color: #38bdf8;
-  color: #0f172a;
-}
-
-.icon-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.4rem;
-  background-color: #1e293b;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  color: #94a3b8;
-  cursor: pointer;
+  color: var(--color-primary, #10b981);
   text-decoration: none;
 }
 
-.icon-btn:hover {
-  color: #f8fafc;
-  background-color: #334155;
+.open-link-btn:hover {
+  text-decoration: underline;
 }
 
-.doc-body {
+.doc-viewer-box {
   position: relative;
-  min-height: 400px;
-  max-height: 520px;
-  background-color: #020617;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  background: #09090b;
+  border-radius: 8px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
 }
 
-.pdf-container {
-  width: 100%;
-  height: 480px;
+.doc-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  cursor: pointer;
 }
 
 .doc-pdf-iframe {
   width: 100%;
   height: 100%;
   border: none;
+  background: #ffffff;
 }
 
-.image-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.doc-image {
-  max-width: 100%;
-  max-height: 480px;
-  object-fit: contain;
-}
-
-.zoom-overlay-hint {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  background-color: rgba(15, 23, 42, 0.85);
-  border: 1px solid #334155;
-  border-radius: 6px;
-  color: #cbd5e1;
-  font-size: 0.75rem;
-  font-weight: 600;
-  backdrop-filter: blur(4px);
-}
-
-.schedule-details-card {
-  background-color: #1e293b;
-  border: 1px solid #334155;
+/* Bottom Vehicle Details & Action Card */
+.details-action-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 1.25rem;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.card-header {
+.details-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #334155;
-}
-
-.card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #f8fafc;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .user-name {
-  font-weight: 700;
-  color: #38bdf8;
-  margin-right: 0.25rem;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-right: 6px;
 }
 
 .user-email {
-  color: #94a3b8;
-  font-size: 0.85rem;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.status-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-label {
+  font-size: 12px;
+  color: var(--color-muted);
 }
 
 .info-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  background-color: #0f172a;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #334155;
+  gap: 2px;
+  background: var(--color-surface-muted);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
 }
 
 .info-label {
-  font-size: 0.725rem;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--color-muted);
   letter-spacing: 0.05em;
 }
 
 .info-value {
-  font-size: 0.925rem;
-  font-weight: 600;
-  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
 }
 
-.decision-footer {
+.font-plate {
+  font-family: monospace;
+  color: #10b981;
+}
+
+.action-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  padding-top: 1rem;
-  border-top: 1px solid #334155;
-}
-
-.current-status-box {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.current-status-box .label {
-  font-size: 0.85rem;
-  color: #94a3b8;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
 }
 
 .btn-group {
   display: flex;
-  gap: 0.75rem;
+  gap: 10px;
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.625rem 1.25rem;
+  gap: 6px;
+  padding: 8px 16px;
   border-radius: 8px;
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 700;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 150ms ease;
 }
 
 .btn:disabled {
@@ -1062,33 +1024,34 @@ function closeZoom() {
 }
 
 .btn--approve {
-  background-color: #10b981;
+  background: #10b981;
   color: #ffffff;
 }
 
 .btn--approve:hover:not(:disabled) {
-  background-color: #059669;
+  background: #059669;
 }
 
 .btn--reject {
-  background-color: #ef4444;
+  background: #ef4444;
   color: #ffffff;
 }
 
 .btn--reject:hover:not(:disabled) {
-  background-color: #dc2626;
+  background: #dc2626;
 }
 
+/* Zoom Modal */
 .zoom-modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(2, 6, 23, 0.9);
-  backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 20px;
 }
 
 .zoom-modal-content {
@@ -1102,16 +1065,23 @@ function closeZoom() {
   max-height: 85vh;
   object-fit: contain;
   border-radius: 8px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 .close-zoom-btn {
   position: absolute;
-  top: -2.5rem;
-  right: -2.5rem;
-  background: transparent;
+  top: -14px;
+  right: -14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #000000;
+  font-size: 16px;
+  font-weight: bold;
   border: none;
-  color: #ffffff;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
