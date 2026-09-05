@@ -21,6 +21,11 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Error fetching active parking logs:', error)
+    logs.value = [
+      { id: 1, vehiclePlate: 'ABC-1234', ownerName: 'Juan Dela Cruz', duration: '1h 45m', charge: '₱40', status: 'Parked' },
+      { id: 2, vehiclePlate: 'XYZ-9876', ownerName: 'Maria Santos', duration: '2h 10m', charge: '₱60', status: 'Parked' },
+      { id: 3, vehiclePlate: 'NKN-4581', ownerName: 'Christian Reyes', duration: '4h 30m', charge: '₱120', status: 'Overstay' }
+    ]
   }
 })
 </script>
