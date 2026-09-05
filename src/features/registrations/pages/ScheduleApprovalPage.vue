@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 
 interface ScheduleItem {
@@ -28,6 +28,18 @@ const defaultCorImage = 'https://images.unsplash.com/photo-1568605117036-5fe5e7b
 const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
 const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
 
+const dayNames: Record<number, string> = {
+  1: 'Monday',
+  2: 'Tuesday',
+  3: 'Wednesday',
+  4: 'Thursday',
+  5: 'Friday',
+  6: 'Saturday',
+  0: 'Sunday'
+}
+
+const weeklyDays = [1, 2, 3, 4, 5, 6, 0] // Mon to Sun
+
 const initialMockSubmissions: CorSubmissionItem[] = [
   {
     id: 'sub-demo-1',
@@ -47,6 +59,25 @@ const initialMockSubmissions: CorSubmissionItem[] = [
       { dayOfWeek: 3, startTime: '08:00:00', endTime: '17:00:00' },
       { dayOfWeek: 5, startTime: '08:00:00', endTime: '17:00:00' }
     ]
+  },
+  {
+    id: 'sub-demo-2',
+    userAccountId: 'usr-2',
+    fullName: 'Maria Santos',
+    email: 'maria.santos@bulsu.edu.ph',
+    academicTerm: '1st Sem 2026-2027',
+    corDocumentUrl: defaultCorImage,
+    orcrDocumentUrl: defaultOrcrImage,
+    motorPictureUrl: defaultMotorImage,
+    verificationStatus: 1,
+    vehiclePlate: 'XYZ 5678',
+    vehicleType: 'Motorcycle',
+    createdAt: new Date().toISOString(),
+    schedules: [
+      { dayOfWeek: 2, startTime: '07:30:00', endTime: '16:30:00' },
+      { dayOfWeek: 4, startTime: '07:30:00', endTime: '16:30:00' },
+      { dayOfWeek: 6, startTime: '08:00:00', endTime: '12:00:00' }
+    ]
   }
 ]
 
@@ -55,20 +86,23 @@ const isLoading = ref(true)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
 const selectedSubmission = ref<CorSubmissionItem | null>(initialMockSubmissions[0] || null)
-const activeDocTab = ref<'cor' | 'orcr' | 'motor'>('cor')
 const isZoomed = ref(false)
 const zoomedImage = ref('')
 const apiErrorNotice = ref<string | null>(null)
+const scheduleSuccessMsg = ref<string | null>(null)
 
-const dayNames: Record<number, string> = {
-  1: 'Monday',
-  2: 'Tuesday',
-  3: 'Wednesday',
-  4: 'Thursday',
-  5: 'Friday',
-  6: 'Saturday',
-  0: 'Sunday'
+// Interactive Schedule Editing State
+const isEditingSchedule = ref(false)
+
+function createDefaultEditForm(): Record<number, { active: boolean; startTime: string; endTime: string }> {
+  const form: Record<number, { active: boolean; startTime: string; endTime: string }> = {}
+  weeklyDays.forEach(day => {
+    form[day] = { active: false, startTime: '07:00', endTime: '19:00' }
+  })
+  return form
 }
+
+const scheduleEditForm = ref<Record<number, { active: boolean; startTime: string; endTime: string }>>(createDefaultEditForm())
 
 function formatDocUrl(url?: string, fallback: string = ''): string {
   if (!url || !url.trim()) return fallback
@@ -154,7 +188,89 @@ const filteredSubmissions = computed(() => {
 
 function selectSubmission(item: CorSubmissionItem) {
   selectedSubmission.value = item
-  activeDocTab.value = 'cor'
+  isEditingSchedule.value = false
+}
+
+// Schedule Edit Handlers
+function initScheduleEditForm() {
+  const form = createDefaultEditForm()
+  weeklyDays.forEach(day => {
+    const existing = selectedSubmission.value?.schedules?.find(s => s.dayOfWeek === day)
+    if (existing) {
+      form[day] = {
+        active: true,
+        startTime: existing.startTime.slice(0, 5),
+        endTime: existing.endTime.slice(0, 5)
+      }
+    }
+  })
+  scheduleEditForm.value = form
+}
+
+function startEditingSchedule() {
+  initScheduleEditForm()
+  isEditingSchedule.value = true
+}
+
+function cancelEditingSchedule() {
+  isEditingSchedule.value = false
+}
+
+function applyStandardHours() {
+  weeklyDays.forEach(day => {
+    if (day !== 0) { // Mon to Sat
+      scheduleEditForm.value[day] = {
+        active: true,
+        startTime: '07:00',
+        endTime: '19:00'
+      }
+    }
+  })
+}
+
+function applyFullWeekAccess() {
+  weeklyDays.forEach(day => {
+    scheduleEditForm.value[day] = {
+      active: true,
+      startTime: '07:00',
+      endTime: '21:00'
+    }
+  })
+}
+
+function clearAllDays() {
+  weeklyDays.forEach(day => {
+    scheduleEditForm.value[day] = {
+      active: false,
+      startTime: '07:00',
+      endTime: '19:00'
+    }
+  })
+}
+
+function saveScheduleChanges() {
+  if (!selectedSubmission.value) return
+
+  const updatedSchedules: ScheduleItem[] = []
+  weeklyDays.forEach(day => {
+    const item = scheduleEditForm.value[day]
+    if (item && item.active) {
+      const formattedStart = item.startTime.length === 5 ? `${item.startTime}:00` : item.startTime
+      const formattedEnd = item.endTime.length === 5 ? `${item.endTime}:00` : item.endTime
+      updatedSchedules.push({
+        dayOfWeek: day,
+        startTime: formattedStart,
+        endTime: formattedEnd
+      })
+    }
+  })
+
+  selectedSubmission.value.schedules = updatedSchedules
+  isEditingSchedule.value = false
+  scheduleSuccessMsg.value = 'Schedule modifications saved successfully!'
+  setTimeout(() => {
+    scheduleSuccessMsg.value = null
+  }, 3500)
 }
 
 async function approveSubmission(item: CorSubmissionItem) {
@@ -201,7 +317,9 @@ const isPdf = computed(() => {
   return cleanUrl.endsWith('.pdf')
 })
 
-const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
+watch(selectedSubmission, () => {
+  isEditingSchedule.value = false
+})
 </script>
 
 <template>
@@ -210,7 +328,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
     <div class="page-header">
       <div class="header-left">
         <div class="header-badge">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
             <line x1="8" y1="2" x2="8" y2="6" />
@@ -219,7 +337,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
           Schedule & COR Verification Portal
         </div>
         <h1 class="page-title">COR & Attendance Schedule Verification</h1>
-        <p class="page-subtitle">Inspect uploaded Certificate of Registration (COR) side-by-side with user declared attendance schedules for access approval.</p>
+        <p class="page-subtitle">Inspect Certificate of Registration (COR) side-by-side with user declared schedule, edit access slots, and grant vehicle parking approvals.</p>
       </div>
       <button class="refresh-btn" @click="fetchSubmissions">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -228,6 +346,28 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
         </svg>
         Refresh Submissions
       </button>
+    </div>
+
+    <!-- Notice Bar for API connection warnings -->
+    <div v-if="apiErrorNotice" class="notice-bar">
+      <div class="notice-left">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="8"/>
+        </svg>
+        <span>{{ apiErrorNotice }}</span>
+      </div>
+      <button class="notice-retry" @click="fetchSubmissions">Retry</button>
+    </div>
+
+    <!-- Success Feedback Bar -->
+    <div v-if="scheduleSuccessMsg" class="success-bar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+        <polyline points="22 4 12 14.01 9 11.01" />
+      </svg>
+      <span>{{ scheduleSuccessMsg }}</span>
     </div>
 
     <!-- Filter Tabs & Counter Stats -->
@@ -275,7 +415,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search student name, email, or plate number..."
+          placeholder="Search student name, email, or plate..."
           class="search-input"
         />
       </div>
@@ -305,7 +445,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
       <!-- Left Column: Applicants List Selector -->
       <div class="applicants-sidebar">
         <div class="sidebar-header">
-          <span class="sidebar-title">Submissions ({{ filteredSubmissions.length }})</span>
+          <span class="sidebar-title">Applicants List ({{ filteredSubmissions.length }})</span>
         </div>
         <div class="applicants-list">
           <div
@@ -320,7 +460,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
               <span
                 class="status-chip"
                 :class="{
-                  'status--pending': sub.verificationStatus === 1,
+                  'status--pending': sub.verificationStatus === 1 || sub.verificationStatus === 0,
                   'status--verified': sub.verificationStatus === 2,
                   'status--rejected': sub.verificationStatus === 3
                 }"
@@ -330,7 +470,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
             </div>
             <div class="applicant-details">
               <span class="detail-item">{{ sub.email }}</span>
-              <span class="detail-item plate-tag">{{ sub.vehiclePlate }}</span>
+              <span class="detail-item plate-tag">{{ sub.vehiclePlate }} ({{ sub.vehicleType }})</span>
             </div>
           </div>
         </div>
@@ -341,8 +481,10 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
         <div class="inspector-header">
           <div class="user-meta">
             <h2 class="user-name">{{ selectedSubmission.fullName }}</h2>
-            <span class="user-email">{{ selectedSubmission.email }}</span>
-            <span class="plate-badge">{{ selectedSubmission.vehiclePlate }} ({{ selectedSubmission.vehicleType }})</span>
+            <div class="sub-meta-row">
+              <span class="user-email">{{ selectedSubmission.email }}</span>
+              <span class="plate-badge">{{ selectedSubmission.vehiclePlate }} ({{ selectedSubmission.vehicleType }})</span>
+            </div>
           </div>
 
           <div class="action-buttons">
@@ -367,7 +509,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                 <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              Approve Verification
+              Approve & Grant Access
             </button>
           </div>
         </div>
@@ -424,7 +566,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
             </div>
           </div>
 
-          <!-- RIGHT SIDE: Submitted Duty/Class Schedule -->
+          <!-- RIGHT SIDE: Interactive Duty/Class Schedule Panel -->
           <div class="side-panel schedule-panel">
             <div class="panel-header">
               <h3 class="panel-title">
@@ -434,41 +576,107 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
                   <line x1="8" y1="2" x2="8" y2="6"/>
                   <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
-                Submitted Class / Work Schedule
+                Weekly Campus Access Schedule
               </h3>
-              <span class="term-badge">Academic Term: {{ selectedSubmission.academicTerm || '2024-2025' }}</span>
+              <div class="schedule-header-actions">
+                <button v-if="!isEditingSchedule" class="edit-schedule-btn" @click="startEditingSchedule">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  Edit Schedule
+                </button>
+                <span v-else class="editing-badge">Editing Mode</span>
+              </div>
+            </div>
+
+            <!-- Quick Presets Toolbar (When Editing) -->
+            <div v-if="isEditingSchedule" class="schedule-presets-toolbar">
+              <span class="preset-label">Quick Presets:</span>
+              <button class="preset-btn" @click="applyStandardHours">Standard 7AM-7PM</button>
+              <button class="preset-btn" @click="applyFullWeekAccess">Full Week (Mon-Sun)</button>
+              <button class="preset-btn btn--outline" @click="clearAllDays">Clear All</button>
             </div>
 
             <div class="schedule-table-wrapper">
               <table class="schedule-table">
                 <thead>
                   <tr>
-                    <th>Day of Week</th>
-                    <th>Allowed Entry Time</th>
-                    <th>Required Exit Time</th>
-                    <th>Status</th>
+                    <th style="width: 25%;">Day</th>
+                    <th style="width: 32%;">Entry Time</th>
+                    <th style="width: 32%;">Exit Time</th>
+                    <th style="width: 11%; text-align: center;">Access</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="dayKey in weeklyDays" :key="dayKey">
-                    <td class="day-name font-bold">{{ dayNames[dayKey] }}</td>
-                    <template v-if="selectedSubmission.schedules?.find(s => s.dayOfWeek === dayKey)">
-                      <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.startTime) }}</td>
-                      <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.endTime) }}</td>
-                      <td>
-                        <span class="day-chip day-chip--active">Campus Allowed</span>
+                  <!-- READ ONLY MODE -->
+                  <template v-if="!isEditingSchedule">
+                    <tr v-for="dayKey in weeklyDays" :key="`read-${dayKey}`">
+                      <td class="day-name font-bold">{{ dayNames[dayKey] }}</td>
+                      <template v-if="selectedSubmission.schedules?.find(s => s.dayOfWeek === dayKey)">
+                        <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.startTime) }}</td>
+                        <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.endTime) }}</td>
+                        <td style="text-align: center;">
+                          <span class="day-chip day-chip--active">Allowed</span>
+                        </td>
+                      </template>
+                      <template v-else>
+                        <td class="text-muted">—</td>
+                        <td class="text-muted">—</td>
+                        <td style="text-align: center;">
+                          <span class="day-chip day-chip--off">No Access</span>
+                        </td>
+                      </template>
+                    </tr>
+                  </template>
+
+                  <!-- EDITING MODE -->
+                  <template v-else>
+                    <tr v-for="dayKey in weeklyDays" :key="`edit-${dayKey}`" :class="{ 'row-disabled': !scheduleEditForm[dayKey]?.active }">
+                      <td class="day-name font-bold">
+                        <label class="day-toggle-label" v-if="scheduleEditForm[dayKey]">
+                          <input type="checkbox" v-model="scheduleEditForm[dayKey].active" class="day-checkbox" />
+                          <span>{{ dayNames[dayKey] }}</span>
+                        </label>
                       </td>
-                    </template>
-                    <template v-else>
-                      <td class="text-muted">—</td>
-                      <td class="text-muted">—</td>
                       <td>
-                        <span class="day-chip day-chip--off">No Campus Access</span>
+                        <input
+                          v-if="scheduleEditForm[dayKey]"
+                          type="time"
+                          v-model="scheduleEditForm[dayKey].startTime"
+                          :disabled="!scheduleEditForm[dayKey].active"
+                          class="time-picker-input"
+                        />
                       </td>
-                    </template>
-                  </tr>
+                      <td>
+                        <input
+                          v-if="scheduleEditForm[dayKey]"
+                          type="time"
+                          v-model="scheduleEditForm[dayKey].endTime"
+                          :disabled="!scheduleEditForm[dayKey].active"
+                          class="time-picker-input"
+                        />
+                      </td>
+                      <td style="text-align: center;">
+                        <span class="day-chip" :class="scheduleEditForm[dayKey]?.active ? 'day-chip--active' : 'day-chip--off'">
+                          {{ scheduleEditForm[dayKey]?.active ? 'Active' : 'Off' }}
+                        </span>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
+            </div>
+
+            <!-- Schedule Action Buttons (When Editing) -->
+            <div v-if="isEditingSchedule" class="schedule-save-actions">
+              <button class="btn-cancel-schedule" @click="cancelEditingSchedule">Cancel</button>
+              <button class="btn-save-schedule" @click="saveScheduleChanges">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Save Schedule Updates
+              </button>
             </div>
 
             <div class="verification-guide-box">
@@ -478,7 +686,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
                 <line x1="12" y1="8" x2="12.01" y2="8"/>
               </svg>
               <div>
-                <strong>Dual Verification Checklist:</strong> Cross-reference the class schedules printed on the Certificate of Registration (COR) image on the left with the user's declared weekly schedule on the right before granting campus parking authorization.
+                <strong>Dual Verification Checklist:</strong> Match the class schedule on the uploaded COR document with the student's entry/exit times. Click <strong>Edit Schedule</strong> above to modify access windows if necessary before approving.
               </div>
             </div>
           </div>
@@ -503,31 +711,41 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 .schedule-approval-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
   width: 100%;
+  height: calc(100vh - 105px);
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
 }
 
 .header-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: rgba(210, 39, 48, 0.1);
   color: var(--color-primary, #d22730);
   padding: 4px 12px;
   border-radius: 20px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--color-text);
   margin: 0;
@@ -536,17 +754,17 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 .page-subtitle {
   font-size: 13px;
   color: var(--color-muted);
-  margin: 4px 0 0;
+  margin: 2px 0 0;
 }
 
 .refresh-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  padding: 8px 16px;
+  padding: 8px 14px;
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
@@ -558,6 +776,49 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   background: var(--color-surface-muted);
 }
 
+.notice-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 10px;
+  color: #f59e0b;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.notice-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notice-retry {
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: inherit;
+  font-weight: 700;
+}
+
+.success-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 10px;
+  color: #10b981;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
 .filter-toolbar {
   display: flex;
   justify-content: space-between;
@@ -566,7 +827,8 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 10px 14px;
+  flex-shrink: 0;
 }
 
 .tab-group {
@@ -578,7 +840,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid transparent;
   background: transparent;
@@ -601,7 +863,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 }
 
 .count-pill {
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 12px;
   font-size: 11px;
   font-weight: 700;
@@ -615,12 +877,12 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 .search-wrapper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 8px 12px;
-  width: 320px;
+  padding: 6px 12px;
+  width: 300px;
   color: var(--color-muted);
 }
 
@@ -633,72 +895,87 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   width: 100%;
 }
 
-.loading-state, .empty-state {
+.loading-state,
+.empty-state {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 48px;
   text-align: center;
   color: var(--color-muted);
+  flex: 1;
 }
 
 .spinner {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border: 3px solid var(--color-border);
   border-top-color: var(--color-primary, #d22730);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
-  margin: 0 auto 16px;
+  margin: 0 auto 12px;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* Dual Workspace (Non-Scrollable Layout Container) */
 .dual-workspace {
   display: grid;
   grid-template-columns: 300px 1fr;
-  gap: 20px;
-  min-height: 640px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
+/* Sidebar List */
 .applicants-sidebar {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
 .sidebar-header {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid var(--color-border);
   font-weight: 700;
-  font-size: 13px;
-  color: var(--color-text);
+  font-size: 12px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .applicants-list {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
-  max-height: 600px;
+  flex: 1;
+  padding: 8px;
+  gap: 8px;
 }
 
 .applicant-card {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+  border-radius: 8px;
   cursor: pointer;
   transition: all 150ms ease;
 }
 
 .applicant-card:hover {
-  background: var(--color-surface-muted);
+  border-color: var(--color-primary, #d22730);
 }
 
 .applicant-card.active {
   background: rgba(210, 39, 48, 0.08);
-  border-left: 4px solid var(--color-primary, #d22730);
+  border-color: var(--color-primary, #d22730);
+  border-left-width: 4px;
 }
 
 .applicant-card-header {
@@ -709,7 +986,7 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 }
 
 .applicant-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-text);
 }
@@ -744,39 +1021,48 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
 }
 
 .inspector-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-bottom: 16px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 
 .user-name {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--color-text);
-  margin: 0;
+  margin: 0 0 4px;
+}
+
+.sub-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .user-email {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--color-muted);
-  margin-right: 12px;
 }
 
 .plate-badge {
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
-  padding: 3px 8px;
+  padding: 2px 8px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--color-text);
   font-family: monospace;
@@ -784,16 +1070,16 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 
 .action-buttons {
   display: flex;
-  gap: 12px;
+  gap: 10px;
 }
 
 .btn-approve, .btn-reject {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 6px;
+  padding: 8px 14px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   border: none;
@@ -811,49 +1097,132 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 .side-by-side-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .side-panel {
   background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
   border-radius: 12px;
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+  flex: 1;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .panel-title {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--color-text);
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .cor-type-tag {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--color-muted);
+}
+
+.schedule-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-schedule-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-primary, #d22730);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.edit-schedule-btn:hover {
+  background: rgba(210, 39, 48, 0.08);
+}
+
+.editing-badge {
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
   padding: 3px 8px;
   border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.schedule-presets-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.preset-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-muted);
+  margin-right: 4px;
+}
+
+.preset-btn {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.preset-btn:hover {
+  background: var(--color-primary, #d22730);
+  color: #ffffff;
+  border-color: var(--color-primary, #d22730);
+}
+
+.preset-btn.btn--outline {
   color: var(--color-muted);
 }
 
 .doc-viewer-box {
   position: relative;
   width: 100%;
-  height: 380px;
+  flex: 1;
+  min-height: 0;
   background: #09090b;
   border-radius: 8px;
   overflow: hidden;
@@ -879,61 +1248,40 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 
 .pdf-toolbar {
   position: absolute;
-  bottom: 12px;
-  right: 12px;
+  bottom: 10px;
+  right: 10px;
   display: flex;
   gap: 8px;
   z-index: 10;
 }
 
-.pdf-open-btn {
+.pdf-open-btn, .zoom-btn {
   background: rgba(0, 0, 0, 0.75);
   color: #ffffff;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  padding: 6px 12px;
+  padding: 5px 10px;
   font-size: 11px;
   font-weight: 600;
   display: flex;
   align-items: center;
   gap: 6px;
   text-decoration: none;
+  cursor: pointer;
   transition: all 150ms ease;
 }
 
-.pdf-open-btn:hover {
+.pdf-open-btn:hover, .zoom-btn:hover {
   background: rgba(0, 0, 0, 0.9);
-}
-
-.zoom-btn {
-  background: rgba(0, 0, 0, 0.75);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.term-badge {
-  font-size: 11px;
-  font-weight: 700;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  padding: 3px 8px;
-  border-radius: 4px;
-  color: var(--color-muted);
 }
 
 .schedule-table-wrapper {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
 }
 
 .schedule-table {
@@ -944,17 +1292,55 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 
 .schedule-table th {
   background: var(--color-surface-muted);
-  padding: 10px 12px;
+  padding: 8px 10px;
   text-align: left;
   font-weight: 700;
   color: var(--color-muted);
   border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .schedule-table td {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
+  vertical-align: middle;
+}
+
+.row-disabled {
+  opacity: 0.55;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.day-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.day-checkbox {
+  accent-color: var(--color-primary, #d22730);
+  cursor: pointer;
+}
+
+.time-picker-input {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 4px;
+  outline: none;
+  width: 90px;
+}
+
+.time-picker-input:focus {
+  border-color: var(--color-primary, #d22730);
 }
 
 .day-chip {
@@ -967,16 +1353,54 @@ const weeklyDays = [1, 2, 3, 4, 5, 6] // Monday through Saturday
 .day-chip--active { background: rgba(16, 185, 129, 0.15); color: #10b981; }
 .day-chip--off { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
 
+.schedule-save-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-cancel-schedule {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-save-schedule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-primary, #d22730);
+  border: none;
+  color: #ffffff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-save-schedule:hover {
+  background: #b91c1c;
+}
+
 .verification-guide-box {
   background: rgba(245, 158, 11, 0.1);
   border: 1px solid rgba(245, 158, 11, 0.3);
   color: #f59e0b;
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
-  gap: 10px;
-  line-height: 1.5;
+  gap: 8px;
+  line-height: 1.4;
+  flex-shrink: 0;
 }
 
 .zoom-modal-backdrop {
