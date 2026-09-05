@@ -639,24 +639,12 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
                 <span class="checkbox-title">Mark Feedback as Resolved</span>
               </label>
             </div>
-
-            <!-- Admin Notes Input -->
-            <div class="section-block">
-              <label class="block-label">Internal Admin Notes (Private)</label>
-              <textarea
-                v-model="editAdminNotes"
-                placeholder="Add internal notes for security staff..."
-                class="admin-notes-textarea"
-                rows="2"
-              ></textarea>
-            </div>
           </div>
 
           <!-- Modal Footer -->
           <div class="modal-footer">
-            <button class="btn btn-secondary" @click="closeDetailModal" :disabled="isSendingReply || isSaving">Cancel</button>
-            <button class="btn btn-secondary" @click="handleUpdateStatus" :disabled="isSendingReply || isSaving">Save Status Only</button>
-            <button class="btn btn-primary" @click="handleSendReply" :disabled="isSendingReply || isSaving">
+            <button class="btn btn-secondary" @click="closeDetailModal" :disabled="isSendingReply">Cancel</button>
+            <button class="btn btn-primary" @click="handleSendReply" :disabled="isSendingReply">
               <span v-if="isSendingReply">Sending Email...</span>
               <span v-else>Send Reply & Email User</span>
             </button>
