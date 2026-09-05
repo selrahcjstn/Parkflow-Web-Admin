@@ -79,6 +79,9 @@ function formatDocUrl(url?: string, fallback: string = ''): string {
   if (!url || !url.trim()) return fallback
   const trimmed = url.trim()
   if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
+  if (trimmed.includes('storage.parkflow.com') || trimmed.includes('example.com') || trimmed.includes('invalid-domain')) {
+    return fallback
+  }
   if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('ph://')) {
     return fallback
   }

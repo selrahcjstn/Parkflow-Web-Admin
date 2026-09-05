@@ -83,6 +83,9 @@ function formatDocUrl(url?: string, fallback: string = ''): string {
   if (!url || !url.trim()) return fallback
   const trimmed = url.trim()
   if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
+  if (trimmed.includes('storage.parkflow.com') || trimmed.includes('example.com') || trimmed.includes('invalid-domain')) {
+    return fallback
+  }
   if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('ph://')) {
     return fallback
   }
@@ -1520,7 +1523,7 @@ async function reject(reg: RegistrationItem) {
 .inspector-viewer {
   display: flex;
   flex-direction: column;
-  background: rgba(0, 0, 0, 0.3);
+  background: var(--color-surface);
   padding: 16px;
   border-right: 1px solid var(--color-border);
   overflow: hidden;
@@ -1536,17 +1539,22 @@ async function reject(reg: RegistrationItem) {
   padding: 8px 14px;
   border-radius: 6px;
   border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--color-muted);
+  background: var(--color-surface-muted);
+  color: var(--color-text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   transition: all 150ms ease;
 }
 
+.doc-tab-btn:hover {
+  background: var(--color-surface-lighter, rgba(245, 158, 11, 0.15));
+  color: #f59e0b;
+}
+
 .doc-tab-btn--active {
   background: #f59e0b;
-  color: #111318;
+  color: #ffffff;
   border-color: #f59e0b;
 }
 
@@ -1627,7 +1635,7 @@ async function reject(reg: RegistrationItem) {
 
 .meta-val {
   font-weight: 600;
-  color: #ffffff;
+  color: var(--color-text);
 }
 
 .plate-highlight {
@@ -1678,14 +1686,19 @@ async function reject(reg: RegistrationItem) {
 
 .btn-inspector-reject {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #ef4444;
-  font-weight: 600;
-  font-size: 13px;
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
   cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.btn-inspector-reject:hover {
+  background: #dc2626;
 }
 
 .inspector-status-notice {
