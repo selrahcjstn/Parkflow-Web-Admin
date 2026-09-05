@@ -1227,8 +1227,9 @@ async function reject(reg: RegistrationItem) {
 }
 
 .view-mode-btn--active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border-color: var(--color-border);
 }
 
 .review-grid {
@@ -1250,7 +1251,7 @@ async function reject(reg: RegistrationItem) {
 
 .review-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--color-border);
 }
 
 .review-card__header {
@@ -1268,7 +1269,7 @@ async function reject(reg: RegistrationItem) {
 .applicant-name {
   font-size: 16px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text);
   margin: 0;
 }
 
@@ -1282,7 +1283,7 @@ async function reject(reg: RegistrationItem) {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
   padding: 8px 12px;
   border-radius: 8px;
@@ -1299,6 +1300,7 @@ async function reject(reg: RegistrationItem) {
   font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.5px;
+  color: var(--color-text);
 }
 
 .vehicle-desc {
@@ -1327,7 +1329,7 @@ async function reject(reg: RegistrationItem) {
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--color-border);
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--color-surface-muted);
 }
 
 .doc-thumb-img {
@@ -1367,7 +1369,7 @@ async function reject(reg: RegistrationItem) {
 .doc-thumb-title {
   font-size: 11px;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--color-text);
 }
 
 .doc-thumb-status {
@@ -1388,9 +1390,9 @@ async function reject(reg: RegistrationItem) {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--color-surface-muted);
   border: 1px solid var(--color-border);
-  color: #ffffff;
+  color: var(--color-text);
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 12px;
@@ -1400,7 +1402,7 @@ async function reject(reg: RegistrationItem) {
 }
 
 .btn-inspect:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--color-surface);
 }
 
 .card-actions-group {
