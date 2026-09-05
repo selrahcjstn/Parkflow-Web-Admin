@@ -683,28 +683,29 @@ async function handleCreateReservation() {
             </div>
 
             <div class="modal-footer">
-              <button class="btn-secondary" @click="closeReviewModal">Close</button>
+              <button class="btn-modal-cancel" @click="closeReviewModal">Close</button>
               <div class="footer-actions">
                 <button
-                  class="btn-action btn-qr-pass"
-                  style="margin-right: 8px;"
+                  class="btn-modal-qr"
                   @click="openQrPassModal(reviewModalItem); closeReviewModal();"
                 >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
                   View QR Pass
                 </button>
                 <button
-                  class="btn-reject"
+                  class="btn-modal-decline"
                   :disabled="isSubmittingReview"
                   @click="handleReject(reviewModalItem)"
                 >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   Decline Request
                 </button>
                 <button
-                  class="btn-approve"
+                  class="btn-modal-approve"
                   :disabled="isSubmittingReview"
                   @click="handleApprove(reviewModalItem)"
                 >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
                   Approve Pass
                 </button>
               </div>
@@ -817,14 +818,14 @@ async function handleCreateReservation() {
 
             <!-- Pass Footer Actions -->
             <div class="qr-pass-footer">
-              <button class="btn-secondary" @click="closeQrPassModal">Close</button>
+              <button class="btn-modal-cancel" @click="closeQrPassModal">Close</button>
               <div class="footer-actions">
-                <button class="btn-action btn-outline" @click="downloadQrCode(qrPassModalItem)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <button class="btn-modal-outline" @click="downloadQrCode(qrPassModalItem)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                   Get QR Image
                 </button>
-                <button class="btn-action btn-print" @click="printPass">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <button class="btn-modal-print" @click="printPass">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                   Print Pass
                 </button>
               </div>
@@ -931,13 +932,14 @@ async function handleCreateReservation() {
             </div>
 
             <div class="modal-footer">
-              <button class="btn-secondary" @click="showCreateModal = false">Cancel</button>
+              <button class="btn-modal-cancel" @click="showCreateModal = false">Cancel</button>
               <button
-                class="btn-primary"
+                class="btn-modal-submit"
                 :disabled="isCreating"
                 @click="handleCreateReservation"
               >
-                {{ isCreating ? 'Reserving...' : 'Confirm & Reserve' }}
+                <svg v-if="!isCreating" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <span>{{ isCreating ? 'Reserving Schedule...' : 'Confirm & Reserve' }}</span>
               </button>
             </div>
           </div>
@@ -1619,6 +1621,7 @@ async function handleCreateReservation() {
 .footer-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .btn-secondary {
@@ -1630,6 +1633,175 @@ async function handleCreateReservation() {
   font-weight: 600;
   font-size: 13px;
   cursor: pointer;
+}
+
+/* Polished Modal Action Buttons */
+.btn-modal-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-modal-cancel:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+  border-color: var(--color-muted);
+}
+
+.btn-modal-qr {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #6366f1;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-modal-qr:hover {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-modal-decline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-modal-decline:hover:not(:disabled) {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-modal-decline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-modal-approve {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-modal-approve:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-modal-approve:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-modal-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-modal-outline:hover {
+  background: var(--color-surface-muted);
+  border-color: var(--color-muted);
+  transform: translateY(-1px);
+}
+
+.btn-modal-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-modal-print:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-modal-submit {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--color-primary, #d22730) 0%, #b01e26 100%);
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(210, 39, 48, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-modal-submit:hover:not(:disabled) {
+  box-shadow: 0 6px 18px rgba(210, 39, 48, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-modal-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .text-right {
