@@ -304,11 +304,6 @@ const handleVerifyOtpAndCreate = async () => {
             <label class="form-label required">Phone Number</label>
             <input v-model="form.phoneNumber" type="tel" placeholder="09171234567" class="form-input" required />
           </div>
-
-          <div class="form-group">
-            <label class="form-label required">Initial Password</label>
-            <input v-model="form.password" type="password" placeholder="••••••••" class="form-input" required />
-          </div>
         </div>
       </div>
 
