@@ -45,12 +45,14 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     notifications.value = notifications.value.filter((n) => n.id !== id)
   }
 
-  function addNotification(item: Omit<AdminNotification, 'id' | 'createdAt' | 'isUnread'>) {
-    // Avoid adding exact duplicate by reference code or title
-    const exists = notifications.value.some(
-      (n) => (Boolean(item.referenceCode) && n.referenceCode === item.referenceCode) || (n.title === item.title && n.message === item.message)
-    )
-    if (exists) return
+  function addNotification(item: Omit<AdminNotification, 'id' | 'createdAt' | 'isUnread'>, allowDuplicate = false) {
+    // Avoid adding exact duplicate by reference code or title for REST sync
+    if (!allowDuplicate) {
+      const exists = notifications.value.some(
+        (n) => (Boolean(item.referenceCode) && n.referenceCode === item.referenceCode) || (n.title === item.title && n.message === item.message)
+      )
+      if (exists) return
+    }
 
     const newNotif: AdminNotification = {
       ...item,
@@ -209,46 +211,52 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     hubConnection.on('ParkingSessionUpdated', (data: any) => {
       const plate = data?.plateNumber || data?.PlateNumber || 'Vehicle'
       const status = data?.status || data?.Status || 'Entry/Exit'
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       addNotification({
         type: 'session_activity',
         title: 'Gate Parking Log Update',
         subtitle: `Scanner Activity: ${status}`,
-        message: `Vehicle [${plate}] session activity recorded at campus gates.`,
-        timestamp: 'Just now',
+        message: `Vehicle [${plate}] ${status.toLowerCase()} recorded at campus gates (${timeStr}).`,
+        timestamp: timeStr,
         actionUrl: '/parking',
         actionLabel: 'View Gate Log',
-        priority: 'low'
-      })
+        priority: 'low',
+        referenceCode: `gate-${plate}-${Date.now()}`
+      }, true)
     })
 
     hubConnection.on('ExitResponse', (data: any) => {
       const plate = data?.plateNumber || data?.PlateNumber || 'Vehicle'
       const isViolation = Boolean(data?.isViolation || data?.IsViolation)
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       if (isViolation) {
         addNotification({
           type: 'violation_issued',
           title: 'Gate Overstay Violation Triggered',
           subtitle: 'Guard Scanner Alert',
-          message: `Overstay citation generated for vehicle [${plate}] upon exit attempt.`,
-          timestamp: 'Just now',
+          message: `Overstay citation generated for vehicle [${plate}] upon exit attempt (${timeStr}).`,
+          timestamp: timeStr,
           actionUrl: '/violations',
           actionLabel: 'View Violation',
-          priority: 'high'
-        })
+          priority: 'high',
+          referenceCode: `violation-${plate}-${Date.now()}`
+        }, true)
       }
     })
 
     hubConnection.on('PaymentProcessed', (data: any) => {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       addNotification({
         type: 'payment_processed',
         title: 'Violation Citation Settled',
         subtitle: 'Payment Verified',
-        message: `Payment of ₱${Number(data?.amount || 0).toFixed(2)} processed for citation ${data?.referenceNumber || ''}.`,
-        timestamp: 'Just now',
+        message: `Payment of ₱${Number(data?.amount || 0).toFixed(2)} processed for citation ${data?.referenceNumber || ''} (${timeStr}).`,
+        timestamp: timeStr,
         actionUrl: '/violations',
         actionLabel: 'View Settlement',
-        priority: 'medium'
-      })
+        priority: 'medium',
+        referenceCode: `pay-${data?.referenceNumber || Date.now()}-${Date.now()}`
+      }, true)
     })
 
     hubConnection.start()
