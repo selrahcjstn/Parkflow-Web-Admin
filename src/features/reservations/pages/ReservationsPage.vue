@@ -514,7 +514,7 @@ async function handleCreateReservation() {
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:-1px; margin-right:3px;">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
                 </svg>
-                Special Pass (No Fees)
+                Special Pass
               </span>
             </td>
 
@@ -862,7 +862,7 @@ async function handleCreateReservation() {
               <div class="form-group">
                 <label class="form-label">Reservation Type</label>
                 <select v-model.number="createForm.type" class="form-select">
-                  <option :value="1">Special (Admin Pass - ₱0 No Fees)</option>
+                  <option :value="1">Special Pass (Admin Pass)</option>
                   <option :value="0">Normal (Standard Pass)</option>
                 </select>
               </div>
