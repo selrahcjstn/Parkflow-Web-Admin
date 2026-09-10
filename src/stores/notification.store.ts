@@ -210,13 +210,26 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     // SignalR Real-Time Event Handlers
     hubConnection.on('ParkingSessionUpdated', (data: any) => {
       const plate = data?.plateNumber || data?.PlateNumber || 'Vehicle'
+      const brand = data?.brand || data?.Brand || ''
       const status = data?.status || data?.Status || 'Entry/Exit'
+      
+      const fn = data?.firstName || data?.FirstName || ''
+      const ln = data?.lastName || data?.LastName || ''
+      const driverName = [fn, ln].filter(Boolean).join(' ')
+      const role = data?.role || data?.Role || ''
+
+      const guardName = data?.guardName || data?.GuardName || data?.issuedBy || data?.IssuedBy || ''
+
+      const vehicleStr = brand ? `${brand} [${plate}]` : `[${plate}]`
+      const driverStr = driverName ? ` by ${driverName}${role ? ` (${role})` : ''}` : ''
+      const guardStr = guardName ? ` | Issued by Guard: ${guardName}` : ''
+
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       addNotification({
         type: 'session_activity',
         title: 'Gate Parking Log Update',
         subtitle: `Scanner Activity: ${status}`,
-        message: `Vehicle [${plate}] ${status.toLowerCase()} recorded at campus gates (${timeStr}).`,
+        message: `Vehicle ${vehicleStr} ${status.toLowerCase()} recorded at campus gates${driverStr} (${timeStr})${guardStr}.`,
         timestamp: timeStr,
         actionUrl: '/parking',
         actionLabel: 'View Gate Log',
@@ -227,14 +240,18 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
 
     hubConnection.on('ExitResponse', (data: any) => {
       const plate = data?.plateNumber || data?.PlateNumber || 'Vehicle'
+      const brand = data?.brand || data?.Brand || ''
       const isViolation = Boolean(data?.isViolation || data?.IsViolation)
+      const guardName = data?.guardName || data?.GuardName || data?.issuedBy || data?.IssuedBy || ''
+      const vehicleStr = brand ? `${brand} [${plate}]` : `[${plate}]`
+      const guardStr = guardName ? ` | Issued by Guard: ${guardName}` : ''
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       if (isViolation) {
         addNotification({
           type: 'violation_issued',
           title: 'Gate Overstay Violation Triggered',
           subtitle: 'Guard Scanner Alert',
-          message: `Overstay citation generated for vehicle [${plate}] upon exit attempt (${timeStr}).`,
+          message: `Overstay citation generated for vehicle ${vehicleStr} upon exit attempt (${timeStr})${guardStr}.`,
           timestamp: timeStr,
           actionUrl: '/violations',
           actionLabel: 'View Violation',

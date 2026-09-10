@@ -46,7 +46,7 @@ const isCreating = ref(false)
 const createForm = ref({
   reservationDate: new Date().toISOString().split('T')[0],
   startTime: '07:00',
-  endTime: '17:00',
+  endTime: '23:59',
   reason: 'Campus Special Event / Administrative Schedule',
   type: 1, // 1 = Special (No Fees), 0 = Normal
   sendEmail: false,
@@ -157,9 +157,25 @@ const filteredReservations = computed(() => {
 function formatReservationDate(dateStr: string): string {
   if (!dateStr) return 'N/A'
   try {
-    const cleanDate = (dateStr.split('T')[0]) || dateStr
-    const d = new Date(cleanDate)
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', weekday: 'short' })
+    let d: Date
+    if (typeof dateStr === 'string') {
+      const clean = dateStr.trim()
+      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) {
+        d = new Date(`${clean}T00:00:00Z`)
+      } else {
+        d = new Date(clean)
+      }
+    } else {
+      d = dateStr
+    }
+    if (isNaN(d.getTime())) return dateStr
+    return d.toLocaleDateString('en-US', {
+      timeZone: 'UTC',
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    })
   } catch {
     return dateStr
   }
@@ -168,7 +184,9 @@ function formatReservationDate(dateStr: string): string {
 function formatTimeSlot(start: string, end: string): string {
   if (!start || !end) return 'All Day Pass'
   const formatTime = (t: string) => {
-    const parts = t.split(':')
+    if (!t) return ''
+    if (/^\d{1,2}:\d{2}\s*(AM|PM|am|pm)$/i.test(t.trim())) return t.trim()
+    const parts = t.trim().split(':')
     let h = parseInt(parts[0] || '0', 10)
     const m = parts[1] || '00'
     const ampm = h >= 12 ? 'PM' : 'AM'
@@ -257,10 +275,11 @@ async function handleCreateReservation() {
   }
   isCreating.value = true
   try {
+    const endTimeVal = createForm.value.type === 1 ? '23:59:59' : (createForm.value.endTime.includes(':') && createForm.value.endTime.split(':').length === 2 ? createForm.value.endTime + ':00' : createForm.value.endTime)
     const payload: Record<string, any> = {
       reservationDate: createForm.value.reservationDate,
-      startTime: createForm.value.startTime + ':00',
-      endTime: createForm.value.endTime + ':00',
+      startTime: createForm.value.startTime.includes(':') && createForm.value.startTime.split(':').length === 2 ? createForm.value.startTime + ':00' : createForm.value.startTime,
+      endTime: endTimeVal,
       reason: createForm.value.reason,
       type: createForm.value.type
     }
@@ -280,7 +299,7 @@ async function handleCreateReservation() {
     createForm.value = {
       reservationDate: new Date().toISOString().split('T')[0],
       startTime: '07:00',
-      endTime: '17:00',
+      endTime: '23:59',
       reason: 'Campus Special Event / Administrative Schedule',
       type: 1,
       sendEmail: false,
