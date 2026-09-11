@@ -66,7 +66,7 @@ function confirmLogout() {
 
 function handleGoToSettings() {
   dropdownOpen.value = false
-  router.push('/settings')
+  router.push('/account-settings')
 }
 
 // Close dropdown on outside click
