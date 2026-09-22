@@ -190,9 +190,13 @@ async function approveVehicle(item: VehicleApprovalItem) {
 }
 
 async function rejectVehicle(item: VehicleApprovalItem) {
+  const reason = window.prompt('Enter rejection reason for this vehicle (optional):', 'Vehicle OR/CR or photos are unreadable or invalid.')
+  if (reason === null) return
+
   try {
     const res = await api.patch(`/vehicles/${item.id}/validate`, {
-      verificationStatus: 3
+      verificationStatus: 3,
+      rejectionReason: reason
     })
     if (res.data?.isSuccess || res.status === 200) {
       item.verificationStatus = 3

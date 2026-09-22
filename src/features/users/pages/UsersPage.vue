@@ -267,10 +267,13 @@ const handleApproveUser = async (user: UserWithDetails) => {
 }
 
 const handleRejectUser = async (user: UserWithDetails) => {
+  const reason = window.prompt(`Enter rejection reason for ${user.fullName} (optional):`, 'Registration documents or information were rejected by admin.')
+  if (reason === null) return
+
   try {
     user.corVerificationStatus = 'Rejected'
     user.status = 'PendingVerification'
-    const res = await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 3 })
+    const res = await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 3, rejectionReason: reason })
     if (res.data?.isSuccess) {
       showToast(`${user.fullName} rejected successfully.`, 'error')
     } else {

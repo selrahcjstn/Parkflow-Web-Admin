@@ -313,9 +313,13 @@ async function approveSubmission(item: CorSubmissionItem) {
 }
 
 async function rejectSubmission(item: CorSubmissionItem) {
+  const reason = window.prompt('Enter rejection reason for this registration (optional):', 'Invalid or unreadable schedule/document uploaded.')
+  if (reason === null) return
+
   try {
     const res = await api.patch(`/cor-submissions/${item.id}/validate`, {
-      verificationStatus: 3
+      verificationStatus: 3,
+      rejectionReason: reason
     })
     if (res.data?.isSuccess || res.status === 200) {
       item.verificationStatus = 3

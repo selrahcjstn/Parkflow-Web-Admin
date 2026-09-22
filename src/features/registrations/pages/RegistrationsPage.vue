@@ -190,6 +190,9 @@ async function approve(reg: RegistrationItem) {
 }
 
 async function reject(reg: RegistrationItem) {
+  const reason = window.prompt('Enter rejection reason for this registration (optional):', 'Invalid or unreadable documents uploaded.')
+  if (reason === null) return
+
   if (!reg.guid) {
     reg.status = 'rejected'
     if (inspectorItem.value?.guid === reg.guid) inspectorItem.value = null
@@ -198,7 +201,8 @@ async function reject(reg: RegistrationItem) {
 
   try {
     const response = await api.patch(`/cor-submissions/${reg.guid}/validate`, {
-      verificationStatus: 3 // Rejected
+      verificationStatus: 3, // Rejected
+      rejectionReason: reason
     })
     if (response.data?.isSuccess) {
       reg.status = 'rejected'
