@@ -46,16 +46,16 @@
   /* ── Glows ────────────────────────────────────── */
   --color-glow: rgba(210, 39, 48, 0.06);
 
-  /* ── Sidebar ──────────────────────────────────── */
+  /* ── Sidebar (Clean Modern Light) ───────────────── */
   --color-sidebar-bg: #ffffff;
-  --color-sidebar-border: #eef0f6;
-  --color-sidebar-text: #64748b;
-  --color-sidebar-text-active: #D22730;
-  --color-sidebar-hover: rgba(15, 23, 42, 0.04);
-  --color-sidebar-active-bg: rgba(210, 39, 48, 0.07);
+  --color-sidebar-border: #e2e8f0;
+  --color-sidebar-text: #475569;
+  --color-sidebar-text-active: #ffffff;
+  --color-sidebar-hover: #f1f5f9;
+  --color-sidebar-active-bg: #D22730;
   --color-sidebar-section-label: #94a3b8;
-  --color-sidebar-icon-active: #D22730;
-  --color-sidebar-divider: #f1f4f8;
+  --color-sidebar-icon-active: #ffffff;
+  --color-sidebar-divider: #eef2f6;
 
   /* ── Header ───────────────────────────────────── */
   --color-header-bg: rgba(255, 255, 255, 0.92);

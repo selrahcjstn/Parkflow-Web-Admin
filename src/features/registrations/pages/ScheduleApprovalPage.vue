@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
+import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 
 interface ScheduleItem {
   dayOfWeek: number
@@ -104,25 +105,7 @@ function createDefaultEditForm(): Record<number, { active: boolean; startTime: s
 
 const scheduleEditForm = ref<Record<number, { active: boolean; startTime: string; endTime: string }>>(createDefaultEditForm())
 
-function formatDocUrl(url?: string, fallback: string = defaultCorPdf): string {
-  if (!url || !url.trim()) return fallback
-  const trimmed = url.trim()
-  if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
-  if (trimmed.includes('storage.parkflow.com') || trimmed.includes('example.com') || trimmed.includes('invalid-domain')) {
-    return fallback
-  }
-  if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('ph://')) {
-    return fallback
-  }
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
-    return trimmed
-  }
-  const isProduction = import.meta.env.PROD
-  const defaultBase = isProduction ? window.location.origin : 'http://localhost:5000'
-  const baseURL = import.meta.env.VITE_API_BASE_URL || defaultBase
-  const rootDomain = baseURL.replace(/\/api\/?$/, '')
-  return `${rootDomain}/${trimmed.replace(/^\//, '')}`
-}
+
 
 function handleImageError(event: Event, fallback: string) {
   const target = event.target as HTMLImageElement
@@ -566,6 +549,14 @@ watch(selectedSubmission, () => {
                     <line x1="10" y1="14" x2="21" y2="3"/>
                   </svg>
                   Open PDF in New Tab
+                </a>
+                <a :href="getDocDownloadUrl(activeImageUrl)" download class="pdf-open-btn pdf-download-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download PDF
                 </a>
                 <button class="zoom-btn" @click="openZoom(activeImageUrl)">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

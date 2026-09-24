@@ -194,8 +194,10 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     if (hubConnection) return
 
     const isProd = import.meta.env.PROD
-    const baseUrl = import.meta.env.VITE_API_URL || (isProd ? '/api' : 'http://localhost:5000/api')
-    const hubUrl = baseUrl.replace(/\/api\/?$/, '') + '/hubs/notifications'
+    const defaultHubUrl = isProd
+      ? 'http://54.90.173.98:5000/hubs/notifications'
+      : (import.meta.env.VITE_BACKEND_URL ? `${import.meta.env.VITE_BACKEND_URL}/hubs/notifications` : 'http://localhost:5044/hubs/notifications')
+    const hubUrl = import.meta.env.VITE_SIGNALR_HUB_URL || defaultHubUrl
 
     const token = localStorage.getItem('parkflow_token') || ''
 

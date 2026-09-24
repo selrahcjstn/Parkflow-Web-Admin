@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
+import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 
 interface VehicleApprovalItem {
   id: string
@@ -75,25 +76,7 @@ const vehicleTypeLabels: Record<number, string> = {
   2: 'Car'
 }
 
-function formatDocUrl(url?: string, fallback: string = ''): string {
-  if (!url || !url.trim()) return fallback
-  const trimmed = url.trim()
-  if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
-  if (trimmed.includes('storage.parkflow.com') || trimmed.includes('example.com') || trimmed.includes('invalid-domain')) {
-    return fallback
-  }
-  if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('ph://')) {
-    return fallback
-  }
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
-    return trimmed
-  }
-  const isProduction = import.meta.env.PROD
-  const defaultBase = isProduction ? window.location.origin : 'http://localhost:5000'
-  const baseURL = import.meta.env.VITE_API_BASE_URL || defaultBase
-  const rootDomain = baseURL.replace(/\/api\/?$/, '')
-  return `${rootDomain}/${trimmed.replace(/^\//, '')}`
-}
+
 
 function handleImageError(event: Event, fallback: string) {
   const target = event.target as HTMLImageElement
@@ -208,9 +191,7 @@ async function rejectVehicle(item: VehicleApprovalItem) {
 }
 
 function checkIsPdf(url?: string): boolean {
-  if (!url) return false
-  const cleanUrl = url.split('?')[0]?.toLowerCase() || ''
-  return cleanUrl.endsWith('.pdf')
+  return isPdfDoc(url)
 }
 
 function openZoom(url: string) {
@@ -397,11 +378,21 @@ function closeZoom() {
               >
                 Open Original ↗
               </a>
+              <a
+                v-if="checkIsPdf(selectedVehicle.orcrDocumentUrl)"
+                :href="getDocDownloadUrl(selectedVehicle.orcrDocumentUrl)"
+                download
+                class="open-link-btn"
+                style="margin-left: 8px;"
+                title="Download document"
+              >
+                Download ↓
+              </a>
             </div>
 
             <div class="doc-viewer-box">
               <iframe
-                v-if="checkIsPdf(selectedVehicle.orcrDocumentUrl) && selectedVehicle.orcrDocumentUrl && (selectedVehicle.orcrDocumentUrl.startsWith('http://') || selectedVehicle.orcrDocumentUrl.startsWith('https://'))"
+                v-if="checkIsPdf(selectedVehicle.orcrDocumentUrl) && selectedVehicle.orcrDocumentUrl"
                 :src="selectedVehicle.orcrDocumentUrl || defaultOrcrImage"
                 class="doc-pdf-iframe"
                 title="OR/CR PDF Document"

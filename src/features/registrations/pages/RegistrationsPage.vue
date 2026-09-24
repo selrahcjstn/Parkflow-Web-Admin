@@ -2,6 +2,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 
 interface RegistrationItem {
   id: number
@@ -79,25 +80,7 @@ const filteredRegistrations = computed(() => {
   })
 })
 
-function formatDocUrl(url?: string, fallback: string = ''): string {
-  if (!url || !url.trim()) return fallback
-  const trimmed = url.trim()
-  if (trimmed === 'pending' || trimmed === 'null' || trimmed === 'undefined') return fallback
-  if (trimmed.includes('storage.parkflow.com') || trimmed.includes('example.com') || trimmed.includes('invalid-domain')) {
-    return fallback
-  }
-  if (trimmed.startsWith('file://') || trimmed.startsWith('content://') || trimmed.startsWith('ph://')) {
-    return fallback
-  }
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
-    return trimmed
-  }
-  const isProduction = import.meta.env.PROD
-  const defaultBase = isProduction ? window.location.origin : 'http://localhost:5000'
-  const baseURL = import.meta.env.VITE_API_BASE_URL || defaultBase
-  const rootDomain = baseURL.replace(/\/api\/?$/, '')
-  return `${rootDomain}/${trimmed.replace(/^\//, '')}`
-}
+
 
 function handleImageError(event: Event, fallback: string) {
   const target = event.target as HTMLImageElement
@@ -442,7 +425,8 @@ async function reject(reg: RegistrationItem) {
           <!-- 2. OR/CR Receipt Card -->
           <div class="doc-thumb-box" @click="openInspector(reg, 'orcr')">
             <div class="doc-thumb-img-wrapper">
-              <img :src="reg.orcrUrl || defaultOrcrImage" alt="OR/CR Receipt" class="doc-thumb-img" />
+              <iframe v-if="isPdfDoc(reg.orcrUrl)" :src="reg.orcrUrl" class="doc-thumb-pdf" title="OR/CR Document"></iframe>
+              <img v-else :src="reg.orcrUrl || defaultOrcrImage" alt="OR/CR Receipt" class="doc-thumb-img" />
               <div class="doc-hover-overlay">
                 <span>Inspect OR/CR</span>
               </div>
@@ -626,12 +610,40 @@ async function reject(reg: RegistrationItem) {
 
                 <!-- Preview Display -->
                 <div class="doc-preview-box">
-                  <iframe
-                    v-if="activeDocType === 'cor'"
-                    :src="inspectorItem.corUrl || defaultCorPdf"
-                    class="doc-pdf-iframe"
-                    title="COR Certificate PDF"
-                  ></iframe>
+                  <template v-if="activeDocType === 'cor' || (activeDocType === 'orcr' && isPdfDoc(inspectorItem.orcrUrl))">
+                    <iframe
+                      :src="(activeDocType === 'cor' ? inspectorItem.corUrl : inspectorItem.orcrUrl) || defaultCorPdf"
+                      class="doc-pdf-iframe"
+                      title="PDF Document"
+                    ></iframe>
+                    <div class="pdf-modal-toolbar">
+                      <a
+                        :href="(activeDocType === 'cor' ? inspectorItem.corUrl : inspectorItem.orcrUrl) || '#'"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="pdf-action-btn"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                          <polyline points="15 3 21 3 21 9"/>
+                          <line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                        Open in New Tab
+                      </a>
+                      <a
+                        :href="getDocDownloadUrl(activeDocType === 'cor' ? inspectorItem.corUrl : inspectorItem.orcrUrl)"
+                        download
+                        class="pdf-action-btn pdf-action-btn--secondary"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download Document
+                      </a>
+                    </div>
+                  </template>
                   <img
                     v-else-if="activeDocType === 'orcr'"
                     :src="inspectorItem.orcrUrl || defaultOrcrImage"
@@ -648,7 +660,7 @@ async function reject(reg: RegistrationItem) {
                     @error="handleImageError($event, defaultMotorImage)"
                     @click="openZoomImage(inspectorItem.motorPicUrl || defaultMotorImage)"
                   />
-                  <span class="zoom-hint">Click image to enlarge full screen</span>
+                  <span v-if="activeDocType !== 'cor' && !(activeDocType === 'orcr' && isPdfDoc(inspectorItem.orcrUrl))" class="zoom-hint">Click image to enlarge full screen</span>
                 </div>
               </div>
 
@@ -1831,5 +1843,42 @@ async function reject(reg: RegistrationItem) {
   border: none;
   border-radius: 12px;
   background: var(--color-surface-muted);
+}
+
+.pdf-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pdf-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+  background: var(--color-primary, #D22730);
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.pdf-action-btn:hover {
+  background: #b51f27;
+  transform: translateY(-1px);
+}
+
+.pdf-action-btn--secondary {
+  color: var(--color-text-primary, #333333);
+  background: var(--color-surface-muted, #f1f3f5);
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.pdf-action-btn--secondary:hover {
+  background: var(--color-surface-hover, #e2e8f0);
 }
 </style>

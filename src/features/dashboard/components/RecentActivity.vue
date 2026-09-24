@@ -108,11 +108,14 @@ onMounted(async () => {
   color: var(--color-primary);
   text-decoration: none;
   font-weight: 500;
-  transition: text-decoration 150ms ease;
+  padding: 6px 12px;
+  background: rgba(99, 102, 241, 0.1);
+  border-radius: 6px;
+  transition: all 150ms ease;
 }
 
 .activity-card__link:hover {
-  text-decoration: underline;
+  background: rgba(99, 102, 241, 0.2);
 }
 
 .activity-card__table-wrapper {
@@ -133,12 +136,25 @@ onMounted(async () => {
   letter-spacing: 1px;
   color: var(--color-muted);
   text-align: left;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 12px 16px;
+  background: var(--color-surface-muted);
+  border-bottom: none;
+}
+.activity-card__table thead th:first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+.activity-card__table thead th:last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .activity-card__row {
   transition: background 150ms ease;
+}
+
+.activity-card__row:nth-child(even) {
+  background: var(--color-surface-lighter);
 }
 
 .activity-card__row:hover {
@@ -146,7 +162,7 @@ onMounted(async () => {
 }
 
 .activity-card__row td {
-  padding: 14px 0;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--color-border);
   font-size: 13px;
   color: var(--color-text);
@@ -193,7 +209,7 @@ onMounted(async () => {
 .activity-card__status {
   display: inline-block;
   padding: 3px 10px;
-  border-radius: 20px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
   text-transform: capitalize;
@@ -203,17 +219,20 @@ onMounted(async () => {
 .activity-card__status--parked {
   background: rgba(16, 185, 129, 0.1);
   color: #059669;
+  border-left: 3px solid #10b981;
 }
 
 .activity-card__status--completed,
 .activity-card__status--exited {
   background: rgba(59, 130, 246, 0.1);
   color: var(--color-info);
+  border-left: 3px solid #3b82f6;
 }
 
 .activity-card__status--overstay {
   background: rgba(239, 68, 68, 0.1);
   color: #dc2626;
+  border-left: 3px solid #ef4444;
 }
 
 .activity-card__empty {

@@ -181,10 +181,8 @@ const userInitials = computed(() => {
       <nav class="sidebar-nav">
         <template v-for="item in filteredNavItems" :key="item.key">
 
-          <!-- Section Divider Label -->
-          <div v-if="item.section" class="nav-section-group">
-            <span class="nav-section-label">{{ item.label }}</span>
-          </div>
+          <!-- Section Divider Label (Removed as per requirements) -->
+          <template v-if="item.section"></template>
 
           <!-- Standard Single Link -->
           <router-link
@@ -301,7 +299,6 @@ const userInitials = computed(() => {
                   :class="{ 'is-sub-active': isSubActive(sub.path) }"
                   @click="(e) => { navigate(e); appStore.closeMobileSidebar(); }"
                 >
-                  <span class="sub-nav-dot" />
                   <span class="sub-nav-label">{{ sub.label }}</span>
                 </a>
               </router-link>
@@ -366,9 +363,9 @@ const userInitials = computed(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--color-sidebar-bg);
-  border-right: 1px solid var(--color-sidebar-border);
-  box-shadow: var(--shadow-sidebar);
+  background: var(--color-sidebar-bg, #ffffff);
+  border-right: 1px solid var(--color-sidebar-border, #e2e8f0);
+  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.04);
   overflow: hidden;
   z-index: 41;
 }
@@ -381,7 +378,7 @@ const userInitials = computed(() => {
   gap: 12px;
   padding: 18px 16px 16px;
   min-height: 72px;
-  border-bottom: 1px solid var(--color-sidebar-divider);
+  border-bottom: 1px solid var(--color-sidebar-divider, #eef2f6);
   flex-shrink: 0;
 }
 
@@ -428,7 +425,7 @@ const userInitials = computed(() => {
 .logo-title {
   font-size: 16px;
   font-weight: 800;
-  color: var(--color-text);
+  color: var(--color-text, #0f172a);
   line-height: 1;
   letter-spacing: -0.3px;
 }
@@ -436,8 +433,8 @@ const userInitials = computed(() => {
 .logo-badge {
   font-size: 9px;
   font-weight: 700;
-  color: var(--color-primary);
-  background: var(--color-primary-light);
+  color: #D22730;
+  background: rgba(210, 39, 48, 0.08);
   border: 1px solid rgba(210, 39, 48, 0.2);
   letter-spacing: 0.8px;
   padding: 1px 5px;
@@ -447,7 +444,7 @@ const userInitials = computed(() => {
 
 .logo-subtitle {
   font-size: 10px;
-  color: var(--color-subtle);
+  color: var(--color-muted, #64748b);
   line-height: 1;
   letter-spacing: 0.1px;
 }
@@ -456,43 +453,13 @@ const userInitials = computed(() => {
 
 .sidebar-nav {
   flex: 1;
-  padding: 8px 0 4px;
+  padding: 16px 0 4px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 
 .sidebar-nav::-webkit-scrollbar {
   width: 0;
-}
-
-/* Section group separator */
-.nav-section-group {
-  padding: 16px 16px 4px;
-  overflow: hidden;
-  opacity: 1;
-  transition: opacity var(--transition-base);
-}
-
-.collapsed .nav-section-group {
-  padding: 8px 0;
-  pointer-events: none;
-}
-
-.nav-section-label {
-  display: block;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  color: var(--color-sidebar-section-label);
-  text-transform: uppercase;
-  white-space: nowrap;
-  overflow: hidden;
-  transition: opacity var(--transition-base);
-}
-
-.collapsed .nav-section-label {
-  opacity: 0;
-  height: 0;
 }
 
 .nav-item {
@@ -502,9 +469,9 @@ const userInitials = computed(() => {
   gap: 10px;
   height: 40px;
   padding: 0 12px;
-  margin: 1px 8px;
+  margin: 2px 8px;
   border-radius: 10px;
-  color: var(--color-sidebar-text);
+  color: var(--color-sidebar-text, #475569);
   text-decoration: none;
   background: transparent;
   border: none;
@@ -518,31 +485,20 @@ const userInitials = computed(() => {
 
 .collapsed .nav-item {
   justify-content: center;
-  margin: 1px 8px;
+  margin: 2px 8px;
   padding: 0;
 }
 
 .nav-item:hover {
-  background: var(--color-sidebar-hover);
-  color: var(--color-text-secondary);
+  background: var(--color-sidebar-hover, #f1f5f9);
+  color: var(--color-text, #0f172a);
 }
 
 .nav-item.router-link-active {
-  background: var(--color-sidebar-active-bg);
-  color: var(--color-sidebar-text-active);
+  background: var(--color-sidebar-active-bg, #D22730);
+  color: var(--color-sidebar-text-active, #ffffff);
   font-weight: 600;
-}
-
-.nav-item.router-link-active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 22px;
-  width: 3px;
-  background: var(--color-primary);
-  border-radius: 0 3px 3px 0;
+  box-shadow: 0 4px 14px rgba(210, 39, 48, 0.28);
 }
 
 /* Icon wrapper */
@@ -555,10 +511,6 @@ const userInitials = computed(() => {
   border-radius: 8px;
   flex-shrink: 0;
   transition: background var(--transition-fast);
-}
-
-.nav-item.router-link-active .nav-icon-wrap {
-  background: var(--color-primary-light);
 }
 
 .nav-icon {
@@ -583,7 +535,7 @@ const userInitials = computed(() => {
 
 .dropdown-chevron {
   flex-shrink: 0;
-  color: var(--color-subtle);
+  color: var(--color-subtle, #94a3b8);
   transition: transform var(--transition-base);
 }
 
@@ -601,9 +553,9 @@ const userInitials = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding-left: 20px;
-  padding-top: 2px;
-  padding-bottom: 2px;
+  padding-left: 36px;
+  padding-top: 4px;
+  padding-bottom: 8px;
 }
 
 .sub-nav-item {
@@ -612,39 +564,26 @@ const userInitials = computed(() => {
   gap: 10px;
   height: 34px;
   padding: 0 10px;
-  margin: 0 8px;
+  margin: 1px 8px 1px 0;
   border-radius: 8px;
-  color: var(--color-muted);
+  color: #64748b;
   text-decoration: none;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .sub-nav-item:hover {
-  background: var(--color-sidebar-hover);
-  color: var(--color-text-secondary);
+  background: var(--color-sidebar-hover, #f1f5f9);
+  color: var(--color-text, #0f172a);
 }
 
 .sub-nav-item.is-sub-active {
-  color: var(--color-primary);
+  color: #D22730;
+  background: rgba(210, 39, 48, 0.08);
   font-weight: 600;
-  background: var(--color-sidebar-active-bg);
-}
-
-.sub-nav-dot {
-  width: 5px;
-  height: 5px;
-  min-width: 5px;
-  border-radius: 50%;
-  background: var(--color-subtle);
-  transition: background var(--transition-fast), transform var(--transition-fast);
-}
-
-.sub-nav-item.is-sub-active .sub-nav-dot {
-  background: var(--color-primary);
-  transform: scale(1.3);
+  border-left: 2px solid #D22730;
 }
 
 /* ── Tooltip ────────────────────────────────────── */
@@ -656,7 +595,7 @@ const userInitials = computed(() => {
   transform: translateY(-50%) translateX(-4px);
   padding: 6px 12px;
   border-radius: 8px;
-  background: var(--color-text);
+  background: #0f172a;
   color: #fff;
   font-size: 12px;
   font-weight: 600;
@@ -666,6 +605,7 @@ const userInitials = computed(() => {
   transition: opacity var(--transition-fast), transform var(--transition-fast);
   z-index: 100;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
+  border: none;
 }
 
 .nav-tooltip::before {
@@ -676,7 +616,7 @@ const userInitials = computed(() => {
   transform: translateY(-50%) rotate(45deg);
   width: 8px;
   height: 8px;
-  background: var(--color-text);
+  background: #0f172a;
 }
 
 .collapsed .nav-item:hover .nav-tooltip {
@@ -691,7 +631,8 @@ const userInitials = computed(() => {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-top: 1px solid var(--color-sidebar-divider);
+  border-top: 1px solid var(--color-sidebar-divider, #eef2f6);
+  background: #fafbfc;
   flex-shrink: 0;
   overflow: hidden;
   min-height: 60px;
@@ -707,7 +648,7 @@ const userInitials = computed(() => {
   height: 32px;
   min-width: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), #fb7185);
+  background: linear-gradient(135deg, #D22730, #fb7185);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -736,13 +677,13 @@ const userInitials = computed(() => {
 .user-role {
   font-size: 11.5px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--color-text, #0f172a);
   line-height: 1;
 }
 
 .user-email {
   font-size: 10.5px;
-  color: var(--color-subtle);
+  color: var(--color-muted, #64748b);
   line-height: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -760,19 +701,19 @@ const userInitials = computed(() => {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1.5px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-muted);
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
   cursor: pointer;
   transition: background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base);
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
   z-index: 50;
 }
 
 .collapse-toggle:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  box-shadow: var(--shadow-card);
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
 
 .collapse-chevron {
@@ -824,11 +765,6 @@ const userInitials = computed(() => {
   .nav-label {
     opacity: 1 !important;
     width: auto !important;
-  }
-
-  .nav-section-label {
-    opacity: 1 !important;
-    height: auto !important;
   }
 
   .logo-text {

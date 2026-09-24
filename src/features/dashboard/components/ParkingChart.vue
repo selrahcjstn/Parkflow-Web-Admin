@@ -272,6 +272,7 @@ const xLabelPositions = computed(() =>
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: 24px;
+  box-shadow: var(--shadow-soft);
 }
 
 .chart-card__header {
