@@ -21,6 +21,16 @@ const isSubmittingReview = ref(false)
 // QR Pass modal state
 const qrPassModalItem = ref<ParkingReservationItem | null>(null)
 const isQrZoomed = ref(false)
+const isCopied = ref(false)
+
+function copyRef(refNum: string) {
+  if (!refNum) return
+  navigator.clipboard.writeText(refNum)
+  isCopied.value = true
+  setTimeout(() => {
+    isCopied.value = false
+  }, 2000)
+}
 
 function openQrPassModal(item: ParkingReservationItem) {
   qrPassModalItem.value = item
@@ -632,103 +642,187 @@ async function handleCreateReservation() {
     <Teleport to="body">
       <Transition name="fade">
         <div v-if="reviewModalItem" class="modal-backdrop" @click="closeReviewModal">
-          <div class="modal-card" @click.stop>
-            <div class="modal-header">
-              <div>
-                <span class="modal-tag">Reservation Review Inspection</span>
-                <h2 class="modal-title">{{ reviewModalItem.referenceNumber }}</h2>
+          <div class="modal-card inspect-modal-card" @click.stop>
+            
+            <!-- Modern Header with BulSU Red Accent & Reference -->
+            <div class="inspect-header">
+              <div class="inspect-header-left">
+                <div class="inspect-type-pill" :class="{ 'inspect-type-pill--special': reviewModalItem.type === 1 || reviewModalItem.type === 'Special' }">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4z"/>
+                  </svg>
+                  <span>{{ (reviewModalItem.type === 1 || reviewModalItem.type === 'Special') ? 'Special Campus Pass' : 'Standard Reservation' }}</span>
+                </div>
+                <div class="inspect-ref-row">
+                  <h2 class="inspect-title">{{ reviewModalItem.referenceNumber }}</h2>
+                  <button class="inspect-copy-btn" @click="copyRef(reviewModalItem.referenceNumber)" title="Copy Reference Number">
+                    <svg v-if="!isCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    <span>{{ isCopied ? 'Copied' : 'Copy' }}</span>
+                  </button>
+                </div>
               </div>
-              <button class="close-btn" @click="closeReviewModal">&times;</button>
+              <div class="inspect-header-right">
+                <span class="status-badge status-badge--large" :class="`status-badge--${getStatusKey(reviewModalItem.status)}`">
+                  <span class="status-dot"></span>
+                  {{ formatStatus(reviewModalItem.status) }}
+                </span>
+                <button class="close-btn inspect-close-btn" @click="closeReviewModal">&times;</button>
+              </div>
             </div>
 
-            <div class="modal-body">
-              <div class="info-section">
-                <h4 class="section-label">Creator of the reservation</h4>
-                <div class="meta-row">
-                  <span class="meta-key">Creator Name</span>
-                  <span class="meta-val">{{ reviewModalItem.userFullName || 'Campus User' }}</span>
+            <!-- Modal Body with Structured Cards -->
+            <div class="inspect-body">
+              
+              <!-- 1. Applicant Information Card -->
+              <div class="inspect-card">
+                <div class="inspect-card-header">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  <span>Applicant Information</span>
                 </div>
-                <div class="meta-row">
-                  <span class="meta-key">Creator Email</span>
-                  <span class="meta-val">{{ reviewModalItem.userEmail || 'N/A' }}</span>
+                <div class="inspect-user-row">
+                  <div class="inspect-avatar" :style="{ background: getAvatarGradient(0) }">
+                    {{ getInitials(reviewModalItem.userFullName || 'Campus User') }}
+                  </div>
+                  <div class="inspect-user-details">
+                    <h3 class="inspect-user-name">{{ reviewModalItem.userFullName || 'Campus User' }}</h3>
+                    <p class="inspect-user-email">{{ reviewModalItem.userEmail || 'N/A' }}</p>
+                  </div>
+                </div>
+
+                <!-- Recipient Alert Banner if Special pass has dedicated receiver email -->
+                <div v-if="getNotifyEmailFromNotes(reviewModalItem.adminNotes)" class="inspect-notify-card">
+                  <div class="inspect-notify-icon">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                      <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                  </div>
+                  <div class="inspect-notify-text">
+                    <span class="inspect-notify-label">Pass Receiver Email</span>
+                    <span class="inspect-notify-val">{{ getNotifyEmailFromNotes(reviewModalItem.adminNotes) }}</span>
+                  </div>
                 </div>
               </div>
 
-              <div class="info-section" v-if="getNotifyEmailFromNotes(reviewModalItem.adminNotes)">
-                <h4 class="section-label" style="color: #6366f1;">Pass Receiver / Notification</h4>
-                <div class="meta-row">
-                  <span class="meta-key">Receiver Email</span>
-                  <span class="meta-val text-indigo font-600">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline;margin-right:4px;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    {{ getNotifyEmailFromNotes(reviewModalItem.adminNotes) }}
-                  </span>
+              <!-- 2. Schedule & Details Grid Card -->
+              <div class="inspect-card">
+                <div class="inspect-card-header">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <span>Requested Schedule & Purpose</span>
+                </div>
+                
+                <div class="inspect-grid">
+                  <div class="inspect-grid-item">
+                    <span class="inspect-grid-label">Reservation Date</span>
+                    <div class="inspect-grid-val text-amber font-600">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                      </svg>
+                      {{ formatReservationDate(reviewModalItem.reservationDate) }}
+                    </div>
+                  </div>
+
+                  <div class="inspect-grid-item">
+                    <span class="inspect-grid-label">Time Window</span>
+                    <div class="inspect-grid-val text-primary font-600">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                      {{ formatTimeSlot(reviewModalItem.startTime, reviewModalItem.endTime) }}
+                    </div>
+                  </div>
+
+                  <div class="inspect-grid-item inspect-grid-item--full">
+                    <span class="inspect-grid-label">Purpose / Stated Reason</span>
+                    <div class="inspect-reason-box">
+                      {{ reviewModalItem.reason }}
+                    </div>
+                  </div>
+
+                  <div v-if="reviewModalItem.plateNumber" class="inspect-grid-item">
+                    <span class="inspect-grid-label">Designated Vehicle</span>
+                    <div class="inspect-grid-val font-600 monospace">
+                      {{ reviewModalItem.plateNumber }} <span v-if="reviewModalItem.brand" class="text-muted font-normal">({{ reviewModalItem.brand }})</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div class="info-section">
-                <h4 class="section-label">Requested Schedule</h4>
-                <div class="meta-row">
-                  <span class="meta-key">Reservation Date</span>
-                  <span class="meta-val text-amber">{{ formatReservationDate(reviewModalItem.reservationDate) }}</span>
+              <!-- 3. Admin Remarks Section -->
+              <div class="inspect-card">
+                <div class="inspect-card-header">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                  </svg>
+                  <span>Admin Review Remarks / Notes</span>
                 </div>
-                <div class="meta-row">
-                  <span class="meta-key">Time Slot Window</span>
-                  <span class="meta-val">{{ formatTimeSlot(reviewModalItem.startTime, reviewModalItem.endTime) }}</span>
-                </div>
-                <div class="meta-row">
-                  <span class="meta-key">Stated Purpose</span>
-                  <span class="meta-val">{{ reviewModalItem.reason }}</span>
-                </div>
-                <div class="meta-row">
-                  <span class="meta-key">Current Status</span>
-                  <span class="meta-val">
-                    <span class="status-badge" :class="`status-badge--${getStatusKey(reviewModalItem.status)}`">
-                      {{ formatStatus(reviewModalItem.status) }}
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              <!-- Admin Review Notes input -->
-              <div class="info-section">
-                <label class="form-label">Admin Notes / Review Remarks</label>
                 <textarea
                   v-model="reviewNotes"
-                  rows="3"
-                  class="form-textarea"
-                  placeholder="Enter approval remarks or reason for decline..."
+                  rows="2"
+                  class="inspect-textarea"
+                  placeholder="Enter remarks, instructions, or decline rationale (optional)..."
                 ></textarea>
               </div>
+
             </div>
 
-            <div class="modal-footer">
-              <button class="btn-modal-cancel" @click="closeReviewModal">Close</button>
-              <div class="footer-actions">
+            <!-- Modal Footer Actions -->
+            <div class="inspect-footer">
+              <button class="btn-inspect-close" @click="closeReviewModal">Close</button>
+              <div class="inspect-footer-actions">
                 <button
-                  class="btn-modal-qr"
+                  class="btn-inspect-qr"
                   @click="openQrPassModal(reviewModalItem); closeReviewModal();"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+                    <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                  </svg>
                   View QR Pass
                 </button>
                 <button
-                  class="btn-modal-decline"
+                  v-if="getStatusKey(reviewModalItem.status) === 'pending'"
+                  class="btn-inspect-decline"
                   :disabled="isSubmittingReview"
                   @click="handleReject(reviewModalItem)"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
                   Decline Request
                 </button>
                 <button
-                  class="btn-modal-approve"
+                  v-if="getStatusKey(reviewModalItem.status) === 'pending'"
+                  class="btn-inspect-approve"
                   :disabled="isSubmittingReview"
                   @click="handleApprove(reviewModalItem)"
                 >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
                   Approve Pass
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       </Transition>
@@ -738,116 +832,170 @@ async function handleCreateReservation() {
     <Teleport to="body">
       <Transition name="fade">
         <div v-if="qrPassModalItem" class="modal-backdrop" @click="closeQrPassModal">
-          <div class="modal-card qr-pass-card" @click.stop>
+          <div class="qr-ticket-container" @click.stop>
             
-            <!-- Pass Header Ticket Banner -->
-            <div class="qr-pass-header">
-              <div class="qr-pass-header-content">
-                <div class="qr-pass-badge">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4z"/></svg>
-                  PARKFLOW OFFICIAL PARKING PERMIT
-                </div>
-                <h2 class="qr-pass-title">Digital Entry Pass</h2>
-                <div class="qr-pass-ref-wrapper">
-                  <span class="qr-pass-ref monospace">{{ qrPassModalItem.referenceNumber }}</span>
-                </div>
-              </div>
-              <button class="close-btn qr-close-btn" @click="closeQrPassModal">&times;</button>
-            </div>
-
-            <!-- Pass Body -->
-            <div class="qr-pass-body">
-              <!-- QR Code Display Box -->
-              <div class="qr-display-box">
-                <div class="qr-code-frame" @click="isQrZoomed = true" title="Click to zoom QR Code">
-                  <img
-                    :src="`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrPassModalItem.referenceNumber)}`"
-                    alt="Parking Pass QR Code"
-                    class="qr-code-img"
-                  />
-                  <div class="qr-zoom-indicator">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <circle cx="11" cy="11" r="8"></circle>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                      <line x1="11" y1="8" x2="11" y2="14"></line>
-                      <line x1="8" y1="11" x2="14" y2="11"></line>
-                    </svg>
-                    Tap to Zoom
-                  </div>
-                </div>
-                <p class="qr-scan-hint">Present code to campus gate scanner or security guard</p>
-              </div>
-
-              <!-- Fullscreen Zoomed QR Modal -->
-              <Teleport to="body">
-                <Transition name="fade">
-                  <div v-if="isQrZoomed && qrPassModalItem" class="qr-fullscreen-zoom-backdrop" @click="isQrZoomed = false">
-                    <div class="qr-zoom-modal-card" @click.stop>
-                      <button class="qr-zoom-close-btn" @click="isQrZoomed = false">&times;</button>
-                      <div class="qr-zoom-img-wrapper">
-                        <img
-                          :src="`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrPassModalItem.referenceNumber)}`"
-                          alt="Zoomed QR Code"
-                          class="qr-zoomed-img"
-                        />
-                      </div>
-                      <p class="qr-zoom-ref-text">{{ qrPassModalItem.referenceNumber }}</p>
-                      <p class="qr-zoom-hint-text">Digital Permit Pass • High Resolution Scan</p>
+            <!-- Pass Ticket Card -->
+            <div class="qr-ticket-card">
+              
+              <!-- Ticket Header (BulSU Crimson Gradient) -->
+              <div class="qr-ticket-header">
+                <div class="qr-ticket-header-top">
+                  <div class="qr-brand-badge">
+                    <div class="qr-brand-icon">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+                      </svg>
+                    </div>
+                    <div class="qr-brand-text">
+                      <span class="qr-brand-org">BULACAN STATE UNIVERSITY</span>
+                      <span class="qr-brand-sub">ParkFlow Security & Parking System</span>
                     </div>
                   </div>
-                </Transition>
-              </Teleport>
+                  <button class="qr-ticket-close-btn" @click="closeQrPassModal" title="Close Pass">&times;</button>
+                </div>
 
-              <!-- Pass Info Ticket Details -->
-              <div class="qr-pass-details">
-                <div class="qr-detail-row">
-                  <span class="qr-detail-label">Creator Name</span>
-                  <span class="qr-detail-val bold">{{ qrPassModalItem.userFullName || 'Campus Visitor / Staff' }}</span>
-                </div>
-                <div class="qr-detail-row" v-if="qrPassModalItem.userEmail">
-                  <span class="qr-detail-label">Creator Email</span>
-                  <span class="qr-detail-val">{{ qrPassModalItem.userEmail }}</span>
-                </div>
-                <div class="qr-detail-row" v-if="getNotifyEmailFromNotes(qrPassModalItem.adminNotes)">
-                  <span class="qr-detail-label">Receiver Email</span>
-                  <span class="qr-detail-val text-indigo font-600">{{ getNotifyEmailFromNotes(qrPassModalItem.adminNotes) }}</span>
-                </div>
-                <div class="qr-detail-row">
-                  <span class="qr-detail-label">Reserved Date</span>
-                  <span class="qr-detail-val text-amber font-600">{{ formatReservationDate(qrPassModalItem.reservationDate) }}</span>
-                </div>
-                <div class="qr-detail-row">
-                  <span class="qr-detail-label">Authorized Window</span>
-                  <span class="qr-detail-val text-indigo font-600">{{ formatTimeSlot(qrPassModalItem.startTime, qrPassModalItem.endTime) }}</span>
-                </div>
-                <div class="qr-detail-row">
-                  <span class="qr-detail-label">Event / Purpose</span>
-                  <span class="qr-detail-val">{{ qrPassModalItem.reason }}</span>
-                </div>
-                <div class="qr-detail-row">
-                  <span class="qr-detail-label">Pass Status</span>
-                  <span class="qr-detail-val">
-                    <span class="status-badge" :class="`status-badge--${getStatusKey(qrPassModalItem.status)}`">
+                <div class="qr-ticket-header-mid">
+                  <div class="qr-pass-title-row">
+                    <h2 class="qr-ticket-pass-name">
+                      {{ (qrPassModalItem.type === 1 || qrPassModalItem.type === 'Special') ? 'Special Campus Parking Pass' : 'Campus Visitor Permit' }}
+                    </h2>
+                    <span class="qr-ticket-status-pill" :class="`qr-ticket-status-pill--${getStatusKey(qrPassModalItem.status)}`">
+                      <span class="status-pulse-dot"></span>
                       {{ formatStatus(qrPassModalItem.status) }}
                     </span>
-                  </span>
+                  </div>
+
+                  <div class="qr-ticket-ref-bar">
+                    <span class="qr-ticket-ref-label">PASS PERMIT NO.</span>
+                    <div class="qr-ticket-ref-code">
+                      <span class="monospace">{{ qrPassModalItem.referenceNumber }}</span>
+                      <button class="qr-ticket-copy-btn" @click="copyRef(qrPassModalItem.referenceNumber)" title="Copy permit number">
+                        <svg v-if="!isCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Pass Footer Actions -->
-            <div class="qr-pass-footer">
-              <button class="btn-modal-cancel" @click="closeQrPassModal">Close</button>
-              <div class="footer-actions">
-                <button class="btn-modal-outline" @click="downloadQrCode(qrPassModalItem)">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                  Get QR Image
-                </button>
-                <button class="btn-modal-print" @click="printPass">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                  Print Pass
-                </button>
+              <!-- Ticket Notch Divider (Boarding Pass Punchout Effect) -->
+              <div class="ticket-notch-divider">
+                <div class="ticket-notch ticket-notch--left"></div>
+                <div class="ticket-dashed-line"></div>
+                <div class="ticket-notch ticket-notch--right"></div>
               </div>
+
+              <!-- Ticket Body -->
+              <div class="qr-ticket-body">
+                
+                <!-- QR Hero Section with Alignment Corners -->
+                <div class="qr-code-showcase">
+                  <div class="qr-box-wrapper" @click="isQrZoomed = true" title="Click to view full-resolution QR code">
+                    <div class="qr-corner qr-corner--tl"></div>
+                    <div class="qr-corner qr-corner--tr"></div>
+                    <div class="qr-corner qr-corner--bl"></div>
+                    <div class="qr-corner qr-corner--br"></div>
+                    
+                    <img
+                      :src="`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrPassModalItem.referenceNumber)}`"
+                      alt="Digital Pass QR Code"
+                      class="qr-code-matrix"
+                    />
+
+                    <div class="qr-zoom-badge">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                        <line x1="11" y1="8" x2="11" y2="14"/>
+                        <line x1="8" y1="11" x2="14" y2="11"/>
+                      </svg>
+                      <span>Enlarge QR</span>
+                    </div>
+                  </div>
+                  
+                  <div class="qr-instructions">
+                    <div class="qr-gate-badge">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+                        <polyline points="2 17 12 22 22 17"/>
+                        <polyline points="2 12 12 17 22 12"/>
+                      </svg>
+                      <span>Valid at Campus Gate Readers</span>
+                    </div>
+                    <p class="qr-subtext">Scan at terminal or show to security guard on duty</p>
+                  </div>
+                </div>
+
+                <!-- Pass Holder & Verification Details 2x2 Grid -->
+                <div class="qr-specs-grid">
+                  <div class="qr-spec-card">
+                    <span class="qr-spec-label">PASS HOLDER</span>
+                    <span class="qr-spec-val font-600">{{ qrPassModalItem.userFullName || 'Campus Visitor / Staff' }}</span>
+                    <span class="qr-spec-sub">{{ getDisplayEmail(qrPassModalItem) }}</span>
+                  </div>
+
+                  <div class="qr-spec-card">
+                    <span class="qr-spec-label">VALID DATE</span>
+                    <span class="qr-spec-val text-amber font-600">
+                      {{ formatReservationDate(qrPassModalItem.reservationDate) }}
+                    </span>
+                    <span class="qr-spec-sub">Single-Day Pass</span>
+                  </div>
+
+                  <div class="qr-spec-card">
+                    <span class="qr-spec-label">ACCESS TIME WINDOW</span>
+                    <span class="qr-spec-val text-primary font-600">
+                      {{ formatTimeSlot(qrPassModalItem.startTime, qrPassModalItem.endTime) }}
+                    </span>
+                    <span class="qr-spec-sub">Gate Security Window</span>
+                  </div>
+
+                  <div class="qr-spec-card">
+                    <span class="qr-spec-label">EVENT / PURPOSE</span>
+                    <span class="qr-spec-val font-500 ellipsis" :title="qrPassModalItem.reason">
+                      {{ qrPassModalItem.reason }}
+                    </span>
+                    <span class="qr-spec-sub" v-if="qrPassModalItem.plateNumber">Plate: {{ qrPassModalItem.plateNumber }}</span>
+                    <span class="qr-spec-sub" v-else>Campus Event Priority</span>
+                  </div>
+                </div>
+
+                <!-- Barcode Simulation for Authentic Paper/Digital Pass Look -->
+                <div class="qr-barcode-strip">
+                  <div class="barcode-lines"></div>
+                  <span class="barcode-digits monospace">{{ qrPassModalItem.referenceNumber }}</span>
+                </div>
+
+              </div>
+
+              <!-- Ticket Action Footer -->
+              <div class="qr-ticket-footer">
+                <button class="btn-ticket-close" @click="closeQrPassModal">Close</button>
+                <div class="ticket-action-group">
+                  <button class="btn-ticket-download" @click="downloadQrCode(qrPassModalItem)" title="Download High-Res QR">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download QR
+                  </button>
+                  <button class="btn-ticket-print" @click="printPass" title="Print Digital Permit">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 6 2 18 2 18 9"/>
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                      <rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                    Print Official Pass
+                  </button>
+                </div>
+              </div>
+
             </div>
 
           </div>
@@ -1849,177 +1997,17 @@ async function handleCreateReservation() {
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
 }
 
-.qr-pass-card {
-  max-width: 480px;
-  padding: 0 !important;
+/* Helper Typography & Text Utilities */
+.font-normal { font-weight: 400; }
+.font-500 { font-weight: 500; }
+.font-600 { font-weight: 600; }
+.font-700 { font-weight: 700; }
+.text-primary { color: var(--color-primary, #d22730); }
+.text-muted { color: var(--color-muted, #64748b); }
+.ellipsis {
   overflow: hidden;
-  border-radius: 20px !important;
-  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
-  background: var(--color-surface, #ffffff);
-}
-
-.qr-pass-header {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  padding: 24px 28px;
-  position: relative;
-  color: #ffffff;
-}
-
-.qr-pass-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(8px);
-  border-radius: 20px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: #ffffff;
-  margin-bottom: 8px;
-}
-
-.qr-pass-title {
-  font-size: 22px;
-  font-weight: 800;
-  margin: 0;
-  letter-spacing: -0.5px;
-  color: #ffffff;
-}
-
-.qr-pass-ref-wrapper {
-  margin-top: 8px;
-}
-
-.qr-pass-ref {
-  font-size: 13px;
-  font-weight: 700;
-  background: rgba(0, 0, 0, 0.25);
-  padding: 4px 12px;
-  border-radius: 6px;
-  letter-spacing: 1.5px;
-  color: #a5b4fc;
-}
-
-.qr-close-btn {
-  position: absolute;
-  top: 18px;
-  right: 20px;
-  color: rgba(255, 255, 255, 0.8) !important;
-  font-size: 24px;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-.qr-pass-body {
-  padding: 24px 28px;
-}
-
-.qr-display-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  background: var(--color-surface-muted, #f8fafc);
-  border: 2px dashed var(--color-border, #cbd5e1);
-  border-radius: 16px;
-  margin-bottom: 20px;
-}
-
-.qr-code-frame {
-  padding: 14px;
-  background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.qr-code-img {
-  width: 210px;
-  height: 210px;
-  display: block;
-}
-
-.qr-scan-hint {
-  font-size: 12px;
-  color: var(--color-muted);
-  margin-top: 12px;
-  margin-bottom: 0;
-  text-align: center;
-  font-weight: 500;
-}
-
-.qr-pass-details {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.qr-detail-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--color-border, #f1f5f9);
-  font-size: 13px;
-}
-.qr-detail-row:last-child {
-  border-bottom: none;
-}
-
-.qr-detail-label {
-  color: var(--color-muted);
-  font-weight: 500;
-}
-
-.qr-detail-val {
-  color: var(--color-text);
-  text-align: right;
-}
-
-.qr-pass-footer {
-  padding: 16px 28px;
-  background: var(--color-surface-muted);
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.btn-print {
-  background: #4f46e5;
-  color: #ffffff;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-.btn-print:hover {
-  background: #4338ca;
-}
-
-.btn-outline {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .special-pass-chip {
@@ -2035,22 +2023,961 @@ async function handleCreateReservation() {
   width: fit-content;
 }
 
+/* ==========================================================================
+   REVIEW / INSPECT MODAL (BulSU Red Accent & Dark Slate Modern Structure)
+   ========================================================================== */
+.inspect-modal-card {
+  max-width: 640px !important;
+  border-radius: 18px !important;
+  overflow: hidden;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.inspect-header {
+  padding: 20px 24px;
+  background: var(--color-surface-muted);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.inspect-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inspect-type-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-muted);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  padding: 3px 10px;
+  border-radius: 20px;
+  width: fit-content;
+}
+
+.inspect-type-pill--special {
+  color: var(--color-primary, #d22730);
+  background: rgba(210, 39, 48, 0.08);
+  border-color: rgba(210, 39, 48, 0.25);
+}
+
+.inspect-ref-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.inspect-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin: 0;
+  font-family: monospace;
+  letter-spacing: 0.5px;
+}
+
+.inspect-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.inspect-copy-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-muted);
+  transform: translateY(-1px);
+}
+
+.inspect-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-badge--large {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.inspect-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--color-muted);
+  font-size: 22px;
+  cursor: pointer;
+  transition: all 150ms ease;
+  line-height: 1;
+}
+
+.inspect-close-btn:hover {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.inspect-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(85vh - 160px);
+  overflow-y: auto;
+}
+
+.inspect-card {
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inspect-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--color-muted);
+}
+
+.inspect-user-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.inspect-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.inspect-user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.inspect-user-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.inspect-user-email {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin: 2px 0 0;
+  word-break: break-all;
+}
+
+.inspect-notify-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.inspect-notify-icon {
+  color: #6366f1;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.inspect-notify-text {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  min-width: 0;
+}
+
+.inspect-notify-label {
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.inspect-notify-val {
+  font-weight: 600;
+  color: var(--color-text);
+  word-break: break-all;
+}
+
+.inspect-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.inspect-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inspect-grid-item--full {
+  grid-column: 1 / -1;
+}
+
+.inspect-grid-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.inspect-grid-val {
+  font-size: 13px;
+  color: var(--color-text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inspect-reason-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.inspect-textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 150ms ease;
+  font-family: inherit;
+}
+
+.inspect-textarea:focus {
+  border-color: var(--color-primary, #d22730);
+}
+
+.inspect-footer {
+  padding: 16px 24px;
+  background: var(--color-surface-muted);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.inspect-footer-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-inspect-close {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-inspect-close:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-muted);
+}
+
+.btn-inspect-qr {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #6366f1;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-inspect-qr:hover {
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  transform: translateY(-1px);
+}
+
+.btn-inspect-decline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-inspect-decline:hover:not(:disabled) {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-inspect-decline:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-inspect-approve {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border: none;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 150ms ease;
+}
+
+.btn-inspect-approve:hover:not(:disabled) {
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+
+.btn-inspect-approve:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   DIGITAL QR PARKING PASS TICKET MODAL (Boarding Pass / BulSU Crimson)
+   ========================================================================== */
+.qr-ticket-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  perspective: 1000px;
+}
+
+.qr-ticket-card {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  color: #0f172a;
+}
+
+.qr-ticket-header {
+  background: linear-gradient(135deg, #d22730 0%, #8b131a 100%);
+  padding: 22px 24px 18px;
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+}
+
+.qr-ticket-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qr-brand-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-brand-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.qr-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.qr-brand-org {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  color: #ffffff;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.qr-brand-sub {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  letter-spacing: 0.4px;
+}
+
+.qr-ticket-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms ease;
+}
+
+.qr-ticket-close-btn:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.qr-ticket-header-mid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qr-pass-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.qr-ticket-pass-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+.qr-ticket-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.qr-ticket-status-pill--approved {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.qr-ticket-status-pill--pending {
+  background: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+.qr-ticket-status-pill--rejected,
+.qr-ticket-status-pill--cancelled {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.status-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: inline-block;
+  animation: pulse-dot 1.8s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.qr-ticket-ref-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+  padding: 7px 12px;
+}
+
+.qr-ticket-ref-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: rgba(255, 255, 255, 0.75);
+  text-transform: uppercase;
+}
+
+.qr-ticket-ref-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.qr-ticket-copy-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 150ms ease;
+}
+
+.qr-ticket-copy-btn:hover {
+  color: #ffffff;
+}
+
+/* Perforated Notch Divider */
+.ticket-notch-divider {
+  position: relative;
+  height: 24px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ticket-notch {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-overlay, #0b0f19);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.ticket-notch--left {
+  left: -12px;
+}
+
+.ticket-notch--right {
+  right: -12px;
+}
+
+.ticket-dashed-line {
+  width: calc(100% - 36px);
+  border-bottom: 2px dashed #e2e8f0;
+  height: 1px;
+}
+
+/* Ticket Body */
+.qr-ticket-body {
+  padding: 14px 24px 20px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.qr-code-showcase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-box-wrapper {
+  position: relative;
+  padding: 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-box-wrapper:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e1;
+}
+
+/* Viewfinder corner accents */
+.qr-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: #d22730;
+  border-style: solid;
+  pointer-events: none;
+}
+
+.qr-corner--tl {
+  top: 6px;
+  left: 6px;
+  border-width: 3px 0 0 3px;
+  border-top-left-radius: 6px;
+}
+
+.qr-corner--tr {
+  top: 6px;
+  right: 6px;
+  border-width: 3px 3px 0 0;
+  border-top-right-radius: 6px;
+}
+
+.qr-corner--bl {
+  bottom: 6px;
+  left: 6px;
+  border-width: 0 0 3px 3px;
+  border-bottom-left-radius: 6px;
+}
+
+.qr-corner--br {
+  bottom: 6px;
+  right: 6px;
+  border-width: 0 3px 3px 0;
+  border-bottom-right-radius: 6px;
+}
+
+.qr-code-matrix {
+  width: 190px;
+  height: 190px;
+  display: block;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.qr-zoom-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.qr-instructions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.qr-gate-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(210, 39, 48, 0.08);
+  color: #d22730;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.qr-subtext {
+  font-size: 11px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* 2x2 Specs Grid */
+.qr-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.qr-spec-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qr-spec-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.qr-spec-val {
+  font-size: 12px;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.qr-spec-sub {
+  font-size: 10.5px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+/* Barcode strip simulation */
+.qr-barcode-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0 2px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.barcode-lines {
+  height: 24px;
+  width: 80%;
+  background: repeating-linear-gradient(
+    90deg,
+    #0f172a,
+    #0f172a 2px,
+    transparent 2px,
+    transparent 4px,
+    #0f172a 4px,
+    #0f172a 7px,
+    transparent 7px,
+    transparent 9px,
+    #0f172a 9px,
+    #0f172a 10px,
+    transparent 10px,
+    transparent 13px
+  );
+  opacity: 0.7;
+}
+
+.barcode-digits {
+  font-size: 11px;
+  letter-spacing: 3px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+/* Ticket Footer */
+.qr-ticket-footer {
+  padding: 14px 24px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-ticket-close {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-ticket-close:hover {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.ticket-action-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-ticket-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.btn-ticket-download:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.btn-ticket-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #d22730 0%, #b01e26 100%);
+  border: none;
+  color: #ffffff;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.3);
+  transition: all 150ms ease;
+}
+
+.btn-ticket-print:hover {
+  box-shadow: 0 6px 16px rgba(210, 39, 48, 0.45);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   PRINT STYLES FOR OFFICIAL PASS
+   ========================================================================== */
 @media print {
   body * {
     visibility: hidden;
   }
-  .qr-pass-card, .qr-pass-card * {
+  .qr-ticket-card,
+  .qr-ticket-card * {
     visibility: visible;
   }
-  .qr-pass-card {
+  .qr-ticket-card {
     position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    max-width: 100%;
-    box-shadow: none;
+    left: 50%;
+    top: 20px;
+    transform: translateX(-50%);
+    width: 440px;
+    max-width: 440px;
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .qr-pass-footer, .close-btn {
+  .qr-ticket-footer,
+  .qr-ticket-close-btn,
+  .qr-zoom-badge {
     display: none !important;
   }
 }
