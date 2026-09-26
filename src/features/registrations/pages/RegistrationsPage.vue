@@ -520,10 +520,10 @@ function openZoomImage(url?: string) {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
           </svg>
-          Unified Approval & Verification Portal
+          Client Verification & Approvals Portal
         </div>
-        <h1 class="registrations-page__title">Campus Approvals Portal</h1>
-        <p class="registrations-page__subtitle">Review and verify student registrations, class schedules, and vehicle clearance documents in one unified portal.</p>
+        <h1 class="registrations-page__title">Client Approvals Portal</h1>
+        <p class="registrations-page__subtitle">Review and verify client account clearance for Students, Staff/Faculty, and Academic/Non-Academic Personnel (Schedules, COR proofs, and vehicle clearance).</p>
       </div>
 
       <div class="header-actions">
@@ -1264,7 +1264,7 @@ function openZoomImage(url?: string) {
 
 <style scoped>
 .registrations-page {
-  padding: 24px;
+  padding: 32px 24px 24px 24px;
   max-width: 1400px;
   margin: 0 auto;
 }
