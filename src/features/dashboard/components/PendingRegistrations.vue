@@ -25,10 +25,12 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-const pendingCount = computed(() => registrations.filter((r) => r.status === 'pending').length)
+// Only pending registrations
+const pendingRegistrations = computed(() => registrations.filter((r) => r.status === 'pending'))
+const pendingCount = computed(() => pendingRegistrations.value.length)
 
-// Limit dashboard widget display to top 4 items
-const displayedRegistrations = computed(() => registrations.slice(0, 4))
+// Limit dashboard widget display to top 4 pending items
+const displayedRegistrations = computed(() => pendingRegistrations.value.slice(0, 4))
 
 function goToRegistrations() {
   router.push('/registrations')
@@ -68,118 +70,71 @@ onMounted(async () => {
     console.error('Error fetching COR submissions:', error)
   }
 })
-
-async function approve(reg: PendingRegistration) {
-  const guid = submissionGuids[reg.id]
-  if (!guid) {
-    reg.status = 'approved'
-    return
-  }
-
-  try {
-    const response = await api.patch(`/cor-submissions/${guid}/validate`, {
-      verificationStatus: 2 // Verified
-    })
-    if (response.data?.isSuccess) {
-      reg.status = 'approved'
-    }
-  } catch (error) {
-    console.error('Error approving submission:', error)
-  }
-}
-
-async function reject(reg: PendingRegistration) {
-  const reason = window.prompt('Enter rejection reason for this registration (optional):', 'Invalid or unreadable document uploaded.')
-  if (reason === null) return
-
-  const guid = submissionGuids[reg.id]
-  if (!guid) {
-    reg.status = 'rejected'
-    return
-  }
-
-  try {
-    const response = await api.patch(`/cor-submissions/${guid}/validate`, {
-      verificationStatus: 3, // Rejected
-      rejectionReason: reason
-    })
-    if (response.data?.isSuccess) {
-      reg.status = 'rejected'
-    }
-  } catch (error) {
-    console.error('Error rejecting submission:', error)
-  }
-}
 </script>
 
 <template>
   <div class="pending-card">
     <div class="pending-card__header">
-      <div class="pending-card__header-left">
-        <div class="pending-card__title-row">
-          <h3 class="pending-card__title">Pending Registrations</h3>
-          <span v-if="pendingCount > 0" class="pending-card__count">{{ pendingCount }}</span>
-        </div>
-        <span class="pending-card__subtitle">Accounts awaiting document verification</span>
+      <div class="pending-card__title-row">
+        <h3 class="pending-card__title">Pending Registrations</h3>
+        <span v-if="pendingCount > 0" class="pending-card__count">{{ pendingCount }}</span>
       </div>
-      <button class="pending-card__see-all" @click="goToRegistrations">
+      <button class="pending-card__link" @click="goToRegistrations">
         View all →
       </button>
     </div>
 
-    <div class="pending-card__list">
-      <div v-if="displayedRegistrations.length === 0" class="pending-card__empty">
-        No pending registrations awaiting verification.
-      </div>
-      <div
-        v-else
-        v-for="reg in displayedRegistrations"
-        :key="reg.id"
-        class="pending-card__row"
-      >
-        <!-- Column 1: User Info -->
-        <div class="pending-card__col pending-card__col--user">
-          <div class="pending-card__avatar">
-            {{ getInitials(reg.fullName) }}
-          </div>
-          <div class="pending-card__info">
-            <span class="pending-card__name">{{ reg.fullName }}</span>
-            <span class="pending-card__email">{{ reg.email }}</span>
-          </div>
-        </div>
-
-        <!-- Column 2: Date Applied -->
-        <div class="pending-card__col pending-card__col--date">
-          <span class="pending-card__date-label">Applied</span>
-          <span class="pending-card__date-val">{{ reg.dateApplied }}</span>
-        </div>
-
-        <!-- Column 3: Vehicle Info -->
-        <div class="pending-card__col pending-card__col--vehicle">
-          <span class="pending-card__plate">{{ reg.vehiclePlate }}</span>
-          <span class="pending-card__vehicle-type">{{ reg.vehicleType }}</span>
-        </div>
-
-        <!-- Column 4: Actions -->
-        <div class="pending-card__col pending-card__col--actions">
-          <Transition name="pending-fade" mode="out-in">
-            <div v-if="reg.status === 'pending'" class="pending-card__actions" key="actions">
-              <button class="pending-card__btn pending-card__btn--approve" @click="approve(reg)">
-                Approve
+    <div class="pending-card__table-wrapper">
+      <table class="pending-card__table">
+        <thead>
+          <tr>
+            <th>Applicant</th>
+            <th>Date Applied</th>
+            <th>Vehicle</th>
+            <th class="text-right">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="displayedRegistrations.length === 0">
+            <td colspan="4" class="pending-card__empty">
+              No pending registrations awaiting verification.
+            </td>
+          </tr>
+          <tr
+            v-else
+            v-for="reg in displayedRegistrations"
+            :key="reg.id"
+            class="pending-card__row"
+            @click="goToRegistrations"
+          >
+            <td>
+              <div class="pending-card__user">
+                <div class="pending-card__avatar">
+                  {{ getInitials(reg.fullName) }}
+                </div>
+                <div class="pending-card__user-info">
+                  <span class="pending-card__name">{{ reg.fullName }}</span>
+                  <span class="pending-card__email">{{ reg.email }}</span>
+                </div>
+              </div>
+            </td>
+            <td>
+              <span class="pending-card__date">{{ reg.dateApplied }}</span>
+            </td>
+            <td>
+              <div class="pending-card__vehicle">
+                <span class="pending-card__plate">{{ reg.vehiclePlate }}</span>
+                <span class="pending-card__vehicle-type">{{ reg.vehicleType }}</span>
+              </div>
+            </td>
+            <td class="text-right">
+              <button class="pending-card__btn-review" @click.stop="goToRegistrations">
+                Review
               </button>
-              <button class="pending-card__btn pending-card__btn--reject" @click="reject(reg)">
-                Reject
-              </button>
-            </div>
-            <span v-else-if="reg.status === 'approved'" class="pending-card__result pending-card__result--approved" key="approved">
-              ✓ Approved
-            </span>
-            <span v-else class="pending-card__result pending-card__result--rejected" key="rejected">
-              ✗ Rejected
-            </span>
-          </Transition>
-        </div>
-      </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
@@ -220,25 +175,15 @@ async function reject(reg: PendingRegistration) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 6px;
-  background: rgba(210, 39, 48, 0.08);
-  border: 1px solid rgba(210, 39, 48, 0.2);
-  color: #D22730;
+  padding: 2px 8px;
+  border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
+  background: rgba(210, 39, 48, 0.1);
+  color: #D22730;
 }
 
-.pending-card__subtitle {
-  font-size: 12px;
-  color: var(--color-muted);
-  margin-top: 2px;
-  display: block;
-}
-
-.pending-card__see-all {
+.pending-card__link {
   font-size: 12px;
   font-weight: 600;
   color: #D22730;
@@ -246,52 +191,83 @@ async function reject(reg: PendingRegistration) {
   border: none;
   cursor: pointer;
   padding: 0;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--transition-fast, 150ms ease);
 }
 
-.pending-card__see-all:hover {
+.pending-card__link:hover {
   opacity: 0.8;
   text-decoration: underline;
 }
 
-.pending-card__list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
+.pending-card__table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pending-card__table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+}
+
+.pending-card__table thead th {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--color-muted);
+  text-align: left;
+  padding: 10px 14px;
+  background: var(--color-surface-lighter, #f8f9fb);
+  border-bottom: none;
+}
+
+.pending-card__table thead th.text-right {
+  text-align: right;
+}
+
+.pending-card__table thead th:first-child {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+
+.pending-card__table thead th:last-child {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
 }
 
 .pending-card__row {
-  display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) 110px 140px auto;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  cursor: pointer;
   transition: background 150ms ease;
 }
 
-.pending-card__row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
+.pending-card__row:hover {
+  background: var(--color-surface-lighter, #f8f9fb);
 }
 
-.pending-card__col {
-  min-width: 0;
+.pending-card__row td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  font-size: 13px;
+  color: var(--color-text);
+  vertical-align: middle;
 }
 
-.pending-card__col--user {
+.pending-card__row td.text-right {
+  text-align: right;
+}
+
+.pending-card__user {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
 .pending-card__avatar {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: #D22730;
+  background: #4f46e5;
   color: #ffffff;
   font-size: 12px;
   font-weight: 700;
@@ -299,210 +275,81 @@ async function reject(reg: PendingRegistration) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  user-select: none;
-  letter-spacing: 0.5px;
 }
 
-.pending-card__info {
+.pending-card__user-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
 }
 
 .pending-card__name {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1;
+  line-height: 1.3;
 }
 
 .pending-card__email {
   font-size: 11.5px;
   color: var(--color-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1;
 }
 
-.pending-card__col--date {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  white-space: nowrap;
-}
-
-.pending-card__date-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--color-subtle, #94a3b8);
-}
-
-.pending-card__date-val {
-  font-size: 12px;
+.pending-card__date {
+  font-size: 12.5px;
+  color: var(--color-text);
   font-weight: 500;
-  color: var(--color-text-secondary, #475569);
-  white-space: nowrap;
 }
 
-.pending-card__col--vehicle {
+.pending-card__vehicle {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  white-space: nowrap;
 }
 
 .pending-card__plate {
   font-family: 'SF Mono', 'Fira Code', monospace;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-text);
-  letter-spacing: 0.3px;
-  white-space: nowrap;
 }
 
 .pending-card__vehicle-type {
-  display: inline-block;
-  padding: 1.5px 6px;
-  border-radius: 4px;
-  background: var(--color-surface-muted, #f1f5f9);
-  border: 1px solid var(--color-border, #e2e8f0);
-  color: var(--color-muted, #64748b);
-  font-size: 10px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.pending-card__col--actions {
-  display: flex;
-  justify-content: flex-end;
-  white-space: nowrap;
-}
-
-.pending-card__right {
-  flex-shrink: 0;
-  min-width: 140px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.pending-card__actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.pending-card__btn {
-  padding: 5px 12px;
-  border-radius: 6px;
   font-size: 11.5px;
+  color: var(--color-muted);
+}
+
+.pending-card__btn-review {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid transparent;
   transition: all 150ms ease;
 }
 
-.pending-card__btn--approve {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-  border-color: rgba(16, 185, 129, 0.2);
-}
-
-.pending-card__btn--approve:hover {
-  background: #10b981;
+.pending-card__row:hover .pending-card__btn-review,
+.pending-card__btn-review:hover {
+  background: #4f46e5;
+  border-color: #4f46e5;
   color: #ffffff;
-  border-color: #10b981;
-}
-
-.pending-card__btn--reject {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-  border-color: rgba(239, 68, 68, 0.2);
-}
-
-.pending-card__btn--reject:hover {
-  background: #ef4444;
-  color: #ffffff;
-  border-color: #ef4444;
-}
-
-.pending-card__col--actions {
-  min-width: 160px;
-  width: 160px;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.pending-card__result {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 0;
-}
-
-.pending-card__result--approved {
-  background: transparent;
-  color: #059669;
-}
-
-.pending-card__result--rejected {
-  background: transparent;
-  color: #dc2626;
-}
-
-.pending-fade-enter-active,
-.pending-fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.pending-fade-enter-from {
-  opacity: 0;
-  transform: translateY(4px);
-}
-
-.pending-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
 }
 
 .pending-card__empty {
   text-align: center;
-  padding: 24px 16px;
+  padding: 24px 0;
   color: var(--color-muted);
   font-size: 13px;
-  background: var(--color-surface-lighter, #f8f9fb);
-  border-radius: 12px;
 }
 
 @media (max-width: 768px) {
-  .pending-card__row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .pending-card__left {
-    width: 100%;
-  }
-
-  .pending-card__middle {
-    width: 100%;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .pending-card__right {
-    width: 100%;
-    justify-content: flex-start;
-    min-width: 0;
+  .pending-card__table-wrapper {
+    margin: 0 -24px;
+    padding: 0 24px;
   }
 }
 </style>
