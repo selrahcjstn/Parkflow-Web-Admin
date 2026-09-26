@@ -144,11 +144,11 @@ async function reject(reg: PendingRegistration) {
         </div>
 
         <div class="pending-card__middle">
-          <span class="pending-card__date">{{ reg.dateApplied }}</span>
           <div class="pending-card__vehicle-info">
             <span class="pending-card__plate">{{ reg.vehiclePlate }}</span>
             <span class="pending-card__vehicle-type">{{ reg.vehicleType }}</span>
           </div>
+          <span class="pending-card__date">Applied {{ reg.dateApplied }}</span>
         </div>
 
         <div class="pending-card__right">
@@ -236,6 +236,8 @@ async function reject(reg: PendingRegistration) {
   border: none;
   cursor: pointer;
   padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: opacity var(--transition-fast);
 }
 
@@ -244,100 +246,35 @@ async function reject(reg: PendingRegistration) {
   text-decoration: underline;
 }
 
-.pending-card__list {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.pending-card__row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--color-border, #f1f5f9);
-  transition: background 150ms ease;
-}
-
-.pending-card__row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.pending-card__left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
-
-.pending-card__avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: #D22730;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  user-select: none;
-  letter-spacing: 0.5px;
-}
-
-.pending-card__info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.pending-card__name {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1;
-}
-
-.pending-card__email {
-  font-size: 11.5px;
-  color: var(--color-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1;
-}
-
 .pending-card__middle {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 3px;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .pending-card__date {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--color-muted);
+  white-space: nowrap;
 }
 
 .pending-card__vehicle-info {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
 .pending-card__plate {
   font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 700;
   color: var(--color-text);
+  letter-spacing: 0.3px;
+  white-space: nowrap;
 }
 
 .pending-card__vehicle-type {
@@ -345,9 +282,11 @@ async function reject(reg: PendingRegistration) {
   padding: 1.5px 6px;
   border-radius: 4px;
   background: var(--color-surface-muted, #f1f5f9);
+  border: 1px solid var(--color-border, #e2e8f0);
   color: var(--color-muted, #64748b);
   font-size: 10px;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .pending-card__right {
