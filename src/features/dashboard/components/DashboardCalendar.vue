@@ -152,17 +152,13 @@ function selectDay(day: CalendarDay) {
   }
 }
 
-// Selected date reservations or upcoming fallback
+// Selected date reservations
 const selectedDateReservations = computed(() => {
   return reservations.value.filter(r => r.date === selectedDate.value)
 })
 
 const upcomingReservations = computed(() => {
-  if (selectedDateReservations.value.length > 0) {
-    return selectedDateReservations.value
-  }
-  // If none on selected date, show upcoming future items
-  return reservations.value.slice(0, 3)
+  return selectedDateReservations.value
 })
 
 const selectedDateLabel = computed(() => {
