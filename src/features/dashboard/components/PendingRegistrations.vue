@@ -1,35 +1,36 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import type { PendingRegistration } from '../types'
 import api from '@/api/axios'
 
-// We store our registrations as a reactive array
+const router = useRouter()
+
+// Store registrations in a reactive array
 const registrations = reactive<PendingRegistration[]>([])
 
-// Helper array to keep track of actual database GUIDs mapping to indices
+// Helper map to keep track of actual database GUIDs mapping to indices
 const submissionGuids = reactive<Record<number, string>>({})
 
-const avatarGradients = [
-  'linear-gradient(135deg, #6366f1, #8b5cf6)',
-  'linear-gradient(135deg, #f59e0b, #ef4444)',
-  'linear-gradient(135deg, #10b981, #059669)',
-  'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-]
-
 function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-function getGradient(index: number): string {
-  return avatarGradients[index % avatarGradients.length] ?? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+  if (!name) return 'U'
+  const parts = name.trim().split(' ')
+  const p0 = parts[0]
+  const p1 = parts[1]
+  if (parts.length >= 2 && p0 && p1 && p0[0] && p1[0]) {
+    return (p0[0] + p1[0]).toUpperCase()
+  }
+  return name.slice(0, 2).toUpperCase()
 }
 
 const pendingCount = computed(() => registrations.filter((r) => r.status === 'pending').length)
+
+// Limit dashboard widget display to top 4 items
+const displayedRegistrations = computed(() => registrations.slice(0, 4))
+
+function goToRegistrations() {
+  router.push('/registrations')
+}
 
 onMounted(async () => {
   try {
@@ -37,12 +38,9 @@ onMounted(async () => {
     if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
       const submissions = response.data.data
       
-      // If there are real submissions in the backend, let's map them
       if (submissions.length > 0) {
         registrations.length = 0 // Clear mock data
         submissions.forEach((sub: any, i: number) => {
-          // Map backend verification status enum
-          // Pending = 1, Verified = 2, Rejected = 3
           let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
           if (sub.verificationStatus === 2) mappedStatus = 'approved'
           if (sub.verificationStatus === 3) mappedStatus = 'rejected'
@@ -52,7 +50,7 @@ onMounted(async () => {
 
           registrations.push({
             id: regId,
-            fullName: sub.fullName || `Student User ${sub.userAccountId.slice(0, 4).toUpperCase()}`,
+            fullName: sub.fullName || `Student User ${sub.userAccountId ? sub.userAccountId.slice(0, 4).toUpperCase() : regId}`,
             email: sub.email || `student-${regId}@university.edu`,
             dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Jun 9, 2026',
             vehiclePlate: sub.vehiclePlate || 'N/A',
@@ -70,7 +68,6 @@ onMounted(async () => {
 async function approve(reg: PendingRegistration) {
   const guid = submissionGuids[reg.id]
   if (!guid) {
-    // Fallback for mock data
     reg.status = 'approved'
     return
   }
@@ -93,7 +90,6 @@ async function reject(reg: PendingRegistration) {
 
   const guid = submissionGuids[reg.id]
   if (!guid) {
-    // Fallback for mock data
     reg.status = 'rejected'
     return
   }
@@ -120,26 +116,25 @@ async function reject(reg: PendingRegistration) {
           <h3 class="pending-card__title">Pending Registrations</h3>
           <span v-if="pendingCount > 0" class="pending-card__count">{{ pendingCount }}</span>
         </div>
-        <span class="pending-card__subtitle">Accounts awaiting verification</span>
+        <span class="pending-card__subtitle">Accounts awaiting document verification</span>
       </div>
+      <button class="pending-card__see-all" @click="goToRegistrations">
+        View all →
+      </button>
     </div>
 
     <div class="pending-card__list">
-      <div v-if="registrations.length === 0" class="pending-card__empty">
-        No pending registrations found.
+      <div v-if="displayedRegistrations.length === 0" class="pending-card__empty">
+        No pending registrations awaiting verification.
       </div>
       <div
         v-else
-        v-for="(reg, index) in registrations"
+        v-for="reg in displayedRegistrations"
         :key="reg.id"
         class="pending-card__row"
-        :class="{
-          'pending-card__row--approved': reg.status === 'approved',
-          'pending-card__row--rejected': reg.status === 'rejected',
-        }"
       >
         <div class="pending-card__left">
-          <div class="pending-card__avatar" :style="{ background: getGradient(index) }">
+          <div class="pending-card__avatar">
             {{ getInitials(reg.fullName) }}
           </div>
           <div class="pending-card__info">
@@ -185,38 +180,45 @@ async function reject(reg: PendingRegistration) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: 24px;
+  box-shadow: none !important;
 }
 
 .pending-card__header {
-  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
 }
 
 .pending-card__title-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .pending-card__title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--color-text);
   margin: 0;
+  letter-spacing: -0.2px;
 }
 
 .pending-card__count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 20px;
-  background: var(--color-primary);
-  color: #fff;
-  font-size: 12px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: rgba(210, 39, 48, 0.08);
+  border: 1px solid rgba(210, 39, 48, 0.2);
+  color: #D22730;
+  font-size: 11px;
   font-weight: 700;
-  line-height: 1;
 }
 
 .pending-card__subtitle {
@@ -226,38 +228,40 @@ async function reject(reg: PendingRegistration) {
   display: block;
 }
 
+.pending-card__see-all {
+  font-size: 12px;
+  font-weight: 600;
+  color: #D22730;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.pending-card__see-all:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
 .pending-card__list {
-  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .pending-card__row {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px;
-  border-bottom: 1px solid var(--color-border);
-  border-left: 3px solid transparent;
-  transition: background 150ms ease, border-left-color 300ms ease;
-  border-radius: 4px;
-  margin-left: -16px;
-  margin-right: -16px;
-  padding-left: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  transition: background 150ms ease;
 }
 
 .pending-card__row:last-child {
   border-bottom: none;
-}
-
-.pending-card__row:hover {
-  background: var(--color-surface-lighter);
-}
-
-.pending-card__row--approved {
-  border-left-color: var(--color-success);
-}
-
-.pending-card__row--rejected {
-  border-left-color: var(--color-danger);
+  padding-bottom: 0;
 }
 
 .pending-card__left {
@@ -269,77 +273,81 @@ async function reject(reg: PendingRegistration) {
 }
 
 .pending-card__avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
+  background: #D22730;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
   flex-shrink: 0;
   user-select: none;
+  letter-spacing: 0.5px;
 }
 
 .pending-card__info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 
 .pending-card__name {
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--color-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1;
 }
 
 .pending-card__email {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--color-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1;
 }
 
 .pending-card__middle {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
+  gap: 3px;
   flex-shrink: 0;
 }
 
 .pending-card__date {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--color-muted);
 }
 
 .pending-card__vehicle-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .pending-card__plate {
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
   font-weight: 600;
   color: var(--color-text);
 }
 
 .pending-card__vehicle-type {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--color-surface-muted);
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 500;
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  background: var(--color-surface-muted, #f1f5f9);
+  color: var(--color-muted, #64748b);
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .pending-card__right {
@@ -352,56 +360,63 @@ async function reject(reg: PendingRegistration) {
 .pending-card__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .pending-card__btn {
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
-  border: none;
-  transition: background 150ms ease;
+  border: 1px solid transparent;
+  transition: all 150ms ease;
 }
 
 .pending-card__btn--approve {
   background: rgba(16, 185, 129, 0.1);
   color: #059669;
+  border-color: rgba(16, 185, 129, 0.2);
 }
 
 .pending-card__btn--approve:hover {
-  background: var(--color-success);
-  color: #fff;
+  background: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
 }
 
 .pending-card__btn--reject {
   background: rgba(239, 68, 68, 0.1);
   color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.2);
 }
 
 .pending-card__btn--reject:hover {
-  background: var(--color-danger);
-  color: #fff;
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
 }
 
 .pending-card__result {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
 }
 
 .pending-card__result--approved {
-  color: var(--color-success);
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
 }
 
 .pending-card__result--rejected {
-  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
 }
 
-/* Transition for button to status text */
 .pending-fade-enter-active,
 .pending-fade-leave-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 
 .pending-fade-enter-from {
@@ -416,17 +431,18 @@ async function reject(reg: PendingRegistration) {
 
 .pending-card__empty {
   text-align: center;
-  padding: 32px 16px;
+  padding: 24px 16px;
   color: var(--color-muted);
-  font-size: 14px;
+  font-size: 13px;
+  background: var(--color-surface-lighter, #f8f9fb);
+  border-radius: 12px;
 }
 
-/* Responsive: stack on mobile */
 @media (max-width: 768px) {
   .pending-card__row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
+    gap: 10px;
   }
 
   .pending-card__left {
