@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
@@ -10,6 +10,7 @@ import api from '@/api/axios'
 import { cachedUsers } from '@/features/dashboard/dashboardCache'
 
 const route = useRoute()
+const router = useRouter()
 const users = ref<UserWithDetails[]>(cachedUsers.value || [])
 const isLoading = ref(!cachedUsers.value)
 
@@ -273,8 +274,10 @@ const openAddUser = () => {
 }
 
 const openEditUser = (user: UserWithDetails) => {
-  userToEdit.value = user
-  isFormOpen.value = true
+  router.push({
+    path: `/users/${user.id}/edit`,
+    state: { user: JSON.parse(JSON.stringify(user)) }
+  })
 }
 
 const openDeleteConfirm = (user: UserWithDetails) => {
