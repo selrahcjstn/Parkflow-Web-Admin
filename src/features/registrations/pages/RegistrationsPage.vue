@@ -810,14 +810,10 @@ function openZoomImage(url?: string) {
               Review Document
             </button>
 
-            <div v-if="item.status === 'pending'" class="card-actions-group">
-              <button class="btn-card-reject" @click="reject(item)">Decline</button>
-              <button class="btn-card-approve" @click="approve(item)">Approve & Verify</button>
-            </div>
-            <span v-else-if="item.status === 'approved'" class="result-text result-text--approved">
+            <span v-if="item.status === 'approved'" class="result-text result-text--approved">
               Clearance Verified
             </span>
-            <span v-else class="result-text result-text--rejected">
+            <span v-else-if="item.status === 'rejected'" class="result-text result-text--rejected">
               Declined
             </span>
           </div>
@@ -913,20 +909,13 @@ function openZoomImage(url?: string) {
               </td>
 
               <td class="text-right">
-                <div v-if="item.status === 'pending'" class="actions-group">
-                  <button class="action-btn action-btn--approve" @click="approve(item)">
-                    Approve
-                  </button>
-                  <button class="action-btn action-btn--reject" @click="reject(item)">
-                    Reject
-                  </button>
-                </div>
-                <span v-else-if="item.status === 'approved'" class="result-text result-text--approved">
-                  Verified
-                </span>
-                <span v-else class="result-text result-text--rejected">
-                  Declined
-                </span>
+                <button class="btn-inspect" @click="openInspector(item)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  Review Document
+                </button>
               </td>
             </tr>
           </tbody>
