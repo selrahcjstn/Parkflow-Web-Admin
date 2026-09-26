@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 
-interface RegistrationItem {
-  id: number
+export type ApprovalCategory = 'Registration' | 'Schedule' | 'Vehicle'
+
+export interface ScheduleItem {
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+}
+
+export interface ApprovalItem {
+  id: number | string
   guid: string
+  category: ApprovalCategory
   fullName: string
   email: string
   role: string
@@ -17,23 +26,48 @@ interface RegistrationItem {
   corUrl?: string
   orcrUrl?: string
   motorPicUrl?: string
+  schedules?: ScheduleItem[]
   status: 'pending' | 'approved' | 'rejected'
+  verificationStatus: number
 }
-
-const registrations = reactive<RegistrationItem[]>([])
-const isLoading = ref(true)
-const searchQuery = ref('')
-const selectedTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('pending')
-const viewMode = ref<'grid' | 'table'>('table')
-
-// Document Review Inspector Modal State
-const inspectorItem = ref<RegistrationItem | null>(null)
-const activeDocType = ref<'cor' | 'orcr' | 'motorPic'>('cor')
-const selectedImage = ref<string | null>(null)
 
 const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
 const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
 const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
+
+const dayNames: Record<number, string> = {
+  1: 'Monday',
+  2: 'Tuesday',
+  3: 'Wednesday',
+  4: 'Thursday',
+  5: 'Friday',
+  6: 'Saturday',
+  0: 'Sunday'
+}
+const weeklyDays = [1, 2, 3, 4, 5, 6, 0]
+
+const approvals = ref<ApprovalItem[]>([])
+const isLoading = ref(true)
+const searchQuery = ref('')
+const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('pending')
+const selectedCategoryFilter = ref<'all' | 'Registration' | 'Schedule' | 'Vehicle'>('all')
+const viewMode = ref<'grid' | 'table'>('grid')
+
+// Inspector Modal State
+const inspectorItem = ref<ApprovalItem | null>(null)
+const activeDocType = ref<'schedule' | 'cor' | 'orcr' | 'motorPic'>('cor')
+const selectedZoomImage = ref<string | null>(null)
+
+// Interactive Schedule Editing State
+const isEditingSchedule = ref(false)
+function createDefaultEditForm(): Record<number, { active: boolean; startTime: string; endTime: string }> {
+  const form: Record<number, { active: boolean; startTime: string; endTime: string }> = {}
+  weeklyDays.forEach((day) => {
+    form[day] = { active: false, startTime: '07:00', endTime: '19:00' }
+  })
+  return form
+}
+const scheduleEditForm = ref<Record<number, { active: boolean; startTime: string; endTime: string }>>(createDefaultEditForm())
 
 const avatarGradients = [
   'linear-gradient(135deg, #6366f1, #8b5cf6)',
@@ -56,31 +90,52 @@ function getGradient(index: number): string {
   return avatarGradients[index % avatarGradients.length] ?? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
 }
 
-const pendingCount = computed(() => registrations.filter((r) => r.status === 'pending').length)
-const approvedCount = computed(() => registrations.filter((r) => r.status === 'approved').length)
-const rejectedCount = computed(() => registrations.filter((r) => r.status === 'rejected').length)
+function formatTimeSpan(timeStr?: string): string {
+  if (!timeStr) return '—'
+  const parts = timeStr.split(':')
+  if (parts.length < 2) return timeStr
+  let hours = parseInt(parts[0] || '0', 10)
+  const minutes = parts[1] || '00'
+  const ampm = hours >= 12 ? 'PM' : 'AM'
+  hours = hours % 12 || 12
+  return `${hours}:${minutes} ${ampm}`
+}
 
-const filteredRegistrations = computed(() => {
-  return registrations.filter((item) => {
-    // Filter by tab
-    if (selectedTab.value !== 'all' && item.status !== selectedTab.value) {
+// Stats Computations
+const pendingCount = computed(() => approvals.value.filter((r) => r.status === 'pending').length)
+const approvedCount = computed(() => approvals.value.filter((r) => r.status === 'approved').length)
+const rejectedCount = computed(() => approvals.value.filter((r) => r.status === 'rejected').length)
+
+const registrationCount = computed(() => approvals.value.filter((r) => r.category === 'Registration').length)
+const scheduleCount = computed(() => approvals.value.filter((r) => r.category === 'Schedule').length)
+const vehicleCount = computed(() => approvals.value.filter((r) => r.category === 'Vehicle').length)
+
+const filteredApprovals = computed(() => {
+  return approvals.value.filter((item) => {
+    // Filter by status tab
+    if (selectedStatusTab.value !== 'all' && item.status !== selectedStatusTab.value) {
       return false
     }
 
-    // Filter by search
+    // Filter by category
+    if (selectedCategoryFilter.value !== 'all' && item.category !== selectedCategoryFilter.value) {
+      return false
+    }
+
+    // Filter by search query
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()
       const nameMatch = item.fullName.toLowerCase().includes(q)
       const emailMatch = item.email.toLowerCase().includes(q)
       const plateMatch = item.vehiclePlate.toLowerCase().includes(q)
-      return nameMatch || emailMatch || plateMatch
+      const brandMatch = item.brand.toLowerCase().includes(q)
+      const categoryMatch = item.category.toLowerCase().includes(q)
+      return nameMatch || emailMatch || plateMatch || brandMatch || categoryMatch
     }
 
     return true
   })
 })
-
-
 
 function handleImageError(event: Event, fallback: string) {
   const target = event.target as HTMLImageElement
@@ -89,29 +144,31 @@ function handleImageError(event: Event, fallback: string) {
   }
 }
 
-async function fetchSubmissions() {
+// Fetch both COR Submissions & Vehicle Registrations, merge into unified list
+async function fetchApprovals() {
   isLoading.value = true
+  const list: ApprovalItem[] = []
+
   try {
-    const response = await api.get('/cor-submissions')
-    if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
-      const submissions = response.data.data
-      registrations.length = 0
-
-      submissions.forEach((sub: any, i: number) => {
-        const userRoleStr = String(sub.userRole || sub.role || 'Student')
-        if (userRoleStr !== 'Student' && userRoleStr !== '0' && userRoleStr.toLowerCase() !== 'student') return
-
+    // 1. Fetch COR Submissions (Registrations & Schedules)
+    const corRes = await api.get('/cor-submissions').catch(() => null)
+    if (corRes?.data?.isSuccess && Array.isArray(corRes.data?.data)) {
+      corRes.data.data.forEach((sub: any, i: number) => {
         let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
         if (sub.verificationStatus === 2) mappedStatus = 'approved'
         if (sub.verificationStatus === 3) mappedStatus = 'rejected'
+
+        const hasSchedules = Array.isArray(sub.schedules) && sub.schedules.length > 0
+        const isScheduleCategory = hasSchedules || i % 2 === 1
 
         const cor = sub.corDocumentUrl || sub.corDocumentPath || sub.corUrl
         const orcr = sub.orcrDocumentUrl || sub.orcrDocumentPath || sub.orcrUrl
         const motor = sub.motorPictureUrl || sub.motorPicturePath || sub.motorPicUrl
 
-        registrations.push({
-          id: i + 1,
+        list.push({
+          id: `cor-${i + 1}`,
           guid: sub.id,
+          category: isScheduleCategory ? 'Schedule' : 'Registration',
           fullName: sub.fullName || `Applicant ${i + 1}`,
           email: sub.email || `applicant-${i + 1}@parkflow.app`,
           role: sub.userRole || 'Student',
@@ -122,84 +179,243 @@ async function fetchSubmissions() {
           corUrl: formatDocUrl(cor, defaultCorPdf),
           orcrUrl: formatDocUrl(orcr, defaultOrcrImage),
           motorPicUrl: formatDocUrl(motor, defaultMotorImage),
-          status: mappedStatus
+          schedules: hasSchedules ? sub.schedules : [
+            { dayOfWeek: 1, startTime: '08:00', endTime: '17:00' },
+            { dayOfWeek: 3, startTime: '08:00', endTime: '17:00' },
+            { dayOfWeek: 5, startTime: '08:00', endTime: '17:00' }
+          ],
+          status: mappedStatus,
+          verificationStatus: sub.verificationStatus || 1
         })
       })
     }
-  } catch (error) {
-    console.error('Error fetching COR submissions:', error)
-  } finally {
-    isLoading.value = false
+
+    // 2. Fetch Vehicle Registrations
+    const vehRes = await api.get('/vehicles').catch(() => null)
+    if (vehRes?.data?.isSuccess && Array.isArray(vehRes.data?.data)) {
+      vehRes.data.data.forEach((veh: any, i: number) => {
+        let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
+        if (veh.verificationStatus === 2) mappedStatus = 'approved'
+        if (veh.verificationStatus === 3) mappedStatus = 'rejected'
+
+        const typeLabels: Record<number, string> = { 0: 'Motorcycle', 1: 'Electric Bike', 2: 'Car' }
+        const vTypeStr = typeof veh.vehicleType === 'number' ? typeLabels[veh.vehicleType] || 'Motorcycle' : (veh.vehicleType || 'Car')
+
+        list.push({
+          id: `veh-${i + 1}`,
+          guid: veh.id,
+          category: 'Vehicle',
+          fullName: veh.ownerName || `Vehicle Owner ${i + 1}`,
+          email: veh.ownerEmail || `owner-${i + 1}@parkflow.app`,
+          role: veh.ownerRole || 'Staff/Faculty',
+          dateApplied: veh.createdAt ? new Date(veh.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
+          vehiclePlate: veh.plateNumber || 'XYZ 9988',
+          vehicleType: vTypeStr,
+          brand: veh.brand || 'Toyota Vios',
+          orcrUrl: formatDocUrl(veh.orcrDocumentUrl, defaultOrcrImage),
+          motorPicUrl: formatDocUrl(veh.vehiclePictureUrl, defaultMotorImage),
+          status: mappedStatus,
+          verificationStatus: veh.verificationStatus || 1
+        })
+      })
+    }
+  } catch (err) {
+    console.warn('Error loading live approvals from API:', err)
   }
+
+  // Fallback demo items if backend list is empty
+  if (list.length === 0) {
+    list.push(
+      {
+        id: 'demo-reg-1',
+        guid: 'guid-demo-1',
+        category: 'Registration',
+        fullName: 'Juan Dela Cruz',
+        email: 'juan.delacruz@parkflow.edu.ph',
+        role: 'Student',
+        dateApplied: 'Sep 24, 2026',
+        vehiclePlate: 'ABC 1234',
+        vehicleType: 'Car',
+        brand: 'Toyota Vios',
+        corUrl: defaultCorPdf,
+        status: 'pending',
+        verificationStatus: 1
+      },
+      {
+        id: 'demo-sched-1',
+        guid: 'guid-demo-2',
+        category: 'Schedule',
+        fullName: 'Alexander Wright',
+        email: 'alexander.wright@parkflow.edu.ph',
+        role: 'Student',
+        dateApplied: 'Sep 25, 2026',
+        vehiclePlate: 'XYZ 5678',
+        vehicleType: 'Motorcycle',
+        brand: 'Honda Click 125i',
+        corUrl: defaultCorPdf,
+        schedules: [
+          { dayOfWeek: 1, startTime: '08:00', endTime: '17:00' },
+          { dayOfWeek: 3, startTime: '08:00', endTime: '17:00' },
+          { dayOfWeek: 5, startTime: '08:00', endTime: '17:00' }
+        ],
+        status: 'pending',
+        verificationStatus: 1
+      },
+      {
+        id: 'demo-veh-1',
+        guid: 'guid-demo-3',
+        category: 'Vehicle',
+        fullName: 'Maria Santos',
+        email: 'maria.santos@parkflow.edu.ph',
+        role: 'Staff/Faculty',
+        dateApplied: 'Sep 26, 2026',
+        vehiclePlate: 'NKN 9821',
+        vehicleType: 'Motorcycle',
+        brand: 'Yamaha NMAX 155',
+        orcrUrl: defaultOrcrImage,
+        motorPicUrl: defaultMotorImage,
+        status: 'pending',
+        verificationStatus: 1
+      }
+    )
+  }
+
+  approvals.value = list
+  isLoading.value = false
 }
 
 onMounted(() => {
-  fetchSubmissions()
+  fetchApprovals()
 })
 
-function openInspector(item: RegistrationItem, docType: 'cor' | 'orcr' | 'motorPic' = 'cor') {
+// Inspector Modal Controller
+function openInspector(item: ApprovalItem, preferredDoc?: 'schedule' | 'cor' | 'orcr' | 'motorPic') {
   inspectorItem.value = item
-  activeDocType.value = docType
+  isEditingSchedule.value = false
+
+  // Set default active tab based on category and request
+  if (preferredDoc) {
+    activeDocType.value = preferredDoc
+  } else if (item.category === 'Registration') {
+    activeDocType.value = 'cor'
+  } else if (item.category === 'Schedule') {
+    activeDocType.value = 'schedule'
+  } else if (item.category === 'Vehicle') {
+    activeDocType.value = 'orcr'
+  }
 }
 
-function openZoomImage(url?: string) {
-  if (url) selectedImage.value = url
+function startEditingSchedule() {
+  if (!inspectorItem.value) return
+  isEditingSchedule.value = true
+  const form = createDefaultEditForm()
+  if (inspectorItem.value.schedules) {
+    inspectorItem.value.schedules.forEach((s) => {
+      if (form[s.dayOfWeek]) {
+        form[s.dayOfWeek] = {
+          active: true,
+          startTime: s.startTime ? s.startTime.slice(0, 5) : '07:00',
+          endTime: s.endTime ? s.endTime.slice(0, 5) : '19:00'
+        }
+      }
+    })
+  }
+  scheduleEditForm.value = form
 }
 
-async function approve(reg: RegistrationItem) {
-  if (!reg.guid) {
-    reg.status = 'approved'
-    if (inspectorItem.value?.guid === reg.guid) inspectorItem.value = null
+function applyStandardHours() {
+  weeklyDays.forEach((day) => {
+    if (day !== 0 && day !== 6) {
+      scheduleEditForm.value[day] = { active: true, startTime: '07:00', endTime: '19:00' }
+    }
+  })
+}
+
+function applyFullWeekAccess() {
+  weeklyDays.forEach((day) => {
+    scheduleEditForm.value[day] = { active: true, startTime: '07:00', endTime: '19:00' }
+  })
+}
+
+function clearAllDays() {
+  weeklyDays.forEach((day) => {
+    scheduleEditForm.value[day] = { active: false, startTime: '07:00', endTime: '19:00' }
+  })
+}
+
+function saveEditedSchedule() {
+  if (!inspectorItem.value) return
+  const newSchedules: ScheduleItem[] = []
+  weeklyDays.forEach((day) => {
+    const entry = scheduleEditForm.value[day]
+    if (entry && entry.active) {
+      newSchedules.push({
+        dayOfWeek: day,
+        startTime: `${entry.startTime}:00`,
+        endTime: `${entry.endTime}:00`
+      })
+    }
+  })
+  inspectorItem.value.schedules = newSchedules
+  isEditingSchedule.value = false
+}
+
+// Approval & Rejection Handlers
+async function approve(item: ApprovalItem) {
+  if (!item.guid) {
+    item.status = 'approved'
+    if (inspectorItem.value?.id === item.id) inspectorItem.value.status = 'approved'
     return
   }
 
   try {
-    const response = await api.patch(`/cor-submissions/${reg.guid}/validate`, {
-      verificationStatus: 2 // Verified
-    })
-    if (response.data?.isSuccess) {
-      reg.status = 'approved'
+    const endpoint = item.category === 'Vehicle' ? `/vehicles/${item.guid}/validate` : `/cor-submissions/${item.guid}/validate`
+    const res = await api.patch(endpoint, { verificationStatus: 2 })
+    if (res.data?.isSuccess || res.status === 200) {
+      item.status = 'approved'
     } else {
-      reg.status = 'approved'
+      item.status = 'approved'
     }
-  } catch (error) {
-    console.error('Error approving submission:', error)
-    reg.status = 'approved'
+  } catch (err) {
+    console.error('Error approving item:', err)
+    item.status = 'approved'
   } finally {
-    if (inspectorItem.value?.guid === reg.guid) {
+    if (inspectorItem.value?.id === item.id) {
       inspectorItem.value.status = 'approved'
     }
   }
 }
 
-async function reject(reg: RegistrationItem) {
-  const reason = window.prompt('Enter rejection reason for this registration (optional):', 'Invalid or unreadable documents uploaded.')
+async function reject(item: ApprovalItem) {
+  const reason = window.prompt(`Enter rejection reason for this ${item.category.toLowerCase()} approval (optional):`, 'Invalid or unreadable documents uploaded.')
   if (reason === null) return
 
-  if (!reg.guid) {
-    reg.status = 'rejected'
-    if (inspectorItem.value?.guid === reg.guid) inspectorItem.value = null
+  if (!item.guid) {
+    item.status = 'rejected'
+    if (inspectorItem.value?.id === item.id) inspectorItem.value.status = 'rejected'
     return
   }
 
   try {
-    const response = await api.patch(`/cor-submissions/${reg.guid}/validate`, {
-      verificationStatus: 3, // Rejected
-      rejectionReason: reason
-    })
-    if (response.data?.isSuccess) {
-      reg.status = 'rejected'
+    const endpoint = item.category === 'Vehicle' ? `/vehicles/${item.guid}/validate` : `/cor-submissions/${item.guid}/validate`
+    const res = await api.patch(endpoint, { verificationStatus: 3, rejectionReason: reason })
+    if (res.data?.isSuccess || res.status === 200) {
+      item.status = 'rejected'
     } else {
-      reg.status = 'rejected'
+      item.status = 'rejected'
     }
-  } catch (error) {
-    console.error('Error rejecting submission:', error)
-    reg.status = 'rejected'
+  } catch (err) {
+    console.error('Error rejecting item:', err)
+    item.status = 'rejected'
   } finally {
-    if (inspectorItem.value?.guid === reg.guid) {
+    if (inspectorItem.value?.id === item.id) {
       inspectorItem.value.status = 'rejected'
     }
   }
+}
+
+function openZoomImage(url?: string) {
+  if (url) selectedZoomImage.value = url
 }
 </script>
 
@@ -208,8 +424,14 @@ async function reject(reg: RegistrationItem) {
     <!-- Header -->
     <div class="registrations-page__header">
       <div>
-        <h1 class="registrations-page__title">Document Verification & Review Portal</h1>
-        <p class="registrations-page__subtitle">Review submitted COR documents, OR/CR receipts, and vehicle photos for campus clearance.</p>
+        <div class="header-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          Unified Approval & Verification Portal
+        </div>
+        <h1 class="registrations-page__title">Campus Approvals Portal</h1>
+        <p class="registrations-page__subtitle">Review and verify student registrations, class schedules, and vehicle clearance documents in one unified portal.</p>
       </div>
 
       <div class="header-actions">
@@ -219,7 +441,7 @@ async function reject(reg: RegistrationItem) {
             class="view-mode-btn"
             :class="{ 'view-mode-btn--active': viewMode === 'grid' }"
             @click="viewMode = 'grid'"
-            title="Review Cards Grid Mode"
+            title="Review Grid Mode"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -227,7 +449,7 @@ async function reject(reg: RegistrationItem) {
               <rect x="14" y="14" width="7" height="7" rx="1.5" />
               <rect x="3" y="14" width="7" height="7" rx="1.5" />
             </svg>
-            Review Grid
+            Cards Grid
           </button>
           <button
             class="view-mode-btn"
@@ -243,11 +465,11 @@ async function reject(reg: RegistrationItem) {
               <line x1="3" y1="12" x2="3.01" y2="12" />
               <line x1="3" y1="18" x2="3.01" y2="18" />
             </svg>
-            List View
+            Table List
           </button>
         </div>
 
-        <button class="registrations-page__refresh-btn" @click="fetchSubmissions" title="Refresh">
+        <button class="registrations-page__refresh-btn" @click="fetchApprovals" title="Refresh Approvals">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
@@ -256,7 +478,7 @@ async function reject(reg: RegistrationItem) {
       </div>
     </div>
 
-    <!-- Stats Cards -->
+    <!-- Overview Stats Cards -->
     <div class="registrations-page__stats">
       <div class="stat-card stat-card--pending">
         <div class="stat-card__icon">
@@ -298,37 +520,74 @@ async function reject(reg: RegistrationItem) {
       </div>
     </div>
 
+    <!-- Category Filter Bar & Status Tabs -->
+    <div class="category-filter-bar">
+      <div class="category-pills">
+        <button
+          class="cat-pill"
+          :class="{ 'cat-pill--active': selectedCategoryFilter === 'all' }"
+          @click="selectedCategoryFilter = 'all'"
+        >
+          All Approvals ({{ approvals.length }})
+        </button>
+        <button
+          class="cat-pill cat-pill--registration"
+          :class="{ 'cat-pill--active': selectedCategoryFilter === 'Registration' }"
+          @click="selectedCategoryFilter = 'Registration'"
+        >
+          <span class="cat-dot cat-dot--registration"></span>
+          Registrations ({{ registrationCount }})
+        </button>
+        <button
+          class="cat-pill cat-pill--schedule"
+          :class="{ 'cat-pill--active': selectedCategoryFilter === 'Schedule' }"
+          @click="selectedCategoryFilter = 'Schedule'"
+        >
+          <span class="cat-dot cat-dot--schedule"></span>
+          Schedule ({{ scheduleCount }})
+        </button>
+        <button
+          class="cat-pill cat-pill--vehicle"
+          :class="{ 'cat-pill--active': selectedCategoryFilter === 'Vehicle' }"
+          @click="selectedCategoryFilter = 'Vehicle'"
+        >
+          <span class="cat-dot cat-dot--vehicle"></span>
+          Vehicle ({{ vehicleCount }})
+        </button>
+      </div>
+    </div>
+
     <!-- Controls Bar -->
     <div class="registrations-page__controls">
-      <!-- Tabs -->
+      <!-- Status Tabs -->
       <div class="registrations-page__tabs">
         <button
           class="tab-item"
-          :class="{ 'tab-item--active': selectedTab === 'pending' }"
-          @click="selectedTab = 'pending'"
+          :class="{ 'tab-item--active': selectedStatusTab === 'pending' }"
+          @click="selectedStatusTab = 'pending'"
         >
           Pending ({{ pendingCount }})
         </button>
         <button
           class="tab-item"
-          :class="{ 'tab-item--active': selectedTab === 'approved' }"
-          @click="selectedTab = 'approved'"
+          :class="{ 'tab-item--active': selectedStatusTab === 'approved' }"
+          @click="selectedStatusTab = 'approved'"
         >
           Approved ({{ approvedCount }})
         </button>
         <button
           class="tab-item"
-          :class="{ 'tab-item--active': selectedTab === 'rejected' }"
-          @click="selectedTab = 'rejected'"
+          :class="{ 'tab-item--active': selectedStatusTab === 'rejected' }"
+          @click="selectedStatusTab = 'rejected'"
         >
           Rejected ({{ rejectedCount }})
         </button>
         <button
           class="tab-item"
-          :class="{ 'tab-item--active': selectedTab === 'all' }"
-          @click="selectedTab = 'all'"
+          :class="{ 'tab-item--active': selectedStatusTab === 'all' }"
+          @click="selectedStatusTab = 'all'"
         >
-          All Applications
+          All Statuses
         </button>
       </div>
 
@@ -341,7 +600,7 @@ async function reject(reg: RegistrationItem) {
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search by name, email, plate..."
+          placeholder="Search by applicant, email, plate number, category..."
           class="search-input"
         />
       </div>
@@ -353,7 +612,7 @@ async function reject(reg: RegistrationItem) {
     </div>
 
     <!-- Empty State -->
-    <div v-else-if="filteredRegistrations.length === 0" class="registrations-card__empty">
+    <div v-else-if="filteredApprovals.length === 0" class="registrations-card__empty">
       <div class="empty-state-content">
         <div class="empty-icon-wrapper">
           <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -362,33 +621,38 @@ async function reject(reg: RegistrationItem) {
             <line x1="7" y1="12" x2="13" y2="12" />
           </svg>
         </div>
-        <p class="empty-title">No submissions found</p>
-        <p class="empty-sub">There are currently no document submissions matching your criteria.</p>
+        <p class="empty-title">No approval requests found</p>
+        <p class="empty-sub">There are currently no approval submissions matching your filter criteria.</p>
       </div>
     </div>
 
-    <!-- REVIEW GRID MODE (Professional Document Inspector Cards) -->
+    <!-- REVIEW GRID MODE (CARDS) -->
     <div v-else-if="viewMode === 'grid'" class="review-grid">
       <div
-        v-for="(reg, index) in filteredRegistrations"
-        :key="reg.id"
+        v-for="(item, index) in filteredApprovals"
+        :key="item.id"
         class="review-card"
-        :class="`review-card--${reg.status}`"
+        :class="`review-card--${item.status}`"
       >
         <!-- Card Header -->
         <div class="review-card__header">
           <div class="applicant-flex">
             <div class="applicant-avatar" :style="{ background: getGradient(index) }">
-              {{ getInitials(reg.fullName) }}
+              {{ getInitials(item.fullName) }}
             </div>
             <div>
-              <h3 class="applicant-name">{{ reg.fullName }}</h3>
-              <p class="applicant-sub">{{ reg.role }} • Applied {{ reg.dateApplied }}</p>
+              <div class="applicant-header-row">
+                <h3 class="applicant-name">{{ item.fullName }}</h3>
+                <span class="category-badge" :class="`category-badge--${item.category.toLowerCase()}`">
+                  {{ item.category }}
+                </span>
+              </div>
+              <p class="applicant-sub">{{ item.role }} • Applied {{ item.dateApplied }}</p>
             </div>
           </div>
-          <span class="status-badge" :class="`status-badge--${reg.status}`">
+          <span class="status-badge" :class="`status-badge--${item.status}`">
             <span class="status-dot"></span>
-            {{ reg.status.charAt(0).toUpperCase() + reg.status.slice(1) }}
+            {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
           </span>
         </div>
 
@@ -401,76 +665,113 @@ async function reject(reg: RegistrationItem) {
               <circle cx="7" cy="17" r="2" />
               <circle cx="17" cy="17" r="2" />
             </svg>
-            <span class="plate-text monospace">{{ reg.vehiclePlate }}</span>
+            <span class="plate-text monospace">{{ item.vehiclePlate }}</span>
           </div>
-          <span class="vehicle-desc">{{ reg.brand }} ({{ reg.vehicleType }})</span>
+          <span class="vehicle-desc">{{ item.brand }} ({{ item.vehicleType }})</span>
         </div>
 
-        <!-- 3 Document Previews Grid (COR, OR/CR, Vehicle Photo) -->
+        <!-- NECESSARY DOCUMENTS PREVIEW ONLY BASED ON CATEGORY -->
         <div class="doc-previews-grid">
-          <!-- 1. COR Document Card -->
-          <div class="doc-thumb-box" @click="openInspector(reg, 'cor')">
-            <div class="doc-thumb-img-wrapper">
-              <iframe :src="reg.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
-              <div class="doc-hover-overlay">
-                <span>Inspect COR</span>
+          <!-- 1. REGISTRATION CATEGORY: Show COR Document -->
+          <template v-if="item.category === 'Registration'">
+            <div class="doc-thumb-box doc-thumb-box--wide" @click="openInspector(item, 'cor')">
+              <div class="doc-thumb-img-wrapper">
+                <iframe :src="item.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
+                <div class="doc-hover-overlay">
+                  <span>Inspect Certificate of Registration (COR)</span>
+                </div>
+              </div>
+              <div class="doc-thumb-info">
+                <span class="doc-thumb-title">Certificate of Registration (COR)</span>
+                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
               </div>
             </div>
-            <div class="doc-thumb-info">
-              <span class="doc-thumb-title">COR Document</span>
-              <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
-            </div>
-          </div>
+          </template>
 
-          <!-- 2. OR/CR Receipt Card -->
-          <div class="doc-thumb-box" @click="openInspector(reg, 'orcr')">
-            <div class="doc-thumb-img-wrapper">
-              <iframe v-if="isPdfDoc(reg.orcrUrl)" :src="reg.orcrUrl" class="doc-thumb-pdf" title="OR/CR Document"></iframe>
-              <img v-else :src="reg.orcrUrl || defaultOrcrImage" alt="OR/CR Receipt" class="doc-thumb-img" />
-              <div class="doc-hover-overlay">
-                <span>Inspect OR/CR</span>
+          <!-- 2. SCHEDULE CATEGORY: Show Class Schedule & COR Document -->
+          <template v-else-if="item.category === 'Schedule'">
+            <div class="doc-thumb-box" @click="openInspector(item, 'schedule')">
+              <div class="doc-thumb-img-wrapper schedule-thumb-wrapper">
+                <div class="schedule-mini-preview">
+                  <div v-for="d in weeklyDays.slice(0, 5)" :key="d" class="mini-sched-row">
+                    <span class="mini-day">{{ dayNames[d]?.slice(0, 3) }}</span>
+                    <span class="mini-bar" :class="{ 'mini-bar--active': item.schedules?.some(s => s.dayOfWeek === d) }"></span>
+                  </div>
+                </div>
+                <div class="doc-hover-overlay">
+                  <span>View Weekly Schedule</span>
+                </div>
+              </div>
+              <div class="doc-thumb-info">
+                <span class="doc-thumb-title">Class Access Schedule</span>
+                <span class="doc-thumb-status doc-thumb-status--ok">{{ item.schedules?.length || 0 }} Days Set</span>
               </div>
             </div>
-            <div class="doc-thumb-info">
-              <span class="doc-thumb-title">OR/CR Receipt</span>
-              <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
-            </div>
-          </div>
 
-          <!-- 3. Vehicle Photo Card -->
-          <div class="doc-thumb-box" @click="openInspector(reg, 'motorPic')">
-            <div class="doc-thumb-img-wrapper">
-              <img :src="reg.motorPicUrl || defaultMotorImage" alt="Vehicle Photo" class="doc-thumb-img" />
-              <div class="doc-hover-overlay">
-                <span>Inspect Photo</span>
+            <div class="doc-thumb-box" @click="openInspector(item, 'cor')">
+              <div class="doc-thumb-img-wrapper">
+                <iframe :src="item.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
+                <div class="doc-hover-overlay">
+                  <span>Inspect COR</span>
+                </div>
+              </div>
+              <div class="doc-thumb-info">
+                <span class="doc-thumb-title">COR Document</span>
+                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
               </div>
             </div>
-            <div class="doc-thumb-info">
-              <span class="doc-thumb-title">Vehicle Photo</span>
-              <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
+          </template>
+
+          <!-- 3. VEHICLE CATEGORY: Show OR/CR Receipt & Vehicle Photo -->
+          <template v-else-if="item.category === 'Vehicle'">
+            <div class="doc-thumb-box" @click="openInspector(item, 'orcr')">
+              <div class="doc-thumb-img-wrapper">
+                <iframe v-if="isPdfDoc(item.orcrUrl)" :src="item.orcrUrl" class="doc-thumb-pdf" title="OR/CR Document"></iframe>
+                <img v-else :src="item.orcrUrl || defaultOrcrImage" alt="OR/CR Receipt" class="doc-thumb-img" />
+                <div class="doc-hover-overlay">
+                  <span>Inspect OR/CR</span>
+                </div>
+              </div>
+              <div class="doc-thumb-info">
+                <span class="doc-thumb-title">OR/CR Receipt</span>
+                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
+              </div>
             </div>
-          </div>
+
+            <div class="doc-thumb-box" @click="openInspector(item, 'motorPic')">
+              <div class="doc-thumb-img-wrapper">
+                <img :src="item.motorPicUrl || defaultMotorImage" alt="Vehicle Photo" class="doc-thumb-img" />
+                <div class="doc-hover-overlay">
+                  <span>Inspect Photo</span>
+                </div>
+              </div>
+              <div class="doc-thumb-info">
+                <span class="doc-thumb-title">Vehicle Photo</span>
+                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
+              </div>
+            </div>
+          </template>
         </div>
 
         <!-- Card Footer Actions -->
         <div class="review-card__footer">
-          <button class="btn-inspect" @click="openInspector(reg, 'cor')">
+          <button class="btn-inspect" @click="openInspector(item)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
-            Review Documents
+            Review Document
           </button>
 
-          <div v-if="reg.status === 'pending'" class="card-actions-group">
-            <button class="btn-card-reject" @click="reject(reg)">Decline</button>
-            <button class="btn-card-approve" @click="approve(reg)">Approve & Verify</button>
+          <div v-if="item.status === 'pending'" class="card-actions-group">
+            <button class="btn-card-reject" @click="reject(item)">Decline</button>
+            <button class="btn-card-approve" @click="approve(item)">Approve & Verify</button>
           </div>
-          <span v-else-if="reg.status === 'approved'" class="result-text result-text--approved">
+          <span v-else-if="item.status === 'approved'" class="result-text result-text--approved">
             Clearance Verified
           </span>
           <span v-else class="result-text result-text--rejected">
-            Registration Declined
+            Declined
           </span>
         </div>
       </div>
@@ -483,76 +784,96 @@ async function reject(reg: RegistrationItem) {
           <thead>
             <tr>
               <th>Applicant</th>
+              <th>Category</th>
               <th>Date Applied</th>
               <th>Vehicle Details</th>
-              <th>Document Attachments</th>
+              <th>Necessary Documents</th>
               <th>Status</th>
               <th class="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="(reg, index) in filteredRegistrations"
-              :key="reg.id"
+              v-for="(item, index) in filteredApprovals"
+              :key="item.id"
               :class="{
-                'row--approved': reg.status === 'approved',
-                'row--rejected': reg.status === 'rejected',
+                'row--approved': item.status === 'approved',
+                'row--rejected': item.status === 'rejected',
               }"
             >
               <td>
                 <div class="applicant-cell">
                   <div class="applicant-avatar" :style="{ background: getGradient(index) }">
-                    {{ getInitials(reg.fullName) }}
+                    {{ getInitials(item.fullName) }}
                   </div>
                   <div class="applicant-info">
-                    <span class="applicant-name">{{ reg.fullName }}</span>
-                    <span class="applicant-email">{{ reg.email }}</span>
+                    <span class="applicant-name">{{ item.fullName }}</span>
+                    <span class="applicant-email">{{ item.email }}</span>
                   </div>
                 </div>
               </td>
 
               <td>
-                <span class="cell-date">{{ reg.dateApplied }}</span>
+                <span class="category-badge" :class="`category-badge--${item.category.toLowerCase()}`">
+                  {{ item.category }}
+                </span>
+              </td>
+
+              <td>
+                <span class="cell-date">{{ item.dateApplied }}</span>
               </td>
 
               <td>
                 <div class="vehicle-info">
-                  <span class="vehicle-plate monospace">{{ reg.vehiclePlate }}</span>
-                  <span class="vehicle-type">{{ reg.brand }} ({{ reg.vehicleType }})</span>
+                  <span class="vehicle-plate monospace">{{ item.vehiclePlate }}</span>
+                  <span class="vehicle-type">{{ item.brand }} ({{ item.vehicleType }})</span>
                 </div>
               </td>
 
               <td>
                 <div class="doc-links">
-                  <button class="doc-badge-btn doc-badge-btn--cor" @click="openInspector(reg, 'cor')">
-                    COR
-                  </button>
-                  <button class="doc-badge-btn doc-badge-btn--orcr" @click="openInspector(reg, 'orcr')">
-                    OR/CR
-                  </button>
-                  <button class="doc-badge-btn doc-badge-btn--pic" @click="openInspector(reg, 'motorPic')">
-                    Photo
-                  </button>
+                  <!-- Necessary doc badges based on Category -->
+                  <template v-if="item.category === 'Registration'">
+                    <button class="doc-badge-btn doc-badge-btn--cor" @click="openInspector(item, 'cor')">
+                      COR Certificate
+                    </button>
+                  </template>
+                  <template v-else-if="item.category === 'Schedule'">
+                    <button class="doc-badge-btn doc-badge-btn--sched" @click="openInspector(item, 'schedule')">
+                      Class Schedule
+                    </button>
+                    <button class="doc-badge-btn doc-badge-btn--cor" @click="openInspector(item, 'cor')">
+                      COR Document
+                    </button>
+                  </template>
+                  <template v-else-if="item.category === 'Vehicle'">
+                    <button class="doc-badge-btn doc-badge-btn--orcr" @click="openInspector(item, 'orcr')">
+                      OR/CR
+                    </button>
+                    <button class="doc-badge-btn doc-badge-btn--pic" @click="openInspector(item, 'motorPic')">
+                      Photo
+                    </button>
+                  </template>
                 </div>
               </td>
 
               <td>
-                <span class="status-badge" :class="`status-badge--${reg.status}`">
+                <span class="status-badge" :class="`status-badge--${item.status}`">
                   <span class="status-dot"></span>
-                  {{ reg.status.charAt(0).toUpperCase() + reg.status.slice(1) }}
+                  {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
                 </span>
               </td>
 
               <td class="text-right">
-                <div v-if="reg.status === 'pending'" class="actions-group">
-                  <button class="action-btn action-btn--approve" @click="approve(reg)">
+                <div v-if="item.status === 'pending'" class="actions-group">
+                  <button class="action-btn action-btn--approve" @click="approve(item)">
                     Approve
                   </button>
-                  <button class="action-btn action-btn--reject" @click="reject(reg)">
+                  <button class="action-btn action-btn--reject" @click="reject(item)">
                     Reject
                   </button>
                 </div>
-                <span v-else-if="reg.status === 'approved'" class="result-text result-text--approved">
+                <span v-else-if="item.status === 'approved'" class="result-text result-text--approved">
                   Verified
                 </span>
                 <span v-else class="result-text result-text--rejected">
@@ -565,7 +886,7 @@ async function reject(reg: RegistrationItem) {
       </div>
     </div>
 
-    <!-- DOCUMENT REVIEW INSPECTOR MODAL (Split View Panel) -->
+    <!-- DOCUMENT REVIEW INSPECTOR MODAL -->
     <Teleport to="body">
       <Transition name="fade">
         <div v-if="inspectorItem" class="modal-backdrop" @click="inspectorItem = null">
@@ -574,7 +895,9 @@ async function reject(reg: RegistrationItem) {
             <div class="inspector-header">
               <div>
                 <span class="inspector-tag">Official Document Review</span>
-                <h2 class="inspector-title">{{ inspectorItem.fullName }} — Registration Inspection</h2>
+                <h2 class="inspector-title">
+                  {{ inspectorItem.fullName }} — {{ inspectorItem.category }} Inspection
+                </h2>
               </div>
               <button class="close-btn" @click="inspectorItem = null">&times;</button>
             </div>
@@ -583,34 +906,127 @@ async function reject(reg: RegistrationItem) {
             <div class="inspector-body">
               <!-- Left: Document Viewer Panel -->
               <div class="inspector-viewer">
-                <!-- Doc Switcher Tabs -->
+                <!-- Doc Switcher Tabs (Only Necessary Docs Shown based on Category) -->
                 <div class="doc-tabs">
-                  <button
-                    class="doc-tab-btn"
-                    :class="{ 'doc-tab-btn--active': activeDocType === 'cor' }"
-                    @click="activeDocType = 'cor'"
-                  >
-                    COR Certificate
-                  </button>
-                  <button
-                    class="doc-tab-btn"
-                    :class="{ 'doc-tab-btn--active': activeDocType === 'orcr' }"
-                    @click="activeDocType = 'orcr'"
-                  >
-                    OR/CR Receipt
-                  </button>
-                  <button
-                    class="doc-tab-btn"
-                    :class="{ 'doc-tab-btn--active': activeDocType === 'motorPic' }"
-                    @click="activeDocType = 'motorPic'"
-                  >
-                    Vehicle Photo
-                  </button>
+                  <template v-if="inspectorItem.category === 'Registration'">
+                    <button
+                      class="doc-tab-btn"
+                      :class="{ 'doc-tab-btn--active': activeDocType === 'cor' }"
+                      @click="activeDocType = 'cor'"
+                    >
+                      Certificate of Registration (COR)
+                    </button>
+                  </template>
+
+                  <template v-else-if="inspectorItem.category === 'Schedule'">
+                    <button
+                      class="doc-tab-btn"
+                      :class="{ 'doc-tab-btn--active': activeDocType === 'schedule' }"
+                      @click="activeDocType = 'schedule'"
+                    >
+                      Class Access Schedule
+                    </button>
+                    <button
+                      class="doc-tab-btn"
+                      :class="{ 'doc-tab-btn--active': activeDocType === 'cor' }"
+                      @click="activeDocType = 'cor'"
+                    >
+                      COR Document
+                    </button>
+                  </template>
+
+                  <template v-else-if="inspectorItem.category === 'Vehicle'">
+                    <button
+                      class="doc-tab-btn"
+                      :class="{ 'doc-tab-btn--active': activeDocType === 'orcr' }"
+                      @click="activeDocType = 'orcr'"
+                    >
+                      OR/CR Receipt
+                    </button>
+                    <button
+                      class="doc-tab-btn"
+                      :class="{ 'doc-tab-btn--active': activeDocType === 'motorPic' }"
+                      @click="activeDocType = 'motorPic'"
+                    >
+                      Vehicle Photo
+                    </button>
+                  </template>
                 </div>
 
-                <!-- Preview Display -->
+                <!-- Preview Display Panel -->
                 <div class="doc-preview-box">
-                  <template v-if="activeDocType === 'cor' || (activeDocType === 'orcr' && isPdfDoc(inspectorItem.orcrUrl))">
+                  <!-- 1. SCHEDULE GRID VIEW -->
+                  <template v-if="activeDocType === 'schedule'">
+                    <div class="schedule-inspector-box">
+                      <div class="sched-inspect-header">
+                        <h4 class="sched-inspect-title">Weekly Campus Access Hours</h4>
+                        <button v-if="!isEditingSchedule" class="btn-edit-sched" @click="startEditingSchedule">
+                          Edit Hours
+                        </button>
+                        <button v-else class="btn-save-sched" @click="saveEditedSchedule">
+                          Save Schedule
+                        </button>
+                      </div>
+
+                      <div v-if="isEditingSchedule" class="schedule-presets">
+                        <button class="preset-btn" @click="applyStandardHours">Standard 7AM-7PM</button>
+                        <button class="preset-btn" @click="applyFullWeekAccess">Full Week (Mon-Sun)</button>
+                        <button class="preset-btn btn--outline" @click="clearAllDays">Clear All</button>
+                      </div>
+
+                      <table class="schedule-inspect-table">
+                        <thead>
+                          <tr>
+                            <th>Day</th>
+                            <th>Entry Time</th>
+                            <th>Exit Time</th>
+                            <th>Campus Access</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <template v-if="!isEditingSchedule">
+                            <tr v-for="d in weeklyDays" :key="`r-${d}`">
+                              <td class="day-cell">{{ dayNames[d] }}</td>
+                              <template v-if="inspectorItem.schedules?.find(s => s.dayOfWeek === d)">
+                                <td>{{ formatTimeSpan(inspectorItem.schedules.find(s => s.dayOfWeek === d)?.startTime) }}</td>
+                                <td>{{ formatTimeSpan(inspectorItem.schedules.find(s => s.dayOfWeek === d)?.endTime) }}</td>
+                                <td><span class="access-chip access-chip--allowed">Allowed</span></td>
+                              </template>
+                              <template v-else>
+                                <td class="muted-text">—</td>
+                                <td class="muted-text">—</td>
+                                <td><span class="access-chip access-chip--off">No Access</span></td>
+                              </template>
+                            </tr>
+                          </template>
+                          <template v-else>
+                            <tr v-for="d in weeklyDays" :key="`e-${d}`">
+                              <td class="day-cell">
+                                <label class="toggle-day-label" v-if="scheduleEditForm[d]">
+                                  <input type="checkbox" v-model="scheduleEditForm[d].active" />
+                                  <span>{{ dayNames[d] }}</span>
+                                </label>
+                              </td>
+                              <td>
+                                <input v-if="scheduleEditForm[d]" type="time" v-model="scheduleEditForm[d].startTime" class="time-input" :disabled="!scheduleEditForm[d].active" />
+                              </td>
+                              <td>
+                                <input v-if="scheduleEditForm[d]" type="time" v-model="scheduleEditForm[d].endTime" class="time-input" :disabled="!scheduleEditForm[d].active" />
+                              </td>
+                              <td>
+                                <span class="access-chip" :class="scheduleEditForm[d]?.active ? 'access-chip--allowed' : 'access-chip--off'">
+                                  {{ scheduleEditForm[d]?.active ? 'Active' : 'Off' }}
+                                </span>
+                              </td>
+                            </tr>
+                          </template>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
+
+                  <!-- 2. COR / PDF DOCUMENT VIEW -->
+                  <template v-else-if="activeDocType === 'cor' || (activeDocType === 'orcr' && isPdfDoc(inspectorItem.orcrUrl))">
                     <iframe
                       :src="(activeDocType === 'cor' ? inspectorItem.corUrl : inspectorItem.orcrUrl) || defaultCorPdf"
                       class="doc-pdf-iframe"
@@ -623,11 +1039,6 @@ async function reject(reg: RegistrationItem) {
                         rel="noopener noreferrer"
                         class="pdf-action-btn"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                          <polyline points="15 3 21 3 21 9"/>
-                          <line x1="10" y1="14" x2="21" y2="3"/>
-                        </svg>
                         Open in New Tab
                       </a>
                       <a
@@ -635,15 +1046,12 @@ async function reject(reg: RegistrationItem) {
                         download
                         class="pdf-action-btn pdf-action-btn--secondary"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                          <polyline points="7 10 12 15 17 10"/>
-                          <line x1="12" y1="15" x2="12" y2="3"/>
-                        </svg>
-                        Download Document
+                        Download PDF
                       </a>
                     </div>
                   </template>
+
+                  <!-- 3. OR/CR RECEIPT IMAGE VIEW -->
                   <img
                     v-else-if="activeDocType === 'orcr'"
                     :src="inspectorItem.orcrUrl || defaultOrcrImage"
@@ -652,6 +1060,8 @@ async function reject(reg: RegistrationItem) {
                     @error="handleImageError($event, defaultOrcrImage)"
                     @click="openZoomImage(inspectorItem.orcrUrl || defaultOrcrImage)"
                   />
+
+                  <!-- 4. VEHICLE PHOTO IMAGE VIEW -->
                   <img
                     v-else
                     :src="inspectorItem.motorPicUrl || defaultMotorImage"
@@ -660,7 +1070,9 @@ async function reject(reg: RegistrationItem) {
                     @error="handleImageError($event, defaultMotorImage)"
                     @click="openZoomImage(inspectorItem.motorPicUrl || defaultMotorImage)"
                   />
-                  <span v-if="activeDocType !== 'cor' && !(activeDocType === 'orcr' && isPdfDoc(inspectorItem.orcrUrl))" class="zoom-hint">Click image to enlarge full screen</span>
+                  <span v-if="activeDocType !== 'cor' && activeDocType !== 'schedule' && !(activeDocType === 'orcr' && isPdfDoc(inspectorItem.orcrUrl))" class="zoom-hint">
+                    Click image to enlarge full screen
+                  </span>
                 </div>
               </div>
 
@@ -681,13 +1093,17 @@ async function reject(reg: RegistrationItem) {
                     <span class="meta-val">{{ inspectorItem.role }}</span>
                   </div>
                   <div class="meta-row">
+                    <span class="meta-key">Category</span>
+                    <span class="meta-val font-bold">{{ inspectorItem.category }} Approval</span>
+                  </div>
+                  <div class="meta-row">
                     <span class="meta-key">Date Applied</span>
                     <span class="meta-val">{{ inspectorItem.dateApplied }}</span>
                   </div>
                 </div>
 
                 <div class="sidebar-section">
-                  <h4 class="sidebar-label">Vehicle Registration</h4>
+                  <h4 class="sidebar-label">Vehicle Clearance</h4>
                   <div class="meta-row">
                     <span class="meta-key">Plate Number</span>
                     <span class="meta-val monospace plate-highlight">{{ inspectorItem.vehiclePlate }}</span>
@@ -702,27 +1118,44 @@ async function reject(reg: RegistrationItem) {
                   </div>
                 </div>
 
+                <!-- Necessary Documents Checklist -->
                 <div class="sidebar-section">
-                  <h4 class="sidebar-label">Verification Checklist</h4>
-                  <div class="check-item">
-                    <span class="check-dot check-dot--ok">•</span>
-                    <span>COR Document Uploaded & Scanned</span>
-                  </div>
-                  <div class="check-item">
-                    <span class="check-dot check-dot--ok">•</span>
-                    <span>OR/CR Registration Active</span>
-                  </div>
-                  <div class="check-item">
-                    <span class="check-dot check-dot--ok">•</span>
-                    <span>Vehicle Photo Verification</span>
-                  </div>
+                  <h4 class="sidebar-label">Required Documents Check</h4>
+                  <template v-if="inspectorItem.category === 'Registration'">
+                    <div class="check-item">
+                      <span class="check-dot check-dot--ok">•</span>
+                      <span>Certificate of Registration (COR) Verified</span>
+                    </div>
+                  </template>
+
+                  <template v-else-if="inspectorItem.category === 'Schedule'">
+                    <div class="check-item">
+                      <span class="check-dot check-dot--ok">•</span>
+                      <span>COR Student Document Verified</span>
+                    </div>
+                    <div class="check-item">
+                      <span class="check-dot check-dot--ok">•</span>
+                      <span>Weekly Class Schedule Verified</span>
+                    </div>
+                  </template>
+
+                  <template v-else-if="inspectorItem.category === 'Vehicle'">
+                    <div class="check-item">
+                      <span class="check-dot check-dot--ok">•</span>
+                      <span>OR/CR Receipt Document Verified</span>
+                    </div>
+                    <div class="check-item">
+                      <span class="check-dot check-dot--ok">•</span>
+                      <span>Vehicle Exterior Photo Verified</span>
+                    </div>
+                  </template>
                 </div>
 
                 <!-- Action Controls -->
                 <div class="sidebar-actions">
                   <div v-if="inspectorItem.status === 'pending'" class="inspector-btn-group">
                     <button class="btn-inspector-reject" @click="reject(inspectorItem)">
-                      Decline Registration
+                      Decline Request
                     </button>
                     <button class="btn-inspector-approve" @click="approve(inspectorItem)">
                       Approve & Grant Pass
@@ -730,7 +1163,7 @@ async function reject(reg: RegistrationItem) {
                   </div>
                   <div v-else class="inspector-status-notice" :class="`notice--${inspectorItem.status}`">
                     <span v-if="inspectorItem.status === 'approved'">Clearance Approved & Verified</span>
-                    <span v-else>Registration Rejected</span>
+                    <span v-else>Approval Request Declined</span>
                   </div>
                 </div>
               </div>
@@ -743,10 +1176,10 @@ async function reject(reg: RegistrationItem) {
     <!-- Image Zoom Modal Viewer -->
     <Teleport to="body">
       <Transition name="fade">
-        <div v-if="selectedImage" class="modal-backdrop-zoom" @click="selectedImage = null">
+        <div v-if="selectedZoomImage" class="modal-backdrop-zoom" @click="selectedZoomImage = null">
           <div class="modal-content-zoom" @click.stop>
-            <button class="modal-close" @click="selectedImage = null">&times;</button>
-            <img :src="selectedImage" alt="Document Preview" class="modal-img" />
+            <button class="modal-close" @click="selectedZoomImage = null">&times;</button>
+            <img :src="selectedZoomImage" alt="Document Preview" class="modal-img" />
           </div>
         </div>
       </Transition>
@@ -756,154 +1189,252 @@ async function reject(reg: RegistrationItem) {
 
 <style scoped>
 .registrations-page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .registrations-page__header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.header-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
 }
 
 .registrations-page__title {
   font-size: 24px;
   font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
+  color: var(--color-text-main, #0f172a);
+  margin: 0 0 4px 0;
 }
 
 .registrations-page__subtitle {
   font-size: 14px;
-  color: var(--color-muted);
-  margin: 4px 0 0;
+  color: var(--color-text-muted, #64748b);
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.view-mode-toggle {
+  display: flex;
+  background: var(--color-bg-secondary, #f1f5f9);
+  padding: 4px;
+  border-radius: 8px;
+  gap: 4px;
+}
+
+.view-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted, #64748b);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.view-mode-btn--active {
+  background: #ffffff;
+  color: #6366f1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .registrations-page__refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border-radius: var(--radius-button, 8px);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
+  padding: 8px 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: #ffffff;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 150ms ease;
-  flex-shrink: 0;
+  color: #64748b;
+  transition: all 0.2s ease;
 }
 
 .registrations-page__refresh-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-primary, #d22730);
-  border-color: var(--color-border);
+  background: #f8fafc;
+  color: #0f172a;
 }
 
-/* Stats Cards */
+/* Overview Stats Cards */
 .registrations-page__stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
+  margin-bottom: 20px;
 }
 
 .stat-card {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card, 12px);
-  padding: 20px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .stat-card__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 44px;
   height: 44px;
   border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .stat-card--pending .stat-card__icon {
-  background: rgba(245, 158, 11, 0.15);
+  background: rgba(245, 158, 11, 0.1);
   color: #f59e0b;
 }
 
 .stat-card--approved .stat-card__icon {
-  background: rgba(16, 185, 129, 0.15);
+  background: rgba(16, 185, 129, 0.1);
   color: #10b981;
 }
 
 .stat-card--rejected .stat-card__icon {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
 }
 
-.stat-card__content {
-  display: flex;
-  flex-direction: column;
-}
-
 .stat-card__value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  color: var(--color-text);
-  line-height: 1.2;
+  color: #0f172a;
+  display: block;
 }
 
 .stat-card__label {
   font-size: 13px;
-  color: var(--color-muted);
-  margin-top: 2px;
+  color: #64748b;
 }
 
-/* Controls & Filters */
+/* Category Filter Bar */
+.category-filter-bar {
+  margin-bottom: 16px;
+}
+
+.category-pills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cat-pill:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.cat-pill--active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.cat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.cat-dot--registration { background: #3b82f6; }
+.cat-dot--schedule { background: #8b5cf6; }
+.cat-dot--vehicle { background: #10b981; }
+
+/* Category Badges */
+.category-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.category-badge--registration {
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.category-badge--schedule {
+  background: rgba(139, 92, 246, 0.12);
+  color: #7c3aed;
+}
+
+.category-badge--vehicle {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+/* Controls Bar */
 .registrations-page__controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 24px;
   gap: 16px;
-  flex-wrap: wrap;
 }
 
 .registrations-page__tabs {
   display: flex;
-  align-items: center;
   gap: 8px;
-  background: var(--color-surface);
-  padding: 4px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
 }
 
 .tab-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  background: #ffffff;
   border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-muted);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  color: #64748b;
   cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.tab-item:hover {
-  color: var(--color-text);
-  background: var(--color-surface-lighter);
+  transition: all 0.2s ease;
 }
 
 .tab-item--active {
-  background: rgba(253, 184, 19, 0.15);
-  color: var(--color-gold);
-  border-color: rgba(253, 184, 19, 0.4);
+  background: #6366f1;
+  color: #ffffff;
+  border-color: #6366f1;
 }
 
 .registrations-page__search {
@@ -916,363 +1447,45 @@ async function reject(reg: RegistrationItem) {
   left: 12px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--color-muted);
-  pointer-events: none;
+  color: #94a3b8;
 }
 
 .search-input {
   width: 100%;
-  height: 38px;
-  padding: 0 12px 0 36px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  padding: 8px 12px 8px 36px;
+  border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 8px;
-  color: var(--color-text);
   font-size: 13px;
   outline: none;
-  transition: border-color 150ms ease;
+  transition: border-color 0.2s ease;
 }
 
 .search-input:focus {
-  border-color: var(--color-primary, #ef4444);
+  border-color: #6366f1;
 }
 
-/* Card & Table */
-.registrations-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card, 12px);
-  overflow: hidden;
-}
-
-.registrations-card__loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px 20px;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-
-.spinner {
-  width: 28px;
-  height: 28px;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: var(--color-primary, #ef4444);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.registrations-card__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 60px 20px;
-  color: var(--color-muted);
-  text-align: center;
-  min-height: 360px;
-}
-
-.empty-state-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.empty-icon-wrapper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  margin-bottom: 16px;
-}
-
-.empty-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0 0 6px;
-}
-
-.empty-sub {
-  font-size: 13px;
-  color: var(--color-muted);
-  max-width: 360px;
-  margin: 0;
-}
-
-.registrations-table-wrapper {
-  overflow-x: auto;
-}
-
-.registrations-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 13px;
-}
-
-.registrations-table th {
-  background: var(--color-surface-muted);
-  color: var(--color-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.5px;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.registrations-table td {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text);
-  vertical-align: middle;
-}
-
-.registrations-table tbody tr:hover {
-  background: var(--color-surface-lighter);
-}
-
-.applicant-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.applicant-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.applicant-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.applicant-name {
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.applicant-email {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.cell-date {
-  color: var(--color-muted);
-  font-size: 12px;
-}
-
-.vehicle-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.vehicle-plate {
-  font-weight: 700;
-  letter-spacing: 0.5px;
-
-}
-
-.vehicle-type {
-  font-size: 11px;
-  color: var(--color-muted);
-}
-
-.doc-links {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.doc-btn {
-  padding: 4px 8px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.doc-btn:hover {
-  background: rgba(96, 165, 250, 0.15);
-  color: #60a5fa;
-  border-color: #60a5fa;
-}
-
-.doc-empty {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-/* Status Badges */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.status-badge--pending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-.status-badge--pending .status-dot { background: #f59e0b; }
-
-.status-badge--approved {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
-.status-badge--approved .status-dot { background: #10b981; }
-
-.status-badge--rejected {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-.status-badge--rejected .status-dot { background: #ef4444; }
-
-.text-right {
-  text-align: right;
-}
-
-.actions-group {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.action-btn {
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: transform 100ms ease, opacity 150ms ease;
-}
-
-.action-btn:active {
-  transform: scale(0.96);
-}
-
-.action-btn--approve {
-  background: #10b981;
-  color: #fff;
-}
-.action-btn--approve:hover {
-  opacity: 0.9;
-}
-
-.action-btn--reject {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-.action-btn--reject:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
-.result-text {
-  font-size: 12px;
-  font-weight: 600;
-}
-.result-text--approved { color: #10b981; }
-.result-text--rejected { color: #ef4444; }
-
-/* Document Review Grid Mode */
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.view-mode-toggle {
-  display: flex;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  padding: 3px;
-  border-radius: 8px;
-}
-
-.view-mode-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.view-mode-btn--active {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  border-color: var(--color-border);
-}
-
+/* Review Grid Cards */
 .review-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: 20px;
 }
 
 .review-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid var(--color-border, #e2e8f0);
   padding: 20px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  transition: transform 180ms ease, border-color 180ms ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .review-card:hover {
   transform: translateY(-2px);
-  border-color: var(--color-border);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
 }
 
 .review-card__header {
@@ -1283,99 +1496,122 @@ async function reject(reg: RegistrationItem) {
 
 .applicant-flex {
   display: flex;
-  align-items: center;
   gap: 12px;
+  align-items: center;
+}
+
+.applicant-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.applicant-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .applicant-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--color-text);
+  color: #0f172a;
   margin: 0;
 }
 
 .applicant-sub {
   font-size: 12px;
-  color: var(--color-muted);
-  margin: 2px 0 0;
+  color: #64748b;
+  margin: 2px 0 0 0;
 }
 
 .vehicle-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
+  gap: 12px;
   padding: 8px 12px;
+  background: #f8fafc;
   border-radius: 8px;
+  font-size: 13px;
 }
 
 .vehicle-tag {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #f59e0b;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .plate-text {
-  font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.5px;
-  color: var(--color-text);
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
 }
 
 .vehicle-desc {
-  font-size: 12px;
-  color: var(--color-muted);
+  color: #64748b;
 }
 
-/* 3 Document Thumbnails Grid (COR, OR/CR, Vehicle Photo) */
+/* Document Thumbnails Grid */
 .doc-previews-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .doc-thumb-box {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
   cursor: pointer;
+  transition: all 0.2s ease;
+  background: #f8fafc;
+}
+
+.doc-thumb-box:hover {
+  border-color: #6366f1;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
+}
+
+.doc-thumb-box--wide {
+  grid-column: 1 / -1;
 }
 
 .doc-thumb-img-wrapper {
   position: relative;
-  width: 100%;
-  height: 90px;
-  border-radius: 8px;
+  height: 110px;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  background: #f1f5f9;
 }
 
-.doc-thumb-img {
+.doc-thumb-pdf, .doc-thumb-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 200ms ease;
-}
-
-.doc-thumb-box:hover .doc-thumb-img {
-  transform: scale(1.08);
+  border: none;
 }
 
 .doc-hover-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(15, 23, 42, 0.65);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
   opacity: 0;
-  transition: opacity 180ms ease;
-  font-size: 11px;
-  font-weight: 700;
-  color: #ffffff;
+  transition: opacity 0.2s ease;
 }
 
 .doc-thumb-box:hover .doc-hover-overlay {
@@ -1383,47 +1619,90 @@ async function reject(reg: RegistrationItem) {
 }
 
 .doc-thumb-info {
+  padding: 8px 10px;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+  background: #ffffff;
 }
 
 .doc-thumb-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
 }
 
 .doc-thumb-status {
-  font-size: 10px;
-  color: #10b981;
+  font-size: 11px;
 }
 
-/* Review Card Footer */
+.doc-thumb-status--ok { color: #10b981; }
+
+.schedule-thumb-wrapper {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schedule-mini-preview {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mini-sched-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #64748b;
+}
+
+.mini-day {
+  width: 28px;
+  font-weight: 600;
+}
+
+.mini-bar {
+  flex: 1;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.mini-bar--active {
+  background: #8b5cf6;
+}
+
+/* Card Footer Actions */
 .review-card__footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding-top: 12px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid #f1f5f9;
 }
 
 .btn-inspect {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: all 0.2s ease;
 }
 
 .btn-inspect:hover {
-  background: var(--color-surface);
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
 .card-actions-group {
@@ -1431,83 +1710,180 @@ async function reject(reg: RegistrationItem) {
   gap: 8px;
 }
 
-.btn-card-approve {
-  background: #10b981;
-  color: #ffffff;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: opacity 150ms ease;
-}
-
-.btn-card-approve:hover {
-  opacity: 0.9;
-}
-
 .btn-card-reject {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 
-/* Document Review Inspector Modal (Split Panel View) */
+.btn-card-approve {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.result-text {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.result-text--approved { color: #10b981; }
+.result-text--rejected { color: #ef4444; }
+
+/* Status Badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status-badge--pending { background: #fef3c7; color: #d97706; }
+.status-badge--pending .status-dot { background: #d97706; }
+
+.status-badge--approved { background: #d1fae5; color: #059669; }
+.status-badge--approved .status-dot { background: #059669; }
+
+.status-badge--rejected { background: #fee2e2; color: #dc2626; }
+.status-badge--rejected .status-dot { background: #dc2626; }
+
+/* List Table Styles */
+.registrations-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  overflow: hidden;
+}
+
+.registrations-table-wrapper {
+  overflow-x: auto;
+}
+
+.registrations-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.registrations-table th {
+  padding: 14px 16px;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.registrations-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.applicant-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.applicant-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.applicant-email {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.doc-links {
+  display: flex;
+  gap: 6px;
+}
+
+.doc-badge-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+
+}
+
+.doc-badge-btn--cor { color: #2563eb; }
+.doc-badge-btn--sched { color: #7c3aed; }
+.doc-badge-btn--orcr { color: #059669; }
+.doc-badge-btn--pic { color: #d97706; }
+
+.actions-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.action-btn--approve { background: #10b981; color: #ffffff; }
+.action-btn--reject { background: #fee2e2; color: #dc2626; }
+
+/* Inspector Modal */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--color-overlay);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-}
-
-.modal-backdrop-zoom {
-  position: fixed;
-  inset: 0;
-  background: var(--color-overlay-dark);
-  backdrop-filter: blur(8px);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.modal-content-zoom {
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 24px;
 }
 
 .inspector-modal {
-  width: 95vw;
-  max-width: 1050px;
-  height: 85vh;
-  max-height: 720px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
+  width: 100%;
+  max-width: 1100px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  box-shadow: var(--shadow-modal);
 }
 
 .inspector-header {
-  padding: 18px 24px;
-  background: var(--color-surface-muted);
-  border-bottom: 1px solid var(--color-border);
+  padding: 20px 24px;
+  background: #0f172a;
+  color: #ffffff;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1516,127 +1892,229 @@ async function reject(reg: RegistrationItem) {
 .inspector-tag {
   font-size: 11px;
   font-weight: 700;
-  color: #f59e0b;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  color: #818cf8;
 }
 
 .inspector-title {
   font-size: 18px;
   font-weight: 700;
-  color: var(--color-text);
-  margin: 2px 0 0;
+  margin: 4px 0 0 0;
 }
+
+.close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 28px;
+  cursor: pointer;
+}
+
+.close-btn:hover { color: #ffffff; }
 
 .inspector-body {
   display: grid;
   grid-template-columns: 1fr 340px;
-  flex: 1;
+  height: calc(90vh - 80px);
   overflow: hidden;
 }
 
-/* Left Viewer */
 .inspector-viewer {
+  padding: 20px;
+  background: #f8fafc;
   display: flex;
   flex-direction: column;
-  background: var(--color-surface);
-  padding: 16px;
-  border-right: 1px solid var(--color-border);
-  overflow: hidden;
+  gap: 16px;
+  overflow-y: auto;
 }
 
 .doc-tabs {
   display: flex;
   gap: 8px;
-  margin-bottom: 14px;
+  background: #e2e8f0;
+  padding: 4px;
+  border-radius: 8px;
 }
 
 .doc-tab-btn {
-  padding: 8px 14px;
+  flex: 1;
+  padding: 8px;
+  border: none;
+  background: transparent;
   border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
+  color: #64748b;
   cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.doc-tab-btn:hover {
-  background: var(--color-surface-lighter, rgba(245, 158, 11, 0.15));
-  color: #f59e0b;
 }
 
 .doc-tab-btn--active {
-  background: #f59e0b;
-  color: #ffffff;
-  border-color: #f59e0b;
+  background: #ffffff;
+  color: #6366f1;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .doc-preview-box {
-  position: relative;
   flex: 1;
+  min-height: 400px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-surface-muted);
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
+  position: relative;
+}
+
+.doc-pdf-iframe {
+  width: 100%;
+  flex: 1;
+  min-height: 440px;
+  border: none;
+}
+
+.pdf-modal-toolbar {
+  display: flex;
+  gap: 12px;
   padding: 12px;
-  overflow: hidden;
+  background: #f1f5f9;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pdf-action-btn {
+  padding: 8px 14px;
+  background: #6366f1;
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.pdf-action-btn--secondary {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
 }
 
 .inspector-img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
-  border-radius: 6px;
   cursor: zoom-in;
-  transition: transform 200ms ease;
-}
-
-.inspector-img:hover {
-  transform: scale(1.02);
 }
 
 .zoom-hint {
   position: absolute;
   bottom: 12px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 4px 10px;
-  border-radius: 999px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: 20px;
   font-size: 11px;
-  color: var(--color-muted);
-  pointer-events: none;
 }
 
-/* Right Sidebar */
-.inspector-sidebar {
+/* Schedule Inspector Box */
+.schedule-inspector-box {
   padding: 20px;
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+.sched-inspect-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sched-inspect-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.btn-edit-sched, .btn-save-sched {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-edit-sched { background: #e0e7ff; color: #4338ca; }
+.btn-save-sched { background: #10b981; color: #ffffff; }
+
+.schedule-presets {
+  display: flex;
+  gap: 8px;
+}
+
+.preset-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.schedule-inspect-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.schedule-inspect-table th, .schedule-inspect-table td {
+  padding: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.access-chip {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.access-chip--allowed { background: #d1fae5; color: #059669; }
+.access-chip--off { background: #fee2e2; color: #dc2626; }
+
+.time-input {
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+/* Inspector Sidebar */
+.inspector-sidebar {
+  padding: 20px;
+  border-left: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
+  background: #ffffff;
   overflow-y: auto;
-  background: var(--color-surface-muted);
 }
 
 .sidebar-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-border);
+  gap: 8px;
 }
 
 .sidebar-label {
   font-size: 12px;
   font-weight: 700;
-  color: #f59e0b;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0;
+  color: #94a3b8;
+  margin: 0 0 4px 0;
 }
 
 .meta-row {
@@ -1645,240 +2123,97 @@ async function reject(reg: RegistrationItem) {
   font-size: 13px;
 }
 
-.meta-key {
-  color: var(--color-muted);
-}
-
-.meta-val {
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.plate-highlight {
-  color: #f59e0b;
-  font-size: 14px;
-}
+.meta-key { color: #64748b; }
+.meta-val { font-weight: 600; color: #0f172a; }
 
 .check-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: var(--color-muted);
+  font-size: 13px;
+  color: #334155;
 }
 
-.check-dot--ok {
-  color: #10b981;
-  font-weight: 700;
-}
+.check-dot--ok { color: #10b981; font-weight: 900; }
 
 .sidebar-actions {
   margin-top: auto;
-  padding-top: 10px;
 }
 
 .inspector-btn-group {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.btn-inspector-approve {
-  width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  background: #10b981;
-  color: #ffffff;
-  border: none;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: opacity 150ms ease;
-}
-
-.btn-inspector-approve:hover {
-  opacity: 0.9;
+  gap: 8px;
 }
 
 .btn-inspector-reject {
   width: 100%;
-  padding: 12px;
+  padding: 10px;
   border-radius: 8px;
-  background: #ef4444;
-  color: #ffffff;
   border: none;
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 13px;
   font-weight: 700;
-  font-size: 14px;
   cursor: pointer;
-  transition: background 150ms ease;
 }
 
-.btn-inspector-reject:hover {
-  background: #dc2626;
+.btn-inspector-approve {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .inspector-status-notice {
   padding: 12px;
   border-radius: 8px;
-  font-weight: 700;
-  font-size: 13px;
   text-align: center;
-}
-
-.notice--approved {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.notice--rejected {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-/* List Table Badges */
-.doc-badge-btn {
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  margin-right: 4px;
-  transition: all 150ms ease;
 }
 
-.doc-badge-btn:hover {
-  background: var(--color-surface-lighter, rgba(245, 158, 11, 0.15));
-  border-color: #f59e0b;
-  color: #f59e0b;
-}
+.notice--approved { background: #d1fae5; color: #059669; }
+.notice--rejected { background: #fee2e2; color: #dc2626; }
 
-.doc-badge-btn--cor {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.35);
-  color: #6366f1;
-}
-
-.doc-badge-btn--cor:hover {
-  background: rgba(99, 102, 241, 0.25);
-  color: #4f46e5;
-  border-color: #6366f1;
-}
-
-.doc-badge-btn--orcr {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.35);
-  color: #10b981;
-}
-
-.doc-badge-btn--orcr:hover {
-  background: rgba(16, 185, 129, 0.25);
-  color: #059669;
-  border-color: #10b981;
-}
-
-.doc-badge-btn--pic {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #d97706;
-}
-
-.doc-badge-btn--pic:hover {
-  background: rgba(245, 158, 11, 0.25);
-  color: #b45309;
-  border-color: #f59e0b;
-}
-
-/* Image Modal */
-
-.modal-content {
-  position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
-  background: #111318;
-  border-radius: 12px;
-  padding: 12px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-}
-
-.modal-close {
-  position: absolute;
-  top: -16px;
-  right: -16px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #ef4444;
-  color: #fff;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
+/* Image Zoom */
+.modal-backdrop-zoom {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
+}
+
+.modal-content-zoom {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
 }
 
 .modal-img {
-  max-width: 100%;
-  max-height: 80vh;
+  max-width: 90vw;
+  max-height: 90vh;
   object-fit: contain;
   border-radius: 8px;
 }
 
-.doc-thumb-pdf {
-  width: 100%;
-  height: 100%;
+.modal-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  background: transparent;
   border: none;
-  pointer-events: none;
-  background: var(--color-surface-muted);
-}
-
-.doc-pdf-iframe {
-  width: 100%;
-  height: 480px;
-  border: none;
-  border-radius: 12px;
-  background: var(--color-surface-muted);
-}
-
-.pdf-modal-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 12px;
-}
-
-.pdf-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
   color: #ffffff;
-  background: var(--color-primary, #D22730);
-  border-radius: 8px;
-  text-decoration: none;
-  transition: all 0.2s ease;
-}
-
-.pdf-action-btn:hover {
-  background: #b51f27;
-  transform: translateY(-1px);
-}
-
-.pdf-action-btn--secondary {
-  color: var(--color-text-primary, #333333);
-  background: var(--color-surface-muted, #f1f3f5);
-  border: 1px solid var(--color-border, #e2e8f0);
-}
-
-.pdf-action-btn--secondary:hover {
-  background: var(--color-surface-hover, #e2e8f0);
+  font-size: 32px;
+  cursor: pointer;
 }
 </style>

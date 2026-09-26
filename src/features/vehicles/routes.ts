@@ -7,8 +7,6 @@ export default [
   },
   {
     path: '/vehicle-approvals',
-    name: 'VehicleApprovals',
-    component: () => import('./pages/VehicleApprovalPage.vue'),
-    meta: { title: 'Vehicle Approvals' }
+    redirect: '/registrations'
   }
 ]

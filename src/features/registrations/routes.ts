@@ -3,12 +3,10 @@ export default [
     path: '/registrations',
     name: 'Registrations',
     component: () => import('./pages/RegistrationsPage.vue'),
-    meta: { title: 'Pending Registrations' },
+    meta: { title: 'Approvals & Document Verification' },
   },
   {
     path: '/schedule-approvals',
-    name: 'ScheduleApprovals',
-    component: () => import('./pages/ScheduleApprovalPage.vue'),
-    meta: { title: 'Schedule & COR Verification' },
+    redirect: '/registrations'
   },
 ]
