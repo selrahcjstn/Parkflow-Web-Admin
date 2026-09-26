@@ -1735,9 +1735,12 @@ function openZoomImage(url?: string) {
   transition: all 0.2s ease;
 }
 
+.registrations-table tbody tr:hover .btn-inspect,
+.review-card:hover .btn-inspect,
 .btn-inspect:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #ffffff;
 }
 
 .card-actions-group {
