@@ -1574,8 +1574,14 @@ function openZoomImage(url?: string) {
 
 .review-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .review-card {
