@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { ActiveSession, ParkingHistoryItem, VehicleType, ParkingStatus, EntryMethod } from '../types'
 import ManualEntryModal from '../components/ManualEntryModal.vue'
 import SessionDetailModal from '../components/SessionDetailModal.vue'
+import StatsCard from '@/features/dashboard/components/StatsCard.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
@@ -54,8 +55,10 @@ const getLoggedInUserId = (): string => {
   }
 }
 
-const isToday = (dateStr: string) => {
+const isToday = (dateStr?: string) => {
+  if (!dateStr) return false
   const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return false
   const today = new Date()
   return date.getDate() === today.getDate() &&
          date.getMonth() === today.getMonth() &&
@@ -73,15 +76,39 @@ const now = ref(new Date())
 let durationInterval: any = null
 const notifiedOverstayPlates = new Set<string>()
 
+const checkSessionOverstay = (item: any): boolean => {
+  const checkIn = new Date(item.entryTime || item.checkInTime).getTime()
+  if (isNaN(checkIn)) return false
+  const elapsedHours = (now.value.getTime() - checkIn) / (3600 * 1000)
+
+  // Explicit overstay flag from backend or overstay hours
+  if (item.status === 'Overstay' || (item.overstayHours && item.overstayHours > 0)) {
+    return true
+  }
+
+  // Schedule time boundary check:
+  // If item has a scheduled end time or specific schedule window
+  if (item.scheduledEndTime) {
+    const [schedH, schedM] = item.scheduledEndTime.split(':').map(Number)
+    if (!isNaN(schedH)) {
+      const scheduledDate = new Date(item.entryTime || item.checkInTime)
+      scheduledDate.setHours(schedH, schedM || 0, 0, 0)
+      if (now.value > scheduledDate) return true
+    }
+  }
+
+  // Allowed class/shift schedule limit (Students 4h slot, Staff 8h)
+  const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' ? 8 : 4)
+  return elapsedHours > maxAllowed
+}
+
 const fetchParkingData = async () => {
   isLoading.value = true
   try {
     const activeRes = await api.get('/parking-logs/active-sessions?parkingCapacity=200')
     if (activeRes.data && activeRes.data.isSuccess) {
       activeSessions.value = activeRes.data.data.map((item: any) => {
-        const checkIn = new Date(item.entryTime).getTime()
-        const diffHrs = (now.value.getTime() - checkIn) / (3600 * 1000)
-        const isOverstay = diffHrs >= 8
+        const isOverstay = checkSessionOverstay(item)
         if (isOverstay) {
           notifiedOverstayPlates.add(item.plateNumber)
         }
@@ -91,11 +118,11 @@ const fetchParkingData = async () => {
           vehiclePlate: item.plateNumber,
           brand: item.brand,
           vehicleType: item.vehicleType as VehicleType,
-          ownerName: `${item.firstName} ${item.lastName}`,
+          ownerName: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.ownerName || 'Unknown Owner',
           role: item.role || 'Guest',
           checkInTime: item.entryTime,
-          duration: item.totalParkingHours,
-          gate: 1,
+          duration: item.totalParkingHours || '0m',
+          gate: item.gate || 1,
           status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked')
         }
       })
@@ -121,7 +148,7 @@ const fetchParkingData = async () => {
           vehiclePlate: item.plateNumber,
           brand: item.brand,
           vehicleType: item.type as VehicleType,
-          ownerName: `${item.firstName} ${item.lastName}`,
+          ownerName: `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Guest',
           role: item.roleName || 'Guest',
           checkInTime: item.entryTime,
           checkOutTime: item.exitTime || '',
@@ -146,18 +173,17 @@ onMounted(async () => {
   await fetchParkingData()
   durationInterval = setInterval(() => {
     now.value = new Date()
-    // Auto-update status to overstay if parked more than 8 hours
+    // Auto-update status to overstay if exceeding scheduled access time
     activeSessions.value.forEach((session) => {
-      const diffHrs = (now.value.getTime() - new Date(session.checkInTime).getTime()) / (3600 * 1000)
-      if (diffHrs >= 8) {
+      if (checkSessionOverstay(session)) {
         session.status = 'Overstay'
         if (!notifiedOverstayPlates.has(session.vehiclePlate)) {
           notifiedOverstayPlates.add(session.vehiclePlate)
-          showToast(`Warning: Vehicle ${session.vehiclePlate} has exceeded 8 hours.`, 'warning')
+          showToast(`Warning: Vehicle ${session.vehiclePlate} has exceeded scheduled parking time.`, 'warning')
         }
       }
     })
-  }, 10000) // update every 10s
+  }, 10000)
 })
 
 onUnmounted(() => {
@@ -201,8 +227,8 @@ const calculateCharge = (vehicleType: VehicleType, checkInTime: string, checkOut
 const currentTab = ref<'active' | 'history'>('active')
 const searchQuery = ref('')
 const filterVehicleType = ref<string>('all')
-const filterStatus = ref<string>('all') // Active status filter
-const filterMethod = ref<string>('all') // History entry method filter
+const filterStatus = ref<string>('all')
+const filterMethod = ref<string>('all')
 
 // Modals state
 const isManualEntryOpen = ref(false)
@@ -386,34 +412,68 @@ const getRoleLabel = (role: string) => {
 
     <!-- Stats Grid -->
     <div class="stats-grid">
-      <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <div v-if="isLoading">
-          <SkeletonLoader variant="rect" height="100px" style="width: 100%; border-radius: var(--radius-card);" />
-        </div>
-        <template v-else>
-          <div class="stat-card__left">
-            <span class="stat-card__value">{{ stat.value }}</span>
-            <span class="stat-card__title">{{ stat.title }}</span>
-            <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
-          </div>
-          <div class="stat-card__icon" :style="{ background: stat.gradient }">
-            <!-- Occupancy Icon -->
-            <svg v-if="stat.icon === 'occupancy'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <template v-if="isLoading">
+        <SkeletonLoader v-for="i in 3" :key="'skel-stat-'+i" variant="rect" height="148px" style="width: 100%; border-radius: var(--radius-card);" />
+      </template>
+      <template v-else>
+        <!-- Card 1: Slot Occupancy Rate (Same Design as Dashboard) -->
+        <StatsCard
+          title="Slot Occupancy"
+          :value="`${occupancyCount} / ${TOTAL_CAPACITY}`"
+          :subtitle="`${TOTAL_CAPACITY - occupancyCount} slots available`"
+          :trend="`${occupancyRate}% full`"
+          :trend-up="occupancyRate < 85"
+          accent-color="#059669"
+          badge-bg="rgba(16, 185, 129, 0.12)"
+          :progress-percent="occupancyRate"
+        >
+          <template #icon>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="3" width="18" height="18" rx="3" />
               <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
             </svg>
-            <!-- Entries Icon -->
-            <svg v-if="stat.icon === 'entries'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          </template>
+        </StatsCard>
+
+        <!-- Card 2: Today's Entries (Linked to active/history today's check-ins) -->
+        <StatsCard
+          title="Today's Entries"
+          :value="String(todaysEntriesCount)"
+          subtitle="RFID & Guard manual check-ins"
+          trend="Today Logged"
+          :trend-up="true"
+          accent-color="#2563eb"
+          badge-bg="rgba(37, 99, 235, 0.12)"
+          @click="currentTab = 'active'"
+          class="clickable-stat-card"
+        >
+          <template #icon>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2v20M17 5l-5-5-5 5M17 19l-5 5-5-5" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <!-- Overstay Icon -->
-            <svg v-if="stat.icon === 'overstay'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          </template>
+        </StatsCard>
+
+        <!-- Card 3: Active Overstays (Schedule Time Exceeded) -->
+        <StatsCard
+          title="Active Overstays"
+          :value="String(overstayCount)"
+          subtitle="Exceeded scheduled access time"
+          :trend="overstayCount > 0 ? 'Exceeded Schedule' : 'Normal'"
+          :trend-up="overstayCount === 0"
+          accent-color="#d22730"
+          badge-bg="rgba(210, 39, 48, 0.12)"
+          @click="currentTab = 'active'; filterStatus = 'Overstay'"
+          class="clickable-stat-card"
+        >
+          <template #icon>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-          </div>
-        </template>
-      </div>
+          </template>
+        </StatsCard>
+      </template>
     </div>
 
     <!-- Filters Bar -->
@@ -1350,6 +1410,16 @@ const getRoleLabel = (role: string) => {
   padding: 48px !important;
   color: var(--color-muted);
   font-size: 14px;
+}
+
+.clickable-stat-card {
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clickable-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
 }
 
 /* Toast System styling */
