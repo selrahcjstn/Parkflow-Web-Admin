@@ -531,17 +531,6 @@ const handleFormSubmit = async (formData: any) => {
       <!-- Filter Dropdowns -->
       <div class="filters-group">
         <div class="select-wrapper">
-          <select v-model="selectedRole" class="filter-select">
-            <option value="all">All Roles</option>
-            <option value="Student">Student</option>
-            <option value="staff">Staff/Faculty</option>
-            <option v-if="isSuperAdmin" value="AdminStaff">Admin / Staff</option>
-            <option v-if="isSuperAdmin" value="Guard">Security Guard</option>
-            <option v-if="isSuperAdmin" value="Admin">Administrator</option>
-          </select>
-        </div>
-
-        <div class="select-wrapper">
           <select v-model="selectedStatus" class="filter-select">
             <option value="all">All Statuses</option>
             <option value="Pending">Pending Verification</option>
