@@ -802,20 +802,15 @@ function openZoomImage(url?: string) {
 
           <!-- Card Footer Actions -->
           <div class="review-card__footer">
-            <button class="btn-inspect" @click="openInspector(item)">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-              Review Document
-            </button>
-
             <span v-if="item.status === 'approved'" class="result-text result-text--approved">
               Clearance Verified
             </span>
             <span v-else-if="item.status === 'rejected'" class="result-text result-text--rejected">
               Declined
             </span>
+            <button class="btn-inspect" @click="openInspector(item)">
+              Review
+            </button>
           </div>
         </div>
       </div>
@@ -910,11 +905,7 @@ function openZoomImage(url?: string) {
 
               <td class="text-right">
                 <button class="btn-inspect" @click="openInspector(item)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  Review Document
+                  Review
                 </button>
               </td>
             </tr>
@@ -1797,8 +1788,9 @@ function openZoomImage(url?: string) {
 /* Card Footer Actions */
 .review-card__footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
+  gap: 12px;
   padding-top: 12px;
   border-top: 1px solid #f1f5f9;
 }
@@ -1806,15 +1798,16 @@ function openZoomImage(url?: string) {
 .btn-inspect {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  justify-content: center;
+  padding: 8px 18px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #0f172a;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  margin-left: auto;
   transition: all 0.2s ease;
 }
 
