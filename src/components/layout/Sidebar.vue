@@ -71,7 +71,7 @@ const navItems: NavItem[] = [
     icon: 'users',
     children: [
       { label: 'Students', path: '/users?role=Student' },
-      { label: 'NAP', path: '/users?role=NAPA' },
+      { label: 'Staff/Faculty', path: '/users?role=NAPA' },
       { label: 'Admin / Staff', path: '/users?role=AdminStaff' }
     ]
   },

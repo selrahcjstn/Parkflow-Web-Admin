@@ -134,7 +134,7 @@ const displayStatus = (user: UserWithDetails) => {
 // Dynamic Header Properties
 const headerTitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Student Client Directory'
-  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Non-Academic Personnel (NAP) & Faculty Directory'
+  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Staff & Faculty Directory'
   if (selectedRole.value === 'AdminStaff') return 'Staff & Admin Directory'
   if (selectedRole.value === 'Guard') return 'Security Guards Directory'
   if (selectedRole.value === 'Admin') return 'System Administrators Directory'
@@ -143,7 +143,7 @@ const headerTitle = computed(() => {
 
 const headerSubtitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
-  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Manage non-academic personnel (NAP), faculty staff accounts, department assignments, and vehicle clearance.'
+  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Manage staff and faculty accounts, department assignments, and vehicle clearance.'
   if (selectedRole.value === 'AdminStaff') return 'Manage registered campus security guards and system administrator accounts.'
   if (selectedRole.value === 'Guard') return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
   if (selectedRole.value === 'Admin') return 'Manage system administrators and elevated system privileges.'
@@ -152,7 +152,7 @@ const headerSubtitle = computed(() => {
 
 const headerBadge = computed(() => {
   if (selectedRole.value === 'Student') return 'Student Accounts & COR Clearance'
-  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Non-Academic & Faculty Personnel'
+  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Staff & Faculty Directory'
   if (selectedRole.value === 'AdminStaff') return 'Administration & Security'
   if (selectedRole.value === 'Guard') return 'Campus Security Operations'
   if (selectedRole.value === 'Admin') return 'SuperAdmin System Control'
@@ -246,9 +246,8 @@ const getIdentifier = (user: UserWithDetails) => {
 const getRoleLabel = (role: UserRole) => {
   switch (role) {
     case 'UniversityStaff':
-      return 'Faculty'
     case 'NonAcademicPersonnel':
-      return 'NAP'
+      return 'Staff/Faculty'
     case 'Guard':
       return 'Security Guard'
     default:
