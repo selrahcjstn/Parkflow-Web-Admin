@@ -164,8 +164,8 @@ const userInitials = computed(() => {
         <div class="logo-icon">
           <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
             <rect x="3" y="10" width="4" height="7" rx="1" fill="white" />
-            <rect x="8" y="6" width="4" height="11" rx="1" fill="white" opacity="0.75" />
-            <rect x="13" y="3" width="4" height="14" rx="1" fill="white" opacity="0.45" />
+            <rect x="8" y="6" width="4" height="11" rx="1" fill="white" opacity="0.85" />
+            <rect x="13" y="3" width="4" height="14" rx="1" fill="white" opacity="0.6" />
           </svg>
         </div>
         <div class="logo-text">
@@ -181,8 +181,11 @@ const userInitials = computed(() => {
       <nav class="sidebar-nav">
         <template v-for="item in filteredNavItems" :key="item.key">
 
-          <!-- Section Divider Label (Removed as per requirements) -->
-          <template v-if="item.section"></template>
+          <!-- Section Divider Label -->
+          <div v-if="item.section && !collapsed" class="nav-section-label">
+            {{ item.label }}
+          </div>
+          <div v-else-if="item.section && collapsed" class="nav-section-divider"></div>
 
           <!-- Standard Single Link -->
           <router-link
@@ -193,31 +196,31 @@ const userInitials = computed(() => {
           >
             <!-- Dashboard icon -->
             <div class="nav-icon-wrap">
-              <svg v-if="item.icon === 'dashboard'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-if="item.icon === 'dashboard'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="7" height="7" rx="1.5" />
                 <rect x="14" y="3" width="7" height="7" rx="1.5" />
                 <rect x="3" y="14" width="7" height="7" rx="1.5" />
                 <rect x="14" y="14" width="7" height="7" rx="1.5" />
               </svg>
               <!-- Parking icon -->
-              <svg v-else-if="item.icon === 'parking'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="item.icon === 'parking'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="3" />
                 <path d="M10 16V8h3a3 3 0 0 1 0 6h-3" />
               </svg>
               <!-- Calendar / Reservations icon -->
-              <svg v-else-if="item.icon === 'calendar'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="item.icon === 'calendar'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
               <!-- Collections icon -->
-              <svg v-else-if="item.icon === 'violations'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="item.icon === 'violations'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z" />
                 <path d="M13 5v14" stroke-dasharray="2 2" />
               </svg>
               <!-- Vehicles icon -->
-              <svg v-else-if="item.icon === 'vehicles'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="item.icon === 'vehicles'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M5 17h14" />
                 <path d="M6 11l1.5-4.5a1 1 0 0 1 .95-.5h7.1a1 1 0 0 1 .95.5L18 11" />
                 <rect x="3" y="11" width="18" height="6" rx="2" />
@@ -225,19 +228,19 @@ const userInitials = computed(() => {
                 <circle cx="17" cy="17" r="2" />
               </svg>
               <!-- Feedback icon -->
-              <svg v-else-if="item.icon === 'feedback'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="item.icon === 'feedback'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 <line x1="9" y1="9" x2="15" y2="9" />
                 <line x1="9" y1="13" x2="13" y2="13" />
               </svg>
               <!-- Reports icon -->
-              <svg v-else-if="item.icon === 'reports'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="item.icon === 'reports'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="12" width="4" height="8" rx="1" />
                 <rect x="10" y="8" width="4" height="12" rx="1" />
                 <rect x="17" y="4" width="4" height="16" rx="1" />
               </svg>
               <!-- Settings icon -->
-              <svg v-else-if="item.icon === 'settings'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <svg v-else-if="item.icon === 'settings'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
@@ -255,14 +258,14 @@ const userInitials = computed(() => {
             >
               <div class="nav-icon-wrap">
                 <!-- Users / Client Icon -->
-                <svg v-if="item.icon === 'users'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-if="item.icon === 'users'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="9" cy="7" r="4" />
                   <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
                   <circle cx="17" cy="8" r="3" />
                   <path d="M21 21v-1.5a3 3 0 0 0-2.5-2.96" />
                 </svg>
                 <!-- Register Icon -->
-                <svg v-else-if="item.icon === 'register'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-else-if="item.icon === 'register'" class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
                   <line x1="19" y1="8" x2="19" y2="14" />
@@ -278,7 +281,7 @@ const userInitials = computed(() => {
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="2.2"
+                stroke-width="2"
               >
                 <polyline points="6 9 12 15 18 9" />
               </svg>
@@ -321,8 +324,8 @@ const userInitials = computed(() => {
         <svg
           class="collapse-chevron"
           :class="{ rotated: collapsed }"
-          width="16"
-          height="16"
+          width="14"
+          height="14"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -343,7 +346,7 @@ const userInitials = computed(() => {
   left: 0;
   top: 0;
   height: 100vh;
-  width: 264px;
+  width: 260px;
   z-index: 40;
   transition: width var(--transition-smooth);
   overflow: visible;
@@ -365,7 +368,7 @@ const userInitials = computed(() => {
   flex-direction: column;
   background: var(--color-sidebar-bg, #ffffff);
   border-right: 1px solid var(--color-sidebar-border, #e2e8f0);
-  box-shadow: 2px 0 12px rgba(15, 23, 42, 0.04);
+  box-shadow: none !important;
   overflow: hidden;
   z-index: 41;
 }
@@ -376,15 +379,15 @@ const userInitials = computed(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 18px 16px 16px;
-  min-height: 72px;
-  border-bottom: 1px solid var(--color-sidebar-divider, #eef2f6);
+  padding: 16px 16px 14px;
+  min-height: 68px;
+  border-bottom: 1px solid var(--color-sidebar-divider, #f1f5f9);
   flex-shrink: 0;
 }
 
 .collapsed .sidebar-logo {
   justify-content: center;
-  padding: 18px 0 16px;
+  padding: 16px 0 14px;
 }
 
 .logo-icon {
@@ -394,16 +397,16 @@ const userInitials = computed(() => {
   width: 36px;
   height: 36px;
   min-width: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #D22730, #A81D24);
-  box-shadow: 0 4px 14px rgba(210, 39, 48, 0.28);
+  border-radius: 9px;
+  background: #D22730;
+  box-shadow: none !important;
   flex-shrink: 0;
 }
 
 .logo-text {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   overflow: hidden;
   white-space: nowrap;
   opacity: 1;
@@ -419,12 +422,12 @@ const userInitials = computed(() => {
 .logo-wordmark {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .logo-title {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--color-text, #0f172a);
   line-height: 1;
   letter-spacing: -0.3px;
@@ -437,23 +440,40 @@ const userInitials = computed(() => {
   background: rgba(210, 39, 48, 0.08);
   border: 1px solid rgba(210, 39, 48, 0.2);
   letter-spacing: 0.8px;
-  padding: 1px 5px;
+  padding: 1.5px 5px;
   border-radius: 4px;
-  line-height: 1.4;
+  line-height: 1;
 }
 
 .logo-subtitle {
   font-size: 10px;
   color: var(--color-muted, #64748b);
   line-height: 1;
-  letter-spacing: 0.1px;
 }
 
-/* ── Navigation ─────────────────────────────────── */
+/* ── Section Dividers / Headers ─────────────────── */
+
+.nav-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 16px 16px 6px 16px;
+  user-select: none;
+}
+
+.nav-section-divider {
+  height: 1px;
+  background: var(--color-sidebar-divider, #f1f5f9);
+  margin: 10px 14px;
+}
+
+/* ── Navigation Items ───────────────────────────── */
 
 .sidebar-nav {
   flex: 1;
-  padding: 16px 0 4px;
+  padding: 8px 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -467,25 +487,26 @@ const userInitials = computed(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 40px;
+  height: 38px;
   padding: 0 12px;
-  margin: 2px 8px;
-  border-radius: 10px;
+  margin: 2px 10px;
+  border-radius: 8px;
   color: var(--color-sidebar-text, #475569);
   text-decoration: none;
   background: transparent;
   border: none;
-  width: calc(100% - 16px);
+  width: calc(100% - 20px);
   cursor: pointer;
   transition: background var(--transition-fast), color var(--transition-fast);
   overflow: hidden;
   white-space: nowrap;
   text-align: left;
+  box-shadow: none !important;
 }
 
 .collapsed .nav-item {
   justify-content: center;
-  margin: 2px 8px;
+  margin: 2px 10px;
   padding: 0;
 }
 
@@ -495,10 +516,10 @@ const userInitials = computed(() => {
 }
 
 .nav-item.router-link-active {
-  background: var(--color-sidebar-active-bg, #D22730);
-  color: var(--color-sidebar-text-active, #ffffff);
+  background: #D22730;
+  color: #ffffff;
   font-weight: 600;
-  box-shadow: 0 4px 14px rgba(210, 39, 48, 0.28);
+  box-shadow: none !important;
 }
 
 /* Icon wrapper */
@@ -506,11 +527,9 @@ const userInitials = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
-  transition: background var(--transition-fast);
 }
 
 .nav-icon {
@@ -520,7 +539,7 @@ const userInitials = computed(() => {
 }
 
 .nav-label {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   flex: 1;
   opacity: 1;
@@ -553,19 +572,20 @@ const userInitials = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  padding-left: 36px;
-  padding-top: 4px;
-  padding-bottom: 8px;
+  border-left: 1px solid #e2e8f0;
+  margin-left: 22px;
+  padding-left: 8px;
+  padding-top: 2px;
+  padding-bottom: 4px;
 }
 
 .sub-nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 34px;
+  height: 32px;
   padding: 0 10px;
-  margin: 1px 8px 1px 0;
-  border-radius: 8px;
+  margin: 1px 0;
+  border-radius: 6px;
   color: #64748b;
   text-decoration: none;
   font-size: 12.5px;
@@ -583,7 +603,6 @@ const userInitials = computed(() => {
   color: #D22730;
   background: rgba(210, 39, 48, 0.08);
   font-weight: 600;
-  border-left: 2px solid #D22730;
 }
 
 /* ── Tooltip ────────────────────────────────────── */
@@ -593,8 +612,8 @@ const userInitials = computed(() => {
   left: calc(100% + 10px);
   top: 50%;
   transform: translateY(-50%) translateX(-4px);
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 5px 10px;
+  border-radius: 6px;
   background: #0f172a;
   color: #fff;
   font-size: 12px;
@@ -604,8 +623,8 @@ const userInitials = computed(() => {
   opacity: 0;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
   z-index: 100;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.18);
-  border: none;
+  box-shadow: none !important;
+  border: 1px solid #334155;
 }
 
 .nav-tooltip::before {
@@ -631,11 +650,11 @@ const userInitials = computed(() => {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-top: 1px solid var(--color-sidebar-divider, #eef2f6);
-  background: #fafbfc;
+  border-top: 1px solid var(--color-sidebar-divider, #f1f5f9);
+  background: #f8fafc;
   flex-shrink: 0;
   overflow: hidden;
-  min-height: 60px;
+  min-height: 58px;
 }
 
 .collapsed .sidebar-user {
@@ -648,7 +667,7 @@ const userInitials = computed(() => {
   height: 32px;
   min-width: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #D22730, #fb7185);
+  background: #D22730;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -693,27 +712,27 @@ const userInitials = computed(() => {
 
 .collapse-toggle {
   position: absolute;
-  bottom: 70px;
-  right: -14px;
+  bottom: 68px;
+  right: -13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #64748b;
   cursor: pointer;
-  transition: background var(--transition-base), color var(--transition-base), box-shadow var(--transition-base);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  transition: background var(--transition-base), color var(--transition-base), border-color var(--transition-base);
+  box-shadow: none !important;
   z-index: 50;
 }
 
 .collapse-toggle:hover {
   background: #f8fafc;
   color: #0f172a;
-  border-color: #cbd5e1;
+  border-color: #94a3b8;
 }
 
 .collapse-chevron {
@@ -742,7 +761,7 @@ const userInitials = computed(() => {
   .sidebar {
     transform: translateX(-100%);
     transition: transform var(--transition-smooth);
-    width: 264px !important;
+    width: 260px !important;
   }
 
   .sidebar.mobile-open {
@@ -753,7 +772,7 @@ const userInitials = computed(() => {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.35);
+    background: rgba(15, 23, 42, 0.4);
     backdrop-filter: blur(4px);
     z-index: 39;
   }
@@ -774,7 +793,7 @@ const userInitials = computed(() => {
 
   .sidebar-logo {
     justify-content: flex-start !important;
-    padding: 18px 16px 16px !important;
+    padding: 16px 16px 14px !important;
   }
 
   .nav-item {
