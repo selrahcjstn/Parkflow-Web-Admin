@@ -394,7 +394,6 @@ const getRoleLabel = (role: string) => {
                   class="status-cell-text"
                   :class="vehicle.status === 'Active' ? 'status-cell-text--active' : 'status-cell-text--suspended'"
                 >
-                  <span class="status-dot"></span>
                   {{ vehicle.status }}
                 </span>
               </td>
@@ -823,35 +822,20 @@ const getRoleLabel = (role: string) => {
   color: var(--color-text, #1e293b);
 }
 
-/* Status Indicator (Subtle dot + clean text) */
+/* Status Indicator (Clean text) */
 .status-cell-text {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-size: 13px;
   font-weight: 600;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
 }
 
 .status-cell-text--active {
   color: #059669;
 }
-.status-cell-text--active .status-dot {
-  background: #10b981;
-}
 
 .status-cell-text--suspended {
   color: #dc2626;
-}
-.status-cell-text--suspended .status-dot {
-  background: #ef4444;
 }
 
 /* Actions */

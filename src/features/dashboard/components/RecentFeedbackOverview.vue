@@ -505,15 +505,14 @@ function goToFeedbackPage() {
 }
 
 .status-pill {
-  font-size: 9.5px;
-  font-weight: 700;
-  padding: 1.5px 6px;
-  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0;
 }
 
-.status-resolved { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-.status-reviewed { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.status-pending { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.status-resolved { background: transparent; color: #059669; }
+.status-reviewed { background: transparent; color: #64748b; }
+.status-pending { background: transparent; color: #d97706; }
 
 .inspect-link {
   font-size: 11px;

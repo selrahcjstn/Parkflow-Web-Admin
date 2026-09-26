@@ -693,7 +693,6 @@ function openZoomImage(url?: string) {
               </div>
             </div>
             <span class="status-badge" :class="`status-badge--${item.status}`">
-              <span class="status-dot"></span>
               {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
             </span>
           </div>
@@ -862,7 +861,6 @@ function openZoomImage(url?: string) {
 
               <td>
                 <span class="status-badge" :class="`status-badge--${item.status}`">
-                  <span class="status-dot"></span>
                   {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
                 </span>
               </td>
@@ -1787,22 +1785,9 @@ function openZoomImage(url?: string) {
   font-weight: 600;
 }
 
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
 .status-badge--pending { background: transparent; color: #d97706; }
-.status-badge--pending .status-dot { background: #f59e0b; }
-
 .status-badge--approved { background: transparent; color: #059669; }
-.status-badge--approved .status-dot { background: #10b981; }
-
 .status-badge--rejected { background: transparent; color: #dc2626; }
-.status-badge--rejected .status-dot { background: #ef4444; }
 
 /* Empty State */
 .registrations-card__empty {

@@ -225,28 +225,23 @@ onMounted(async () => {
 
 .activity-card__status {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   text-transform: capitalize;
 }
 
 .activity-card__status--active,
 .activity-card__status--parked {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  color: #059669;
 }
 
 .activity-card__status--completed,
 .activity-card__status--exited {
-  background: rgba(59, 130, 246, 0.1);
-  color: #3b82f6;
+  color: #64748b;
 }
 
 .activity-card__status--overstay {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: #dc2626;
 }
 
 .activity-card__empty {

@@ -592,7 +592,6 @@ const handleFormSubmit = async (formData: any) => {
               </td>
               <td v-if="!isAdminStaffView">
                 <span class="status-cell-text" :class="'status-cell-text--' + displayStatus(user).toLowerCase()">
-                  <span class="status-dot"></span>
                   {{ formatStatusText(displayStatus(user)) }}
                 </span>
               </td>
@@ -1152,39 +1151,22 @@ const handleFormSubmit = async (formData: any) => {
   color: var(--color-muted);
 }
 
-/* Status Indicator (Subtle dot + clean text) */
+/* Status Indicator (Clean text) */
 .status-cell-text {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-size: 13px;
   font-weight: 600;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
 }
 
 .status-cell-text--active,
 .status-cell-text--verified {
   color: #059669;
 }
-.status-cell-text--active .status-dot,
-.status-cell-text--verified .status-dot {
-  background: #10b981;
-}
 
 .status-cell-text--pending,
 .status-cell-text--pendingverification {
   color: #d97706;
-}
-.status-cell-text--pending .status-dot,
-.status-cell-text--pendingverification .status-dot {
-  background: #f59e0b;
 }
 
 .status-cell-text--suspended,
@@ -1192,18 +1174,17 @@ const handleFormSubmit = async (formData: any) => {
 .status-cell-text--notsubmitted {
   color: #dc2626;
 }
-.status-cell-text--suspended .status-dot,
-.status-cell-text--rejected .status-dot,
-.status-cell-text--notsubmitted .status-dot {
-  background: #ef4444;
-}
 
 .actions-header {
   text-align: right;
+  width: 240px;
+  min-width: 240px;
 }
 
 .actions-cell {
   text-align: right;
+  width: 240px;
+  min-width: 240px;
 }
 
 .actions-group {

@@ -653,7 +653,6 @@ const getRoleLabel = (role: string) => {
               </td>
               <td>
                 <span class="status-cell-text" :class="'status-cell-text--' + session.status.toLowerCase()">
-                  <span class="status-dot"></span>
                   {{ session.status }}
                 </span>
               </td>
@@ -765,7 +764,6 @@ const getRoleLabel = (role: string) => {
               </td>
               <td>
                 <span class="status-cell-text status-cell-text--exited">
-                  <span class="status-dot"></span>
                   {{ session.status }}
                 </span>
               </td>
@@ -1323,42 +1321,24 @@ const getRoleLabel = (role: string) => {
   color: var(--color-muted, #64748b);
 }
 
-/* Status Indicator (Subtle dot + clean text) */
+/* Status Indicator (Clean text) */
 .status-cell-text {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   font-size: 13px;
   font-weight: 600;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
 }
 
 .status-cell-text--parked {
   color: #059669;
 }
-.status-cell-text--parked .status-dot {
-  background: #10b981;
-}
 
 .status-cell-text--overstay {
   color: #dc2626;
 }
-.status-cell-text--overstay .status-dot {
-  background: #ef4444;
-}
 
 .status-cell-text--exited {
   color: #64748b;
-}
-.status-cell-text--exited .status-dot {
-  background: #94a3b8;
 }
 
 /* Actions */

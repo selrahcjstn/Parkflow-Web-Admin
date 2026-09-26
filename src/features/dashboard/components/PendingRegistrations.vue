@@ -433,21 +433,28 @@ async function reject(reg: PendingRegistration) {
   border-color: #ef4444;
 }
 
+.pending-card__col--actions {
+  min-width: 160px;
+  width: 160px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .pending-card__result {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 0;
 }
 
 .pending-card__result--approved {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  background: transparent;
+  color: #059669;
 }
 
 .pending-card__result--rejected {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  background: transparent;
+  color: #dc2626;
 }
 
 .pending-fade-enter-active,
