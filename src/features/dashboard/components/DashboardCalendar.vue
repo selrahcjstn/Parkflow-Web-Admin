@@ -177,6 +177,25 @@ const selectedDateLabel = computed(() => {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(dateObj)
 })
 
+const reservationSectionTitle = computed(() => {
+  const [yStr, mStr, dStr] = selectedDate.value.split('-')
+  const y = Number(yStr)
+  const m = Number(mStr)
+  const d = Number(dStr)
+  if (!y || !m || !d) return 'Reservations'
+
+  const selectedObj = new Date(y, m - 1, d)
+  const todayObj = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  if (selectedObj.getTime() < todayObj.getTime()) {
+    return 'Past Reservations'
+  } else if (selectedObj.getTime() === todayObj.getTime()) {
+    return "Today's Reservations"
+  } else {
+    return 'Upcoming Reservations'
+  }
+})
+
 // Fetch reservations from API with realistic mock fallback
 onMounted(async () => {
   isLoading.value = true
@@ -365,25 +384,24 @@ function navigateToReservations() {
       >
         <span class="calendar-widget__day-number">{{ day.dayNumber }}</span>
 
-        <!-- Event indicators (dots) -->
-        <span v-if="day.eventsCount > 0" class="calendar-widget__event-dots">
-          <span
-            v-for="dot in Math.min(day.eventsCount, 3)"
-            :key="dot"
-            class="calendar-widget__dot"
-          />
-        </span>
+        <!-- Clean event bar indicator (no dots, no numbers on day cell) -->
+        <span v-if="day.eventsCount > 0" class="calendar-widget__event-bar" />
       </button>
     </div>
 
     <!-- Divider -->
     <div class="calendar-widget__divider" />
 
-    <!-- Upcoming Reservations Section -->
+    <!-- Interactive Reservations Section -->
     <div class="calendar-widget__upcoming-header">
       <div class="calendar-widget__upcoming-title-row">
-        <h4 class="calendar-widget__upcoming-title">Upcoming Reservations</h4>
-        <span class="calendar-widget__selected-tag">{{ selectedDateLabel }}</span>
+        <h4 class="calendar-widget__upcoming-title">{{ reservationSectionTitle }}</h4>
+        <span class="calendar-widget__selected-tag">
+          {{ selectedDateLabel }}
+          <template v-if="selectedDateReservations.length > 0">
+            • {{ selectedDateReservations.length }} {{ selectedDateReservations.length === 1 ? 'reservation' : 'reservations' }}
+          </template>
+        </span>
       </div>
       <button class="calendar-widget__see-all" @click="navigateToReservations">
         View all →
@@ -578,7 +596,7 @@ function navigateToReservations() {
   box-shadow: 0 4px 12px rgba(210, 39, 48, 0.35);
 }
 
-.calendar-widget__day-cell--selected .calendar-widget__dot {
+.calendar-widget__day-cell--selected .calendar-widget__event-bar {
   background: #ffffff !important;
 }
 
@@ -586,13 +604,14 @@ function navigateToReservations() {
   line-height: 1;
 }
 
-/* Event Dots */
-.calendar-widget__event-dots {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  margin-top: 3px;
-  height: 4px;
+/* Event Bar Indicator */
+.calendar-widget__event-bar {
+  position: absolute;
+  bottom: 4px;
+  width: 14px;
+  height: 2.5px;
+  border-radius: 2px;
+  background: var(--color-primary, #D22730);
 }
 
 .calendar-widget__dot {
