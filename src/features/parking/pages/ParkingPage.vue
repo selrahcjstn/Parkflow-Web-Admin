@@ -642,19 +642,18 @@ const getRoleLabel = (role: string) => {
                 <span class="owner-name">{{ session.ownerName }}</span>
               </td>
               <td>
-                <span class="role-badge" :class="'role-badge--' + session.role.toLowerCase()">
-                  {{ getRoleLabel(session.role) }}
-                </span>
+                <span class="role-text">{{ getRoleLabel(session.role) }}</span>
               </td>
               <td>
                 <span class="time-text">{{ new Date(session.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
                 <span class="date-sub">{{ new Date(session.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
               </td>
               <td>
-                <span class="duration-badge">{{ getDuration(session) }}</span>
+                <span class="duration-text">{{ getDuration(session) }}</span>
               </td>
               <td>
-                <span class="status-pill" :class="'status-pill--' + session.status.toLowerCase()">
+                <span class="status-cell-text" :class="'status-cell-text--' + session.status.toLowerCase()">
+                  <span class="status-dot"></span>
                   {{ session.status }}
                 </span>
               </td>
@@ -745,9 +744,7 @@ const getRoleLabel = (role: string) => {
                 <span class="owner-name">{{ session.ownerName }}</span>
               </td>
               <td>
-                <span class="role-badge" :class="'role-badge--' + session.role.toLowerCase()">
-                  {{ getRoleLabel(session.role) }}
-                </span>
+                <span class="role-text">{{ getRoleLabel(session.role) }}</span>
               </td>
               <td>
                 <span class="time-text">{{ new Date(session.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
@@ -758,18 +755,17 @@ const getRoleLabel = (role: string) => {
                 <span class="date-sub" v-if="session.checkOutTime">{{ new Date(session.checkOutTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
               </td>
               <td>
-                <span class="duration-badge duration-badge--history">{{ session.duration }}</span>
+                <span class="duration-text">{{ session.duration }}</span>
               </td>
               <td>
                 <span class="charge-text">{{ session.charge }}</span>
               </td>
               <td>
-                <span class="method-tag" :class="'method-tag--' + session.method.toLowerCase()">
-                  {{ session.method === 'QrCode' ? 'QR Code' : 'Manual' }}
-                </span>
+                <span class="method-text">{{ session.method === 'QrCode' ? 'QR Code' : 'Manual' }}</span>
               </td>
               <td>
-                <span class="status-pill status-pill--exited">
+                <span class="status-cell-text status-cell-text--exited">
+                  <span class="status-dot"></span>
                   {{ session.status }}
                 </span>
               </td>
@@ -1302,116 +1298,67 @@ const getRoleLabel = (role: string) => {
   font-weight: 500;
 }
 
-/* Badges */
-.role-badge {
-  align-self: flex-start;
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+/* Clean Professional Typography (No background pills or borders) */
+.role-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #475569);
 }
 
-.role-badge--admin {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.role-badge--student {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
-}
-
-.role-badge--guard {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--color-info);
-}
-
-.role-badge--faculty,
-.role-badge--staff,
-.role-badge--universitystaff,
-.role-badge--nonacademicpersonnel {
-  background: rgba(253, 184, 19, 0.1);
-  color: var(--color-warning);
-}
-
-.role-badge--guest,
-.role-badge--visitor {
-  background: var(--color-surface-muted);
-  color: var(--color-muted);
-}
-
-.duration-badge {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-text);
-  background: var(--color-surface);
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border);
-}
-
-.duration-badge--history {
-  border-color: transparent;
-  background: var(--color-surface-muted);
-  color: var(--color-muted);
-}
-
-.gate-tag {
-  font-size: 12px;
+.duration-text {
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-muted);
+  color: var(--color-text, #1e293b);
 }
 
 .charge-text {
   font-size: 13px;
   font-weight: 700;
-  color: var(--color-success);
+  color: var(--color-text, #1e293b);
 }
 
-.method-tag {
-  display: inline-block;
-  font-size: 11px;
+.method-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted, #64748b);
+}
+
+/* Status Indicator (Subtle dot + clean text) */
+.status-cell-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 12px;
 }
 
-.method-tag--qrcode {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-}
-
-.method-tag--manual {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--color-warning);
-}
-
-/* Status Pills */
-.status-pill {
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
   display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 20px;
+  flex-shrink: 0;
 }
 
-.status-pill--parked {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
+.status-cell-text--parked {
+  color: #059669;
+}
+.status-cell-text--parked .status-dot {
+  background: #10b981;
 }
 
-.status-pill--overstay {
-  background: rgba(210, 39, 48, 0.1);
-  color: var(--color-danger);
+.status-cell-text--overstay {
+  color: #dc2626;
+}
+.status-cell-text--overstay .status-dot {
+  background: #ef4444;
 }
 
-.status-pill--exited {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--color-info);
+.status-cell-text--exited {
+  color: #64748b;
+}
+.status-cell-text--exited .status-dot {
+  background: #94a3b8;
 }
 
 /* Actions */
