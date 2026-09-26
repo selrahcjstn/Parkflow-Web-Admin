@@ -149,9 +149,6 @@ function goToFeedbackPage() {
     <div class="widget-header">
       <div class="title-wrap">
         <h3 class="widget-title">User Reviews & Feedback</h3>
-        <span class="rating-badge">
-          ★ {{ averageRating }}
-        </span>
       </div>
       <button class="see-all-btn" @click="goToFeedbackPage">
         View all →
