@@ -580,9 +580,7 @@ const handleFormSubmit = async (formData: any) => {
                 <span class="id-text">{{ getIdentifier(user) }}</span>
               </td>
               <td>
-                <span class="role-badge" :class="'role-badge--' + user.role.toLowerCase()">
-                  {{ getRoleLabel(user.role) }}
-                </span>
+                <span class="role-text">{{ getRoleLabel(user.role) }}</span>
               </td>
               <td v-if="!isAdminStaffView">
                 <div class="vehicles-cell">
@@ -593,7 +591,8 @@ const handleFormSubmit = async (formData: any) => {
                 </div>
               </td>
               <td v-if="!isAdminStaffView">
-                <span class="status-pill" :class="'status-pill--' + displayStatus(user).toLowerCase()">
+                <span class="status-cell-text" :class="'status-cell-text--' + displayStatus(user).toLowerCase()">
+                  <span class="status-dot"></span>
                   {{ formatStatusText(displayStatus(user)) }}
                 </span>
               </td>
@@ -1133,43 +1132,19 @@ const handleFormSubmit = async (formData: any) => {
   color: var(--color-text);
 }
 
-/* Badges */
-.role-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-.role-badge--admin {
-  background: rgba(248, 113, 113, 0.1);
-  color: var(--color-primary);
-}
-
-.role-badge--student {
-  background: rgba(35, 165, 90, 0.1);
-  color: var(--color-success);
-}
-
-.role-badge--guard {
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
-}
-
-.role-badge--universitystaff,
-.role-badge--nonacademicpersonnel {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--color-warning);
+/* Clean Professional Typography (No background pills or borders) */
+.role-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #475569);
 }
 
 .vehicles-count {
   font-size: 13px;
   color: var(--color-text);
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  padding: 2px 8px;
-  border-radius: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .vehicles-empty {
@@ -1177,36 +1152,50 @@ const handleFormSubmit = async (formData: any) => {
   color: var(--color-muted);
 }
 
-/* Status Pill */
-.status-pill {
+/* Status Indicator (Subtle dot + clean text) */
+.status-cell-text {
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 20px;
 }
 
-.status-pill--verified {
-  background: rgba(35, 165, 90, 0.12);
-  color: var(--color-success);
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
-.status-pill--pendingverification,
-.status-pill--pending {
-  background: rgba(240, 178, 50, 0.12);
-  color: var(--color-warning);
+.status-cell-text--active,
+.status-cell-text--verified {
+  color: #059669;
+}
+.status-cell-text--active .status-dot,
+.status-cell-text--verified .status-dot {
+  background: #10b981;
 }
 
-.status-pill--notsubmitted,
-.status-pill--rejected {
-  background: rgba(248, 113, 113, 0.12);
-  color: var(--color-danger);
+.status-cell-text--pending,
+.status-cell-text--pendingverification {
+  color: #d97706;
+}
+.status-cell-text--pending .status-dot,
+.status-cell-text--pendingverification .status-dot {
+  background: #f59e0b;
 }
 
-.status-pill--suspended {
-  background: rgba(248, 113, 113, 0.12);
-  color: var(--color-danger);
+.status-cell-text--suspended,
+.status-cell-text--rejected,
+.status-cell-text--notsubmitted {
+  color: #dc2626;
+}
+.status-cell-text--suspended .status-dot,
+.status-cell-text--rejected .status-dot,
+.status-cell-text--notsubmitted .status-dot {
+  background: #ef4444;
 }
 
 .actions-header {

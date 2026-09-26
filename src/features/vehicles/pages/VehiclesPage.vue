@@ -377,14 +377,12 @@ const getRoleLabel = (role: string) => {
                 <span class="owner-name" :title="vehicle.ownerName">{{ cleanOwnerName(vehicle.ownerName) }}</span>
               </td>
               <td>
-                <span class="role-badge" :class="'role-badge--' + vehicle.ownerRole.toLowerCase()">
-                  {{ getRoleLabel(vehicle.ownerRole) }}
-                </span>
+                <span class="role-text">{{ getRoleLabel(vehicle.ownerRole) }}</span>
               </td>
               <td>
                 <span
-                  class="status-pill"
-                  :class="vehicle.isPrimary ? 'status-pill--primary' : 'status-pill--secondary'"
+                  class="pass-text"
+                  :class="{ 'pass-text--primary': vehicle.isPrimary }"
                   @click.stop="handleTogglePrimary(vehicle.id)"
                   :title="vehicle.isPrimary ? 'Primary parking RFID pass' : 'Click to set as primary pass'"
                 >
@@ -393,9 +391,10 @@ const getRoleLabel = (role: string) => {
               </td>
               <td>
                 <span
-                  class="status-pill"
-                  :class="vehicle.status === 'Active' ? 'status-pill--active' : 'status-pill--suspended'"
+                  class="status-cell-text"
+                  :class="vehicle.status === 'Active' ? 'status-cell-text--active' : 'status-cell-text--suspended'"
                 >
+                  <span class="status-dot"></span>
                   {{ vehicle.status }}
                 </span>
               </td>
@@ -805,77 +804,54 @@ const getRoleLabel = (role: string) => {
   white-space: nowrap;
 }
 
-/* Badges */
-.role-badge {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+/* Clean Professional Typography (No background pills or borders) */
+.role-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #475569);
 }
 
-.role-badge--admin {
-  background: rgba(210, 39, 48, 0.1);
-  color: var(--color-primary);
-}
-
-.role-badge--student {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
-}
-
-.role-badge--guard {
-  background: rgba(96, 165, 250, 0.1);
-  color: #60a5fa;
-}
-
-.role-badge--faculty,
-.role-badge--staff,
-.role-badge--universitystaff,
-.role-badge--nonacademicpersonnel {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--color-warning);
-}
-
-/* Status pills */
-.status-pill {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.status-pill--active {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
-}
-
-.status-pill--suspended {
-  background: rgba(210, 39, 48, 0.1);
-  color: var(--color-danger);
-}
-
-.status-pill--primary {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--color-info);
+.pass-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted, #64748b);
   cursor: pointer;
 }
 
-.status-pill--secondary {
-  background: var(--color-surface-muted);
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: background 150ms ease;
+.pass-text--primary {
+  font-weight: 600;
+  color: var(--color-text, #1e293b);
 }
 
-.status-pill--secondary:hover {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--color-info);
+/* Status Indicator (Subtle dot + clean text) */
+.status-cell-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-cell-text--active {
+  color: #059669;
+}
+.status-cell-text--active .status-dot {
+  background: #10b981;
+}
+
+.status-cell-text--suspended {
+  color: #dc2626;
+}
+.status-cell-text--suspended .status-dot {
+  background: #ef4444;
 }
 
 /* Actions */

@@ -1392,30 +1392,12 @@ function openZoomImage(url?: string) {
 .cat-dot--schedule { background: #8b5cf6; }
 .cat-dot--vehicle { background: #10b981; }
 
-/* Category Badges */
+/* Category Typography */
 .category-badge {
   display: inline-block;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.category-badge--registration {
-  background: rgba(59, 130, 246, 0.12);
-  color: #2563eb;
-}
-
-.category-badge--schedule {
-  background: rgba(139, 92, 246, 0.12);
-  color: #7c3aed;
-}
-
-.category-badge--vehicle {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #475569);
 }
 
 /* Unified Filters Bar */
@@ -1800,26 +1782,27 @@ function openZoomImage(url?: string) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 12px;
+  padding: 0;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .status-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
-.status-badge--pending { background: #fef3c7; color: #d97706; }
-.status-badge--pending .status-dot { background: #d97706; }
+.status-badge--pending { background: transparent; color: #d97706; }
+.status-badge--pending .status-dot { background: #f59e0b; }
 
-.status-badge--approved { background: #d1fae5; color: #059669; }
-.status-badge--approved .status-dot { background: #059669; }
+.status-badge--approved { background: transparent; color: #059669; }
+.status-badge--approved .status-dot { background: #10b981; }
 
-.status-badge--rejected { background: #fee2e2; color: #dc2626; }
-.status-badge--rejected .status-dot { background: #dc2626; }
+.status-badge--rejected { background: transparent; color: #dc2626; }
+.status-badge--rejected .status-dot { background: #ef4444; }
 
 /* Empty State */
 .registrations-card__empty {
