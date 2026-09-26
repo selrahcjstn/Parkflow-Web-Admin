@@ -396,12 +396,7 @@ function navigateToReservations() {
     <div class="calendar-widget__upcoming-header">
       <div class="calendar-widget__upcoming-title-row">
         <h4 class="calendar-widget__upcoming-title">{{ reservationSectionTitle }}</h4>
-        <span class="calendar-widget__selected-tag">
-          {{ selectedDateLabel }}
-          <template v-if="selectedDateReservations.length > 0">
-            • {{ selectedDateReservations.length }} {{ selectedDateReservations.length === 1 ? 'reservation' : 'reservations' }}
-          </template>
-        </span>
+        <span class="calendar-widget__selected-tag">{{ selectedDateLabel }}</span>
       </div>
       <button class="calendar-widget__see-all" @click="navigateToReservations">
         View all →
@@ -640,6 +635,7 @@ function navigateToReservations() {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
 }
 
 .calendar-widget__upcoming-title {
@@ -648,6 +644,7 @@ function navigateToReservations() {
   color: var(--color-text);
   margin: 0;
   letter-spacing: -0.2px;
+  white-space: nowrap;
 }
 
 .calendar-widget__selected-tag {
@@ -655,8 +652,10 @@ function navigateToReservations() {
   font-weight: 600;
   color: var(--color-primary);
   background: var(--color-primary-light);
-  padding: 1px 6px;
+  padding: 1.5px 7px;
   border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .calendar-widget__see-all {
@@ -667,6 +666,8 @@ function navigateToReservations() {
   border: none;
   cursor: pointer;
   padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: opacity var(--transition-fast);
 }
 
