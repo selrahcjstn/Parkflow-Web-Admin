@@ -124,7 +124,7 @@ const scheduleCount = computed(() => approvals.value.filter((r) => r.category ==
 const vehicleCount = computed(() => approvals.value.filter((r) => r.category === 'Vehicle').length)
 
 const filteredApprovals = computed(() => {
-  return approvals.value.filter((item) => {
+  const result = approvals.value.filter((item) => {
     // Filter by status tab
     if (selectedStatusTab.value !== 'all' && item.status !== selectedStatusTab.value) {
       return false
@@ -147,6 +147,13 @@ const filteredApprovals = computed(() => {
     }
 
     return true
+  })
+
+  // Prioritize pending items first at the top
+  return [...result].sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1
+    if (a.status !== 'pending' && b.status === 'pending') return 1
+    return 0
   })
 })
 
@@ -350,6 +357,15 @@ async function fetchApprovals() {
 
   approvals.value = list
   cachedApprovals.value = [...list]
+
+  // Default to pending if pending items exist, else fallback to all so records are always shown
+  const pCount = list.filter((r) => r.status === 'pending').length
+  if (pCount > 0) {
+    selectedStatusTab.value = 'pending'
+  } else {
+    selectedStatusTab.value = 'all'
+  }
+
   isLoading.value = false
 }
 
@@ -618,7 +634,6 @@ function openZoomImage(url?: string) {
         <div class="select-wrapper">
           <select v-model="selectedCategoryFilter" class="filter-select">
             <option value="all">All Approval Types ({{ approvals.length }})</option>
-            <option value="Registration">Registrations ({{ registrationCount }})</option>
             <option value="Schedule">Schedule Clearances ({{ scheduleCount }})</option>
             <option value="Vehicle">Vehicle Registrations ({{ vehicleCount }})</option>
           </select>
