@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import type { Vehicle } from '../types'
 import VehicleDetailModal from '../components/VehicleDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import api from '@/api/axios'
 
 // Toast type
@@ -203,14 +204,40 @@ const handleToggleStatus = (vehicleId: string) => {
   }
 }
 
-const handleDeleteVehicle = (vehicleId: string) => {
-  const target = vehicles.value.find((v) => v.id === vehicleId)
-  if (target) {
-    if (confirm(`Are you sure you want to delete vehicle record ${target.plateNumber}?`)) {
-      vehicles.value = vehicles.value.filter((v) => v.id !== vehicleId)
-      showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'info')
-    }
-  }
+// Delete confirmation state
+const vehicleToDelete = ref<Vehicle | null>(null)
+const isDeleteConfirmOpen = ref(false)
+
+const openDeleteConfirm = (vehicle: Vehicle) => {
+  vehicleToDelete.value = vehicle
+  isDeleteConfirmOpen.value = true
+}
+
+const confirmDeleteVehicle = () => {
+  if (!vehicleToDelete.value) return
+  const target = vehicleToDelete.value
+  vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
+  showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'info')
+  isDeleteConfirmOpen.value = false
+  vehicleToDelete.value = null
+}
+
+// Status Change (Suspend / Unsuspend) confirmation state
+const vehicleToChangeStatus = ref<Vehicle | null>(null)
+const vehicleTargetStatus = ref<'Active' | 'Suspended'>('Suspended')
+const isVehicleStatusConfirmOpen = ref(false)
+
+const openVehicleStatusConfirm = (vehicle: Vehicle, targetStatus: 'Active' | 'Suspended') => {
+  vehicleToChangeStatus.value = vehicle
+  vehicleTargetStatus.value = targetStatus
+  isVehicleStatusConfirmOpen.value = true
+}
+
+const confirmChangeVehicleStatus = () => {
+  if (!vehicleToChangeStatus.value) return
+  handleToggleStatus(vehicleToChangeStatus.value.id)
+  isVehicleStatusConfirmOpen.value = false
+  vehicleToChangeStatus.value = null
 }
 
 const getRoleLabel = (role: string) => {
@@ -412,7 +439,7 @@ const getRoleLabel = (role: string) => {
                     class="action-icon-btn"
                     :class="vehicle.status === 'Active' ? 'action-icon-btn--suspend' : 'action-icon-btn--verify'"
                     :title="vehicle.status === 'Active' ? 'Suspend Vehicle' : 'Activate Vehicle'"
-                    @click="handleToggleStatus(vehicle.id)"
+                    @click="openVehicleStatusConfirm(vehicle, vehicle.status === 'Active' ? 'Suspended' : 'Active')"
                   >
                     <svg v-if="vehicle.status === 'Active'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
@@ -422,7 +449,7 @@ const getRoleLabel = (role: string) => {
                       <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
                     </svg>
                   </button>
-                  <button class="action-icon-btn action-icon-btn--delete" title="Delete Vehicle" @click="handleDeleteVehicle(vehicle.id)">
+                  <button class="action-icon-btn action-icon-btn--delete" title="Delete Vehicle" @click="openDeleteConfirm(vehicle)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
@@ -443,6 +470,30 @@ const getRoleLabel = (role: string) => {
       @close="isDetailOpen = false"
       @togglePrimary="handleTogglePrimary"
       @toggleStatus="handleToggleStatus"
+    />
+
+    <!-- Delete Vehicle Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isDeleteConfirmOpen"
+      title="Delete Vehicle Record"
+      :message="`Are you sure you want to delete vehicle <strong>${vehicleToDelete?.plateNumber || ''}</strong> (${vehicleToDelete?.brand || ''})? This will remove the vehicle RFID entry pass.`"
+      confirm-text="Delete Vehicle"
+      cancel-text="Cancel"
+      variant="danger"
+      @confirm="confirmDeleteVehicle"
+      @close="isDeleteConfirmOpen = false"
+    />
+
+    <!-- Vehicle Status (Suspend / Unsuspend) Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isVehicleStatusConfirmOpen"
+      :title="vehicleTargetStatus === 'Suspended' ? 'Suspend Vehicle Clearance' : 'Activate / Unsuspend Vehicle Pass'"
+      :message="vehicleTargetStatus === 'Suspended' ? `Are you sure you want to suspend clearance for vehicle <strong>${vehicleToChangeStatus?.plateNumber || ''}</strong> (${vehicleToChangeStatus?.brand || ''})?` : `Are you sure you want to reactivate clearance pass for vehicle <strong>${vehicleToChangeStatus?.plateNumber || ''}</strong> (${vehicleToChangeStatus?.brand || ''})?`"
+      :confirm-text="vehicleTargetStatus === 'Suspended' ? 'Suspend Vehicle' : 'Activate Pass'"
+      cancel-text="Cancel"
+      :variant="vehicleTargetStatus === 'Suspended' ? 'warning' : 'success'"
+      @confirm="confirmChangeVehicleStatus"
+      @close="isVehicleStatusConfirmOpen = false"
     />
 
     <!-- Toast Notifications -->

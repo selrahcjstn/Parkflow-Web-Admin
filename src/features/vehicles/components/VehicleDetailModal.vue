@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import type { Vehicle } from '../types'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const props = defineProps<{
   vehicle: Vehicle | null
@@ -12,6 +13,24 @@ const emit = defineEmits<{
   (e: 'togglePrimary', id: string): void
   (e: 'toggleStatus', id: string): void
 }>()
+
+const isSuspendConfirmOpen = ref(false)
+
+const handleToggleStatusClick = () => {
+  if (!props.vehicle) return
+  if (props.vehicle.status === 'Active') {
+    isSuspendConfirmOpen.value = true
+  } else {
+    emit('toggleStatus', props.vehicle.id)
+  }
+}
+
+const confirmSuspendVehicle = () => {
+  if (props.vehicle) {
+    emit('toggleStatus', props.vehicle.id)
+  }
+  isSuspendConfirmOpen.value = false
+}
 
 const getVehicleIcon = computed(() => {
   if (!props.vehicle) return 'Car'
@@ -114,7 +133,7 @@ const getRoleLabel = (role: string) => {
         <div class="modal-footer">
           <button
             class="action-btn action-btn--secondary"
-            @click="emit('toggleStatus', vehicle.id)"
+            @click="handleToggleStatusClick"
           >
             {{ vehicle.status === 'Active' ? 'Suspend Vehicle' : 'Activate Vehicle' }}
           </button>
@@ -131,6 +150,18 @@ const getRoleLabel = (role: string) => {
     </div>
   </Transition>
 </Teleport>
+
+<!-- Suspend Vehicle Confirmation Modal -->
+<ConfirmModal
+  :is-open="isSuspendConfirmOpen"
+  title="Suspend Vehicle Clearance"
+  :message="`Are you sure you want to suspend clearance for vehicle <strong>${vehicle?.plateNumber || ''}</strong> (${vehicle?.brand || ''})?`"
+  confirm-text="Suspend Vehicle"
+  cancel-text="Cancel"
+  variant="warning"
+  @confirm="confirmSuspendVehicle"
+  @close="isSuspendConfirmOpen = false"
+/>
 </template>
 
 <style scoped>

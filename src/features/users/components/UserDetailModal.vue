@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserWithDetails } from '../types'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const router = useRouter()
 
@@ -14,6 +15,20 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'updateStatus', userId: string, newStatus: 'Suspended' | 'Active'): void
 }>()
+
+const targetStatusToApply = ref<'Suspended' | 'Active'>('Suspended')
+const isStatusConfirmOpen = ref(false)
+
+const openStatusConfirm = (status: 'Suspended' | 'Active') => {
+  targetStatusToApply.value = status
+  isStatusConfirmOpen.value = true
+}
+
+const handleConfirmStatusChange = () => {
+  if (!props.user) return
+  emit('updateStatus', props.user.id, targetStatusToApply.value)
+  isStatusConfirmOpen.value = false
+}
 
 const handleChangePassword = () => {
   if (!props.user) return
@@ -243,14 +258,14 @@ const formatCorStatus = (status: string) => {
             <button
               v-if="user.status !== 'Suspended'"
               class="action-btn action-btn--suspend"
-              @click="emit('updateStatus', user.id, 'Suspended')"
+              @click="openStatusConfirm('Suspended')"
             >
               Suspend Account
             </button>
             <button
               v-if="user.status === 'Suspended'"
               class="action-btn action-btn--unsuspend"
-              @click="emit('updateStatus', user.id, 'Active')"
+              @click="openStatusConfirm('Active')"
             >
               Unsuspend Account
             </button>
@@ -263,6 +278,18 @@ const formatCorStatus = (status: string) => {
     </div>
   </Transition>
 </Teleport>
+
+<!-- Status Change Confirmation Modal -->
+<ConfirmModal
+  :is-open="isStatusConfirmOpen"
+  :title="targetStatusToApply === 'Suspended' ? 'Suspend Client Account' : 'Unsuspend / Reactivate Account'"
+  :message="targetStatusToApply === 'Suspended' ? `Are you sure you want to suspend clearance for <strong>${user?.fullName || 'this user'}</strong>? They will be unable to access campus parking until unsuspended.` : `Are you sure you want to reactivate clearance for <strong>${user?.fullName || 'this user'}</strong>? This will restore campus parking access.`"
+  :confirm-text="targetStatusToApply === 'Suspended' ? 'Suspend Account' : 'Unsuspend Account'"
+  cancel-text="Cancel"
+  :variant="targetStatusToApply === 'Suspended' ? 'warning' : 'success'"
+  @confirm="handleConfirmStatusChange"
+  @close="isStatusConfirmOpen = false"
+/>
 </template>
 
 <style scoped>

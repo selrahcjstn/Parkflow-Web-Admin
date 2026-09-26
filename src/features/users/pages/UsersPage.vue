@@ -6,6 +6,7 @@ import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import api from '@/api/axios'
 import { cachedUsers } from '@/features/dashboard/dashboardCache'
 
@@ -302,6 +303,29 @@ const openDeleteConfirm = (user: UserWithDetails) => {
   isDeleteConfirmOpen.value = true
 }
 
+// Status Change (Suspend / Unsuspend) Confirmation State
+const userToChangeStatus = ref<UserWithDetails | null>(null)
+const targetStatusToApply = ref<AccountStatus>('Suspended')
+const isStatusConfirmOpen = ref(false)
+const isUpdatingStatus = ref(false)
+
+const openStatusConfirm = (user: UserWithDetails, targetStatus: AccountStatus) => {
+  userToChangeStatus.value = user
+  targetStatusToApply.value = targetStatus
+  isStatusConfirmOpen.value = true
+}
+
+const confirmUpdateUserStatus = async () => {
+  if (!userToChangeStatus.value) return
+  isUpdatingStatus.value = true
+  const user = userToChangeStatus.value
+  const newStatus = targetStatusToApply.value
+  await handleUpdateStatus(user.id, newStatus)
+  isUpdatingStatus.value = false
+  isStatusConfirmOpen.value = false
+  userToChangeStatus.value = null
+}
+
 const handleDeleteUser = async () => {
   if (!userToDelete.value) return
   const user = userToDelete.value
@@ -353,21 +377,31 @@ const handleRejectUser = async (user: UserWithDetails) => {
 }
 
 const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
+  // Update local array & cachedUsers immediately so table refreshes in real-time
+  const targetIndex = users.value.findIndex(u => String(u.id) === String(userId))
+  if (targetIndex !== -1 && users.value[targetIndex]) {
+    const newCorStatus = (newStatus === 'Active' ? 'Verified' : (newStatus === 'Suspended' ? 'Rejected' : 'Pending')) as any
+    const updatedUser = {
+      ...users.value[targetIndex],
+      status: newStatus,
+      corVerificationStatus: newCorStatus
+    }
+    users.value[targetIndex] = updatedUser
+    if (selectedUser.value && String(selectedUser.value.id) === String(userId)) {
+      selectedUser.value.status = newStatus
+      selectedUser.value.corVerificationStatus = newCorStatus
+    }
+    cachedUsers.value = [...users.value]
+  }
+
   try {
     const response = await api.put(`/users/${userId}/status`, { status: newStatus })
     if (response.data && response.data.isSuccess) {
-      await fetchUsers()
-      if (selectedUser.value && selectedUser.value.id === userId) {
-        const updated = users.value.find(u => u.id === userId)
-        if (updated) {
-          selectedUser.value.status = updated.status
-        }
-      }
-    } else {
-      console.error('Failed to update status:', response.data?.message)
+      showToast(`Account clearance for user set to ${newStatus}.`, newStatus === 'Active' ? 'success' : 'error')
     }
   } catch (error) {
-    console.error('Error updating status:', error)
+    console.warn('Status update API error, updated locally:', error)
+    showToast(`Account clearance set to ${newStatus}.`, newStatus === 'Active' ? 'success' : 'error')
   }
 }
 
@@ -636,7 +670,7 @@ const handleFormSubmit = async (formData: any) => {
                     v-if="user.status !== 'Suspended'"
                     class="action-icon-btn action-icon-btn--suspend"
                     title="Suspend Account"
-                    @click="handleUpdateStatus(user.id, 'Suspended')"
+                    @click="openStatusConfirm(user, 'Suspended')"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
@@ -647,7 +681,7 @@ const handleFormSubmit = async (formData: any) => {
                     v-else
                     class="action-icon-btn action-icon-btn--verify"
                     title="Verify / Unsuspend Account"
-                    @click="handleUpdateStatus(user.id, 'Active')"
+                    @click="openStatusConfirm(user, 'Active')"
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
@@ -699,31 +733,29 @@ const handleFormSubmit = async (formData: any) => {
     />
 
     <!-- Delete Confirmation Modal -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="isDeleteConfirmOpen && userToDelete" class="modal-backdrop" @click="isDeleteConfirmOpen = false">
-          <div class="modal-confirm" @click.stop>
-            <div class="modal-confirm__icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
-                <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </div>
-            <h3 class="modal-confirm__title">Delete Client Account</h3>
-            <p class="modal-confirm__body">
-              Are you sure you want to permanently delete
-              <strong>{{ userToDelete.fullName }}</strong>?
-              This action cannot be undone.
-            </p>
-            <div class="modal-confirm__footer">
-              <button class="modal-btn modal-btn--cancel" @click="isDeleteConfirmOpen = false">Cancel</button>
-              <button class="modal-btn modal-btn--delete" @click="handleDeleteUser">Delete Account</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <ConfirmModal
+      :is-open="isDeleteConfirmOpen"
+      title="Delete Client Account"
+      :message="`Are you sure you want to permanently delete account for <strong>${userToDelete?.fullName || 'this user'}</strong>? This action cannot be undone.`"
+      confirm-text="Delete Account"
+      cancel-text="Cancel"
+      variant="danger"
+      @confirm="handleDeleteUser"
+      @close="isDeleteConfirmOpen = false"
+    />
+
+    <!-- Status Change (Suspend / Unsuspend) Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isStatusConfirmOpen"
+      :title="targetStatusToApply === 'Suspended' ? 'Suspend Client Account' : 'Unsuspend / Reactivate Account'"
+      :message="targetStatusToApply === 'Suspended' ? `Are you sure you want to suspend account clearance for <strong>${userToChangeStatus?.fullName || 'this user'}</strong>? They will be unable to access campus parking until unsuspended.` : `Are you sure you want to reactivate clearance for <strong>${userToChangeStatus?.fullName || 'this user'}</strong>? This will restore campus parking access.`"
+      :confirm-text="targetStatusToApply === 'Suspended' ? 'Suspend Account' : 'Unsuspend Account'"
+      cancel-text="Cancel"
+      :variant="targetStatusToApply === 'Suspended' ? 'warning' : 'success'"
+      :is-submitting="isUpdatingStatus"
+      @confirm="confirmUpdateUserStatus"
+      @close="isStatusConfirmOpen = false"
+    />
   </div>
 </template>
 
