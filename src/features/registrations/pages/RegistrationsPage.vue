@@ -817,7 +817,6 @@ function openZoomImage(url?: string) {
               <th>Category</th>
               <th>Date Applied</th>
               <th>Vehicle Details</th>
-              <th>Necessary Documents</th>
               <th>Status</th>
               <th class="text-right">Actions</th>
             </tr>
@@ -857,33 +856,6 @@ function openZoomImage(url?: string) {
                 <div class="vehicle-info">
                   <span class="vehicle-plate monospace">{{ item.vehiclePlate }}</span>
                   <span class="vehicle-type">{{ item.brand }} ({{ item.vehicleType }})</span>
-                </div>
-              </td>
-
-              <td>
-                <div class="doc-links">
-                  <!-- Necessary doc badges based on Category -->
-                  <template v-if="item.category === 'Registration'">
-                    <button class="doc-badge-btn doc-badge-btn--cor" @click="openInspector(item, 'cor')">
-                      COR Certificate
-                    </button>
-                  </template>
-                  <template v-else-if="item.category === 'Schedule'">
-                    <button class="doc-badge-btn doc-badge-btn--sched" @click="openInspector(item, 'schedule')">
-                      Class Schedule
-                    </button>
-                    <button class="doc-badge-btn doc-badge-btn--cor" @click="openInspector(item, 'cor')">
-                      COR Document
-                    </button>
-                  </template>
-                  <template v-else-if="item.category === 'Vehicle'">
-                    <button class="doc-badge-btn doc-badge-btn--orcr" @click="openInspector(item, 'orcr')">
-                      OR/CR
-                    </button>
-                    <button class="doc-badge-btn doc-badge-btn--pic" @click="openInspector(item, 'motorPic')">
-                      Photo
-                    </button>
-                  </template>
                 </div>
               </td>
 
@@ -1302,9 +1274,10 @@ function openZoomImage(url?: string) {
 
 .view-mode-toggle {
   display: flex;
-  background: var(--color-bg-secondary, #f1f5f9);
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
   padding: 4px;
-  border-radius: 8px;
+  border-radius: 9px;
   gap: 4px;
   flex-shrink: 0;
 }
@@ -1313,23 +1286,31 @@ function openZoomImage(url?: string) {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border: none;
   background: transparent;
   border-radius: 6px;
   font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-muted, #64748b);
+  font-weight: 600;
+  color: #475569;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
+.view-mode-btn:hover {
+  color: #1e293b;
+}
+
 .view-mode-btn--active {
-  background: #ffffff;
-  color: #6366f1;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+}
+
+.view-mode-btn--active:hover {
+  color: #ffffff;
 }
 
 .registrations-page__refresh-btn {
