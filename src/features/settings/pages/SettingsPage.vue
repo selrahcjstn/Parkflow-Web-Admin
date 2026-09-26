@@ -305,12 +305,6 @@ onMounted(() => {
       <!-- Header -->
       <div class="settings-page__header">
         <div>
-          <div class="header-badge">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-            SuperAdmin Control Panel
-          </div>
           <h1 class="settings-page__title">Customization & System Settings</h1>
           <p class="settings-page__subtitle">Configure violation rates per hour, campus capacity rules, feature toggles, and semester resets</p>
         </div>
