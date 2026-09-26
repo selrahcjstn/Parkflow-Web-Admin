@@ -65,3 +65,5 @@ export const cachedParkingLogs = ref<ParkingLogCacheItem[] | null>(null)
 export const cachedReservations = ref<ReservationCacheItem[] | null>(null)
 export const cachedFeedbacks = ref<FeedbackOverviewCacheItem[] | null>(null)
 export const cachedUsers = ref<any[] | null>(null)
+export const cachedApprovals = ref<any[] | null>(null)
+

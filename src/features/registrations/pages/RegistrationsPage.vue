@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
+import { cachedApprovals } from '@/features/dashboard/dashboardCache'
 
 export type ApprovalCategory = 'Registration' | 'Schedule' | 'Vehicle'
 
@@ -46,12 +47,17 @@ const dayNames: Record<number, string> = {
 }
 const weeklyDays = [1, 2, 3, 4, 5, 6, 0]
 
-const approvals = ref<ApprovalItem[]>([])
-const isLoading = ref(true)
+// Persistent caching & reactive state initialization
+const approvals = ref<ApprovalItem[]>(cachedApprovals.value || [])
+const isLoading = ref(!cachedApprovals.value)
 const searchQuery = ref('')
 const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('pending')
 const selectedCategoryFilter = ref<'all' | 'Registration' | 'Schedule' | 'Vehicle'>('all')
 const viewMode = ref<'grid' | 'table'>('grid')
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
 
 // Inspector Modal State
 const inspectorItem = ref<ApprovalItem | null>(null)
@@ -137,6 +143,45 @@ const filteredApprovals = computed(() => {
   })
 })
 
+// Pagination Computations
+const totalPages = computed(() => Math.ceil(filteredApprovals.value.length / itemsPerPage.value) || 1)
+
+const paginatedApprovals = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredApprovals.value.slice(start, end)
+})
+
+const paginationSummary = computed(() => {
+  const total = filteredApprovals.value.length
+  if (total === 0) return 'Showing 0 entries'
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1
+  const end = Math.min(currentPage.value * itemsPerPage.value, total)
+  return `Showing ${start} to ${end} of ${total} entries`
+})
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
+watch([searchQuery, selectedStatusTab, selectedCategoryFilter, itemsPerPage], () => {
+  currentPage.value = 1
+})
+
 function handleImageError(event: Event, fallback: string) {
   const target = event.target as HTMLImageElement
   if (target && target.src !== fallback) {
@@ -146,7 +191,9 @@ function handleImageError(event: Event, fallback: string) {
 
 // Fetch both COR Submissions & Vehicle Registrations, merge into unified list
 async function fetchApprovals() {
-  isLoading.value = true
+  if (!cachedApprovals.value) {
+    isLoading.value = true
+  }
   const list: ApprovalItem[] = []
 
   try {
@@ -281,6 +328,7 @@ async function fetchApprovals() {
   }
 
   approvals.value = list
+  cachedApprovals.value = [...list]
   isLoading.value = false
 }
 
@@ -357,6 +405,9 @@ function saveEditedSchedule() {
     }
   })
   inspectorItem.value.schedules = newSchedules
+  if (cachedApprovals.value) {
+    cachedApprovals.value = [...approvals.value]
+  }
   isEditingSchedule.value = false
 }
 
@@ -364,6 +415,7 @@ function saveEditedSchedule() {
 async function approve(item: ApprovalItem) {
   if (!item.guid) {
     item.status = 'approved'
+    if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
     if (inspectorItem.value?.id === item.id) inspectorItem.value.status = 'approved'
     return
   }
@@ -380,6 +432,7 @@ async function approve(item: ApprovalItem) {
     console.error('Error approving item:', err)
     item.status = 'approved'
   } finally {
+    if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
     if (inspectorItem.value?.id === item.id) {
       inspectorItem.value.status = 'approved'
     }
@@ -392,6 +445,7 @@ async function reject(item: ApprovalItem) {
 
   if (!item.guid) {
     item.status = 'rejected'
+    if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
     if (inspectorItem.value?.id === item.id) inspectorItem.value.status = 'rejected'
     return
   }
@@ -408,6 +462,7 @@ async function reject(item: ApprovalItem) {
     console.error('Error rejecting item:', err)
     item.status = 'rejected'
   } finally {
+    if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
     if (inspectorItem.value?.id === item.id) {
       inspectorItem.value.status = 'rejected'
     }
@@ -627,152 +682,154 @@ function openZoomImage(url?: string) {
     </div>
 
     <!-- REVIEW GRID MODE (CARDS) -->
-    <div v-else-if="viewMode === 'grid'" class="review-grid">
-      <div
-        v-for="(item, index) in filteredApprovals"
-        :key="item.id"
-        class="review-card"
-        :class="`review-card--${item.status}`"
-      >
-        <!-- Card Header -->
-        <div class="review-card__header">
-          <div class="applicant-flex">
-            <div class="applicant-avatar" :style="{ background: getGradient(index) }">
-              {{ getInitials(item.fullName) }}
-            </div>
-            <div>
-              <div class="applicant-header-row">
-                <h3 class="applicant-name">{{ item.fullName }}</h3>
-                <span class="category-badge" :class="`category-badge--${item.category.toLowerCase()}`">
-                  {{ item.category }}
-                </span>
+    <div v-else-if="viewMode === 'grid'" class="review-grid-container">
+      <div class="review-grid">
+        <div
+          v-for="(item, index) in paginatedApprovals"
+          :key="item.id"
+          class="review-card"
+          :class="`review-card--${item.status}`"
+        >
+          <!-- Card Header -->
+          <div class="review-card__header">
+            <div class="applicant-flex">
+              <div class="applicant-avatar" :style="{ background: getGradient(index) }">
+                {{ getInitials(item.fullName) }}
               </div>
-              <p class="applicant-sub">{{ item.role }} • Applied {{ item.dateApplied }}</p>
-            </div>
-          </div>
-          <span class="status-badge" :class="`status-badge--${item.status}`">
-            <span class="status-dot"></span>
-            {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
-          </span>
-        </div>
-
-        <!-- Vehicle Badge Bar -->
-        <div class="vehicle-bar">
-          <div class="vehicle-tag">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="6" rx="2" />
-              <path d="M5 17h14" />
-              <circle cx="7" cy="17" r="2" />
-              <circle cx="17" cy="17" r="2" />
-            </svg>
-            <span class="plate-text monospace">{{ item.vehiclePlate }}</span>
-          </div>
-          <span class="vehicle-desc">{{ item.brand }} ({{ item.vehicleType }})</span>
-        </div>
-
-        <!-- NECESSARY DOCUMENTS PREVIEW ONLY BASED ON CATEGORY -->
-        <div class="doc-previews-grid">
-          <!-- 1. REGISTRATION CATEGORY: Show COR Document -->
-          <template v-if="item.category === 'Registration'">
-            <div class="doc-thumb-box doc-thumb-box--wide" @click="openInspector(item, 'cor')">
-              <div class="doc-thumb-img-wrapper">
-                <iframe :src="item.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
-                <div class="doc-hover-overlay">
-                  <span>Inspect Certificate of Registration (COR)</span>
+              <div>
+                <div class="applicant-header-row">
+                  <h3 class="applicant-name">{{ item.fullName }}</h3>
+                  <span class="category-badge" :class="`category-badge--${item.category.toLowerCase()}`">
+                    {{ item.category }}
+                  </span>
                 </div>
-              </div>
-              <div class="doc-thumb-info">
-                <span class="doc-thumb-title">Certificate of Registration (COR)</span>
-                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
+                <p class="applicant-sub">{{ item.role }} • Applied {{ item.dateApplied }}</p>
               </div>
             </div>
-          </template>
+            <span class="status-badge" :class="`status-badge--${item.status}`">
+              <span class="status-dot"></span>
+              {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
+            </span>
+          </div>
 
-          <!-- 2. SCHEDULE CATEGORY: Show Class Schedule & COR Document -->
-          <template v-else-if="item.category === 'Schedule'">
-            <div class="doc-thumb-box" @click="openInspector(item, 'schedule')">
-              <div class="doc-thumb-img-wrapper schedule-thumb-wrapper">
-                <div class="schedule-mini-preview">
-                  <div v-for="d in weeklyDays.slice(0, 5)" :key="d" class="mini-sched-row">
-                    <span class="mini-day">{{ dayNames[d]?.slice(0, 3) }}</span>
-                    <span class="mini-bar" :class="{ 'mini-bar--active': item.schedules?.some(s => s.dayOfWeek === d) }"></span>
+          <!-- Vehicle Badge Bar -->
+          <div class="vehicle-bar">
+            <div class="vehicle-tag">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="6" rx="2" />
+                <path d="M5 17h14" />
+                <circle cx="7" cy="17" r="2" />
+                <circle cx="17" cy="17" r="2" />
+              </svg>
+              <span class="plate-text monospace">{{ item.vehiclePlate }}</span>
+            </div>
+            <span class="vehicle-desc">{{ item.brand }} ({{ item.vehicleType }})</span>
+          </div>
+
+          <!-- NECESSARY DOCUMENTS PREVIEW ONLY BASED ON CATEGORY -->
+          <div class="doc-previews-grid">
+            <!-- 1. REGISTRATION CATEGORY: Show COR Document -->
+            <template v-if="item.category === 'Registration'">
+              <div class="doc-thumb-box doc-thumb-box--wide" @click="openInspector(item, 'cor')">
+                <div class="doc-thumb-img-wrapper">
+                  <iframe :src="item.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
+                  <div class="doc-hover-overlay">
+                    <span>Inspect Certificate of Registration (COR)</span>
                   </div>
                 </div>
-                <div class="doc-hover-overlay">
-                  <span>View Weekly Schedule</span>
+                <div class="doc-thumb-info">
+                  <span class="doc-thumb-title">Certificate of Registration (COR)</span>
+                  <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
                 </div>
               </div>
-              <div class="doc-thumb-info">
-                <span class="doc-thumb-title">Class Access Schedule</span>
-                <span class="doc-thumb-status doc-thumb-status--ok">{{ item.schedules?.length || 0 }} Days Set</span>
-              </div>
-            </div>
+            </template>
 
-            <div class="doc-thumb-box" @click="openInspector(item, 'cor')">
-              <div class="doc-thumb-img-wrapper">
-                <iframe :src="item.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
-                <div class="doc-hover-overlay">
-                  <span>Inspect COR</span>
+            <!-- 2. SCHEDULE CATEGORY: Show Class Schedule & COR Document -->
+            <template v-else-if="item.category === 'Schedule'">
+              <div class="doc-thumb-box" @click="openInspector(item, 'schedule')">
+                <div class="doc-thumb-img-wrapper schedule-thumb-wrapper">
+                  <div class="schedule-mini-preview">
+                    <div v-for="d in weeklyDays.slice(0, 5)" :key="d" class="mini-sched-row">
+                      <span class="mini-day">{{ dayNames[d]?.slice(0, 3) }}</span>
+                      <span class="mini-bar" :class="{ 'mini-bar--active': item.schedules?.some(s => s.dayOfWeek === d) }"></span>
+                    </div>
+                  </div>
+                  <div class="doc-hover-overlay">
+                    <span>View Weekly Schedule</span>
+                  </div>
+                </div>
+                <div class="doc-thumb-info">
+                  <span class="doc-thumb-title">Class Access Schedule</span>
+                  <span class="doc-thumb-status doc-thumb-status--ok">{{ item.schedules?.length || 0 }} Days Set</span>
                 </div>
               </div>
-              <div class="doc-thumb-info">
-                <span class="doc-thumb-title">COR Document</span>
-                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
-              </div>
-            </div>
-          </template>
 
-          <!-- 3. VEHICLE CATEGORY: Show OR/CR Receipt & Vehicle Photo -->
-          <template v-else-if="item.category === 'Vehicle'">
-            <div class="doc-thumb-box" @click="openInspector(item, 'orcr')">
-              <div class="doc-thumb-img-wrapper">
-                <iframe v-if="isPdfDoc(item.orcrUrl)" :src="item.orcrUrl" class="doc-thumb-pdf" title="OR/CR Document"></iframe>
-                <img v-else :src="item.orcrUrl || defaultOrcrImage" alt="OR/CR Receipt" class="doc-thumb-img" />
-                <div class="doc-hover-overlay">
-                  <span>Inspect OR/CR</span>
+              <div class="doc-thumb-box" @click="openInspector(item, 'cor')">
+                <div class="doc-thumb-img-wrapper">
+                  <iframe :src="item.corUrl || defaultCorPdf" class="doc-thumb-pdf" title="COR Document"></iframe>
+                  <div class="doc-hover-overlay">
+                    <span>Inspect COR</span>
+                  </div>
+                </div>
+                <div class="doc-thumb-info">
+                  <span class="doc-thumb-title">COR Document</span>
+                  <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
                 </div>
               </div>
-              <div class="doc-thumb-info">
-                <span class="doc-thumb-title">OR/CR Receipt</span>
-                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
-              </div>
-            </div>
+            </template>
 
-            <div class="doc-thumb-box" @click="openInspector(item, 'motorPic')">
-              <div class="doc-thumb-img-wrapper">
-                <img :src="item.motorPicUrl || defaultMotorImage" alt="Vehicle Photo" class="doc-thumb-img" />
-                <div class="doc-hover-overlay">
-                  <span>Inspect Photo</span>
+            <!-- 3. VEHICLE CATEGORY: Show OR/CR Receipt & Vehicle Photo -->
+            <template v-else-if="item.category === 'Vehicle'">
+              <div class="doc-thumb-box" @click="openInspector(item, 'orcr')">
+                <div class="doc-thumb-img-wrapper">
+                  <iframe v-if="isPdfDoc(item.orcrUrl)" :src="item.orcrUrl" class="doc-thumb-pdf" title="OR/CR Document"></iframe>
+                  <img v-else :src="item.orcrUrl || defaultOrcrImage" alt="OR/CR Receipt" class="doc-thumb-img" />
+                  <div class="doc-hover-overlay">
+                    <span>Inspect OR/CR</span>
+                  </div>
+                </div>
+                <div class="doc-thumb-info">
+                  <span class="doc-thumb-title">OR/CR Receipt</span>
+                  <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
                 </div>
               </div>
-              <div class="doc-thumb-info">
-                <span class="doc-thumb-title">Vehicle Photo</span>
-                <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
+
+              <div class="doc-thumb-box" @click="openInspector(item, 'motorPic')">
+                <div class="doc-thumb-img-wrapper">
+                  <img :src="item.motorPicUrl || defaultMotorImage" alt="Vehicle Photo" class="doc-thumb-img" />
+                  <div class="doc-hover-overlay">
+                    <span>Inspect Photo</span>
+                  </div>
+                </div>
+                <div class="doc-thumb-info">
+                  <span class="doc-thumb-title">Vehicle Photo</span>
+                  <span class="doc-thumb-status doc-thumb-status--ok">Attached</span>
+                </div>
               </div>
-            </div>
-          </template>
-        </div>
-
-        <!-- Card Footer Actions -->
-        <div class="review-card__footer">
-          <button class="btn-inspect" @click="openInspector(item)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            Review Document
-          </button>
-
-          <div v-if="item.status === 'pending'" class="card-actions-group">
-            <button class="btn-card-reject" @click="reject(item)">Decline</button>
-            <button class="btn-card-approve" @click="approve(item)">Approve & Verify</button>
+            </template>
           </div>
-          <span v-else-if="item.status === 'approved'" class="result-text result-text--approved">
-            Clearance Verified
-          </span>
-          <span v-else class="result-text result-text--rejected">
-            Declined
-          </span>
+
+          <!-- Card Footer Actions -->
+          <div class="review-card__footer">
+            <button class="btn-inspect" @click="openInspector(item)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              Review Document
+            </button>
+
+            <div v-if="item.status === 'pending'" class="card-actions-group">
+              <button class="btn-card-reject" @click="reject(item)">Decline</button>
+              <button class="btn-card-approve" @click="approve(item)">Approve & Verify</button>
+            </div>
+            <span v-else-if="item.status === 'approved'" class="result-text result-text--approved">
+              Clearance Verified
+            </span>
+            <span v-else class="result-text result-text--rejected">
+              Declined
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -794,7 +851,7 @@ function openZoomImage(url?: string) {
           </thead>
           <tbody>
             <tr
-              v-for="(item, index) in filteredApprovals"
+              v-for="(item, index) in paginatedApprovals"
               :key="item.id"
               :class="{
                 'row--approved': item.status === 'approved',
@@ -883,6 +940,53 @@ function openZoomImage(url?: string) {
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- Table Pagination Footer (Same Design with Clients directory) -->
+    <div v-if="!isLoading && filteredApprovals.length > 0" class="table-pagination">
+      <div class="pagination-info">
+        <span>{{ paginationSummary }}</span>
+      </div>
+
+      <div class="pagination-controls">
+        <div class="per-page-selector">
+          <label for="perPageSelect">Per page:</label>
+          <select id="perPageSelect" v-model="itemsPerPage" class="per-page-select">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
+
+        <div class="page-buttons">
+          <button
+            class="page-btn"
+            :disabled="currentPage === 1"
+            @click="prevPage"
+          >
+            ← Prev
+          </button>
+
+          <button
+            v-for="page in totalPages"
+            :key="`page-${page}`"
+            class="page-num-btn"
+            :class="{ 'page-num-btn--active': currentPage === page }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+
+          <button
+            class="page-btn"
+            :disabled="currentPage === totalPages"
+            @click="nextPage"
+          >
+            Next →
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1465,6 +1569,12 @@ function openZoomImage(url?: string) {
 }
 
 /* Review Grid Cards */
+.review-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 .review-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
@@ -1829,7 +1939,6 @@ function openZoomImage(url?: string) {
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-
 }
 
 .doc-badge-btn--cor { color: #2563eb; }
@@ -1854,6 +1963,108 @@ function openZoomImage(url?: string) {
 
 .action-btn--approve { background: #10b981; color: #ffffff; }
 .action-btn--reject { background: #fee2e2; color: #dc2626; }
+
+/* ── Pagination Styling (Matches Client Directory) ───────────────────────────── */
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  margin-top: 16px;
+  border-top: 1px solid var(--color-border, #f1f5f9);
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.per-page-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.per-page-select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.page-num-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+
+.page-num-btn:hover:not(.page-num-btn--active) {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.page-num-btn--active {
+  background: #6366f1 !important;
+  border-color: #6366f1 !important;
+  color: #ffffff !important;
+}
 
 /* Inspector Modal */
 .modal-backdrop {
