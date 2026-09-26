@@ -4,8 +4,10 @@ import { useRouter } from 'vue-router'
 import type { ParkingLog } from '../types'
 import api from '@/api/axios'
 
+import { cachedParkingLogs } from '../dashboardCache'
+
 const router = useRouter()
-const logs = ref<ParkingLog[]>([])
+const logs = ref<ParkingLog[]>(cachedParkingLogs.value || [])
 
 function goToParking() {
   router.push('/parking')
@@ -16,22 +18,26 @@ onMounted(async () => {
     const response = await api.get('/parking-logs/active-sessions?parkingCapacity=150')
     if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
       const activeSessions = response.data.data
-      logs.value = activeSessions.slice(0, 5).map((session: any, i: number) => ({
-        id: session.sessionId || i,
+      const newLogs: ParkingLog[] = activeSessions.slice(0, 5).map((session: any, i: number) => ({
+        id: Number(session.sessionId) || (i + 1),
         vehiclePlate: session.plateNumber || 'N/A',
         ownerName: session.firstName && session.lastName ? `${session.firstName} ${session.lastName}` : 'Unknown Owner',
         duration: session.totalParkingHours || '0h',
         charge: `₱${(session.amount || 0).toLocaleString()}`,
         status: session.status || (session.overstayHours > 0 ? 'Overstay' : 'Parked')
       }))
+      logs.value = newLogs
+      cachedParkingLogs.value = newLogs
     }
   } catch (error) {
     console.error('Error fetching active parking logs:', error)
-    logs.value = [
-      { id: 1, vehiclePlate: 'ABC-1234', ownerName: 'Juan Dela Cruz', duration: '1h 45m', charge: '₱40', status: 'Parked' },
-      { id: 2, vehiclePlate: 'XYZ-9876', ownerName: 'Maria Santos', duration: '2h 10m', charge: '₱60', status: 'Parked' },
-      { id: 3, vehiclePlate: 'NKN-4581', ownerName: 'Christian Reyes', duration: '4h 30m', charge: '₱120', status: 'Overstay' }
-    ]
+    if (!cachedParkingLogs.value) {
+      logs.value = [
+        { id: 1, vehiclePlate: 'ABC-1234', ownerName: 'Juan Dela Cruz', duration: '1h 45m', charge: '₱40', status: 'Parked' },
+        { id: 2, vehiclePlate: 'XYZ-9876', ownerName: 'Maria Santos', duration: '2h 10m', charge: '₱60', status: 'Parked' },
+        { id: 3, vehiclePlate: 'NKN-4581', ownerName: 'Christian Reyes', duration: '4h 30m', charge: '₱120', status: 'Overstay' }
+      ]
+    }
   }
 })
 </script>

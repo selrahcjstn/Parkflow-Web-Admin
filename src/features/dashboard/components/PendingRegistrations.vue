@@ -4,13 +4,15 @@ import { useRouter } from 'vue-router'
 import type { PendingRegistration } from '../types'
 import api from '@/api/axios'
 
+import { cachedRegistrations, cachedSubmissionGuids } from '../dashboardCache'
+
 const router = useRouter()
 
-// Store registrations in a reactive array
-const registrations = reactive<PendingRegistration[]>([])
+// Store registrations in a reactive array, initialized from cache if present
+const registrations = reactive<PendingRegistration[]>(cachedRegistrations.value || [])
 
 // Helper map to keep track of actual database GUIDs mapping to indices
-const submissionGuids = reactive<Record<number, string>>({})
+const submissionGuids = reactive<Record<number, string>>(cachedSubmissionGuids.value || {})
 
 function getInitials(name: string): string {
   if (!name) return 'U'
@@ -39,7 +41,7 @@ onMounted(async () => {
       const submissions = response.data.data
       
       if (submissions.length > 0) {
-        registrations.length = 0 // Clear mock data
+        registrations.length = 0
         submissions.forEach((sub: any, i: number) => {
           let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
           if (sub.verificationStatus === 2) mappedStatus = 'approved'
@@ -58,6 +60,8 @@ onMounted(async () => {
             status: mappedStatus
           })
         })
+        cachedRegistrations.value = [...registrations]
+        cachedSubmissionGuids.value = { ...submissionGuids }
       }
     }
   } catch (error) {

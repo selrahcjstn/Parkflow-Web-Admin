@@ -9,7 +9,9 @@ import RecentFeedbackOverview from '../components/RecentFeedbackOverview.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
-const isLoading = ref(true)
+import { cachedStatsData, cachedActivityData } from '../dashboardCache'
+
+const isLoading = ref(!cachedStatsData.value)
 
 const formattedDate = computed(() =>
   new Intl.DateTimeFormat('en-US', {
@@ -20,7 +22,7 @@ const formattedDate = computed(() =>
   }).format(new Date())
 )
 
-const statsData = ref({
+const statsData = ref(cachedStatsData.value || {
   totalUsers: 0,
   activeParking: 0,
   todayRevenue: 0,
@@ -74,32 +76,41 @@ const stats = computed(() => {
   ]
 })
 
-const activityData = ref<{ day: string; checkIns: number; checkOuts: number }[]>([])
+const activityData = ref<{ day: string; checkIns: number; checkOuts: number }[]>(cachedActivityData.value || [])
 
 onMounted(async () => {
-  isLoading.value = true
+  if (!cachedStatsData.value) {
+    isLoading.value = true
+  }
   try {
     const response = await api.get('/dashboard/summary?parkingCapacity=150')
     if (response.data?.isSuccess && response.data?.data) {
       const data = response.data.data
-      statsData.value.totalUsers = data.totalUsers
-      statsData.value.activeParking = data.activeParking
-      statsData.value.maxCapacity = data.maxCapacity
-      statsData.value.todayRevenue = data.todayRevenue
-      statsData.value.violations = data.violationsCount
-      
-      if (Array.isArray(data.activityOverLast7Days)) {
-        activityData.value = data.activityOverLast7Days
+      const newStats = {
+        totalUsers: data.totalUsers,
+        activeParking: data.activeParking,
+        maxCapacity: data.maxCapacity,
+        todayRevenue: data.todayRevenue,
+        violations: data.violationsCount
       }
+      const newActivity = Array.isArray(data.activityOverLast7Days) ? data.activityOverLast7Days : []
+
+      statsData.value = newStats
+      activityData.value = newActivity
+
+      cachedStatsData.value = newStats
+      cachedActivityData.value = newActivity
     }
   } catch (error) {
     console.error('Error loading dashboard stats:', error)
-    statsData.value = {
-      totalUsers: 142,
-      activeParking: 38,
-      todayRevenue: 2450,
-      violations: 5,
-      maxCapacity: 150
+    if (!cachedStatsData.value) {
+      statsData.value = {
+        totalUsers: 142,
+        activeParking: 38,
+        todayRevenue: 2450,
+        violations: 5,
+        maxCapacity: 150
+      }
     }
   } finally {
     isLoading.value = false

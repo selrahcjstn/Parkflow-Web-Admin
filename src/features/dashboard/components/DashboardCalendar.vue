@@ -3,6 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 
+import { cachedReservations } from '../dashboardCache'
+
 const router = useRouter()
 
 // Current date state
@@ -22,7 +24,7 @@ const reservations = ref<Array<{
   endTime: string
   status: string
   type: string
-}>>([])
+}>>(cachedReservations.value || [])
 
 function formatDateToKey(d: Date): string {
   const y = d.getFullYear()
@@ -194,11 +196,13 @@ const reservationSectionTitle = computed(() => {
 
 // Fetch reservations from API with realistic mock fallback
 onMounted(async () => {
-  isLoading.value = true
+  if (!cachedReservations.value || cachedReservations.value.length === 0) {
+    isLoading.value = true
+  }
   try {
     const res = await api.get('/parking-reservations/admin/all')
     if (res.data && res.data.isSuccess && Array.isArray(res.data.data)) {
-      reservations.value = res.data.data.map((item: any) => ({
+      const mapped = res.data.data.map((item: any) => ({
         id: item.id || String(Math.random()),
         userName: item.userFullName || 'Authorized User',
         userRole: item.role || (item.type === 1 || item.type === 'Special' ? 'VIP / Event' : 'Faculty / Staff'),
@@ -209,6 +213,8 @@ onMounted(async () => {
         status: String(item.status || 'Approved'),
         type: item.type === 1 || item.type === 'Special' ? 'Special' : 'Regular'
       }))
+      reservations.value = mapped
+      cachedReservations.value = mapped
     } else {
       populateMockReservations()
     }

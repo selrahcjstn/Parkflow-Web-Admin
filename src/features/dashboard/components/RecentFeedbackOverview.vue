@@ -3,8 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 
+import { cachedFeedbacks } from '../dashboardCache'
+
 const router = useRouter()
-const isLoading = ref(true)
+const isLoading = ref(!cachedFeedbacks.value)
 
 interface FeedbackOverviewItem {
   id: string
@@ -17,7 +19,7 @@ interface FeedbackOverviewItem {
   status: string
 }
 
-const feedbacks = ref<FeedbackOverviewItem[]>([])
+const feedbacks = ref<FeedbackOverviewItem[]>(cachedFeedbacks.value || [])
 
 const averageRating = computed(() => {
   if (feedbacks.value.length === 0) return '4.8'
@@ -78,12 +80,14 @@ function getTimeAgo(dateStr?: string): string {
 }
 
 onMounted(async () => {
-  isLoading.value = true
+  if (!cachedFeedbacks.value) {
+    isLoading.value = true
+  }
   try {
     const res = await api.get('/feedbacks')
     const rawData = Array.isArray(res.data) ? res.data : (res.data?.data || [])
     if (Array.isArray(rawData) && rawData.length > 0) {
-      feedbacks.value = rawData.map((item: any) => ({
+      const mapped = rawData.map((item: any) => ({
         id: item.id || Math.random().toString(),
         fullName: item.fullName || item.userFullName || 'Campus Driver',
         email: item.email || item.userEmail || '',
@@ -93,6 +97,8 @@ onMounted(async () => {
         createdAt: item.createdAt || new Date().toISOString(),
         status: item.statusName || item.status || 'Pending'
       }))
+      feedbacks.value = mapped
+      cachedFeedbacks.value = mapped
     } else {
       populateMockFeedbacks()
     }
