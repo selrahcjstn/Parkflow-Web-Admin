@@ -150,6 +150,17 @@ const fetchParkingData = async () => {
           ? calculateCharge(item.type, item.entryTime, item.exitTime)
           : 'Free'
 
+        // Determine Entry Method dynamically (QR Code vs Manual)
+        const rawMethod = (item.entryMethod || item.method || item.entryType || '').toString().toLowerCase()
+        let entryMethodVal: EntryMethod = 'Manual'
+        if (rawMethod.includes('qr') || rawMethod.includes('code') || rawMethod.includes('rfid') || rawMethod.includes('scan') || item.entryMethod === 'QrCode') {
+          entryMethodVal = 'QrCode'
+        } else if (item.isManual === false || item.isManualEntry === false) {
+          entryMethodVal = 'QrCode'
+        } else if (item.userId || (item.roleName && item.roleName !== 'Guest' && item.roleName !== 'Visitor')) {
+          entryMethodVal = 'QrCode'
+        }
+
         return {
           id: `${item.plateNumber}-${item.entryTime}`,
           vehiclePlate: item.plateNumber,
@@ -162,7 +173,7 @@ const fetchParkingData = async () => {
           duration: durationStr,
           charge: chargeStr,
           status: 'Exited' as ParkingStatus,
-          method: 'Manual' as EntryMethod
+          method: entryMethodVal
         }
       })
       historySessions.value = mappedHistory
@@ -678,7 +689,8 @@ const getRoleLabel = (role: string) => {
               <th>Vehicle</th>
               <th>Owner</th>
               <th>Role</th>
-              <th>Entry / Exit</th>
+              <th>Entry Time</th>
+              <th>Exit Time</th>
               <th>Duration</th>
               <th>Fee Charged</th>
               <th>Entry Method</th>
@@ -688,16 +700,16 @@ const getRoleLabel = (role: string) => {
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="9">
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
+              <td colspan="10">
+                <SkeletonLoader variant="table-row" :columns="10" />
+                <SkeletonLoader variant="table-row" :columns="10" />
+                <SkeletonLoader variant="table-row" :columns="10" />
+                <SkeletonLoader variant="table-row" :columns="10" />
+                <SkeletonLoader variant="table-row" :columns="10" />
               </td>
             </tr>
             <tr v-else-if="filteredHistorySessions.length === 0">
-              <td colspan="9" class="empty-state">No parking history logs found.</td>
+              <td colspan="10" class="empty-state">No parking history logs found.</td>
             </tr>
             <tr
               v-else
@@ -738,14 +750,12 @@ const getRoleLabel = (role: string) => {
                 </span>
               </td>
               <td>
-                <div class="history-time">
-                  <span class="time-label">IN:</span>
-                  <span class="time-value">{{ new Date(session.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-                </div>
-                <div class="history-time">
-                  <span class="time-label">OUT:</span>
-                  <span class="time-value">{{ new Date(session.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-                </div>
+                <span class="time-text">{{ new Date(session.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+                <span class="date-sub">{{ new Date(session.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+              </td>
+              <td>
+                <span class="time-text">{{ session.checkOutTime ? new Date(session.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' }}</span>
+                <span class="date-sub" v-if="session.checkOutTime">{{ new Date(session.checkOutTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
               </td>
               <td>
                 <span class="duration-badge duration-badge--history">{{ session.duration }}</span>
