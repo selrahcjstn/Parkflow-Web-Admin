@@ -11,6 +11,19 @@
   --color-gold-dark: #E5A611;
   --color-accent: #334155;
 
+  /* ── Unified Button Theme ──────────────────────── */
+  --btn-primary-bg: #4f46e5;
+  --btn-primary-hover: #4338ca;
+  --btn-primary-text: #ffffff;
+  --btn-primary-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-hover: #f8fafc;
+  --btn-secondary-border: #cbd5e1;
+  --btn-secondary-text: #475569;
+  --btn-danger-bg: #ef4444;
+  --btn-danger-hover: #dc2626;
+  --btn-danger-text: #ffffff;
+
   /* ── Surfaces ─────────────────────────────────── */
   --color-background: #f5f6fa;
   --color-surface: #ffffff;

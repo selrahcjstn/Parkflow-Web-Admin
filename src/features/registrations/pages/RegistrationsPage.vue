@@ -555,8 +555,8 @@ function openZoomImage(url?: string) {
           </button>
         </div>
 
-        <button class="registrations-page__refresh-btn" @click="fetchApprovals" title="Refresh Approvals">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="registrations-page__refresh-btn" @click="fetchApprovals" :disabled="isLoading" title="Refresh Approvals">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spin-animation': isLoading }">
             <polyline points="23 4 23 10 17 10" />
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
