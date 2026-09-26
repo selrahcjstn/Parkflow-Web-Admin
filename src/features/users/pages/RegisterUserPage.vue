@@ -111,16 +111,9 @@ const handleSubmit = async () => {
 
 <template>
   <div class="register-user-page">
-    <!-- Header with Back Link & Title -->
+    <!-- Header Title -->
     <div class="page-header">
       <div class="header-left">
-        <router-link to="/users" class="back-link">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="19" y1="12" x2="5" y2="12" />
-            <polyline points="12 19 5 12 12 5" />
-          </svg>
-          Back to Accounts List
-        </router-link>
         <h1 class="page-title">Register Client Account</h1>
         <p class="page-subtitle">Provision a new student, faculty, staff, or guard client profile for campus parking access.</p>
       </div>
@@ -378,25 +371,9 @@ const handleSubmit = async () => {
   align-items: flex-start;
 }
 
-.back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: none;
-  margin-bottom: 8px;
-  transition: color 150ms ease;
-}
-
-.back-link:hover {
-  color: var(--color-text);
-}
-
 .page-title {
   font-size: 24px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-text);
   margin: 0;
 }
