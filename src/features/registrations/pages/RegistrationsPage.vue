@@ -700,11 +700,11 @@ function openZoomImage(url?: string) {
           <!-- Vehicle Badge Bar -->
           <div class="vehicle-bar">
             <div class="vehicle-tag">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="6" rx="2" />
-                <path d="M5 17h14" />
-                <circle cx="7" cy="17" r="2" />
-                <circle cx="17" cy="17" r="2" />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="5" cy="16" r="3" />
+                <circle cx="19" cy="16" r="3" />
+                <path d="M12 16h3l3-6h-5l-2 3H8l-3-6H2" />
+                <path d="M12 10V6h3" />
               </svg>
               <span class="plate-text monospace">{{ item.vehiclePlate }}</span>
             </div>
@@ -796,10 +796,7 @@ function openZoomImage(url?: string) {
 
           <!-- Card Footer Actions -->
           <div class="review-card__footer">
-            <span v-if="item.status === 'approved'" class="result-text result-text--approved">
-              Clearance Verified
-            </span>
-            <span v-else-if="item.status === 'rejected'" class="result-text result-text--rejected">
+            <span v-if="item.status === 'rejected'" class="result-text result-text--rejected">
               Declined
             </span>
             <button class="btn-inspect" @click="openInspector(item)">
