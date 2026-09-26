@@ -5,6 +5,7 @@ import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
 import { cachedUsers } from '@/features/dashboard/dashboardCache'
 
@@ -655,51 +656,12 @@ const handleFormSubmit = async (formData: any) => {
       </div>
 
       <!-- Table Pagination Footer -->
-      <div v-if="!isLoading && filteredUsers.length > 0" class="table-pagination">
-        <div class="pagination-info">
-          <span>{{ paginationSummary }}</span>
-        </div>
-
-        <div class="pagination-controls">
-          <div class="per-page-selector">
-            <label for="perPageSelect">Per page:</label>
-            <select id="perPageSelect" v-model="itemsPerPage" class="per-page-select">
-              <option :value="5">5</option>
-              <option :value="10">10</option>
-              <option :value="25">25</option>
-              <option :value="50">50</option>
-            </select>
-          </div>
-
-          <div class="page-buttons">
-            <button
-              class="page-btn"
-              :disabled="currentPage === 1"
-              @click="prevPage"
-            >
-              ← Prev
-            </button>
-
-            <button
-              v-for="page in totalPages"
-              :key="`page-${page}`"
-              class="page-num-btn"
-              :class="{ 'page-num-btn--active': currentPage === page }"
-              @click="goToPage(page)"
-            >
-              {{ page }}
-            </button>
-
-            <button
-              class="page-btn"
-              :disabled="currentPage === totalPages"
-              @click="nextPage"
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      </div>
+      <TablePagination
+        v-if="!isLoading"
+        :total-items="filteredUsers.length"
+        v-model:current-page="currentPage"
+        v-model:items-per-page="itemsPerPage"
+      />
     </div>
 
     <!-- User Detail sheet -->

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ActiveSession, ParkingHistoryItem, VehicleType, ParkingStatus, EntryMethod } from '../types'
 import SessionDetailModal from '../components/SessionDetailModal.vue'
 import StatsCard from '@/features/dashboard/components/StatsCard.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
 import { cachedActiveSessions, cachedHistorySessions } from '@/features/dashboard/dashboardCache'
 
@@ -301,6 +302,27 @@ const filteredHistorySessions = computed(() => {
   })
 })
 
+// Pagination State
+const activeCurrentPage = ref(1)
+const activeItemsPerPage = ref(10)
+const historyCurrentPage = ref(1)
+const historyItemsPerPage = ref(10)
+
+const paginatedActiveSessions = computed(() => {
+  const start = (activeCurrentPage.value - 1) * activeItemsPerPage.value
+  return filteredActiveSessions.value.slice(start, start + activeItemsPerPage.value)
+})
+
+const paginatedHistorySessions = computed(() => {
+  const start = (historyCurrentPage.value - 1) * historyItemsPerPage.value
+  return filteredHistorySessions.value.slice(start, start + historyItemsPerPage.value)
+})
+
+watch([searchQuery, filterVehicleType, filterStatus, filterMethod], () => {
+  activeCurrentPage.value = 1
+  historyCurrentPage.value = 1
+})
+
 // Handlers
 const openDetails = (session: ActiveSession | ParkingHistoryItem) => {
   selectedSession.value = session
@@ -556,29 +578,28 @@ const getRoleLabel = (role: string) => {
               <th>Vehicle</th>
               <th>Owner</th>
               <th>Role</th>
-              <th>Check-in Time</th>
+              <th>Entry Time</th>
               <th>Duration</th>
-              <th>Gate</th>
               <th>Status</th>
               <th class="actions-header">Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="isLoading">
-              <td colspan="8">
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
-                <SkeletonLoader variant="table-row" :columns="8" />
+              <td colspan="7">
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
+                <SkeletonLoader variant="table-row" :columns="7" />
               </td>
             </tr>
             <tr v-else-if="filteredActiveSessions.length === 0">
-              <td colspan="8" class="empty-state">No active parking sessions found.</td>
+              <td colspan="7" class="empty-state">No active parking sessions found.</td>
             </tr>
             <tr
               v-else
-              v-for="session in filteredActiveSessions"
+              v-for="session in paginatedActiveSessions"
               :key="session.id"
               class="parking-row"
               @click="openDetails(session)"
@@ -594,7 +615,6 @@ const getRoleLabel = (role: string) => {
                       <path d="M6 11l1.5-4.5h9L18 11" />
                     </svg>
                     <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <!-- Motorcycle/E-Bike shape icon -->
                       <circle cx="5" cy="18" r="3" />
                       <circle cx="19" cy="18" r="3" />
                       <path d="M12 18V8h4" />
@@ -621,9 +641,6 @@ const getRoleLabel = (role: string) => {
               </td>
               <td>
                 <span class="duration-badge">{{ getDuration(session) }}</span>
-              </td>
-              <td>
-                <span class="gate-tag">Gate {{ session.gate }}</span>
               </td>
               <td>
                 <span class="status-pill" :class="'status-pill--' + session.status.toLowerCase()">
@@ -661,7 +678,7 @@ const getRoleLabel = (role: string) => {
               <th>Vehicle</th>
               <th>Owner</th>
               <th>Role</th>
-              <th>Check-in / Out</th>
+              <th>Entry / Exit</th>
               <th>Duration</th>
               <th>Fee Charged</th>
               <th>Entry Method</th>
@@ -684,7 +701,7 @@ const getRoleLabel = (role: string) => {
             </tr>
             <tr
               v-else
-              v-for="session in filteredHistorySessions"
+              v-for="session in paginatedHistorySessions"
               :key="session.id"
               class="parking-row"
               @click="openDetails(session)"
@@ -761,6 +778,20 @@ const getRoleLabel = (role: string) => {
           </tbody>
         </table>
       </div>
+
+      <!-- Reusable Table Pagination Footer -->
+      <TablePagination
+        v-if="currentTab === 'active' && !isLoading"
+        :total-items="filteredActiveSessions.length"
+        v-model:current-page="activeCurrentPage"
+        v-model:items-per-page="activeItemsPerPage"
+      />
+      <TablePagination
+        v-else-if="currentTab === 'history' && !isLoading"
+        :total-items="filteredHistorySessions.length"
+        v-model:current-page="historyCurrentPage"
+        v-model:items-per-page="historyItemsPerPage"
+      />
     </div>
 
     <!-- Modals -->

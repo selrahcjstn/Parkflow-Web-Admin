@@ -101,22 +101,18 @@ const getEntryMethod = computed(() => {
               <h4 class="section-title">Session Timing & Costs</h4>
               <div class="details-grid">
                 <div class="detail-item">
-                  <span class="detail-label">Check-in Time</span>
+                  <span class="detail-label">Entry Time</span>
                   <span class="detail-value">{{ new Date(session.checkInTime).toLocaleString() }}</span>
                 </div>
                 <div class="detail-item" v-if="!isActive">
-                  <span class="detail-label">Check-out Time</span>
+                  <span class="detail-label">Exit Time</span>
                   <span class="detail-value">{{ new Date((session as ParkingHistoryItem).checkOutTime).toLocaleString() }}</span>
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">Duration</span>
                   <span class="detail-value">{{ session.duration }}</span>
                 </div>
-                <div class="detail-item" v-if="isActive">
-                  <span class="detail-label">Entry Gate</span>
-                  <span class="detail-value">Gate {{ (session as ActiveSession).gate || 1 }}</span>
-                </div>
-                <div class="detail-item" v-else>
+                <div class="detail-item" v-if="!isActive">
                   <span class="detail-label">Parking Fee</span>
                   <span class="detail-value cost-value">{{ (session as ParkingHistoryItem).charge }}</span>
                 </div>

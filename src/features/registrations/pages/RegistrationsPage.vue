@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 import { cachedApprovals } from '@/features/dashboard/dashboardCache'
 
@@ -877,52 +878,13 @@ function openZoomImage(url?: string) {
       </div>
     </div>
 
-    <!-- Table Pagination Footer (Same Design with Clients directory) -->
-    <div v-if="!isLoading && filteredApprovals.length > 0" class="table-pagination">
-      <div class="pagination-info">
-        <span>{{ paginationSummary }}</span>
-      </div>
-
-      <div class="pagination-controls">
-        <div class="per-page-selector">
-          <label for="perPageSelect">Per page:</label>
-          <select id="perPageSelect" v-model="itemsPerPage" class="per-page-select">
-            <option :value="5">5</option>
-            <option :value="10">10</option>
-            <option :value="25">25</option>
-            <option :value="50">50</option>
-          </select>
-        </div>
-
-        <div class="page-buttons">
-          <button
-            class="page-btn"
-            :disabled="currentPage === 1"
-            @click="prevPage"
-          >
-            ← Prev
-          </button>
-
-          <button
-            v-for="page in totalPages"
-            :key="`page-${page}`"
-            class="page-num-btn"
-            :class="{ 'page-num-btn--active': currentPage === page }"
-            @click="goToPage(page)"
-          >
-            {{ page }}
-          </button>
-
-          <button
-            class="page-btn"
-            :disabled="currentPage === totalPages"
-            @click="nextPage"
-          >
-            Next →
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Table Pagination Footer -->
+    <TablePagination
+      v-if="!isLoading"
+      :total-items="filteredApprovals.length"
+      v-model:current-page="currentPage"
+      v-model:items-per-page="itemsPerPage"
+    />
 
     <!-- DOCUMENT REVIEW INSPECTOR MODAL -->
     <Teleport to="body">
