@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import type { ActiveSession, ParkingHistoryItem, VehicleType, ParkingStatus, EntryMethod } from '../types'
-import ManualEntryModal from '../components/ManualEntryModal.vue'
 import SessionDetailModal from '../components/SessionDetailModal.vue'
 import StatsCard from '@/features/dashboard/components/StatsCard.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
+import { cachedActiveSessions, cachedHistorySessions } from '@/features/dashboard/dashboardCache'
+
+const router = useRouter()
 
 // Toast type
 interface Toast {
@@ -31,13 +34,13 @@ const TOTAL_CAPACITY = 200
 // Today's total check-ins
 const todaysEntriesCount = ref(0)
 
-// Active Sessions
-const activeSessions = ref<ActiveSession[]>([])
+// Active Sessions (Initialized from Cache for 0ms Instant Loading)
+const activeSessions = ref<ActiveSession[]>(cachedActiveSessions.value || [])
 
-// Parking History
-const historySessions = ref<ParkingHistoryItem[]>([])
+// Parking History (Initialized from Cache for 0ms Instant Loading)
+const historySessions = ref<ParkingHistoryItem[]>(cachedHistorySessions.value || [])
 
-const isLoading = ref(false)
+const isLoading = ref(!cachedActiveSessions.value)
 
 const getLoggedInUserId = (): string => {
   const token = localStorage.getItem('parkflow_token')
@@ -87,7 +90,6 @@ const checkSessionOverstay = (item: any): boolean => {
   }
 
   // Schedule time boundary check:
-  // If item has a scheduled end time or specific schedule window
   if (item.scheduledEndTime) {
     const [schedH, schedM] = item.scheduledEndTime.split(':').map(Number)
     if (!isNaN(schedH)) {
@@ -103,11 +105,13 @@ const checkSessionOverstay = (item: any): boolean => {
 }
 
 const fetchParkingData = async () => {
-  isLoading.value = true
+  if (!cachedActiveSessions.value) {
+    isLoading.value = true
+  }
   try {
     const activeRes = await api.get('/parking-logs/active-sessions?parkingCapacity=200')
     if (activeRes.data && activeRes.data.isSuccess) {
-      activeSessions.value = activeRes.data.data.map((item: any) => {
+      const mappedActive = activeRes.data.data.map((item: any) => {
         const isOverstay = checkSessionOverstay(item)
         if (isOverstay) {
           notifiedOverstayPlates.add(item.plateNumber)
@@ -126,11 +130,13 @@ const fetchParkingData = async () => {
           status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked')
         }
       })
+      activeSessions.value = mappedActive
+      cachedActiveSessions.value = mappedActive
     }
 
     const historyRes = await api.get('/parking-history/all/page/1/100')
     if (historyRes.data && historyRes.data.isSuccess) {
-      historySessions.value = historyRes.data.data.items.map((item: any) => {
+      const mappedHistory = historyRes.data.data.items.map((item: any) => {
         let durationStr = '0m'
         if (item.parkingDuration != null) {
           const totalMins = Math.floor(item.parkingDuration * 60)
@@ -158,6 +164,8 @@ const fetchParkingData = async () => {
           method: 'Manual' as EntryMethod
         }
       })
+      historySessions.value = mappedHistory
+      cachedHistorySessions.value = mappedHistory
     }
 
     updateTodaysEntriesCount()
@@ -400,7 +408,7 @@ const getRoleLabel = (role: string) => {
             <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
-        <button class="add-entry-btn" @click="isManualEntryOpen = true">
+        <button class="add-entry-btn" @click="router.push('/parking/manual-entry')">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
             <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
@@ -756,11 +764,6 @@ const getRoleLabel = (role: string) => {
     </div>
 
     <!-- Modals -->
-    <ManualEntryModal
-      :is-open="isManualEntryOpen"
-      @close="isManualEntryOpen = false"
-      @submit="handleManualEntrySubmit"
-    />
 
     <SessionDetailModal
       :session="selectedSession"
@@ -1044,38 +1047,46 @@ const getRoleLabel = (role: string) => {
   }
 }
 
-/* Tabs Switcher */
+/* Tabs Switcher (Consistent with Approvals switcher design) */
 .tabs-switcher {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 3px;
   display: flex;
-  gap: 2px;
-  height: 38px;
-  box-sizing: border-box;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  padding: 4px;
+  border-radius: 9px;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .tab-btn {
-  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
   border: none;
-  color: var(--color-muted);
+  background: transparent;
+  border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 6px;
+  color: #475569;
   cursor: pointer;
-  transition: all 150ms ease;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tab-btn:hover {
-  color: var(--color-text);
+  color: #1e293b;
 }
 
 .tab-btn.active {
-  background: var(--color-surface);
-  color: var(--color-text);
-  box-shadow: var(--shadow-soft);
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
+}
+
+.tab-btn.active:hover {
+  color: #ffffff;
 }
 
 .filters-group {

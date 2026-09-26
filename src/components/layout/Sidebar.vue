@@ -31,7 +31,12 @@ const isSubActive = (path: string) => {
 }
 
 const isGroupActive = (item: NavItem) => {
-  if (!item.children) return route.path === item.path
+  if (!item.children) {
+    if (item.key === 'parking') {
+      return route.path.startsWith('/parking')
+    }
+    return route.path === item.path
+  }
   return item.children.some((child) => isSubActive(child.path))
 }
 
