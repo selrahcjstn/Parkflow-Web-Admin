@@ -133,7 +133,8 @@ async function reject(reg: PendingRegistration) {
         :key="reg.id"
         class="pending-card__row"
       >
-        <div class="pending-card__left">
+        <!-- Column 1: User Info -->
+        <div class="pending-card__col pending-card__col--user">
           <div class="pending-card__avatar">
             {{ getInitials(reg.fullName) }}
           </div>
@@ -143,15 +144,20 @@ async function reject(reg: PendingRegistration) {
           </div>
         </div>
 
-        <div class="pending-card__middle">
-          <div class="pending-card__vehicle-info">
-            <span class="pending-card__plate">{{ reg.vehiclePlate }}</span>
-            <span class="pending-card__vehicle-type">{{ reg.vehicleType }}</span>
-          </div>
-          <span class="pending-card__date">Applied {{ reg.dateApplied }}</span>
+        <!-- Column 2: Date Applied -->
+        <div class="pending-card__col pending-card__col--date">
+          <span class="pending-card__date-label">Applied</span>
+          <span class="pending-card__date-val">{{ reg.dateApplied }}</span>
         </div>
 
-        <div class="pending-card__right">
+        <!-- Column 3: Vehicle Info -->
+        <div class="pending-card__col pending-card__col--vehicle">
+          <span class="pending-card__plate">{{ reg.vehiclePlate }}</span>
+          <span class="pending-card__vehicle-type">{{ reg.vehicleType }}</span>
+        </div>
+
+        <!-- Column 4: Actions -->
+        <div class="pending-card__col pending-card__col--actions">
           <Transition name="pending-fade" mode="out-in">
             <div v-if="reg.status === 'pending'" class="pending-card__actions" key="actions">
               <button class="pending-card__btn pending-card__btn--approve" @click="approve(reg)">
@@ -246,25 +252,106 @@ async function reject(reg: PendingRegistration) {
   text-decoration: underline;
 }
 
-.pending-card__middle {
+.pending-card__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.pending-card__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) 110px 140px auto;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  transition: background 150ms ease;
+}
+
+.pending-card__row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.pending-card__col {
+  min-width: 0;
+}
+
+.pending-card__col--user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pending-card__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #D22730;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  user-select: none;
+  letter-spacing: 0.5px;
+}
+
+.pending-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pending-card__name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+.pending-card__email {
+  font-size: 11.5px;
+  color: var(--color-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+.pending-card__col--date {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.pending-card__date-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-subtle, #94a3b8);
+}
+
+.pending-card__date-val {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #475569);
+  white-space: nowrap;
+}
+
+.pending-card__col--vehicle {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.pending-card__date {
-  font-size: 11px;
-  color: var(--color-muted);
-  white-space: nowrap;
-}
-
-.pending-card__vehicle-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  gap: 2px;
   white-space: nowrap;
 }
 
@@ -286,6 +373,12 @@ async function reject(reg: PendingRegistration) {
   color: var(--color-muted, #64748b);
   font-size: 10px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+.pending-card__col--actions {
+  display: flex;
+  justify-content: flex-end;
   white-space: nowrap;
 }
 
