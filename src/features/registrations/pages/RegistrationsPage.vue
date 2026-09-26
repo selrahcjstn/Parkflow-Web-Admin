@@ -1258,7 +1258,7 @@ function openZoomImage(url?: string) {
 
 <style scoped>
 .registrations-page {
-  padding: 16px 24px 24px 24px;
+  padding: 0;
   max-width: 1400px;
   margin: 0 auto;
 }
