@@ -61,17 +61,20 @@ const fetchVehicles = async () => {
       : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
 
     if (items && items.length > 0) {
-      vehicles.value = items.map((v: any) => ({
-        id: v.id,
-        plateNumber: v.plateNumber,
-        brand: v.brand,
-        qrCodeHash: v.qrCodeHash || `QR-${v.id?.slice(0, 6)?.toUpperCase() || 'UNKNOWN'}`,
-        vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : v.vehicleType === 2 ? 'ElectricBike' : (v.vehicleType || 'Car'),
-        status: v.status || (v.verificationStatus === 3 ? 'Suspended' : 'Active'),
-        isPrimary: v.isPrimary,
-        ownerName: cleanOwnerName(v.ownerName || v.ownerEmail || 'Unassigned'),
-        ownerRole: v.ownerRole || 'Student'
-      }))
+      vehicles.value = items.map((v: any, index: number) => {
+        const safeId = String(v.id ?? `veh-${index + 1}`)
+        return {
+          id: safeId,
+          plateNumber: v.plateNumber || 'N/A',
+          brand: v.brand || 'N/A',
+          qrCodeHash: v.qrCodeHash || `QR-${safeId.slice(0, 6).toUpperCase()}`,
+          vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : v.vehicleType === 2 ? 'ElectricBike' : (v.vehicleType || 'Car'),
+          status: v.status || (v.verificationStatus === 3 ? 'Suspended' : 'Active'),
+          isPrimary: Boolean(v.isPrimary),
+          ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned'),
+          ownerRole: v.ownerRole || 'Student'
+        }
+      })
     }
   } catch (error) {
     console.error('Error fetching vehicles:', error)
