@@ -49,7 +49,7 @@ onMounted(async () => {
 
 // Filtering state
 const searchQuery = ref('')
-const selectedRole = ref<string>('all')
+const selectedRole = ref<string>('Student')
 const selectedStatus = ref<string>('all')
 
 const applyRouteQueries = () => {
@@ -61,12 +61,12 @@ const applyRouteQueries = () => {
   if (route.query.role) {
     const roleVal = String(route.query.role)
     if ((roleVal === 'AdminStaff' || roleVal === 'Guard' || roleVal === 'Admin') && !isSuperAdmin.value) {
-      selectedRole.value = 'all'
+      selectedRole.value = 'Student'
     } else {
       selectedRole.value = roleVal
     }
   } else {
-    selectedRole.value = 'all'
+    selectedRole.value = 'Student'
   }
 }
 
@@ -183,6 +183,48 @@ const filteredUsers = computed(() => {
 
     return matchesSearch && matchesRole && matchesStatus
   })
+})
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+const totalPages = computed(() => Math.ceil(filteredUsers.value.length / itemsPerPage.value) || 1)
+
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filteredUsers.value.slice(start, end)
+})
+
+const paginationSummary = computed(() => {
+  const total = filteredUsers.value.length
+  if (total === 0) return 'Showing 0 entries'
+  const start = (currentPage.value - 1) * itemsPerPage.value + 1
+  const end = Math.min(currentPage.value * itemsPerPage.value, total)
+  return `Showing ${start} to ${end} of ${total} entries`
+})
+
+const goToPage = (page: number) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page
+  }
+}
+
+const nextPage = () => {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+  }
+}
+
+const prevPage = () => {
+  if (currentPage.value > 1) {
+    currentPage.value--
+  }
+}
+
+watch([searchQuery, selectedRole, selectedStatus, itemsPerPage], () => {
+  currentPage.value = 1
 })
 
 const getInitials = (user: UserWithDetails) => {
@@ -536,7 +578,7 @@ const handleFormSubmit = async (formData: any) => {
               </tr>
             </template>
             <template v-else>
-              <tr v-for="user in filteredUsers" :key="user.id" class="user-row" @click="openDetails(user)">
+              <tr v-for="user in paginatedUsers" :key="user.id" class="user-row" @click="openDetails(user)">
               <td>
                 <div class="user-cell">
                   <div class="user-cell__avatar">
@@ -626,6 +668,53 @@ const handleFormSubmit = async (formData: any) => {
             </template>
           </tbody>
         </table>
+      </div>
+
+      <!-- Table Pagination Footer -->
+      <div v-if="!isLoading && filteredUsers.length > 0" class="table-pagination">
+        <div class="pagination-info">
+          <span>{{ paginationSummary }}</span>
+        </div>
+
+        <div class="pagination-controls">
+          <div class="per-page-selector">
+            <label for="perPageSelect">Per page:</label>
+            <select id="perPageSelect" v-model="itemsPerPage" class="per-page-select">
+              <option :value="5">5</option>
+              <option :value="10">10</option>
+              <option :value="25">25</option>
+              <option :value="50">50</option>
+            </select>
+          </div>
+
+          <div class="page-buttons">
+            <button
+              class="page-btn"
+              :disabled="currentPage === 1"
+              @click="prevPage"
+            >
+              ← Prev
+            </button>
+
+            <button
+              v-for="page in totalPages"
+              :key="`page-${page}`"
+              class="page-num-btn"
+              :class="{ 'page-num-btn--active': currentPage === page }"
+              @click="goToPage(page)"
+            >
+              {{ page }}
+            </button>
+
+            <button
+              class="page-btn"
+              :disabled="currentPage === totalPages"
+              @click="nextPage"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1370,5 +1459,104 @@ const handleFormSubmit = async (formData: any) => {
   padding: 40px;
   color: var(--color-muted);
   font-size: 14px;
+}
+
+/* ── Pagination Styling ───────────────────────────── */
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid var(--color-border, #f1f5f9);
+  background: var(--color-surface);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--color-muted, #64748b);
+  font-weight: 500;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.per-page-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--color-muted);
+}
+
+.per-page-select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f172a);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.page-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f172a);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: #D22730;
+  color: #D22730;
+}
+
+.page-num-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  background: var(--color-surface, #ffffff);
+  color: var(--color-text, #0f172a);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+}
+
+.page-num-btn:hover:not(.page-num-btn--active) {
+  border-color: #D22730;
+  color: #D22730;
+}
+
+.page-num-btn--active {
+  background: #D22730 !important;
+  border-color: #D22730 !important;
+  color: #ffffff !important;
 }
 </style>
