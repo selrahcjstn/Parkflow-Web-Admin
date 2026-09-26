@@ -23,14 +23,31 @@ const fetchUsers = async () => {
   }
   try {
     const response = await api.get('/users')
-    if (response.data && response.data.isSuccess) {
-      users.value = response.data.data
-      cachedUsers.value = response.data.data
-    } else {
-      console.error('Failed to retrieve users:', response.data?.message)
+    if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
+      const fetched: UserWithDetails[] = response.data.data
+      if (cachedUsers.value && cachedUsers.value.length > 0) {
+        users.value = fetched.map((f: UserWithDetails) => {
+          const cached = cachedUsers.value?.find((c: any) => String(c.id) === String(f.id))
+          return cached ? { ...f, ...cached } : f
+        })
+        cachedUsers.value.forEach((c: any) => {
+          if (!users.value.some((u) => String(u.id) === String(c.id))) {
+            users.value.push(c)
+          }
+        })
+        cachedUsers.value = [...users.value]
+      } else {
+        users.value = fetched
+        cachedUsers.value = fetched
+      }
+    } else if (cachedUsers.value) {
+      users.value = cachedUsers.value
     }
   } catch (error) {
     console.error('Error fetching users:', error)
+    if (cachedUsers.value) {
+      users.value = cachedUsers.value
+    }
   } finally {
     isLoading.value = false
   }

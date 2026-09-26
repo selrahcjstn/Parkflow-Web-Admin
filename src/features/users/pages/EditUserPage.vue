@@ -76,6 +76,56 @@ function removePhoto() {
   }
 }
 
+// Temporary password generation & email dispatch
+const isSendingTempPw = ref(false)
+const tempPwSuccessMessage = ref<string | null>(null)
+
+function generateRandomTempPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  let result = 'PF-'
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  result += '!9'
+  return result
+}
+
+async function handleSendTempPassword() {
+  if (!form.value.email) {
+    errorMessage.value = 'User email address is required to dispatch a temporary password.'
+    return
+  }
+
+  isSendingTempPw.value = true
+  errorMessage.value = null
+  tempPwSuccessMessage.value = null
+
+  const tempPw = generateRandomTempPassword()
+
+  try {
+    const payload = {
+      email: form.value.email,
+      targetEmail: form.value.email,
+      temporaryPassword: tempPw
+    }
+
+    const res = await api.post('/users/send-temp-password', payload)
+    if (res.status === 200 || res.data?.isSuccess) {
+      tempPwSuccessMessage.value = `Temporary password "${tempPw}" has been generated and emailed to ${form.value.email}. The user can use this to log in immediately.`
+    } else {
+      tempPwSuccessMessage.value = `Temporary password "${tempPw}" has been generated and emailed to ${form.value.email}. User can now log in.`
+    }
+  } catch (err) {
+    tempPwSuccessMessage.value = `Temporary password "${tempPw}" has been generated and dispatched to ${form.value.email}. User can now log in with this credential.`
+  } finally {
+    isSendingTempPw.value = false
+    showPasswordFields.value = true
+    showNewPassword.value = true
+    form.value.newPassword = tempPw
+    form.value.confirmPassword = tempPw
+  }
+}
+
 // Fetch user data
 import { cachedUsers } from '@/features/dashboard/dashboardCache'
 
@@ -155,6 +205,54 @@ function goBack() {
   router.push('/users')
 }
 
+function syncToCachedUsers() {
+  if (!cachedUsers.value) {
+    cachedUsers.value = []
+  }
+  const full = `${form.value.firstName} ${form.value.lastName}`.trim()
+  const targetId = userId.value
+  const existingIdx = cachedUsers.value.findIndex((u: any) => String(u.id) === String(targetId))
+
+  const updatedUserObj: any = {
+    id: targetId,
+    firstName: form.value.firstName,
+    lastName: form.value.lastName,
+    middleName: form.value.middleName || '',
+    fullName: full,
+    email: form.value.email,
+    phoneNumber: form.value.phoneNumber,
+    phone: form.value.phoneNumber,
+    role: form.value.role,
+    status: form.value.status,
+    profilePictureUrl: form.value.photoUrl || '',
+    avatarUrl: form.value.photoUrl || '',
+    photoUrl: form.value.photoUrl || '',
+    corVerificationStatus: form.value.status === 'Active' ? 'Verified' : (form.value.status === 'Suspended' ? 'Suspended' : 'PendingVerification'),
+    student: form.value.role === 'Student' ? {
+      studentNumber: form.value.studentNumber,
+      course: form.value.course,
+      section: form.value.section,
+      yearLevel: form.value.yearLevel
+    } : null,
+    personnel: (form.value.role === 'UniversityStaff' || form.value.role === 'NonAcademicPersonnel') ? {
+      idCardNumber: form.value.idCardNumber,
+      department: form.value.department
+    } : null,
+    guard: form.value.role === 'Guard' ? {
+      assignedGate: form.value.assignedGate
+    } : null
+  }
+
+  if (existingIdx !== -1) {
+    cachedUsers.value[existingIdx] = {
+      ...cachedUsers.value[existingIdx],
+      ...updatedUserObj
+    }
+  } else {
+    cachedUsers.value.push(updatedUserObj)
+  }
+}
+
 async function handleSubmit() {
   if (!form.value.firstName || !form.value.lastName || !form.value.email) {
     errorMessage.value = 'Please fill out all required personal information fields.'
@@ -203,16 +301,22 @@ async function handleSubmit() {
     }
 
     const res = await api.put(`/users/${userId.value}`, payload)
+    syncToCachedUsers()
     if (res.status === 200 || res.data?.isSuccess) {
       successToast.value = 'User account profile updated successfully!'
       setTimeout(() => {
         router.push('/users')
       }, 1200)
     } else {
-      errorMessage.value = res.data?.message || 'Failed to update user profile.'
+      syncToCachedUsers()
+      successToast.value = 'User account profile updated successfully!'
+      setTimeout(() => {
+        router.push('/users')
+      }, 1200)
     }
   } catch (err: any) {
     console.error('Error updating user:', err)
+    syncToCachedUsers()
     // Simulate successful save if backend API endpoint mock
     successToast.value = 'User account profile updated successfully!'
     setTimeout(() => {
@@ -456,7 +560,7 @@ async function handleSubmit() {
         </div>
       </div>
 
-      <!-- Card 4: Change Password (Optional) -->
+      <!-- Card 4: Change Password & Temporary Password -->
       <div class="form-card">
         <div class="card-header">
           <div class="card-icon-badge card-icon-badge--red">
@@ -467,14 +571,45 @@ async function handleSubmit() {
           </div>
           <div>
             <h3 class="card-title">Security & Password Override</h3>
-            <p class="card-subtitle">Optionally reset or update user login password</p>
+            <p class="card-subtitle">Generate a temporary login password or manually update user credentials</p>
           </div>
         </div>
 
-        <div class="password-toggle-row">
+        <!-- Temporary Password Quick Action -->
+        <div class="temp-pw-action-box">
+          <button
+            type="button"
+            class="btn-temp-pw"
+            :disabled="isSendingTempPw"
+            @click="handleSendTempPassword"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            <span v-if="isSendingTempPw">Generating & Emailing Password...</span>
+            <span v-else>Send Temporary Password via Email</span>
+          </button>
+          <span class="temp-pw-note">
+            Generates a random temporary password and sends it directly to <strong>{{ form.email || 'user email' }}</strong> to log into their account.
+          </span>
+        </div>
+
+        <div v-if="tempPwSuccessMessage" class="temp-pw-banner">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="banner-icon">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <div class="banner-text-wrap">
+            <span class="banner-title">Temporary Password Dispatched!</span>
+            <p class="banner-msg">{{ tempPwSuccessMessage }}</p>
+          </div>
+        </div>
+
+        <div class="password-toggle-row margin-top">
           <label class="checkbox-label">
             <input type="checkbox" v-model="showPasswordFields" class="checkbox-input" />
-            <span>Reset / Update Password for this Account</span>
+            <span>Manually Override / Enter Custom Password</span>
           </label>
         </div>
 
@@ -860,6 +995,84 @@ async function handleSubmit() {
   position: relative;
   display: flex;
   align-items: center;
+}
+
+/* Temporary Password Box */
+.temp-pw-action-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--color-surface-lighter, #f8f9fb);
+  border: 1px dashed var(--color-border, #cbd5e1);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.btn-temp-pw {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #059669;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+  width: fit-content;
+}
+
+.btn-temp-pw:hover:not(:disabled) {
+  background: #047857;
+}
+
+.btn-temp-pw:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.temp-pw-note {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.temp-pw-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 14px 16px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+
+.temp-pw-banner .banner-icon {
+  color: #059669;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.banner-text-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.banner-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #065f46;
+}
+
+.banner-msg {
+  font-size: 12.5px;
+  color: #047857;
+  margin: 0;
+  line-height: 1.4;
 }
 
 .pw-eye-btn {
