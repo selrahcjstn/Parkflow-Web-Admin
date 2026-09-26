@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { PendingRegistration } from '../types'
 import api from '@/api/axios'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 import { cachedRegistrations, cachedSubmissionGuids } from '../dashboardCache'
 
 const router = useRouter()
+const isLoading = ref(!cachedRegistrations.value)
 
 // Store registrations in a reactive array, initialized from cache if present
 const registrations = reactive<PendingRegistration[]>(cachedRegistrations.value || [])
@@ -37,6 +39,9 @@ function goToRegistrations() {
 }
 
 onMounted(async () => {
+  if (!cachedRegistrations.value) {
+    isLoading.value = true
+  }
   try {
     const response = await api.get('/cor-submissions')
     if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
@@ -68,6 +73,8 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Error fetching COR submissions:', error)
+  } finally {
+    isLoading.value = false
   }
 })
 </script>
@@ -95,7 +102,12 @@ onMounted(async () => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="displayedRegistrations.length === 0">
+          <tr v-if="isLoading" v-for="i in 3" :key="`skel-reg-${i}`">
+            <td colspan="4" style="padding: 10px 14px;">
+              <SkeletonLoader variant="rect" height="32px" />
+            </td>
+          </tr>
+          <tr v-else-if="displayedRegistrations.length === 0">
             <td colspan="4" class="pending-card__empty">
               No pending registrations awaiting verification.
             </td>

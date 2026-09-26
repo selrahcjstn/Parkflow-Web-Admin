@@ -1385,6 +1385,15 @@ async function handleCreateReservation() {
   vertical-align: middle;
 }
 
+.data-table tbody tr {
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.data-table tbody tr:hover {
+  background: var(--color-surface-lighter, #f8f9fb);
+}
+
 .ref-badge {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--color-border);

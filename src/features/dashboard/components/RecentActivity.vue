@@ -3,10 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ParkingLog } from '../types'
 import api from '@/api/axios'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 import { cachedParkingLogs } from '../dashboardCache'
 
 const router = useRouter()
+const isLoading = ref(!cachedParkingLogs.value)
 const logs = ref<ParkingLog[]>(cachedParkingLogs.value || [])
 
 function goToParking() {
@@ -14,6 +16,9 @@ function goToParking() {
 }
 
 onMounted(async () => {
+  if (!cachedParkingLogs.value) {
+    isLoading.value = true
+  }
   try {
     const response = await api.get('/parking-logs/active-sessions?parkingCapacity=150')
     if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
@@ -38,6 +43,8 @@ onMounted(async () => {
         { id: 3, vehiclePlate: 'NKN-4581', ownerName: 'Christian Reyes', duration: '4h 30m', charge: '₱120', status: 'Overstay' }
       ]
     }
+  } finally {
+    isLoading.value = false
   }
 })
 </script>
@@ -65,7 +72,12 @@ onMounted(async () => {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="logs.length === 0">
+          <tr v-if="isLoading" v-for="i in 3" :key="`skel-log-${i}`">
+            <td colspan="5" style="padding: 10px 14px;">
+              <SkeletonLoader variant="rect" height="32px" />
+            </td>
+          </tr>
+          <tr v-else-if="logs.length === 0">
             <td colspan="5" class="activity-card__empty">
               No active parking logs found.
             </td>

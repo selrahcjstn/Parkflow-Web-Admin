@@ -386,16 +386,17 @@ function goToFeedbackPage() {
   flex-direction: column;
   gap: 8px;
   padding: 12px 14px;
-  background: var(--color-surface-lighter, #f8f9fb);
+  background: #ffffff;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 12px;
   cursor: pointer;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .feedback-card:hover {
-  background: #ffffff;
-  border-color: #cbd5e1;
+  background: #f0f4fe;
+  border-color: #818cf8;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
 }
 
 .card-header-row {

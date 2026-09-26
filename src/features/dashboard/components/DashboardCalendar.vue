@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 
 import { cachedReservations } from '../dashboardCache'
 
@@ -13,7 +14,7 @@ const currentYear = ref(today.getFullYear())
 const currentMonth = ref(today.getMonth()) // 0-indexed
 const selectedDate = ref<string>(formatDateToKey(today))
 
-const isLoading = ref(false)
+const isLoading = ref(!cachedReservations.value)
 const reservations = ref<Array<{
   id: string
   userName: string
@@ -372,7 +373,10 @@ function navigateToReservations() {
     </div>
 
     <!-- Day Matrix Grid -->
-    <div class="calendar-widget__grid">
+    <div v-if="isLoading" class="calendar-widget__grid">
+      <SkeletonLoader v-for="i in 35" :key="`skel-grid-${i}`" variant="rect" height="38px" style="border-radius: 10px;" />
+    </div>
+    <div v-else class="calendar-widget__grid">
       <button
         v-for="(day, idx) in calendarDays"
         :key="`day-${idx}-${day.dateKey}`"
@@ -407,8 +411,11 @@ function navigateToReservations() {
 
     <!-- Upcoming List -->
     <div class="calendar-widget__upcoming-list">
+      <template v-if="isLoading">
+        <SkeletonLoader v-for="i in 2" :key="`skel-res-${i}`" variant="rect" height="54px" style="border-radius: 12px;" />
+      </template>
       <div
-        v-if="upcomingReservations.length === 0"
+        v-else-if="upcomingReservations.length === 0"
         class="calendar-widget__empty"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -705,15 +712,16 @@ function navigateToReservations() {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: var(--color-surface-lighter);
-  border: 1px solid transparent;
+  background: #ffffff;
+  border: 1px solid var(--color-border, #e2e8f0);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .calendar-widget__item:hover {
-  background: var(--color-surface);
-  border-color: var(--color-border);
+  background: #f0f4fe;
+  border-color: #818cf8;
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
 }
 
 .calendar-widget__item-avatar {

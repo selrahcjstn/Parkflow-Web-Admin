@@ -1880,6 +1880,15 @@ function openZoomImage(url?: string) {
   border-bottom: 1px solid #f1f5f9;
 }
 
+.registrations-table tbody tr {
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.registrations-table tbody tr:hover {
+  background: var(--color-surface-lighter, #f8f9fb);
+}
+
 .applicant-cell {
   display: flex;
   align-items: center;

@@ -908,8 +908,13 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
   color: var(--color-text);
 }
 
+.table-row {
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
 .table-row:hover {
-  background: var(--color-primary-lighter);
+  background: var(--color-surface-lighter, #f8f9fb);
 }
 
 /* Cell Styles */
