@@ -1264,7 +1264,7 @@ function openZoomImage(url?: string) {
 
 <style scoped>
 .registrations-page {
-  padding: 32px 24px 24px 24px;
+  padding: 16px 24px 24px 24px;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -1273,7 +1273,7 @@ function openZoomImage(url?: string) {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
 .header-badge {
@@ -1286,7 +1286,7 @@ function openZoomImage(url?: string) {
   color: #6366f1;
   font-size: 12px;
   font-weight: 600;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .registrations-page__title {
@@ -1306,6 +1306,7 @@ function openZoomImage(url?: string) {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .view-mode-toggle {
@@ -1314,6 +1315,7 @@ function openZoomImage(url?: string) {
   padding: 4px;
   border-radius: 8px;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .view-mode-btn {
@@ -1329,6 +1331,8 @@ function openZoomImage(url?: string) {
   color: var(--color-text-muted, #64748b);
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .view-mode-btn--active {
