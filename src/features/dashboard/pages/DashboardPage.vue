@@ -5,6 +5,7 @@ import ParkingChart from '../components/ParkingChart.vue'
 import RecentActivity from '../components/RecentActivity.vue'
 import PendingRegistrations from '../components/PendingRegistrations.vue'
 import DashboardCalendar from '../components/DashboardCalendar.vue'
+import RecentFeedbackOverview from '../components/RecentFeedbackOverview.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
@@ -185,9 +186,10 @@ onMounted(async () => {
         <PendingRegistrations />
       </div>
 
-      <!-- Right Column: Grounded Calendar & Upcoming Reservations -->
+      <!-- Right Column: Grounded Calendar & Feedback Overview -->
       <div class="dashboard__right-col">
         <DashboardCalendar />
+        <RecentFeedbackOverview />
       </div>
     </div>
   </div>
