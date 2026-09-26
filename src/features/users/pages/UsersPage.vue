@@ -6,20 +6,24 @@ import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
+import { cachedUsers } from '@/features/dashboard/dashboardCache'
 
 const route = useRoute()
-const users = ref<UserWithDetails[]>([])
-const isLoading = ref(true)
+const users = ref<UserWithDetails[]>(cachedUsers.value || [])
+const isLoading = ref(!cachedUsers.value)
 
 const userEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
 const isSuperAdmin = computed(() => userEmail.includes('superadmin') || userEmail === 'superadmin@parkflow.com' || !userEmail)
 
 const fetchUsers = async () => {
-  isLoading.value = true
+  if (!cachedUsers.value) {
+    isLoading.value = true
+  }
   try {
     const response = await api.get('/users')
     if (response.data && response.data.isSuccess) {
       users.value = response.data.data
+      cachedUsers.value = response.data.data
     } else {
       console.error('Failed to retrieve users:', response.data?.message)
     }
@@ -288,6 +292,7 @@ const handleDeleteUser = async () => {
     console.warn('Delete API error, removing locally:', error)
   }
   users.value = users.value.filter(u => u.id !== user.id)
+  cachedUsers.value = [...users.value]
   showToast(`Client "${user.fullName}" has been deleted.`, 'success')
   userToDelete.value = null
 }
