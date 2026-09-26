@@ -575,89 +575,43 @@ function openZoomImage(url?: string) {
       </div>
     </div>
 
-    <!-- Category Filter Bar & Status Tabs -->
-    <div class="category-filter-bar">
-      <div class="category-pills">
-        <button
-          class="cat-pill"
-          :class="{ 'cat-pill--active': selectedCategoryFilter === 'all' }"
-          @click="selectedCategoryFilter = 'all'"
-        >
-          All Approvals ({{ approvals.length }})
-        </button>
-        <button
-          class="cat-pill cat-pill--registration"
-          :class="{ 'cat-pill--active': selectedCategoryFilter === 'Registration' }"
-          @click="selectedCategoryFilter = 'Registration'"
-        >
-          <span class="cat-dot cat-dot--registration"></span>
-          Registrations ({{ registrationCount }})
-        </button>
-        <button
-          class="cat-pill cat-pill--schedule"
-          :class="{ 'cat-pill--active': selectedCategoryFilter === 'Schedule' }"
-          @click="selectedCategoryFilter = 'Schedule'"
-        >
-          <span class="cat-dot cat-dot--schedule"></span>
-          Schedule ({{ scheduleCount }})
-        </button>
-        <button
-          class="cat-pill cat-pill--vehicle"
-          :class="{ 'cat-pill--active': selectedCategoryFilter === 'Vehicle' }"
-          @click="selectedCategoryFilter = 'Vehicle'"
-        >
-          <span class="cat-dot cat-dot--vehicle"></span>
-          Vehicle ({{ vehicleCount }})
-        </button>
-      </div>
-    </div>
-
-    <!-- Controls Bar -->
-    <div class="registrations-page__controls">
-      <!-- Status Tabs -->
-      <div class="registrations-page__tabs">
-        <button
-          class="tab-item"
-          :class="{ 'tab-item--active': selectedStatusTab === 'pending' }"
-          @click="selectedStatusTab = 'pending'"
-        >
-          Pending ({{ pendingCount }})
-        </button>
-        <button
-          class="tab-item"
-          :class="{ 'tab-item--active': selectedStatusTab === 'approved' }"
-          @click="selectedStatusTab = 'approved'"
-        >
-          Approved ({{ approvedCount }})
-        </button>
-        <button
-          class="tab-item"
-          :class="{ 'tab-item--active': selectedStatusTab === 'rejected' }"
-          @click="selectedStatusTab = 'rejected'"
-        >
-          Rejected ({{ rejectedCount }})
-        </button>
-        <button
-          class="tab-item"
-          :class="{ 'tab-item--active': selectedStatusTab === 'all' }"
-          @click="selectedStatusTab = 'all'"
-        >
-          All Statuses
-        </button>
-      </div>
-
-      <!-- Search -->
-      <div class="registrations-page__search">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <!-- Unified Filters Bar -->
+    <div class="filters-bar">
+      <!-- Search Input -->
+      <div class="search-wrapper">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search by applicant, email, plate number, category..."
+          placeholder="Search by applicant, email, plate number..."
           class="search-input"
         />
+      </div>
+
+      <!-- Filter Dropdowns -->
+      <div class="filters-group">
+        <!-- Category Filter -->
+        <div class="select-wrapper">
+          <select v-model="selectedCategoryFilter" class="filter-select">
+            <option value="all">All Approval Types ({{ approvals.length }})</option>
+            <option value="Registration">Registrations ({{ registrationCount }})</option>
+            <option value="Schedule">Schedule Clearances ({{ scheduleCount }})</option>
+            <option value="Vehicle">Vehicle Registrations ({{ vehicleCount }})</option>
+          </select>
+        </div>
+
+        <!-- Status Filter -->
+        <div class="select-wrapper">
+          <select v-model="selectedStatusTab" class="filter-select">
+            <option value="pending">Pending Review ({{ pendingCount }})</option>
+            <option value="approved">Approved & Verified ({{ approvedCount }})</option>
+            <option value="rejected">Rejected / Declined ({{ rejectedCount }})</option>
+            <option value="all">All Statuses ({{ approvals.length }})</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -1509,41 +1463,26 @@ function openZoomImage(url?: string) {
   color: #059669;
 }
 
-/* Controls Bar */
-.registrations-page__controls {
+/* Unified Filters Bar */
+.filters-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
   gap: 16px;
+  margin-bottom: 24px;
 }
 
-.registrations-page__tabs {
-  display: flex;
-  gap: 8px;
+@media (max-width: 768px) {
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
-.tab-item {
-  padding: 8px 14px;
-  border: 1px solid var(--color-border, #e2e8f0);
-  background: #ffffff;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #64748b;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-item--active {
-  background: #6366f1;
-  color: #ffffff;
-  border-color: #6366f1;
-}
-
-.registrations-page__search {
+.search-wrapper {
   position: relative;
-  min-width: 280px;
+  flex: 1;
+  max-width: 420px;
 }
 
 .search-icon {
@@ -1552,19 +1491,62 @@ function openZoomImage(url?: string) {
   top: 50%;
   transform: translateY(-50%);
   color: #94a3b8;
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  padding: 8px 12px 8px 36px;
-  border: 1px solid var(--color-border, #e2e8f0);
+  padding: 10px 14px 10px 38px;
+  border: 1px solid var(--color-border, #cbd5e1);
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 13.5px;
+  background: #ffffff;
+  color: #0f172a;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
 }
 
 .search-input:focus {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.filters-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.select-wrapper {
+  position: relative;
+}
+
+.filter-select {
+  background: #ffffff;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: 8px;
+  padding: 8px 36px 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  transition: border-color 150ms ease;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+.filter-select:hover {
+  border-color: #94a3b8;
+}
+
+.filter-select:focus {
+  outline: none;
   border-color: #6366f1;
 }
 
