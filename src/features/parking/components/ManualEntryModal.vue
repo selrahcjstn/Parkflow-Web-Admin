@@ -15,8 +15,6 @@ const emit = defineEmits<{
     phoneNumber: string
     ownerName?: string
     role?: string
-    gate?: number
-    entryReason?: string
   }): void
 }>()
 
@@ -26,8 +24,6 @@ const brand = ref('')
 const phoneNumber = ref('')
 const ownerName = ref('')
 const role = ref('Student')
-const gate = ref(1)
-const entryReason = ref('RFID Card Failure / Tag Issue')
 
 const resetForm = () => {
   plateNumber.value = ''
@@ -36,8 +32,6 @@ const resetForm = () => {
   phoneNumber.value = ''
   ownerName.value = ''
   role.value = 'Student'
-  gate.value = 1
-  entryReason.value = 'RFID Card Failure / Tag Issue'
 }
 
 watch(
@@ -54,9 +48,7 @@ const handleSubmit = () => {
     brand: brand.value.trim(),
     phoneNumber: phoneNumber.value.trim(),
     ownerName: ownerName.value.trim() || 'Manual Guest Entry',
-    role: role.value,
-    gate: gate.value,
-    entryReason: entryReason.value
+    role: role.value
   })
 }
 </script>
@@ -150,31 +142,11 @@ const handleSubmit = () => {
                   />
                 </div>
               </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="gate">Entry Gate *</label>
-                  <select id="gate" v-model.number="gate" class="form-select" required>
-                    <option :value="1">Gate 1 (Main Gate)</option>
-                    <option :value="2">Gate 2 (North Gate)</option>
-                    <option :value="3">Gate 3 (South Gate)</option>
-                  </select>
-                </div>
-
-                <div class="form-group">
-                  <label for="entryReason">Reason for Manual Entry</label>
-                  <select id="entryReason" v-model="entryReason" class="form-select">
-                    <option value="RFID Card Failure / Tag Issue">RFID Tag / Scanner Failure</option>
-                    <option value="Guest Visitor Pass">Guest Visitor Pass</option>
-                    <option value="Manual Guard Override">Manual Guard Override</option>
-                  </select>
-                </div>
-              </div>
             </div>
 
             <div class="modal-footer">
-              <button type="button" class="cancel-btn" @click="emit('close')">Cancel</button>
-              <button type="submit" class="submit-btn">Log Check-in</button>
+              <button type="button" class="btn-cancel" @click="emit('close')">Cancel</button>
+              <button type="submit" class="btn-submit">Log Check-in</button>
             </div>
           </form>
         </div>
@@ -327,39 +299,6 @@ const handleSubmit = () => {
   justify-content: flex-end;
   gap: 12px;
   background: var(--color-surface-muted);
-}
-
-.cancel-btn {
-  padding: 10px 18px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.cancel-btn:hover {
-  background: var(--color-surface-lighter);
-}
-
-.submit-btn {
-  padding: 10px 20px;
-  border: none;
-  background: #4f46e5;
-  color: #ffffff;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 150ms ease;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
-}
-
-.submit-btn:hover {
-  background: #4338ca;
 }
 
 .fade-enter-active,

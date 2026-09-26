@@ -13,9 +13,7 @@ const form = ref({
   brand: '',
   phoneNumber: '',
   ownerName: '',
-  role: 'Student',
-  gate: 1,
-  entryReason: 'RFID Card Failure / Tag Issue'
+  role: 'Student'
 })
 
 const isSubmitting = ref(false)
@@ -62,7 +60,6 @@ const handleSubmit = async () => {
 
     if (response.data && (response.data.isSuccess || response.status === 200 || response.status === 201)) {
       successToast.value = `Manual entry logged for vehicle ${plateFormatted}!`
-      // Invalidate cache to fetch fresh data on reroute
       cachedActiveSessions.value = null
       setTimeout(() => {
         router.push('/parking')
@@ -72,7 +69,6 @@ const handleSubmit = async () => {
     }
   } catch (error: any) {
     console.error('Error logging manual entry:', error)
-    // Local fallback for instant guard responsiveness
     const newSession = {
       id: plateFormatted,
       vehiclePlate: plateFormatted,
@@ -82,7 +78,6 @@ const handleSubmit = async () => {
       role: form.value.role || 'Guest',
       checkInTime: new Date().toISOString(),
       duration: '0m',
-      gate: form.value.gate || 1,
       status: 'Parked'
     }
 
@@ -112,11 +107,11 @@ const handleSubmit = async () => {
       </div>
     </Transition>
 
-    <!-- Header Title (No Back Button, Consistent with Dashboard & Clients) -->
+    <!-- Header Title -->
     <div class="page-header">
       <div class="header-left">
-        <h1 class="page-title">Guard Manual Entry Override</h1>
-        <p class="page-subtitle">Log manual vehicle check-in when RFID tag scan fails or for guest visitor passes.</p>
+        <h1 class="page-title">Log Manual Entry</h1>
+        <p class="page-subtitle">Record manual vehicle check-in when RFID tag scan is unavailable or for visitor access.</p>
       </div>
     </div>
 
@@ -130,10 +125,10 @@ const handleSubmit = async () => {
         <span>{{ errorMessage }}</span>
       </div>
 
-      <!-- Card 1: Vehicle & Plate Identification -->
+      <!-- Vehicle & Driver Check-in Form Card -->
       <div class="form-card">
         <div class="card-header">
-          <div class="card-icon-badge card-icon-badge--blue">
+          <div class="card-icon-badge">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="11" width="18" height="6" rx="2" />
               <path d="M5 17h14" />
@@ -142,8 +137,8 @@ const handleSubmit = async () => {
             </svg>
           </div>
           <div>
-            <h3 class="card-title">1. Vehicle Identification</h3>
-            <p class="card-subtitle">Enter official vehicle license plate number and vehicle classification</p>
+            <h3 class="card-title">Vehicle & Driver Details</h3>
+            <p class="card-subtitle">Fill in the vehicle plate number and driver info to log manual entry</p>
           </div>
         </div>
 
@@ -167,46 +162,6 @@ const handleSubmit = async () => {
               <option value="Motorcycle">Motorcycle</option>
               <option value="ElectricBike">E-Bike</option>
             </select>
-          </div>
-        </div>
-
-        <div class="form-grid--2col">
-          <div class="form-group">
-            <label for="brand">Brand / Model</label>
-            <input
-              id="brand"
-              v-model="form.brand"
-              type="text"
-              placeholder="e.g. Toyota Vios, Yamaha NMAX"
-              class="form-input"
-            />
-          </div>
-
-          <div class="form-group">
-            <label for="phoneNumber">Contact Phone Number</label>
-            <input
-              id="phoneNumber"
-              v-model="form.phoneNumber"
-              type="text"
-              placeholder="+639..."
-              class="form-input"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 2: Driver & Gate Operational Details -->
-      <div class="form-card">
-        <div class="card-header">
-          <div class="card-icon-badge card-icon-badge--purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="card-title">2. Driver & Gate Access Details</h3>
-            <p class="card-subtitle">Select owner classification, entry gate, and reason for manual override</p>
           </div>
         </div>
 
@@ -236,21 +191,25 @@ const handleSubmit = async () => {
 
         <div class="form-grid--2col">
           <div class="form-group">
-            <label for="gate">Entry Gate *</label>
-            <select id="gate" v-model.number="form.gate" class="form-select" required>
-              <option :value="1">Gate 1 (Main Entrance)</option>
-              <option :value="2">Gate 2 (North Gate)</option>
-              <option :value="3">Gate 3 (South Gate)</option>
-            </select>
+            <label for="brand">Brand / Model</label>
+            <input
+              id="brand"
+              v-model="form.brand"
+              type="text"
+              placeholder="e.g. Toyota Vios, Yamaha NMAX"
+              class="form-input"
+            />
           </div>
 
           <div class="form-group">
-            <label for="entryReason">Reason for Manual Entry</label>
-            <select id="entryReason" v-model="form.entryReason" class="form-select">
-              <option value="RFID Card Failure / Tag Issue">RFID Tag / Scanner Failure</option>
-              <option value="Guest Visitor Pass">Guest Visitor Pass</option>
-              <option value="Manual Guard Override">Manual Guard Override</option>
-            </select>
+            <label for="phoneNumber">Contact Phone Number</label>
+            <input
+              id="phoneNumber"
+              v-model="form.phoneNumber"
+              type="text"
+              placeholder="+639..."
+              class="form-input"
+            />
           </div>
         </div>
       </div>
@@ -358,16 +317,8 @@ const handleSubmit = async () => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-}
-
-.card-icon-badge--blue {
-  background: rgba(96, 165, 250, 0.2);
-  color: #3b82f6;
-}
-
-.card-icon-badge--purple {
-  background: rgba(129, 140, 248, 0.2);
-  color: #6366f1;
+  background: rgba(79, 70, 229, 0.12);
+  color: #4f46e5;
 }
 
 .card-title {
@@ -437,43 +388,6 @@ const handleSubmit = async () => {
   align-items: center;
   gap: 12px;
   margin-top: 8px;
-}
-
-.btn-cancel {
-  padding: 12px 24px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.btn-cancel:hover {
-  background: var(--color-surface-lighter);
-}
-
-.btn-submit {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 28px;
-  border: none;
-  background: #4f46e5;
-  color: #ffffff;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 150ms ease;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
-}
-
-.btn-submit:hover:not(:disabled) {
-  background: #4338ca;
-  transform: translateY(-1px);
 }
 
 .fade-enter-active,
