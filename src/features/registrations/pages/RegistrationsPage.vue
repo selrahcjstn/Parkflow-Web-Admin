@@ -49,11 +49,18 @@ const weeklyDays = [1, 2, 3, 4, 5, 6, 0]
 
 // Persistent caching & reactive state initialization
 const approvals = ref<ApprovalItem[]>(cachedApprovals.value || [])
-const isLoading = ref(!cachedApprovals.value)
+const isLoading = ref(!cachedApprovals.value || cachedApprovals.value.length === 0)
 const searchQuery = ref('')
-const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('pending')
+const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
 const selectedCategoryFilter = ref<'all' | 'Registration' | 'Schedule' | 'Vehicle'>('all')
 const viewMode = ref<'grid' | 'table'>('grid')
+
+function resetFilters() {
+  selectedStatusTab.value = 'all'
+  selectedCategoryFilter.value = 'all'
+  searchQuery.value = ''
+  currentPage.value = 1
+}
 
 // Pagination State
 const currentPage = ref(1)
@@ -191,7 +198,7 @@ function handleImageError(event: Event, fallback: string) {
 
 // Fetch both COR Submissions & Vehicle Registrations, merge into unified list
 async function fetchApprovals() {
-  if (!cachedApprovals.value) {
+  if (!cachedApprovals.value || cachedApprovals.value.length === 0) {
     isLoading.value = true
   }
   const list: ApprovalItem[] = []
@@ -199,8 +206,15 @@ async function fetchApprovals() {
   try {
     // 1. Fetch COR Submissions (Registrations & Schedules)
     const corRes = await api.get('/cor-submissions').catch(() => null)
-    if (corRes?.data?.isSuccess && Array.isArray(corRes.data?.data)) {
-      corRes.data.data.forEach((sub: any, i: number) => {
+    const rawCor = corRes?.data
+    const corItems = Array.isArray(rawCor)
+      ? rawCor
+      : (rawCor?.isSuccess && Array.isArray(rawCor?.data)
+          ? rawCor.data
+          : (Array.isArray(rawCor?.data) ? rawCor.data : null))
+
+    if (Array.isArray(corItems) && corItems.length > 0) {
+      corItems.forEach((sub: any, i: number) => {
         let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
         if (sub.verificationStatus === 2) mappedStatus = 'approved'
         if (sub.verificationStatus === 3) mappedStatus = 'rejected'
@@ -239,8 +253,15 @@ async function fetchApprovals() {
 
     // 2. Fetch Vehicle Registrations
     const vehRes = await api.get('/vehicles').catch(() => null)
-    if (vehRes?.data?.isSuccess && Array.isArray(vehRes.data?.data)) {
-      vehRes.data.data.forEach((veh: any, i: number) => {
+    const rawVeh = vehRes?.data
+    const vehItems = Array.isArray(rawVeh)
+      ? rawVeh
+      : (rawVeh?.isSuccess && Array.isArray(rawVeh?.data)
+          ? rawVeh.data
+          : (Array.isArray(rawVeh?.data) ? rawVeh.data : null))
+
+    if (Array.isArray(vehItems) && vehItems.length > 0) {
+      vehItems.forEach((veh: any, i: number) => {
         let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
         if (veh.verificationStatus === 2) mappedStatus = 'approved'
         if (veh.verificationStatus === 3) mappedStatus = 'rejected'
@@ -632,6 +653,7 @@ function openZoomImage(url?: string) {
         </div>
         <p class="empty-title">No approval requests found</p>
         <p class="empty-sub">There are currently no approval submissions matching your filter criteria.</p>
+        <button class="btn-reset-filter" @click="resetFilters">Reset Filters</button>
       </div>
     </div>
 
@@ -1857,6 +1879,63 @@ function openZoomImage(url?: string) {
 
 .status-badge--rejected { background: #fee2e2; color: #dc2626; }
 .status-badge--rejected .status-dot { background: #dc2626; }
+
+/* Empty State */
+.registrations-card__empty {
+  padding: 48px 24px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.empty-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.empty-sub {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.btn-reset-filter {
+  margin-top: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #6366f1;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.btn-reset-filter:hover {
+  background: #4f46e5;
+}
 
 /* List Table Styles */
 .registrations-card {
