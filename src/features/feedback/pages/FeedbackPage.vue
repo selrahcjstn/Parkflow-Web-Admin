@@ -2,7 +2,19 @@
 import { ref, computed, onMounted } from 'vue'
 import type { FeedbackItem, FeedbackStatus } from '../types'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
+
+const feedColumns: TableColumn[] = [
+  { key: 'user', label: 'User / Applicant' },
+  { key: 'category', label: 'Category' },
+  { key: 'rating', label: 'Rating' },
+  { key: 'message', label: 'Feedback Message' },
+  { key: 'sla', label: 'Inquiry SLA' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Action', align: 'right' }
+]
 
 interface Toast {
   id: number
@@ -434,100 +446,76 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
     </div>
 
     <!-- Data Table Container -->
-    <div class="table-card">
-      <div v-if="isLoading" class="p-6">
-        <SkeletonLoader :count="5" />
-      </div>
+    <div class="table-card p-0 overflow-hidden">
+      <UiTable
+        :columns="feedColumns"
+        :data="filteredFeedbacks"
+        :is-loading="isLoading"
+        empty-text="No user feedback matches your current search and filter criteria."
+      >
+        <template #cell-user="{ item }">
+          <div class="user-cell flex items-center gap-3">
+            <div class="avatar-circle w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+              {{ getInitials(getUserName(item), getUserEmail(item)) }}
+            </div>
+            <div class="user-details flex flex-col">
+              <span class="user-name font-semibold text-slate-900 dark:text-white text-xs">{{ getUserName(item) }}</span>
+              <span class="user-email text-[11px] text-slate-500 dark:text-slate-400">{{ getUserEmail(item) }}</span>
+            </div>
+          </div>
+        </template>
 
-      <div v-else-if="filteredFeedbacks.length === 0" class="empty-state">
-        <div class="empty-icon">💬</div>
-        <h3>No Feedback Submissions Found</h3>
-        <p>No user feedback matches your current search and filter criteria.</p>
-      </div>
+        <template #cell-category="{ item }">
+          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            {{ getNormalizedCategory(item.category) }}
+          </span>
+        </template>
 
-      <div v-else class="table-responsive">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>User / Applicant</th>
-              <th>Category</th>
-              <th>Rating</th>
-              <th>Feedback Message</th>
-              <th>Inquiry SLA</th>
-              <th>Status</th>
-              <th class="text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in filteredFeedbacks" :key="item.id" class="table-row">
-              <!-- User -->
-              <td>
-                <div class="user-cell">
-                  <div class="avatar-circle">
-                    {{ getInitials(getUserName(item), getUserEmail(item)) }}
-                  </div>
-                  <div class="user-details">
-                    <span class="user-name">{{ getUserName(item) }}</span>
-                    <span class="user-email">{{ getUserEmail(item) }}</span>
-                  </div>
-                </div>
-              </td>
+        <template #cell-rating="{ item }">
+          <div class="stars-wrap flex items-center gap-1 text-amber-400 text-xs">
+            <span v-for="star in 5" :key="star" :class="star <= item.rating ? 'opacity-100' : 'opacity-30'">
+              ★
+            </span>
+            <span class="rating-num text-slate-400 text-[11px]">({{ item.rating }})</span>
+          </div>
+        </template>
 
-              <!-- Category -->
-              <td>
-                <span class="category-badge" :class="getCategoryBadgeClass(item.category)">
-                  {{ getNormalizedCategory(item.category) }}
-                </span>
-              </td>
+        <template #cell-message="{ item }">
+          <div class="flex flex-col gap-1 max-w-sm">
+            <p class="message-text text-xs text-slate-700 dark:text-slate-300 truncate m-0" :title="getMessageText(item)">{{ getMessageText(item) }}</p>
+            <span v-if="item.adminReplyMessage" class="reply-tag text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+              💬 Replied: "{{ item.adminReplyMessage }}"
+            </span>
+            <span v-if="item.invoiceNumber" class="invoice-tag text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+              📄 Invoice Issued (₱{{ Number(item.invoiceAmount || 0).toFixed(2) }})
+            </span>
+          </div>
+        </template>
 
-              <!-- Rating -->
-              <td>
-                <div class="stars-wrap">
-                  <span v-for="star in 5" :key="star" class="star" :class="{ filled: star <= item.rating }">
-                    ★
-                  </span>
-                  <span class="rating-num">({{ item.rating }})</span>
-                </div>
-              </td>
+        <template #cell-sla="{ item }">
+          <div class="sla-wrap flex flex-col">
+            <span class="sla-time font-semibold text-slate-900 dark:text-white text-xs">{{ formatDate(item.createdAt) }}</span>
+            <span class="sla-pill text-[10.5px] font-semibold" :class="getHoursElapsed(item.createdAt) <= 24 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+              ⏱ {{ getHoursElapsed(item.createdAt) }}h ago
+            </span>
+          </div>
+        </template>
 
-              <!-- Message preview -->
-              <td class="message-cell">
-                <p class="message-text" :title="getMessageText(item)">{{ getMessageText(item) }}</p>
-                <span v-if="item.adminReplyMessage" class="reply-tag">
-                  💬 Replied: "{{ item.adminReplyMessage }}"
-                </span>
-                <span v-if="item.invoiceNumber" class="invoice-tag">
-                  📄 Invoice Issued (₱{{ Number(item.invoiceAmount || 0).toFixed(2) }})
-                </span>
-              </td>
+        <template #cell-status="{ item }">
+          <UiStatusText
+            :variant="getNormalizedStatus(item) === 'Resolved' ? 'success' : getNormalizedStatus(item) === 'Reviewed' ? 'info' : 'warning'"
+            size="xs"
+          >
+            {{ getNormalizedStatus(item) }}
+          </UiStatusText>
+        </template>
 
-              <!-- Inquiry SLA Timer -->
-              <td class="date-cell">
-                <div class="sla-wrap">
-                  <span class="sla-time">{{ formatDate(item.createdAt) }}</span>
-                  <span class="sla-pill" :class="getHoursElapsed(item.createdAt) <= 24 ? 'sla-active' : 'sla-overdue'">
-                    ⏱ {{ getHoursElapsed(item.createdAt) }}h ago
-                  </span>
-                </div>
-              </td>
-
-              <!-- Status -->
-              <td>
-                <span class="status-badge" :class="getStatusBadgeClass(getNormalizedStatus(item))">
-                  {{ getNormalizedStatus(item) }}
-                </span>
-              </td>
-
-              <!-- Action -->
-              <td class="text-right">
-                <button class="btn btn-sm btn-inspect" @click="openDetailModal(item)">
-                  Inspect & Reply
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <template #cell-actions="{ item }">
+          <button class="btn btn-sm btn-inspect px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer border-none" @click="openDetailModal(item)">
+            Inspect & Reply
+          </button>
+        </template>
+      </UiTable>
     </div>
 
     <!-- Inspection & Reply / Invoice Modal -->

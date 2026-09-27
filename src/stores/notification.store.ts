@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import api from '@/api/axios'
+import { cachedApprovals, cachedRegistrations, cachedScheduleSubmissions, cachedVehicleApprovals } from '@/stores/appCache'
 
 export interface AdminNotification {
   id: string
@@ -23,6 +24,30 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
   const isSignalRConnected = ref(false)
   const isLoading = ref(false)
   let hubConnection: HubConnection | null = null
+
+  type ApprovalListener = (data: any) => void
+  const approvalListeners = new Set<ApprovalListener>()
+
+  function onApprovalUpdate(callback: ApprovalListener) {
+    approvalListeners.add(callback)
+    return () => {
+      approvalListeners.delete(callback)
+    }
+  }
+
+  function triggerApprovalUpdate(data: any) {
+    cachedApprovals.value = null
+    cachedRegistrations.value = null
+    cachedScheduleSubmissions.value = null
+    cachedVehicleApprovals.value = null
+    approvalListeners.forEach((listener) => {
+      try {
+        listener(data)
+      } catch (e) {
+        console.error('Error in approval update listener:', e)
+      }
+    })
+  }
 
   const unreadCount = computed(() => {
     return notifications.value.filter((n) => n.isUnread).length
@@ -70,17 +95,18 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     try {
       // 1. Fetch pending COR / Schedule verification submissions
       try {
-        const resCor = await api.get('/cor-submissions/pending')
+        const resCor = await api.get('/cor-submissions')
         const items = resCor.data?.data || (Array.isArray(resCor.data) ? resCor.data : [])
         if (Array.isArray(items)) {
-          items.forEach((item: any) => {
-            const refCode = item.id || item.referenceNumber || `cor-${item.userId}`
+          const pendingCors = items.filter((item: any) => item.verificationStatus === 1 || item.verificationStatus === 'Pending')
+          pendingCors.forEach((item: any) => {
+            const refCode = item.id || item.referenceNumber || `cor-${item.userId || item.userAccountId}`
             addNotification({
               type: 'schedule_pending',
               title: 'Schedule Verification Pending',
               subtitle: 'COR Document Review Required',
-              message: `${item.userFullName || 'Student'} uploaded a new COR schedule document awaiting verification.`,
-              timestamp: item.submittedAt ? new Date(item.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending',
+              message: `${item.fullName || item.userFullName || 'Student'} uploaded a new COR schedule document awaiting verification.`,
+              timestamp: item.createdAt || item.submittedAt ? new Date(item.createdAt || item.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending',
               actionUrl: '/schedule-approval',
               actionLabel: 'Review Schedule',
               priority: 'high',
@@ -94,16 +120,17 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
 
       // 2. Fetch pending Vehicle Registrations
       try {
-        const resVehicles = await api.get('/vehicles/pending')
+        const resVehicles = await api.get('/vehicles')
         const items = resVehicles.data?.data || (Array.isArray(resVehicles.data) ? resVehicles.data : [])
         if (Array.isArray(items)) {
-          items.forEach((item: any) => {
+          const pendingVehicles = items.filter((item: any) => item.verificationStatus === 1 || item.verificationStatus === 'Pending')
+          pendingVehicles.forEach((item: any) => {
             const refCode = item.id || item.plateNumber
             addNotification({
               type: 'vehicle_pending',
               title: 'Vehicle Registration Approval',
               subtitle: item.plateNumber || 'Vehicle Verification',
-              message: `Vehicle [${item.plateNumber || 'Pending Plate'}] (${item.make} ${item.model || ''}) registered by ${item.ownerName || 'User'} awaiting approval.`,
+              message: `Vehicle [${item.plateNumber || 'Pending Plate'}] (${item.brand || item.make || ''} ${item.model || ''}) registered by ${item.ownerName || 'User'} awaiting approval.`,
               timestamp: 'Pending Review',
               actionUrl: '/vehicle-approval',
               actionLabel: 'Inspect Vehicle',
@@ -278,6 +305,64 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
       }, true)
     })
 
+    hubConnection.on('RegistrationSubmitted', (data: any) => {
+      console.log('[SignalR Admin] RegistrationSubmitted received:', data)
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      addNotification({
+        type: 'schedule_pending',
+        title: 'New Registration Submitted',
+        subtitle: 'Documents Awaiting Review',
+        message: `A new registration has been submitted and is awaiting approval (${timeStr}).`,
+        timestamp: timeStr,
+        actionUrl: '/registrations',
+        actionLabel: 'Review Registration',
+        priority: 'high',
+        referenceCode: `reg-${Date.now()}`
+      }, true)
+      triggerApprovalUpdate(data)
+    })
+
+    hubConnection.on('ScheduleSubmitted', (data: any) => {
+      console.log('[SignalR Admin] ScheduleSubmitted received:', data)
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      addNotification({
+        type: 'schedule_pending',
+        title: 'New Schedule Submission',
+        subtitle: 'COR Schedule Uploaded',
+        message: `A student submitted a new COR schedule document for verification (${timeStr}).`,
+        timestamp: timeStr,
+        actionUrl: '/schedule-approval',
+        actionLabel: 'Review Schedule',
+        priority: 'high',
+        referenceCode: `sched-${Date.now()}`
+      }, true)
+      triggerApprovalUpdate(data)
+    })
+
+    hubConnection.on('VehicleSubmitted', (data: any) => {
+      console.log('[SignalR Admin] VehicleSubmitted received:', data)
+      const plate = data?.plateNumber || data?.PlateNumber || 'Vehicle'
+      const brand = data?.brand || data?.Brand || ''
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      addNotification({
+        type: 'vehicle_pending',
+        title: 'New Vehicle Registration',
+        subtitle: plate,
+        message: `Vehicle [${plate}] (${brand}) was registered and is awaiting admin approval (${timeStr}).`,
+        timestamp: timeStr,
+        actionUrl: '/vehicle-approval',
+        actionLabel: 'Inspect Vehicle',
+        priority: 'high',
+        referenceCode: `veh-${plate}-${Date.now()}`
+      }, true)
+      triggerApprovalUpdate(data)
+    })
+
+    hubConnection.on('ApprovalListUpdated', (data: any) => {
+      console.log('[SignalR Admin] ApprovalListUpdated received:', data)
+      triggerApprovalUpdate(data)
+    })
+
     hubConnection.start()
       .then(() => {
         isSignalRConnected.value = true
@@ -309,6 +394,8 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     removeNotification,
     addNotification,
     fetchPendingAdminNotifications,
-    initSignalRConnection
+    initSignalRConnection,
+    onApprovalUpdate,
+    triggerApprovalUpdate
   }
 })

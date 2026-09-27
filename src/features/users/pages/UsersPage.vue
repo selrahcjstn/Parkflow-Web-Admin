@@ -7,8 +7,14 @@ import UserFormModal from '../components/UserFormModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiAvatar from '@/components/ui/UiAvatar.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
+import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
+
 import api from '@/api/axios'
-import { cachedUsers } from '@/features/dashboard/dashboardCache'
+import { cachedUsers } from '@/stores/appCache'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,10 +77,13 @@ onMounted(async () => {
   await fetchUsers()
 })
 
-// Filtering state
+// Filtering & View state
 const searchQuery = ref('')
-const selectedRole = ref<string>('Student')
+const selectedRole = ref<string>('all')
 const selectedStatus = ref<string>('all')
+const viewMode = ref<'grid' | 'table'>('grid')
+
+
 
 const applyRouteQueries = () => {
   if (route.query.status) {
@@ -85,12 +94,12 @@ const applyRouteQueries = () => {
   if (route.query.role) {
     const roleVal = String(route.query.role)
     if ((roleVal === 'AdminStaff' || roleVal === 'Guard' || roleVal === 'Admin') && !isSuperAdmin.value) {
-      selectedRole.value = 'Student'
+      selectedRole.value = 'all'
     } else {
       selectedRole.value = roleVal
     }
   } else {
-    selectedRole.value = 'Student'
+    selectedRole.value = 'all'
   }
 }
 
@@ -151,6 +160,13 @@ const displayStatus = (user: UserWithDetails) => {
   return user.corVerificationStatus || 'Verified'
 }
 
+function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (status === 'Verified' || status === 'Active') return 'success'
+  if (status === 'Pending') return 'warning'
+  if (status === 'Suspended' || status === 'Rejected') return 'danger'
+  return 'neutral'
+}
+
 // Dynamic Header Properties
 const headerTitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Student Client Directory'
@@ -170,30 +186,37 @@ const headerSubtitle = computed(() => {
   return 'Manage registered client accounts, pending COR registrations, and system privileges.'
 })
 
-const headerBadge = computed(() => {
-  if (selectedRole.value === 'Student') return 'Student Accounts & COR Clearance'
-  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Staff & Faculty Directory'
-  if (selectedRole.value === 'AdminStaff') return 'Administration & Security'
-  if (selectedRole.value === 'Guard') return 'Campus Security Operations'
-  if (selectedRole.value === 'Admin') return 'SuperAdmin System Control'
-  return 'Campus Client Directory'
-})
-
 // Filtered Users list
 const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff')
 
+const userColumns = computed<TableColumn[]>(() => {
+  const cols: TableColumn[] = [
+    { key: 'client', label: isAdminStaffView.value ? 'Staff Member' : 'Client' },
+    { key: 'identifier', label: 'Client ID' },
+    { key: 'role', label: 'Classification' }
+  ]
+  if (!isAdminStaffView.value) {
+    cols.push(
+      { key: 'vehicles', label: 'Vehicles' },
+      { key: 'status', label: 'Registration Status' }
+    )
+  }
+  cols.push({ key: 'actions', label: 'Actions', align: 'right' })
+  return cols
+})
+
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
-    // Security restriction: Only SuperAdmin can see Admin/Staff/Guard user accounts
     if (!isSuperAdmin.value && (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin')) {
       return false
     }
 
+    const searchLower = (searchQuery.value || '').toLowerCase()
     const matchesSearch =
-      user.fullName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      user.student?.studentNumber.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      user.personnel?.idCardNumber.toLowerCase().includes(searchQuery.value.toLowerCase())
+      (user.fullName || '').toLowerCase().includes(searchLower) ||
+      (user.email || '').toLowerCase().includes(searchLower) ||
+      (user.student?.studentNumber || '').toLowerCase().includes(searchLower) ||
+      (user.personnel?.idCardNumber || '').toLowerCase().includes(searchLower)
 
     const matchesRole =
       selectedRole.value === 'all' ||
@@ -213,53 +236,20 @@ const filteredUsers = computed(() => {
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
 
-const totalPages = computed(() => Math.ceil(filteredUsers.value.length / itemsPerPage.value) || 1)
-
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   const end = start + itemsPerPage.value
   return filteredUsers.value.slice(start, end)
 })
 
-const paginationSummary = computed(() => {
-  const total = filteredUsers.value.length
-  if (total === 0) return 'Showing 0 entries'
-  const start = (currentPage.value - 1) * itemsPerPage.value + 1
-  const end = Math.min(currentPage.value * itemsPerPage.value, total)
-  return `Showing ${start} to ${end} of ${total} entries`
-})
-
-const goToPage = (page: number) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-  }
-}
-
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
-  }
-}
-
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
-  }
-}
-
 watch([searchQuery, selectedRole, selectedStatus, itemsPerPage], () => {
   currentPage.value = 1
 })
 
-const getInitials = (user: UserWithDetails) => {
-  return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-}
-
-// Helpers for displaying specific IDs
 const getIdentifier = (user: UserWithDetails) => {
-  if (user.student) return user.student.studentNumber
-  if (user.personnel) return user.personnel.idCardNumber
-  if (user.guard) return `Gate ${user.guard.assignedGate}`
+  if (user.student?.studentNumber) return user.student.studentNumber
+  if (user.personnel?.idCardNumber) return user.personnel.idCardNumber
+  if (user.guard?.assignedGate) return `Gate ${user.guard.assignedGate}`
   return 'System Admin'
 }
 
@@ -284,11 +274,6 @@ const formatStatusText = (status: string) => {
 const openDetails = (user: UserWithDetails) => {
   selectedUser.value = user
   isDetailOpen.value = true
-}
-
-const openAddUser = () => {
-  userToEdit.value = null
-  isFormOpen.value = true
 }
 
 const openEditUser = (user: UserWithDetails) => {
@@ -377,7 +362,6 @@ const handleRejectUser = async (user: UserWithDetails) => {
 }
 
 const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
-  // Update local array & cachedUsers immediately so table refreshes in real-time
   const targetIndex = users.value.findIndex(u => String(u.id) === String(userId))
   if (targetIndex !== -1 && users.value[targetIndex]) {
     const newCorStatus = (newStatus === 'Active' ? 'Verified' : (newStatus === 'Suspended' ? 'Rejected' : 'Pending')) as any
@@ -407,7 +391,6 @@ const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
 
 const handleFormSubmit = async (formData: any) => {
   if (formData.id) {
-    // Edit Mode — call API
     try {
       await api.put(`/users/${formData.id}`, {
         firstName: formData.firstName,
@@ -434,7 +417,6 @@ const handleFormSubmit = async (formData: any) => {
     } catch (error) {
       console.warn('Edit API error, applying locally:', error)
     }
-    // Apply locally regardless
     const index = users.value.findIndex((u) => u.id === formData.id)
     if (index !== -1 && users.value[index]) {
       const updatedUser: UserWithDetails = {
@@ -466,7 +448,6 @@ const handleFormSubmit = async (formData: any) => {
     showToast('Client account updated successfully.', 'success')
     return
   } else {
-    // Add Mode
     const newUser: UserWithDetails = {
       id: String(users.value.length + 1),
       firstName: formData.firstName,
@@ -501,211 +482,432 @@ const handleFormSubmit = async (formData: any) => {
 </script>
 
 <template>
-  <div class="users-view">
+  <div class="flex flex-col gap-6">
     <!-- Toast Notifications -->
-    <div class="toast-stack">
+    <div class="fixed bottom-7 right-7 z-50 flex flex-col gap-2.5 pointer-events-none">
       <Transition v-for="toast in toasts" :key="toast.id" name="toast">
-        <div class="toast-item" :class="`toast-item--${toast.type}`">
+        <div
+          :class="[
+            'px-4.5 py-3 rounded-xl text-sm font-semibold backdrop-blur-md shadow-lg pointer-events-auto max-w-xs transition-all',
+            toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+          ]"
+        >
           {{ toast.message }}
         </div>
       </Transition>
     </div>
-    <!-- Header -->
-    <div class="users-header">
-      <div class="users-header__left">
-        <h1 class="users-title">{{ headerTitle }}</h1>
-        <p class="users-subtitle">{{ headerSubtitle }}</p>
+
+    <!-- Header & Register Button -->
+    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+      <div class="flex flex-col gap-1">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
+          {{ headerTitle }}
+        </h1>
+        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 m-0 max-w-2xl">
+          {{ headerSubtitle }}
+        </p>
       </div>
-      <router-link v-if="!isAdminStaffView || isSuperAdmin" :to="isAdminStaffView ? '/users/create-staff' : '/users/create'" class="add-user-btn">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
-          <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        {{ isAdminStaffView ? 'Register Staff / Admin' : 'Register Client Account' }}
-      </router-link>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <!-- View Mode Switcher (Cards Grid vs Table List) -->
+        <div class="flex items-center p-1 bg-[#e2e8f0] dark:bg-slate-800/90 border border-[#cbd5e1] dark:border-slate-700 rounded-[10px] gap-1 flex-shrink-0">
+          <button
+            type="button"
+            class="flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
+            :class="viewMode === 'grid' ? 'bg-[#4f46e5] text-white shadow-md shadow-indigo-500/30 font-bold' : 'text-[#475569] dark:text-slate-300 hover:text-[#1e293b] dark:hover:text-white bg-transparent'"
+            @click="viewMode = 'grid'"
+            title="Cards Grid Mode"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+            <span>Cards Grid</span>
+          </button>
+          <button
+            type="button"
+            class="flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
+            :class="viewMode === 'table' ? 'bg-[#4f46e5] text-white shadow-md shadow-indigo-500/30 font-bold' : 'text-[#475569] dark:text-slate-300 hover:text-[#1e293b] dark:hover:text-white bg-transparent'"
+            @click="viewMode = 'table'"
+            title="Table List Mode"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="4" y1="6" x2="20" y2="6" stroke-linecap="round" />
+              <line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round" />
+              <line x1="4" y1="18" x2="20" y2="18" stroke-linecap="round" />
+            </svg>
+            <span>Table List</span>
+          </button>
+        </div>
+
+        <router-link
+          v-if="!isAdminStaffView || isSuperAdmin"
+          :to="isAdminStaffView ? '/users/create-staff' : '/users/create'"
+          class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-xs hover:shadow-md transition-all no-underline flex-shrink-0"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
+            <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+          <span>{{ isAdminStaffView ? 'Register Staff / Admin' : 'Register Client Account' }}</span>
+        </router-link>
+      </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="stats-grid">
+    <!-- Overview Stats Cards -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       <template v-if="isLoading">
-        <SkeletonLoader v-for="i in 4" :key="'stat-skel-'+i" variant="rect" height="120px" style="border-radius: var(--radius-card);" />
+        <SkeletonLoader v-for="i in 4" :key="'stat-skel-'+i" variant="rect" height="110px" style="border-radius: 16px;" />
       </template>
       <template v-else>
-        <div v-for="stat in stats" :key="stat.title" class="stat-card">
-          <div class="stat-card__left">
-            <span class="stat-card__value">{{ stat.value }}</span>
-            <span class="stat-card__title">{{ stat.title }}</span>
+        <UiCard v-for="stat in stats" :key="stat.title" hover custom-class="flex items-center justify-between p-5">
+          <div class="flex flex-col gap-1">
+            <span class="text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
+              {{ stat.value }}
+            </span>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {{ stat.title }}
+            </span>
           </div>
-          <div class="stat-card__icon" :style="{ background: stat.gradient }">
-            <!-- People Icon -->
+          <div
+            class="w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-xs flex-shrink-0"
+            :style="{ background: stat.gradient }"
+          >
             <svg v-if="stat.icon === 'people'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round" />
               <circle cx="9" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <!-- Student Icon -->
             <svg v-if="stat.icon === 'student'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M22 10v6M2 10l10-5 10 5-10 5z" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <!-- Briefcase Icon -->
             <svg v-if="stat.icon === 'briefcase'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <!-- Shield Icon -->
             <svg v-if="stat.icon === 'shield'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </div>
-        </div>
+        </UiCard>
       </template>
     </div>
 
-    <!-- Filters Bar -->
-    <div class="filters-bar">
+    <!-- Filters Bar (Search & Filter Dropdowns aligned to right) -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <!-- Search Input -->
-      <div class="search-wrapper">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="relative flex-1 max-w-md">
+        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <input v-model="searchQuery" type="text" placeholder="Search by name, email, ID number..." class="search-input" />
+        <input
+          v-model="searchQuery"
+          type="text"
+          placeholder="Search by name, email, ID number..."
+          class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
+        />
       </div>
 
-      <!-- Filter Dropdowns -->
-      <div class="filters-group">
-        <div class="select-wrapper">
-          <select v-model="selectedStatus" class="filter-select">
-            <option value="all">All Statuses</option>
-            <option value="Pending">Pending Verification</option>
-            <option value="Verified">Approved / Verified</option>
-            <option value="NotSubmitted">Not Submitted</option>
-            <option value="Rejected">Rejected</option>
-            <option value="Suspended">Suspended</option>
-          </select>
-        </div>
+      <!-- Filter Dropdowns (Account Type & Status Filter aligned to the right) -->
+      <div class="flex items-center gap-3 sm:ml-auto">
+        <!-- Account Type Filter -->
+        <select
+          v-model="selectedRole"
+          @change="router.replace({ query: { ...route.query, role: selectedRole } })"
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
+        >
+          <option value="all">All Account Types</option>
+          <option value="Student">Student Accounts</option>
+          <option value="staff">Staff & Faculty</option>
+          <option v-if="isSuperAdmin" value="Guard">Security Guards</option>
+          <option v-if="isSuperAdmin" value="AdminStaff">Admins & Staff</option>
+        </select>
+
+        <!-- Status Filter -->
+        <select
+          v-model="selectedStatus"
+          @change="router.replace({ query: { ...route.query, status: selectedStatus } })"
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
+        >
+          <option value="all">All Statuses</option>
+          <option value="Pending">Pending Verification</option>
+          <option value="Verified">Approved / Verified</option>
+          <option value="NotSubmitted">Not Submitted</option>
+          <option value="Rejected">Rejected</option>
+          <option value="Suspended">Suspended</option>
+        </select>
       </div>
     </div>
 
-    <!-- Users Table Container -->
-    <div class="table-card">
-      <div class="table-responsive">
-        <table class="users-table">
-          <thead>
-            <tr>
-              <th>{{ isAdminStaffView ? 'Staff Member' : 'Client' }}</th>
-              <th>Client ID</th>
-              <th>Classification</th>
-              <th v-if="!isAdminStaffView">Vehicles</th>
-              <th v-if="!isAdminStaffView">Registration Status</th>
-              <th class="actions-header">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-if="isLoading">
-              <tr v-for="i in 6" :key="'skel-'+i">
-                <td :colspan="isAdminStaffView ? 4 : 6" style="padding: 16px;">
-                  <SkeletonLoader variant="table-row" :columns="isAdminStaffView ? 4 : 6" />
-                </td>
-              </tr>
-            </template>
-            <template v-else-if="filteredUsers.length === 0">
-              <tr>
-                <td :colspan="isAdminStaffView ? 4 : 6" class="empty-state">No records match your criteria.</td>
-              </tr>
-            </template>
-            <template v-else>
-              <tr v-for="user in paginatedUsers" :key="user.id" class="user-row" @click="openDetails(user)">
-              <td>
-                <div class="user-cell">
-                  <div class="user-cell__avatar">
-                    <img v-if="user.profilePictureUrl" :src="user.profilePictureUrl" :alt="user.fullName" />
-                    <span v-else>{{ getInitials(user) }}</span>
-                  </div>
-                  <div class="user-cell__info">
-                    <span class="user-cell__name">{{ user.fullName }}</span>
-                    <span class="user-cell__email">{{ user.email }}</span>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="id-text">{{ getIdentifier(user) }}</span>
-              </td>
-              <td>
-                <span class="role-text">{{ getRoleLabel(user.role) }}</span>
-              </td>
-              <td v-if="!isAdminStaffView">
-                <div class="vehicles-cell">
-                  <span v-if="user.vehicles.length === 0" class="vehicles-empty">None</span>
-                  <span v-else class="vehicles-count" :title="user.vehicles.map(v => v.plateNumber).join(', ')">
-                    {{ user.vehicles.length }} {{ user.vehicles.length === 1 ? 'Vehicle' : 'Vehicles' }}
-                  </span>
-                </div>
-              </td>
-              <td v-if="!isAdminStaffView">
-                <span class="status-cell-text" :class="'status-cell-text--' + displayStatus(user).toLowerCase()">
-                  {{ formatStatusText(displayStatus(user)) }}
-                </span>
-              </td>
-              <td class="actions-cell" @click.stop>
-                <div class="actions-group">
-                  <!-- Pending Quick Approve / Reject (Students Only) -->
-                  <div v-if="user.role === 'Student' && displayStatus(user) === 'Pending'" class="table-pending-actions">
-                    <button class="table-btn table-btn--approve" title="Approve Registration" @click="handleApproveUser(user)">
-                      Approve
-                    </button>
-                    <button class="table-btn table-btn--reject" title="Reject Registration" @click="handleRejectUser(user)">
-                      Reject
-                    </button>
-                  </div>
-
-                  <button class="action-icon-btn" title="Edit Account" @click="openEditUser(user)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                  <button
-                    v-if="user.status !== 'Suspended'"
-                    class="action-icon-btn action-icon-btn--suspend"
-                    title="Suspend Account"
-                    @click="openStatusConfirm(user, 'Suspended')"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
-                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                  <button
-                    v-else
-                    class="action-icon-btn action-icon-btn--verify"
-                    title="Verify / Unsuspend Account"
-                    @click="openStatusConfirm(user, 'Active')"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                  <button
-                    class="action-icon-btn action-icon-btn--delete"
-                    title="Delete Account"
-                    @click="openDeleteConfirm(user)"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
-                      <path d="M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
-                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-            </template>
-          </tbody>
-        </table>
+    <!-- Grid View Mode -->
+    <template v-if="viewMode === 'grid'">
+      <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <SkeletonLoader v-for="i in 6" :key="'grid-skel-'+i" variant="card" style="height: 200px; border-radius: 16px;" />
       </div>
+      <div v-else-if="filteredUsers.length === 0" class="py-12 text-center text-slate-500 dark:text-slate-400 font-medium bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8">
+        No records match your criteria.
+      </div>
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <UiCard
+          v-for="user in paginatedUsers"
+          :key="'card-'+user.id"
+          hover
+          custom-class="p-5 flex flex-col justify-between space-y-4 cursor-pointer hover:border-blue-500/40"
+          @click="openDetails(user)"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <UiAvatar :name="user.fullName" :src="user.profilePictureUrl" size="lg" />
+              <div class="flex flex-col min-w-0">
+                <h4 class="font-bold text-slate-900 dark:text-white text-sm truncate leading-snug">
+                  {{ user.fullName }}
+                </h4>
+                <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {{ user.email }}
+                </span>
+                <span class="text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+                  ID: {{ getIdentifier(user) }}
+                </span>
+              </div>
+            </div>
+            <UiBadge :variant="getStatusBadgeVariant(displayStatus(user))" size="xs" class="flex-shrink-0">
+              {{ formatStatusText(displayStatus(user)) }}
+            </UiBadge>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+            <div>
+              <span class="text-slate-400 dark:text-slate-500 text-[10.5px] uppercase font-bold tracking-wider block">Role</span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">{{ getRoleLabel(user.role) }}</span>
+            </div>
+            <div>
+              <span class="text-slate-400 dark:text-slate-500 text-[10.5px] uppercase font-bold tracking-wider block">Vehicles</span>
+              <span class="font-medium text-slate-700 dark:text-slate-300">
+                {{ (user.vehicles || []).length === 0 ? 'None' : `${user.vehicles.length} Registered` }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Footer Actions -->
+          <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800" @click.stop>
+            <button
+              type="button"
+              class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline border-none bg-transparent cursor-pointer p-0"
+              @click="openDetails(user)"
+            >
+              View Profile
+            </button>
+
+            <div class="flex items-center gap-1">
+              <!-- Quick Approve / Reject for Student Pending -->
+              <template v-if="user.role === 'Student' && displayStatus(user) === 'Pending'">
+                <button
+                  type="button"
+                  title="Approve Registration"
+                  @click="handleApproveUser(user)"
+                  class="px-2 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px] hover:bg-emerald-700 transition-colors cursor-pointer border-none mr-1"
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  title="Reject Registration"
+                  @click="handleRejectUser(user)"
+                  class="px-2 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-[11px] hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80 mr-1"
+                >
+                  Reject
+                </button>
+              </template>
+
+              <button
+                type="button"
+                title="Edit Account"
+                @click="openEditUser(user)"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+
+              <button
+                v-if="user.status !== 'Suspended'"
+                type="button"
+                title="Suspend Account"
+                @click="openStatusConfirm(user, 'Suspended')"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button
+                v-else
+                type="button"
+                title="Verify / Unsuspend Account"
+                @click="openStatusConfirm(user, 'Active')"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+
+              <button
+                type="button"
+                title="Delete Account"
+                @click="openDeleteConfirm(user)"
+                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </UiCard>
+      </div>
+
+      <!-- Pagination Footer for Grid Mode -->
+      <TablePagination
+        v-if="!isLoading"
+        :total-items="filteredUsers.length"
+        v-model:current-page="currentPage"
+        v-model:items-per-page="itemsPerPage"
+      />
+    </template>
+
+    <!-- Table List View Mode -->
+    <UiCard v-else custom-class="p-0 overflow-hidden">
+      <UiTable
+        :columns="userColumns"
+        :data="paginatedUsers"
+        :is-loading="isLoading"
+        empty-text="No records match your criteria."
+        @row-click="openDetails"
+      >
+        <template #cell-client="{ item }">
+          <div class="flex items-center gap-3">
+            <UiAvatar :name="item.fullName" :src="item.profilePictureUrl" size="md" />
+            <div class="flex flex-col min-w-0">
+              <span class="font-semibold text-slate-900 dark:text-white text-xs leading-snug">
+                {{ item.fullName }}
+              </span>
+              <span class="text-[11.5px] text-slate-500 dark:text-slate-400">
+                {{ item.email }}
+              </span>
+            </div>
+          </div>
+        </template>
+
+        <template #cell-identifier="{ item }">
+          <span class="font-mono font-semibold text-slate-900 dark:text-white">
+            {{ getIdentifier(item) }}
+          </span>
+        </template>
+
+        <template #cell-role="{ item }">
+          <span>{{ getRoleLabel(item.role) }}</span>
+        </template>
+
+        <template #cell-vehicles="{ item }">
+          <span v-if="(item.vehicles || []).length === 0" class="text-slate-400 dark:text-slate-500">None</span>
+          <span v-else :title="(item.vehicles || []).map((v: any) => v.plateNumber).join(', ')">
+            {{ item.vehicles.length }} {{ item.vehicles.length === 1 ? 'Vehicle' : 'Vehicles' }}
+          </span>
+        </template>
+
+        <template #cell-status="{ item }">
+          <UiStatusText :variant="getStatusBadgeVariant(displayStatus(item))" size="xs">
+            {{ formatStatusText(displayStatus(item)) }}
+          </UiStatusText>
+        </template>
+
+        <template #cell-actions="{ item }">
+          <div class="inline-flex items-center gap-1.5" @click.stop>
+            <!-- Quick Approve / Reject for Student Pending -->
+            <div v-if="item.role === 'Student' && displayStatus(item) === 'Pending'" class="flex items-center gap-1 mr-1">
+              <button
+                type="button"
+                title="Approve Registration"
+                @click="handleApproveUser(item)"
+                class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px] hover:bg-emerald-700 transition-colors cursor-pointer border-none"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                title="Reject Registration"
+                @click="handleRejectUser(item)"
+                class="px-2.5 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-[11px] hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80"
+              >
+                Reject
+              </button>
+            </div>
+
+            <!-- Edit Icon -->
+            <button
+              type="button"
+              title="Edit Account"
+              @click="openEditUser(item)"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition-colors cursor-pointer border-none bg-transparent"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+
+            <!-- Suspend / Unsuspend Icon -->
+            <button
+              v-if="item.status !== 'Suspended'"
+              type="button"
+              title="Suspend Account"
+              @click="openStatusConfirm(item, 'Suspended')"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button
+              v-else
+              type="button"
+              title="Verify / Unsuspend Account"
+              @click="openStatusConfirm(item, 'Active')"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+
+            <!-- Delete Icon -->
+            <button
+              type="button"
+              title="Delete Account"
+              @click="openDeleteConfirm(item)"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </UiTable>
 
       <!-- Table Pagination Footer -->
       <TablePagination
@@ -714,9 +916,9 @@ const handleFormSubmit = async (formData: any) => {
         v-model:current-page="currentPage"
         v-model:items-per-page="itemsPerPage"
       />
-    </div>
+    </UiCard>
 
-    <!-- User Detail sheet -->
+    <!-- User Detail Modal -->
     <UserDetailModal
       :user="selectedUser"
       :is-open="isDetailOpen"
@@ -724,7 +926,7 @@ const handleFormSubmit = async (formData: any) => {
       @update-status="handleUpdateStatus"
     />
 
-    <!-- User Form modal -->
+    <!-- User Form Modal -->
     <UserFormModal
       :is-open="isFormOpen"
       :user-to-edit="userToEdit"
@@ -758,773 +960,3 @@ const handleFormSubmit = async (formData: any) => {
     />
   </div>
 </template>
-
-<style scoped>
-.users-view {
-  animation: fadeSlideUp 0.4s ease both;
-}
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.users-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.users-header__left {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.header-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  margin-bottom: 6px;
-  align-self: flex-start;
-  width: fit-content;
-}
-
-.users-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.users-subtitle {
-  font-size: 13px;
-  color: var(--color-muted);
-  margin: 4px 0 0 0;
-}
-
-/* Status Quick Tabs */
-.status-quick-tabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.status-tab {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.status-tab:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-}
-
-.status-tab.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary-dark);
-  color: #fff;
-}
-
-.status-tab--pending.active {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #f59e0b;
-}
-
-.status-tab--approved.active {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #10b981;
-}
-
-.status-tab--rejected.active {
-  background: rgba(239, 68, 68, 0.15);
-  border-color: rgba(239, 68, 68, 0.3);
-  color: #ef4444;
-}
-
-.tab-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 10px;
-  line-height: 1;
-}
-
-.tab-badge--pending {
-  background: #f59e0b;
-  color: #000;
-}
-
-/* Table Actions */
-.table-pending-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.table-btn {
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  border: none;
-  cursor: pointer;
-  transition: opacity 150ms ease;
-}
-
-.table-btn--approve {
-  background: #10b981;
-  color: #fff;
-}
-.table-btn--approve:hover {
-  opacity: 0.9;
-}
-
-.table-btn--reject {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-.table-btn--reject:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
-.add-user-btn {
-  background: var(--color-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-button);
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px var(--color-glow);
-  transition: background 150ms ease, transform 150ms ease;
-}
-
-.add-user-btn:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-}
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.stat-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: var(--shadow-soft);
-  transition: transform 200ms ease, box-shadow 200ms ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
-}
-
-.stat-card__left {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-card__value {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--color-text);
-}
-
-.stat-card__title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 4px;
-}
-
-.stat-card__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-}
-
-/* Filters Bar */
-.filters-bar {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-@media (max-width: 768px) {
-  .filters-bar {
-    flex-direction: column;
-  }
-}
-
-.search-wrapper {
-  position: relative;
-  flex: 1;
-  max-width: 420px;
-}
-
-@media (max-width: 768px) {
-  .search-wrapper {
-    max-width: 100%;
-  }
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-muted);
-  pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 10px 14px 10px 42px;
-  font-size: 14px;
-  color: var(--color-text);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-glow);
-}
-
-.filters-group {
-  display: flex;
-  gap: 12px;
-}
-
-.select-wrapper {
-  position: relative;
-}
-
-.filter-select {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 10px 36px 10px 14px;
-  font-size: 14px;
-  color: var(--color-text);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b5bac1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
-  transition: border-color 150ms ease;
-}
-
-.filter-select:hover {
-  border-color: var(--color-muted);
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-/* Table Card */
-.table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-.table-responsive {
-  overflow-x: auto;
-}
-
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.users-table th {
-  padding: 16px 24px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  letter-spacing: 1px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.user-row {
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.user-row:hover {
-  background: var(--color-surface-lighter);
-}
-
-.user-row:last-child {
-  border-bottom: none;
-}
-
-.users-table td {
-  padding: 16px 24px;
-  vertical-align: middle;
-}
-
-.user-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 220px;
-}
-
-.user-cell__avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), #fb7185);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 700;
-  flex-shrink: 0;
-  overflow: hidden;
-}
-
-.user-cell__avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.user-cell__info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-cell__name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.user-cell__email {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.id-text {
-  font-family: monospace;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-/* Clean Professional Typography (No background pills or borders) */
-.role-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary, #475569);
-}
-
-.vehicles-count {
-  font-size: 13px;
-  color: var(--color-text);
-  background: transparent;
-  border: none;
-  padding: 0;
-}
-
-.vehicles-empty {
-  font-size: 13px;
-  color: var(--color-muted);
-}
-
-/* Status Indicator (Clean text) */
-.status-cell-text {
-  display: inline-flex;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.status-cell-text--active,
-.status-cell-text--verified {
-  color: #059669;
-}
-
-.status-cell-text--pending,
-.status-cell-text--pendingverification {
-  color: #d97706;
-}
-
-.status-cell-text--suspended,
-.status-cell-text--rejected,
-.status-cell-text--notsubmitted {
-  color: #dc2626;
-}
-
-.actions-header {
-  text-align: right;
-  width: 240px;
-  min-width: 240px;
-}
-
-.actions-cell {
-  text-align: right;
-  width: 240px;
-  min-width: 240px;
-}
-
-.actions-group {
-  display: inline-flex;
-  gap: 8px;
-}
-
-.action-icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease;
-}
-
-.action-icon-btn:hover {
-  background: var(--color-surface-lighter);
-  color: var(--color-text);
-}
-
-.action-icon-btn--suspend:hover {
-  background: rgba(248, 113, 113, 0.1);
-  color: var(--color-danger);
-}
-
-.action-icon-btn--verify:hover {
-  background: rgba(35, 165, 90, 0.1);
-  color: var(--color-success);
-}
-
-.action-icon-btn--delete:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-}
-
-/* Toast Notifications */
-.toast-stack {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
-}
-
-.toast-item {
-  padding: 12px 18px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 18px rgba(0,0,0,0.25);
-  pointer-events: all;
-  max-width: 340px;
-}
-
-.toast-item--success {
-  background: rgba(22, 163, 74, 0.18);
-  color: #4ade80;
-  border: 1px solid rgba(74, 222, 128, 0.3);
-}
-
-.toast-item--error {
-  background: rgba(239, 68, 68, 0.18);
-  color: #f87171;
-  border: 1px solid rgba(248, 113, 113, 0.3);
-}
-
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 300ms ease;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateX(24px);
-}
-
-/* Delete Confirm Modal */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--color-overlay);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
-
-.modal-confirm {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  padding: 32px 28px;
-  max-width: 420px;
-  width: 90%;
-  text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-}
-
-.modal-confirm__icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 18px;
-}
-
-.modal-confirm__title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0 0 12px;
-}
-
-.modal-confirm__body {
-  font-size: 14px;
-  color: var(--color-muted);
-  line-height: 1.6;
-  margin: 0 0 24px;
-}
-
-.modal-confirm__body strong {
-  color: var(--color-text);
-}
-
-.modal-confirm__footer {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
-}
-
-.modal-btn {
-  padding: 10px 22px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all 150ms ease;
-}
-
-.modal-btn--cancel {
-  background: var(--color-surface-lighter);
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
-}
-
-.modal-btn--cancel:hover {
-  background: var(--color-border);
-  color: var(--color-text);
-}
-
-.modal-btn--delete {
-  background: #ef4444;
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);
-}
-
-.modal-btn--delete:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 200ms ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 40px;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-
-/* ── Pagination Styling ───────────────────────────── */
-.table-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-border, #f1f5f9);
-  background: var(--color-surface);
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.pagination-info {
-  font-size: 13px;
-  color: var(--color-muted, #64748b);
-  font-weight: 500;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.per-page-selector {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  color: var(--color-muted);
-}
-
-.per-page-select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.page-buttons {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.page-btn {
-  padding: 5px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.page-btn:hover:not(:disabled) {
-  border-color: #D22730;
-  color: #D22730;
-}
-
-.page-num-btn {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease;
-}
-
-.page-num-btn:hover:not(.page-num-btn--active) {
-  border-color: #D22730;
-  color: #D22730;
-}
-
-.page-num-btn--active {
-  background: #D22730 !important;
-  border-color: #D22730 !important;
-  color: #ffffff !important;
-}
-</style>

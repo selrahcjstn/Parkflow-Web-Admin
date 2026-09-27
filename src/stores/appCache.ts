@@ -56,7 +56,7 @@ export interface FeedbackOverviewCacheItem {
   status: string
 }
 
-// Global persistent reactive cache stores
+// Global persistent reactive cache stores for all application modules
 export const cachedStatsData = ref<DashboardStatsCache | null>(null)
 export const cachedActivityData = ref<ActivityDataItem[] | null>(null)
 export const cachedRegistrations = ref<PendingRegistrationCacheItem[] | null>(null)
@@ -66,6 +66,7 @@ export const cachedReservations = ref<ReservationCacheItem[] | null>(null)
 export const cachedFeedbacks = ref<FeedbackOverviewCacheItem[] | null>(null)
 export const cachedUsers = ref<any[] | null>(null)
 export const cachedApprovals = ref<any[] | null>(null)
+export const cachedScheduleSubmissions = ref<any[] | null>(null)
+export const cachedVehicleApprovals = ref<any[] | null>(null)
 export const cachedActiveSessions = ref<any[] | null>(null)
 export const cachedHistorySessions = ref<any[] | null>(null)
-

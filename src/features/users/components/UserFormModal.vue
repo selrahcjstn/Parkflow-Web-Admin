@@ -106,51 +106,101 @@ const handleSubmit = () => {
 
 <template>
   <Teleport to="body">
-    <Transition name="fade">
-      <div v-if="isOpen" class="modal-backdrop" @click="emit('close')">
-        <div class="modal-content" @click.stop>
-          <div class="modal-header">
-            <h3 class="modal-title">{{ userToEdit ? 'Edit User Account' : 'Register New User' }}</h3>
-            <button class="close-btn" @click="emit('close')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="isOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" @click="emit('close')">
+        <div
+          class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden"
+          @click.stop
+        >
+          <!-- Header -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white">{{ userToEdit ? 'Edit User Account' : 'Register New User' }}</h3>
+            <button
+              type="button"
+              class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              @click="emit('close')"
+            >
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
           </div>
 
-          <form @submit.prevent="handleSubmit">
-            <div class="modal-body">
+          <form @submit.prevent="handleSubmit" class="flex flex-col flex-1 overflow-hidden">
+            <div class="p-6 overflow-y-auto space-y-4 flex-1">
               <!-- Basic Details -->
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="firstName">First Name</label>
-                  <input id="firstName" v-model="form.firstName" type="text" required />
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="space-y-1.5">
+                  <label for="firstName" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">First Name <span class="text-red-500">*</span></label>
+                  <input
+                    id="firstName"
+                    v-model="form.firstName"
+                    type="text"
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    required
+                  />
                 </div>
-                <div class="form-group">
-                  <label for="middleName">Middle Name (Optional)</label>
-                  <input id="middleName" v-model="form.middleName" type="text" placeholder="e.g. Santos" />
+                <div class="space-y-1.5">
+                  <label for="middleName" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Middle Name</label>
+                  <input
+                    id="middleName"
+                    v-model="form.middleName"
+                    type="text"
+                    placeholder="e.g. Santos"
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                  />
                 </div>
-                <div class="form-group">
-                  <label for="lastName">Last Name</label>
-                  <input id="lastName" v-model="form.lastName" type="text" required />
+                <div class="space-y-1.5">
+                  <label for="lastName" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Last Name <span class="text-red-500">*</span></label>
+                  <input
+                    id="lastName"
+                    v-model="form.lastName"
+                    type="text"
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    required
+                  />
                 </div>
               </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="email">Email Address</label>
-                  <input id="email" v-model="form.email" type="email" required />
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <label for="email" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Email Address <span class="text-red-500">*</span></label>
+                  <input
+                    id="email"
+                    v-model="form.email"
+                    type="email"
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    required
+                  />
                 </div>
-                <div class="form-group">
-                  <label for="phone">Phone Number</label>
-                  <input id="phone" v-model="form.phoneNumber" type="text" placeholder="+639..." required />
+                <div class="space-y-1.5">
+                  <label for="phone" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Phone Number <span class="text-red-500">*</span></label>
+                  <input
+                    id="phone"
+                    v-model="form.phoneNumber"
+                    type="text"
+                    placeholder="+639..."
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    required
+                  />
                 </div>
               </div>
 
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="role">User Role</label>
-                  <select id="role" v-model="form.role" class="form-select">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <label for="role" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">User Role</label>
+                  <select
+                    id="role"
+                    v-model="form.role"
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                  >
                     <option value="Student">Student</option>
                     <option value="UniversityStaff">University Staff (Faculty)</option>
                     <option value="NonAcademicPersonnel">Non-Academic Personnel</option>
@@ -158,9 +208,13 @@ const handleSubmit = () => {
                     <option value="Admin">Administrator</option>
                   </select>
                 </div>
-                <div v-if="userToEdit" class="form-group">
-                  <label for="status">Account Status</label>
-                  <select id="status" v-model="form.status" class="form-select">
+                <div v-if="userToEdit" class="space-y-1.5">
+                  <label for="status" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Account Status</label>
+                  <select
+                    id="status"
+                    v-model="form.status"
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                  >
                     <option value="Active">Active</option>
                     <option value="PendingVerification">Pending Verification</option>
                     <option value="Suspended">Suspended</option>
@@ -170,55 +224,73 @@ const handleSubmit = () => {
 
               <!-- Password Override / Change Password Section (when editing) -->
               <template v-if="userToEdit">
-                <div class="divider"></div>
-                <div class="role-fields">
-                  <h4 class="fields-title">Account Security</h4>
-                  <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
-                      <label for="newPassword">New Password (Leave blank to keep current)</label>
-                      <input
-                        id="newPassword"
-                        v-model="form.newPassword"
-                        type="password"
-                        placeholder="Enter new password to override..."
-                        minlength="6"
-                      />
-                    </div>
+                <div class="h-px bg-slate-100 dark:bg-slate-800 my-2"></div>
+                <div class="space-y-3">
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Account Security</h4>
+                  <div class="space-y-1.5">
+                    <label for="newPassword" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">New Password (Leave blank to keep current)</label>
+                    <input
+                      id="newPassword"
+                      v-model="form.newPassword"
+                      type="password"
+                      placeholder="Enter new password to override..."
+                      minlength="6"
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    />
                   </div>
                 </div>
               </template>
 
               <!-- Dynamic Role-Specific Fields -->
-              <div class="divider"></div>
+              <div class="h-px bg-slate-100 dark:bg-slate-800 my-2"></div>
 
               <!-- Student Fields -->
-              <div v-if="form.role === 'Student'" class="role-fields">
-                <h4 class="fields-title">Student Credentials</h4>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="studentNum">Client ID</label>
-                    <input id="studentNum" v-model="form.studentNumber" type="text" placeholder="202X-XXXXX" required />
+              <div v-if="form.role === 'Student'" class="space-y-3">
+                <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Student Credentials</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <label for="studentNum" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Client ID <span class="text-red-500">*</span></label>
+                    <input
+                      id="studentNum"
+                      v-model="form.studentNumber"
+                      type="text"
+                      placeholder="202X-XXXXX"
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                      required
+                    />
                   </div>
-                  <div class="form-group">
-                    <label for="course">Course</label>
-                    <input id="course" v-model="form.course" type="text" placeholder="BSCS, BSIT, etc." required />
+                  <div class="space-y-1.5">
+                    <label for="course" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Course <span class="text-red-500">*</span></label>
+                    <input
+                      id="course"
+                      v-model="form.course"
+                      type="text"
+                      placeholder="BSCS, BSIT, etc."
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                      required
+                    />
                   </div>
                 </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="section">Section (Letters Only)</label>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <label for="section" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Section (Letters Only) <span class="text-red-500">*</span></label>
                     <input
                       id="section"
                       v-model="form.section"
                       type="text"
                       placeholder="A"
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                       required
                       @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').toUpperCase()"
                     />
                   </div>
-                  <div class="form-group">
-                    <label for="yearLvl">Year Level</label>
-                    <select id="yearLvl" v-model.number="form.yearLevel" class="form-select">
+                  <div class="space-y-1.5">
+                    <label for="yearLvl" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Year Level</label>
+                    <select
+                      id="yearLvl"
+                      v-model.number="form.yearLevel"
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    >
                       <option :value="7">Grade 7</option>
                       <option :value="8">Grade 8</option>
                       <option :value="9">Grade 9</option>
@@ -236,51 +308,89 @@ const handleSubmit = () => {
               </div>
 
               <!-- Staff/Faculty Fields -->
-              <div v-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'" class="role-fields">
-                <h4 class="fields-title">Employee Details</h4>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="idCard">Client ID</label>
-                    <input id="idCard" v-model="form.idCardNumber" type="text" placeholder="EMP-XXXX" required />
+              <div v-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'" class="space-y-3">
+                <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Employee Details</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <label for="idCard" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Client ID <span class="text-red-500">*</span></label>
+                    <input
+                      id="idCard"
+                      v-model="form.idCardNumber"
+                      type="text"
+                      placeholder="EMP-XXXX"
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                      required
+                    />
                   </div>
-                  <div class="form-group">
-                    <label for="dept">Department</label>
-                    <input id="dept" v-model="form.department" type="text" placeholder="Engineering, Registrar, etc." required />
+                  <div class="space-y-1.5">
+                    <label for="dept" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Department <span class="text-red-500">*</span></label>
+                    <input
+                      id="dept"
+                      v-model="form.department"
+                      type="text"
+                      placeholder="Engineering, Registrar, etc."
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                      required
+                    />
                   </div>
                 </div>
               </div>
 
               <!-- Guard Fields -->
-              <div v-if="form.role === 'Guard'" class="role-fields">
-                <h4 class="fields-title">Guard Assignment</h4>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label for="gate">Assigned Gate Number</label>
-                    <input id="gate" v-model.number="form.assignedGate" type="number" min="1" max="10" required />
-                  </div>
+              <div v-if="form.role === 'Guard'" class="space-y-3">
+                <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Guard Assignment</h4>
+                <div class="space-y-1.5">
+                  <label for="gate" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Assigned Gate Number <span class="text-red-500">*</span></label>
+                  <input
+                    id="gate"
+                    v-model.number="form.assignedGate"
+                    type="number"
+                    min="1"
+                    max="10"
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    required
+                  />
                 </div>
               </div>
 
               <!-- Admin Fields -->
-              <div v-if="form.role === 'Admin'" class="role-fields">
-                <h4 class="fields-title">Administrator System Key</h4>
-                <div class="no-fields-needed">
+              <div v-if="form.role === 'Admin'" class="space-y-3">
+                <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Administrator System Key</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 italic">
                   System admin rights will be granted upon creation.
-                </div>
+                </p>
               </div>
             </div>
 
-            <div class="modal-footer">
-              <button v-if="userToEdit" type="button" class="change-password-btn" @click="handleChangePassword">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50/50 dark:bg-slate-900/50">
+              <button
+                v-if="userToEdit"
+                type="button"
+                class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold transition cursor-pointer"
+                @click="handleChangePassword"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
                 Change Password Portal
               </button>
-              <div class="footer-right">
-                <button type="button" class="cancel-btn" @click="emit('close')">Cancel</button>
-                <button type="submit" class="submit-btn">{{ userToEdit ? 'Save Changes' : 'Create Account' }}</button>
+
+              <div class="flex items-center gap-3 ml-auto">
+                <button
+                  type="button"
+                  class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition cursor-pointer"
+                  @click="emit('close')"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition cursor-pointer"
+                >
+                  {{ userToEdit ? 'Save Changes' : 'Create Account' }}
+                </button>
               </div>
             </div>
           </form>
@@ -289,214 +399,3 @@ const handleSubmit = () => {
     </Transition>
   </Teleport>
 </template>
-
-<style scoped>
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--color-overlay);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.modal-content {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card, 12px);
-  width: 100%;
-  max-width: 580px;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-card);
-  overflow: hidden;
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.modal-header {
-  padding: 18px 24px;
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.modal-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.close-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.close-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-}
-
-.modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-row {
-  display: flex;
-  gap: 16px;
-}
-
-.form-group {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-group label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.form-group input,
-.form-select {
-  padding: 10px 14px;
-  border-radius: var(--radius-btn, 8px);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s ease;
-}
-
-.form-group input:focus,
-.form-select:focus {
-  border-color: var(--color-primary, #d22730);
-}
-
-.divider {
-  height: 1px;
-  background: var(--color-border);
-  margin: 8px 0;
-}
-
-.fields-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0 0 12px 0;
-}
-
-.role-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.no-fields-needed {
-  font-size: 13px;
-  color: var(--color-muted);
-  font-style: italic;
-}
-
-.modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: var(--color-surface);
-}
-
-.footer-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-}
-
-.change-password-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  color: #f59e0b;
-  padding: 8px 14px;
-  border-radius: var(--radius-btn, 8px);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.change-password-btn:hover {
-  background: rgba(245, 158, 11, 0.22);
-}
-
-.cancel-btn {
-  padding: 10px 18px;
-  border-radius: var(--radius-btn, 8px);
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-text);
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.cancel-btn:hover {
-  background: var(--color-surface-muted);
-}
-
-.submit-btn {
-  padding: 10px 20px;
-  border-radius: var(--radius-btn, 8px);
-  border: none;
-  background: var(--color-primary, #d22730);
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-.submit-btn:hover {
-  background: #b91c1c;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

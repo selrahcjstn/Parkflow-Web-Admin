@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
+import UiCard from '@/components/ui/UiCard.vue'
 
 const mounted = ref(false)
 
@@ -107,38 +108,44 @@ const xLabelPositions = computed(() =>
 </script>
 
 <template>
-  <div class="chart-card">
-    <div class="chart-card__header">
-      <div class="chart-card__header-left">
-        <h3 class="chart-card__title">Parking Activity</h3>
-        <span class="chart-card__subtitle">Last 7 days</span>
+  <UiCard>
+    <!-- Header Row -->
+    <div class="flex items-start justify-between mb-5">
+      <div class="flex flex-col gap-0.5">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white tracking-tight m-0">
+          Parking Activity
+        </h3>
+        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Last 7 days</span>
       </div>
-      <div class="chart-card__legend">
-        <div class="chart-card__legend-item">
-          <span class="chart-card__legend-dot chart-card__legend-dot--checkin"></span>
-          Check-in
+
+      <!-- Legend -->
+      <div class="flex items-center gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block" />
+          <span>Check-in</span>
         </div>
-        <div class="chart-card__legend-item">
-          <span class="chart-card__legend-dot chart-card__legend-dot--checkout"></span>
-          Check-out
+        <div class="flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
+          <span>Check-out</span>
         </div>
       </div>
     </div>
 
-    <div class="chart-card__chart-wrapper">
+    <!-- Chart SVG -->
+    <div class="w-full overflow-hidden">
       <svg
         :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
-        class="chart-card__svg"
+        class="w-full h-auto block"
         preserveAspectRatio="xMidYMid meet"
       >
         <defs>
           <linearGradient id="checkinGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--color-primary)" stop-opacity="0.25" />
-            <stop offset="100%" stop-color="var(--color-primary)" stop-opacity="0" />
+            <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.25" />
+            <stop offset="100%" stop-color="#4f46e5" stop-opacity="0" />
           </linearGradient>
           <linearGradient id="checkoutGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="var(--color-success)" stop-opacity="0.15" />
-            <stop offset="100%" stop-color="var(--color-success)" stop-opacity="0" />
+            <stop offset="0%" stop-color="#10b981" stop-opacity="0.15" />
+            <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
           </linearGradient>
         </defs>
 
@@ -150,7 +157,7 @@ const xLabelPositions = computed(() =>
           :y1="line.y"
           :x2="chartWidth - chartPadding.right"
           :y2="line.y"
-          stroke="var(--color-border)"
+          stroke="#e2e8f0"
           stroke-dasharray="4 4"
         />
 
@@ -161,8 +168,9 @@ const xLabelPositions = computed(() =>
           :x="chartPadding.left - 12"
           :y="line.y + 4"
           text-anchor="end"
-          fill="var(--color-muted)"
+          fill="#94a3b8"
           font-size="11"
+          font-weight="500"
         >
           {{ line.label }}
         </text>
@@ -174,8 +182,9 @@ const xLabelPositions = computed(() =>
           :x="pos.x"
           :y="chartHeight - 6"
           text-anchor="middle"
-          fill="var(--color-muted)"
+          fill="#94a3b8"
           font-size="11"
+          font-weight="500"
         >
           {{ pos.label }}
         </text>
@@ -184,26 +193,25 @@ const xLabelPositions = computed(() =>
         <path
           :d="checkInArea"
           fill="url(#checkinGradient)"
-          class="chart-card__area"
-          :class="{ 'chart-card__area--visible': mounted }"
+          class="transition-opacity duration-700 ease-out"
+          :class="mounted ? 'opacity-100' : 'opacity-0'"
         />
         <path
           :d="checkOutArea"
           fill="url(#checkoutGradient)"
-          class="chart-card__area"
-          :class="{ 'chart-card__area--visible': mounted }"
+          class="transition-opacity duration-700 ease-out"
+          :class="mounted ? 'opacity-100' : 'opacity-0'"
         />
 
         <!-- Check-out line -->
         <path
           :d="checkOutLine"
           fill="none"
-          stroke="var(--color-success)"
+          stroke="#10b981"
           stroke-width="2.5"
           stroke-linecap="round"
           stroke-linejoin="round"
-          class="chart-card__line"
-          :class="{ 'chart-card__line--animated': mounted }"
+          class="transition-all duration-1000 ease-out"
           :style="{ strokeDasharray: totalLineLength, strokeDashoffset: mounted ? 0 : totalLineLength }"
         />
 
@@ -211,161 +219,54 @@ const xLabelPositions = computed(() =>
         <path
           :d="checkInLine"
           fill="none"
-          stroke="var(--color-primary)"
+          stroke="#4f46e5"
           stroke-width="2.5"
           stroke-linecap="round"
           stroke-linejoin="round"
-          class="chart-card__line"
-          :class="{ 'chart-card__line--animated': mounted }"
+          class="transition-all duration-1000 ease-out"
           :style="{ strokeDasharray: totalLineLength, strokeDashoffset: mounted ? 0 : totalLineLength }"
         />
 
         <!-- Check-in data points -->
-        <g v-for="(point, i) in checkInPoints" :key="'ci-dot-' + i">
+        <g v-for="(point, i) in checkInPoints" :key="'ci-dot-' + i" class="group/dot cursor-pointer">
           <circle
             :cx="point.x"
             :cy="point.y"
             r="12"
             fill="transparent"
-            class="chart-card__hover-target"
           />
           <circle
             :cx="point.x"
             :cy="point.y"
             r="4"
-            fill="var(--color-primary)"
-            stroke="var(--color-surface)"
+            fill="#4f46e5"
+            stroke="#ffffff"
             stroke-width="2"
-            class="chart-card__dot"
-            :class="{ 'chart-card__dot--visible': mounted }"
+            class="transition-all duration-300 ease-out group-hover/dot:r-6"
+            :class="mounted ? 'opacity-100' : 'opacity-0'"
           />
         </g>
 
         <!-- Check-out data points -->
-        <g v-for="(point, i) in checkOutPoints" :key="'co-dot-' + i">
+        <g v-for="(point, i) in checkOutPoints" :key="'co-dot-' + i" class="group/dot cursor-pointer">
           <circle
             :cx="point.x"
             :cy="point.y"
             r="12"
             fill="transparent"
-            class="chart-card__hover-target"
           />
           <circle
             :cx="point.x"
             :cy="point.y"
             r="4"
-            fill="var(--color-success)"
-            stroke="var(--color-surface)"
+            fill="#10b981"
+            stroke="#ffffff"
             stroke-width="2"
-            class="chart-card__dot"
-            :class="{ 'chart-card__dot--visible': mounted }"
+            class="transition-all duration-300 ease-out group-hover/dot:r-6"
+            :class="mounted ? 'opacity-100' : 'opacity-0'"
           />
         </g>
       </svg>
     </div>
-  </div>
+  </UiCard>
 </template>
-
-<style scoped>
-.chart-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 24px;
-  box-shadow: var(--shadow-soft);
-}
-
-.chart-card__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.chart-card__header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.chart-card__title {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.chart-card__subtitle {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.chart-card__legend {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.chart-card__legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.chart-card__legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.chart-card__legend-dot--checkin {
-  background: var(--color-primary);
-}
-
-.chart-card__legend-dot--checkout {
-  background: var(--color-success);
-}
-
-.chart-card__chart-wrapper {
-  width: 100%;
-  overflow: hidden;
-}
-
-.chart-card__svg {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
-.chart-card__line {
-  transition: stroke-dashoffset 1s ease-out;
-}
-
-.chart-card__area {
-  opacity: 0;
-  transition: opacity 0.8s ease-out 0.4s;
-}
-
-.chart-card__area--visible {
-  opacity: 1;
-}
-
-.chart-card__dot {
-  opacity: 0;
-  transition: opacity 0.3s ease-out 0.9s, r 0.15s ease;
-}
-
-.chart-card__dot--visible {
-  opacity: 1;
-}
-
-.chart-card__hover-target {
-  cursor: pointer;
-}
-
-.chart-card__hover-target:hover + .chart-card__dot {
-  r: 6;
-}
-</style>

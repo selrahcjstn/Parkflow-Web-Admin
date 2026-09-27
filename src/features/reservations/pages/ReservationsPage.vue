@@ -2,7 +2,18 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
+
+const resColumns: TableColumn[] = [
+  { key: 'reference', label: 'Reference #' },
+  { key: 'creator', label: 'Creator of the reservation' },
+  { key: 'schedule', label: 'Date & Time Slot' },
+  { key: 'purpose', label: 'Purpose / Reason' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions', align: 'right' }
+]
 
 const reservations = ref<ParkingReservationItem[]>([])
 const isLoading = ref(true)
@@ -111,8 +122,10 @@ async function fetchReservations(silent = false) {
 onMounted(() => {
   fetchReservations()
   pollTimer = window.setInterval(() => {
-    fetchReservations(true)
-  }, 4000)
+    if (document.visibilityState === 'visible') {
+      fetchReservations(true)
+    }
+  }, 60000)
 })
 
 onUnmounted(() => {
@@ -496,146 +509,96 @@ async function handleCreateReservation() {
     </div>
 
     <!-- Table Container -->
-    <div class="table-container">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Reference #</th>
-            <th>Creator of the reservation</th>
-            <th>Date & Time Slot</th>
-            <th>Purpose / Reason</th>
-            <th>Status</th>
-            <th class="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Skeleton Loading -->
-          <tr v-if="isLoading" v-for="i in 4" :key="'skel-'+i">
-            <td colspan="6" style="padding: 16px;">
-              <SkeletonLoader variant="rect" height="40px" />
-            </td>
-          </tr>
+    <div class="table-container p-0 overflow-hidden">
+      <UiTable
+        :columns="resColumns"
+        :data="filteredReservations"
+        :is-loading="isLoading"
+        empty-text="No schedule reservations found matching your criteria."
+      >
+        <template #cell-reference="{ item }">
+          <div class="flex items-center gap-2">
+            <span class="ref-badge monospace font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.referenceNumber }}</span>
+            <span v-if="item.type === 1 || item.type === 'Special'" class="special-pass-chip text-[10px] font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 dark:text-indigo-300 px-1.5 py-0.5 rounded">
+              ★ Special Pass
+            </span>
+          </div>
+        </template>
 
-          <!-- Empty State -->
-          <tr v-else-if="filteredReservations.length === 0">
-            <td colspan="6" class="empty-cell">
-              <div class="empty-state">
-                <div class="empty-icon-box">
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                </div>
-                <h3 class="empty-title">No schedule reservations found</h3>
-                <p class="empty-desc">There are no reservation requests matching your search query or tab filter.</p>
-              </div>
-            </td>
-          </tr>
-
-          <!-- Data Rows -->
-          <tr v-else v-for="(item, index) in filteredReservations" :key="item.id">
-            <!-- Reference Number -->
-            <td>
-              <span class="ref-badge monospace">{{ item.referenceNumber }}</span>
-              <span v-if="item.type === 1 || item.type === 'Special'" class="special-pass-chip">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:-1px; margin-right:3px;">
-                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                </svg>
-                Special Pass
+        <template #cell-creator="{ item, index }">
+          <div class="applicant-cell flex items-center gap-3">
+            <div class="avatar-circle w-8 h-8 rounded-full text-white font-bold flex items-center justify-center text-xs" :style="{ background: getAvatarGradient(index) }">
+              {{ getInitials(item.userFullName) }}
+            </div>
+            <div class="applicant-meta flex flex-col">
+              <span class="applicant-name font-semibold text-slate-900 dark:text-white text-xs">{{ item.userFullName || 'Campus User' }}</span>
+              <span class="applicant-email text-[11px] text-slate-500 dark:text-slate-400">{{ item.userEmail || 'N/A' }}</span>
+              <span class="applicant-receiver-badge text-[10px] text-blue-600 dark:text-blue-400 font-medium" v-if="getNotifyEmailFromNotes(item.adminNotes)">
+                Recipient: {{ getNotifyEmailFromNotes(item.adminNotes) }}
               </span>
-            </td>
+            </div>
+          </div>
+        </template>
 
-            <!-- Applicant Info -->
-            <td>
-              <div class="applicant-cell">
-                <div class="avatar-circle" :style="{ background: getAvatarGradient(index) }">
-                  {{ getInitials(item.userFullName) }}
-                </div>
-                <div class="applicant-meta">
-                  <span class="applicant-name">{{ item.userFullName || 'Campus User' }}</span>
-                  <span class="applicant-email">{{ item.userEmail || 'N/A' }}</span>
-                  <span class="applicant-receiver-badge" v-if="getNotifyEmailFromNotes(item.adminNotes)">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block; vertical-align:-1px; margin-right:3px;">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                      <polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                    Recipient: {{ getNotifyEmailFromNotes(item.adminNotes) }}
-                  </span>
-                </div>
-              </div>
-            </td>
+        <template #cell-schedule="{ item }">
+          <div class="schedule-meta flex flex-col">
+            <span class="date-text font-semibold text-slate-900 dark:text-white text-xs">
+              {{ formatReservationDate(item.reservationDate) }}
+            </span>
+            <span class="time-text text-[11px] text-slate-500 dark:text-slate-400">
+              {{ formatTimeSlot(item.startTime, item.endTime) }}
+            </span>
+          </div>
+        </template>
 
-            <!-- Date & Time Slot -->
-            <td>
-              <div class="schedule-meta">
-                <span class="date-text">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                  {{ formatReservationDate(item.reservationDate) }}
-                </span>
-                <span class="time-text">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                  {{ formatTimeSlot(item.startTime, item.endTime) }}
-                </span>
-              </div>
-            </td>
+        <template #cell-purpose="{ item }">
+          <span class="reason-text text-xs text-slate-700 dark:text-slate-300" :title="item.reason">{{ item.reason }}</span>
+        </template>
 
-            <!-- Purpose / Reason -->
-            <td>
-              <span class="reason-text" :title="item.reason">{{ item.reason }}</span>
-            </td>
+        <template #cell-status="{ item }">
+          <UiStatusText
+            :variant="getStatusKey(item.status) === 'approved' ? 'success' : getStatusKey(item.status) === 'rejected' || getStatusKey(item.status) === 'cancelled' ? 'danger' : 'warning'"
+            size="xs"
+          >
+            {{ formatStatus(item.status) }}
+          </UiStatusText>
+        </template>
 
-            <!-- Status Badge -->
-            <td>
-              <span
-                class="status-badge"
-                :class="`status-badge--${getStatusKey(item.status)}`"
-              >
-                <span class="status-dot"></span>
-                {{ formatStatus(item.status) }}
-              </span>
-            </td>
-
-            <!-- Actions -->
-            <td class="text-right">
-              <div class="action-buttons">
-                <button
-                  v-if="getStatusKey(item.status) === 'pending'"
-                  class="btn-action btn-approve"
-                  @click="handleApprove(item)"
-                  title="Approve Reservation"
-                >
-                  Approve
-                </button>
-                <button
-                  v-if="getStatusKey(item.status) === 'pending'"
-                  class="btn-action btn-reject"
-                  @click="handleReject(item)"
-                  title="Decline Reservation"
-                >
-                  Decline
-                </button>
-                <button
-                  class="btn-action btn-qr-pass"
-                  @click="openQrPassModal(item)"
-                  title="View Official QR Pass"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-                  QR Pass
-                </button>
-                <button
-                  class="btn-action btn-review"
-                  @click="openReviewModal(item)"
-                  title="Review Details"
-                >
-                  Inspect
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <template #cell-actions="{ item }">
+          <div class="action-buttons flex items-center justify-end gap-1.5" @click.stop>
+            <button
+              v-if="getStatusKey(item.status) === 'pending'"
+              class="btn-action btn-approve px-2.5 py-1 rounded-md bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors cursor-pointer border-none"
+              @click="handleApprove(item)"
+              title="Approve Reservation"
+            >
+              Approve
+            </button>
+            <button
+              v-if="getStatusKey(item.status) === 'pending'"
+              class="btn-action btn-reject px-2.5 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-xs hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80"
+              @click="handleReject(item)"
+              title="Decline Reservation"
+            >
+              Decline
+            </button>
+            <button
+              class="btn-action btn-qr-pass px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold text-xs hover:bg-indigo-100 transition-colors cursor-pointer border border-indigo-200/80"
+              @click="openQrPassModal(item)"
+              title="View Official QR Pass"
+            >
+              QR Pass
+            </button>
+            <button
+              class="btn-action btn-review px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition-colors cursor-pointer border-none"
+              @click="openReviewModal(item)"
+              title="Review Details"
+            >
+              Inspect
+            </button>
+          </div>
+        </template>
+      </UiTable>
     </div>
 
     <!-- REVIEW / INSPECT MODAL -->

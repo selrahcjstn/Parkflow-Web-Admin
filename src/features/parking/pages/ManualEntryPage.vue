@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { VehicleType } from '../types'
 import api from '@/api/axios'
-import { cachedActiveSessions } from '@/features/dashboard/dashboardCache'
+import { cachedActiveSessions } from '@/stores/appCache'
 
 const router = useRouter()
 

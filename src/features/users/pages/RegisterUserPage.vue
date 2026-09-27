@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserRole } from '../types'
 import api from '@/api/axios'
+import UiCard from '@/components/ui/UiCard.vue'
 
 const router = useRouter()
 
@@ -27,7 +28,6 @@ const form = ref({
 
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
-const showPassword = ref(false)
 const successModalVisible = ref(false)
 const registeredUserEmail = ref('')
 
@@ -110,18 +110,18 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="register-user-page">
+  <div class="space-y-6 w-full">
     <!-- Header Title -->
-    <div class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">Register Client Account</h1>
-        <p class="page-subtitle">Provision a new student, faculty, staff, or guard client profile for campus parking access.</p>
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Register Client Account</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Provision a new student, faculty, staff, or guard client profile for campus parking access.</p>
       </div>
     </div>
 
-    <form @submit.prevent="handleSubmit" class="register-form-container">
-      <div v-if="errorMessage" class="error-banner">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <form @submit.prevent="handleSubmit" class="space-y-6 w-full">
+      <div v-if="errorMessage" class="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm">
+        <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="12" />
           <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -130,10 +130,10 @@ const handleSubmit = async () => {
       </div>
 
       <!-- Card 1: Account Classification & Role -->
-      <div class="form-card">
-        <div class="card-header">
-          <div class="card-icon-badge card-icon-badge--purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <UiCard class="p-6 space-y-6">
+        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
               <circle cx="9" cy="7" r="4" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -141,148 +141,210 @@ const handleSubmit = async () => {
             </svg>
           </div>
           <div>
-            <h3 class="card-title">1. Account Classification & Role</h3>
-            <p class="card-subtitle">Select client classification to apply automatic permissions</p>
+            <h3 class="text-base font-semibold text-slate-900 dark:text-white">1. Account Classification & Role</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Select client classification to apply automatic permissions</p>
           </div>
         </div>
 
-        <div class="role-grid">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div
-            class="role-card"
-            :class="{ active: form.role === 'Student' }"
+            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
+            :class="form.role === 'Student' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
             @click="form.role = 'Student'"
           >
-            <div class="role-card-header">
-              <div class="role-icon-box card-icon-badge--blue">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="flex items-center justify-between">
+              <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
                   <path d="M6 12.5v5c3 3 9 3 12 0v-5"/>
                 </svg>
               </div>
-              <div class="radio-indicator"></div>
+              <div
+                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                :class="form.role === 'Student' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
+              >
+                <div v-if="form.role === 'Student'" class="w-2 h-2 rounded-full bg-white"></div>
+              </div>
             </div>
-            <h4 class="role-card-title">Student</h4>
-            <p class="role-card-desc">Enrolled student account with schedule parking privileges</p>
+            <div>
+              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">Student</h4>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Enrolled student account with schedule parking privileges</p>
+            </div>
           </div>
 
           <div
-            class="role-card"
-            :class="{ active: form.role === 'UniversityStaff' }"
+            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
+            :class="form.role === 'UniversityStaff' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
             @click="form.role = 'UniversityStaff'"
           >
-            <div class="role-card-header">
-              <div class="role-icon-box card-icon-badge--purple">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="flex items-center justify-between">
+              <div class="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
                 </svg>
               </div>
-              <div class="radio-indicator"></div>
+              <div
+                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                :class="form.role === 'UniversityStaff' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
+              >
+                <div v-if="form.role === 'UniversityStaff'" class="w-2 h-2 rounded-full bg-white"></div>
+              </div>
             </div>
-            <h4 class="role-card-title">Faculty Member</h4>
-            <p class="role-card-desc">Academic teaching faculty with reserved area access</p>
+            <div>
+              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">Faculty Member</h4>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Academic teaching faculty with reserved area access</p>
+            </div>
           </div>
 
           <div
-            class="role-card"
-            :class="{ active: form.role === 'NonAcademicPersonnel' }"
+            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
+            :class="form.role === 'NonAcademicPersonnel' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
             @click="form.role = 'NonAcademicPersonnel'"
           >
-            <div class="role-card-header">
-              <div class="role-icon-box card-icon-badge--amber">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div class="flex items-center justify-between">
+              <div class="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
                   <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
                 </svg>
               </div>
-              <div class="radio-indicator"></div>
+              <div
+                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
+                :class="form.role === 'NonAcademicPersonnel' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
+              >
+                <div v-if="form.role === 'NonAcademicPersonnel'" class="w-2 h-2 rounded-full bg-white"></div>
+              </div>
             </div>
-            <h4 class="role-card-title">University Staff</h4>
-            <p class="role-card-desc">Administrative & non-academic staff personnel</p>
+            <div>
+              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">University Staff</h4>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Administrative & non-academic staff personnel</p>
+            </div>
           </div>
         </div>
-      </div>
+      </UiCard>
 
       <!-- Card 2: Personal Information -->
-      <div class="form-card">
-        <div class="card-header">
-          <div class="card-icon-badge card-icon-badge--blue">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <UiCard class="p-6 space-y-6">
+        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
           <div>
-            <h3 class="card-title">2. Personal & Contact Information</h3>
-            <p class="card-subtitle">Primary account identity details and credentials</p>
+            <h3 class="text-base font-semibold text-slate-900 dark:text-white">2. Personal & Contact Information</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Primary account identity details and credentials</p>
           </div>
         </div>
 
-        <div class="form-grid form-grid--3col">
-          <div class="form-group">
-            <label class="form-label required">First Name</label>
-            <input v-model="form.firstName" type="text" placeholder="e.g. Juan" class="form-input" required />
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">First Name <span class="text-red-500">*</span></label>
+            <input
+              v-model="form.firstName"
+              type="text"
+              placeholder="e.g. Juan"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              required
+            />
           </div>
 
-          <div class="form-group">
-            <label class="form-label required">Last Name</label>
-            <input v-model="form.lastName" type="text" placeholder="e.g. Dela Cruz" class="form-input" required />
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Last Name <span class="text-red-500">*</span></label>
+            <input
+              v-model="form.lastName"
+              type="text"
+              placeholder="e.g. Dela Cruz"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              required
+            />
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Middle Name (Optional)</label>
-            <input v-model="form.middleName" type="text" placeholder="e.g. Santos" class="form-input" />
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Middle Name (Optional)</label>
+            <input
+              v-model="form.middleName"
+              type="text"
+              placeholder="e.g. Santos"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+            />
           </div>
 
-          <div class="form-group">
-            <label class="form-label required">Email Address</label>
-            <input v-model="form.email" type="email" placeholder="e.g. juan@university.edu.ph" class="form-input" required />
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Email Address <span class="text-red-500">*</span></label>
+            <input
+              v-model="form.email"
+              type="email"
+              placeholder="e.g. juan@university.edu.ph"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              required
+            />
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Phone Number</label>
-            <input v-model="form.phoneNumber" type="tel" placeholder="09171234567" class="form-input" />
+          <div class="space-y-1.5">
+            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Phone Number</label>
+            <input
+              v-model="form.phoneNumber"
+              type="tel"
+              placeholder="09171234567"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+            />
           </div>
         </div>
-      </div>
+      </UiCard>
 
       <!-- Card 3: Profile Specifics -->
-      <div class="form-card">
-        <div class="card-header">
-          <div class="card-icon-badge card-icon-badge--amber">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <UiCard class="p-6 space-y-6">
+        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </div>
           <div>
-            <h3 class="card-title">3. Profile Specifics</h3>
-            <p class="card-subtitle">Role-dependent metadata details</p>
+            <h3 class="text-base font-semibold text-slate-900 dark:text-white">3. Profile Specifics</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Role-dependent metadata details</p>
           </div>
         </div>
 
-        <div class="form-grid form-grid--3col">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
           <!-- Student Specifics -->
           <template v-if="form.role === 'Student'">
-            <div class="form-group">
-              <label class="form-label">Client ID</label>
-              <input v-model="form.studentNumber" type="text" placeholder="2026-00123" class="form-input" />
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Client ID</label>
+              <input
+                v-model="form.studentNumber"
+                type="text"
+                placeholder="2026-00123"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              />
             </div>
-            <div class="form-group">
-              <label class="form-label">Course / Program</label>
-              <input v-model="form.course" type="text" placeholder="BS Computer Science" class="form-input" />
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Course / Program</label>
+              <input
+                v-model="form.course"
+                type="text"
+                placeholder="BS Computer Science"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              />
             </div>
-            <div class="form-group">
-              <label class="form-label">Section (Letters Only)</label>
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Section (Letters Only)</label>
               <input
                 v-model="form.section"
                 type="text"
                 placeholder="A"
-                class="form-input"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                 @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').toUpperCase()"
               />
             </div>
-            <div class="form-group">
-              <label class="form-label">Year Level</label>
-              <select v-model.number="form.yearLevel" class="form-select">
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Year Level</label>
+              <select
+                v-model.number="form.yearLevel"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              >
                 <option :value="7">Grade 7</option>
                 <option :value="8">Grade 8</option>
                 <option :value="9">Grade 9</option>
@@ -300,25 +362,42 @@ const handleSubmit = async () => {
 
           <!-- Personnel Specifics -->
           <template v-else-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'">
-            <div class="form-group">
-              <label class="form-label">Client ID</label>
-              <input v-model="form.idCardNumber" type="text" placeholder="EMP-9082" class="form-input" />
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Client ID</label>
+              <input
+                v-model="form.idCardNumber"
+                type="text"
+                placeholder="EMP-9082"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              />
             </div>
-            <div class="form-group">
-              <label class="form-label">Department / College</label>
-              <input v-model="form.department" type="text" placeholder="College of Engineering" class="form-input" />
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Department / College</label>
+              <input
+                v-model="form.department"
+                type="text"
+                placeholder="College of Engineering"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              />
             </div>
           </template>
         </div>
-      </div>
+      </UiCard>
 
       <!-- Action Footer Toolbar -->
-      <div class="form-actions-toolbar">
-        <router-link to="/users" class="btn btn--secondary">
+      <div class="flex items-center justify-end gap-3 pt-2">
+        <router-link
+          to="/users"
+          class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition"
+        >
           Cancel
         </router-link>
-        <button type="submit" class="btn btn--primary" :disabled="isSubmitting">
-          <svg v-if="!isSubmitting" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button
+          type="submit"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          :disabled="isSubmitting"
+        >
+          <svg v-if="!isSubmitting" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
             <circle cx="9" cy="7" r="4" />
             <line x1="19" y1="8" x2="19" y2="14" />
@@ -332,439 +411,36 @@ const handleSubmit = async () => {
 
     <!-- Success Registration Confirmation Modal -->
     <Teleport to="body">
-      <div v-if="successModalVisible" class="success-modal-backdrop">
-        <div class="success-modal-card">
-          <div class="success-icon-badge">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <div v-if="successModalVisible" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-center space-y-4 shadow-xl">
+          <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+            <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
               <polyline points="22 4 12 14.01 9 11.01" />
             </svg>
           </div>
-          <h3 class="success-modal-title">Client Account Provisioned!</h3>
-          <p class="success-modal-msg">
-            The client account for <strong>{{ registeredUserEmail }}</strong> was successfully created. An email containing their initial password credentials has been dispatched to their inbox.
+          <h3 class="text-xl font-bold text-slate-900 dark:text-white">Client Account Provisioned!</h3>
+          <p class="text-sm text-slate-600 dark:text-slate-400">
+            The client account for <strong class="text-slate-900 dark:text-white font-semibold">{{ registeredUserEmail }}</strong> was successfully created. An email containing their initial password credentials has been dispatched to their inbox.
           </p>
-          <div class="success-modal-actions">
-            <button type="button" class="btn btn--secondary" @click="resetFormAndContinue">Provision Another Account</button>
-            <button type="button" class="btn btn--primary" @click="goToAccountsList">Go to Accounts List</button>
+          <div class="flex items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition cursor-pointer"
+              @click="resetFormAndContinue"
+            >
+              Provision Another Account
+            </button>
+            <button
+              type="button"
+              class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition cursor-pointer"
+              @click="goToAccountsList"
+            >
+              Go to Accounts List
+            </button>
           </div>
         </div>
       </div>
     </Teleport>
   </div>
 </template>
-
-<style scoped>
-.register-user-page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  width: 100%;
-  max-width: 100%;
-  margin: 0;
-  box-sizing: border-box;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: var(--color-muted);
-  margin: 4px 0 0;
-}
-
-.register-form-container {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  width: 100%;
-}
-
-.error-banner {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: #ef4444;
-  padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* Form Section Cards */
-.form-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 28px;
-  box-shadow: var(--shadow-soft);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.card-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.card-icon-badge {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.card-icon-badge--purple {
-  background: rgba(129, 140, 248, 0.2);
-  color: #a5b4fc;
-}
-
-.card-icon-badge--blue {
-  background: rgba(96, 165, 250, 0.2);
-  color: #93c5fd;
-}
-
-.card-icon-badge--amber {
-  background: rgba(251, 191, 36, 0.2);
-  color: #fde047;
-}
-
-.card-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.card-subtitle {
-  font-size: 13px;
-  color: var(--color-muted);
-  margin: 2px 0 0;
-}
-
-/* Role Selector Grid */
-.role-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-@media (max-width: 1024px) {
-  .role-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .role-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.role-card {
-  background: var(--color-surface-muted);
-  border: 2px solid var(--color-border);
-  border-radius: 12px;
-  padding: 18px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: all 150ms ease;
-  user-select: none;
-}
-
-.role-card:hover {
-  border-color: var(--color-muted);
-  transform: translateY(-2px);
-}
-
-.role-card.active {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: #ef4444;
-  box-shadow: 0 0 16px rgba(239, 68, 68, 0.15);
-}
-
-.role-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.role-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.radio-indicator {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid var(--color-muted);
-  transition: all 150ms ease;
-  position: relative;
-}
-
-.role-card.active .radio-indicator {
-  border-color: #ef4444;
-  background: #ef4444;
-}
-
-.role-card.active .radio-indicator::after {
-  content: '';
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ffffff;
-}
-
-.role-card-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text, #ffffff);
-  margin: 0;
-}
-
-.role-card-desc {
-  font-size: 12px;
-  color: var(--color-muted, #94a3b8);
-  margin: 0;
-  line-height: 1.4;
-}
-
-/* Form Grids */
-.form-grid--3col {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-@media (max-width: 900px) {
-  .form-grid--3col {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .form-grid--3col {
-    grid-template-columns: 1fr;
-  }
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.form-label.required::after {
-  content: ' *';
-  color: #ef4444;
-}
-
-.form-input,
-.form-select {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 11px 14px;
-  font-size: 14px;
-  color: var(--color-text);
-  transition: border-color 150ms ease;
-  outline: none;
-}
-
-.form-input:focus,
-.form-select:focus {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
-}
-
-/* Footer Toolbar */
-.form-actions-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 14px;
-  padding: 20px 24px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-}
-
-.btn {
-  padding: 11px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  text-decoration: none;
-  transition: all 150ms ease;
-  border: none;
-}
-
-.btn--primary {
-  background: var(--color-primary);
-  color: #ffffff;
-}
-
-.btn--primary:hover {
-  background: var(--color-primary-dark);
-  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.3);
-}
-
-.btn--primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn--secondary {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-}
-
-.btn--secondary:hover {
-  background: var(--color-border);
-}
-
-/* Password Input & Toggle Button */
-.password-input-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.password-input-wrapper .form-input {
-  width: 100%;
-  padding-right: 42px;
-}
-
-.toggle-password-btn {
-  position: absolute;
-  right: 10px;
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 150ms ease;
-}
-
-.toggle-password-btn:hover {
-  color: var(--color-text);
-}
-
-/* Success Modal Styles */
-.success-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(6px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.success-modal-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 16px;
-  padding: 32px;
-  max-width: 480px;
-  width: 100%;
-  text-align: center;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes modalPop {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.success-icon-badge {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.success-modal-title {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.success-modal-msg {
-  font-size: 14px;
-  color: var(--color-muted);
-  line-height: 1.6;
-  margin: 0;
-}
-
-.success-modal-actions {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  justify-content: center;
-  margin-top: 8px;
-}
-
-.success-modal-actions .btn {
-  flex: 1;
-  justify-content: center;
-}
-</style>

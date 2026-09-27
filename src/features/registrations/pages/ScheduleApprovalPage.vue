@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/axios'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
+import { useAdminNotificationStore } from '@/stores/notification.store'
+import { cachedScheduleSubmissions } from '@/stores/appCache'
 
 interface ScheduleItem {
   dayOfWeek: number
@@ -82,8 +85,8 @@ const initialMockSubmissions: CorSubmissionItem[] = [
   }
 ]
 
-const submissions = ref<CorSubmissionItem[]>(initialMockSubmissions)
-const isLoading = ref(true)
+const submissions = ref<CorSubmissionItem[]>(cachedScheduleSubmissions.value || initialMockSubmissions)
+const isLoading = ref(!cachedScheduleSubmissions.value)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
 const selectedSubmission = ref<CorSubmissionItem | null>(null)
@@ -126,7 +129,9 @@ function formatTimeSpan(timeStr?: string): string {
 }
 
 async function fetchSubmissions() {
-  isLoading.value = true
+  if (!cachedScheduleSubmissions.value) {
+    isLoading.value = true
+  }
   apiErrorNotice.value = null
   try {
     const response = await api.get('/cor-submissions')
@@ -134,14 +139,17 @@ async function fetchSubmissions() {
     const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
 
     if (items && items.length > 0) {
-      submissions.value = items.map((s: any) => ({
+      const mapped = items.map((s: any) => ({
         ...s,
         corDocumentUrl: formatDocUrl(s.corDocumentUrl, defaultCorPdf),
         orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, defaultOrcrImage),
         motorPictureUrl: formatDocUrl(s.motorPictureUrl, defaultMotorImage)
       }))
+      submissions.value = mapped
+      cachedScheduleSubmissions.value = [...mapped]
     } else if (items && items.length === 0) {
       submissions.value = []
+      cachedScheduleSubmissions.value = []
     }
   } catch (err: any) {
     console.warn('Backend API connection warning for schedule COR submissions:', err)
@@ -159,8 +167,29 @@ async function fetchSubmissions() {
   }
 }
 
+let autoSyncTimer: ReturnType<typeof setInterval> | null = null
+let unsubscribeApprovalUpdates: (() => void) | null = null
+
 onMounted(() => {
+  const notifStore = useAdminNotificationStore()
+  notifStore.initSignalRConnection()
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
+    console.log('[ScheduleApprovalPage] Live update received via SignalR -> refreshing...')
+    fetchSubmissions()
+  })
+
   fetchSubmissions()
+
+  autoSyncTimer = setInterval(() => {
+    if (!notifStore.isSignalRConnected) {
+      fetchSubmissions()
+    }
+  }, 120000)
+})
+
+onUnmounted(() => {
+  if (autoSyncTimer) clearInterval(autoSyncTimer)
+  if (unsubscribeApprovalUpdates) unsubscribeApprovalUpdates()
 })
 
 const pendingCount = computed(() => submissions.value.filter(s => s.verificationStatus === 1 || s.verificationStatus === 0 || s.verificationStatus === undefined || s.verificationStatus === null).length)
@@ -472,7 +501,7 @@ watch(selectedSubmission, () => {
             </div>
             <div class="applicant-details">
               <span class="detail-item">{{ sub.email }}</span>
-              <span class="detail-item plate-tag">{{ sub.vehiclePlate }} ({{ sub.vehicleType }})</span>
+              <span class="detail-item term-tag">{{ sub.academicTerm || '1st Sem 2026-2027' }}</span>
             </div>
           </div>
         </div>
@@ -485,7 +514,7 @@ watch(selectedSubmission, () => {
             <h2 class="user-name">{{ selectedSubmission.fullName }}</h2>
             <div class="sub-meta-row">
               <span class="user-email">{{ selectedSubmission.email }}</span>
-              <span class="plate-badge">{{ selectedSubmission.vehiclePlate }} ({{ selectedSubmission.vehicleType }})</span>
+              <span class="term-badge">{{ selectedSubmission.academicTerm || '1st Sem 2026-2027' }}</span>
             </div>
           </div>
 
@@ -613,14 +642,14 @@ watch(selectedSubmission, () => {
                         <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.startTime) }}</td>
                         <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.endTime) }}</td>
                         <td style="text-align: center;">
-                          <span class="day-chip day-chip--active">Allowed</span>
+                          <UiStatusText variant="success" size="xs">Allowed</UiStatusText>
                         </td>
                       </template>
                       <template v-else>
                         <td class="text-muted">—</td>
                         <td class="text-muted">—</td>
                         <td style="text-align: center;">
-                          <span class="day-chip day-chip--off">No Access</span>
+                          <UiStatusText variant="neutral" size="xs">No Access</UiStatusText>
                         </td>
                       </template>
                     </tr>

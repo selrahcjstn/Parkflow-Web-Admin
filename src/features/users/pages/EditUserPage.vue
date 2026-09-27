@@ -127,7 +127,7 @@ async function handleSendTempPassword() {
 }
 
 // Fetch user data
-import { cachedUsers } from '@/features/dashboard/dashboardCache'
+import { cachedUsers } from '@/stores/appCache'
 
 function populateFormFromUser(u: any): boolean {
   if (!u) return false

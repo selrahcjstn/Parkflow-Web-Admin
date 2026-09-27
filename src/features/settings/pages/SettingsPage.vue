@@ -11,7 +11,7 @@ interface SystemSettings {
   academicYear: string
   currentSemester: string
   lastResetDate?: string
-  maxParkingHours: number
+  maxParkingHours?: number
   totalCapacity: number
   maxVehiclesPerUser: number
   maintenanceMode: boolean
@@ -33,7 +33,6 @@ const settings = ref<SystemSettings>({
   gracePeriodMinutes: 15,
   academicYear: '2026-2027',
   currentSemester: '1st Semester',
-  maxParkingHours: 8,
   totalCapacity: 500,
   maxVehiclesPerUser: 5,
   maintenanceMode: false,
@@ -383,24 +382,12 @@ onMounted(() => {
             </div>
             <div>
               <h3 class="settings-card__title">Campus Capacity & Parking Rules</h3>
-              <p class="settings-card__subtitle">Configure slot limits, session max hours, and vehicle caps</p>
+              <p class="settings-card__subtitle">Configure campus slot limits and vehicle caps</p>
             </div>
           </div>
 
           <div class="settings-form">
             <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Max Parking Duration (Hours)</label>
-                <input
-                  v-model.number="settings.maxParkingHours"
-                  type="number"
-                  min="1"
-                  max="24"
-                  class="form-input"
-                />
-                <span class="form-help">Overstay triggered after this limit.</span>
-              </div>
-
               <div class="form-group">
                 <label class="form-label">Total Campus Capacity</label>
                 <input
@@ -412,18 +399,18 @@ onMounted(() => {
                 />
                 <span class="form-help">Total available parking slots.</span>
               </div>
-            </div>
 
-            <div class="form-group">
-              <label class="form-label">Max Vehicles Allowed per User</label>
-              <input
-                v-model.number="settings.maxVehiclesPerUser"
-                type="number"
-                min="1"
-                max="10"
-                class="form-input"
-              />
-              <span class="form-help">Maximum vehicles a single student or personnel account can register.</span>
+              <div class="form-group">
+                <label class="form-label">Max Vehicles Allowed per User</label>
+                <input
+                  v-model.number="settings.maxVehiclesPerUser"
+                  type="number"
+                  min="1"
+                  max="10"
+                  class="form-input"
+                />
+                <span class="form-help">Maximum vehicles a single student or personnel account can register.</span>
+              </div>
             </div>
 
             <div class="form-actions">

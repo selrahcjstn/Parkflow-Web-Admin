@@ -6,8 +6,34 @@ import SessionDetailModal from '../components/SessionDetailModal.vue'
 import StatsCard from '@/features/dashboard/components/StatsCard.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
+import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
-import { cachedActiveSessions, cachedHistorySessions } from '@/features/dashboard/dashboardCache'
+import { cachedActiveSessions, cachedHistorySessions } from '@/stores/appCache'
+
+const activeColumns: TableColumn[] = [
+  { key: 'vehicle', label: 'Vehicle' },
+  { key: 'owner', label: 'Owner' },
+  { key: 'role', label: 'Role' },
+  { key: 'entryTime', label: 'Entry Time' },
+  { key: 'mustExitBy', label: 'Must Exit By' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'fee', label: 'Estimated Fee' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions', align: 'right' }
+]
+
+const historyColumns: TableColumn[] = [
+  { key: 'vehicle', label: 'Vehicle' },
+  { key: 'owner', label: 'Owner' },
+  { key: 'role', label: 'Role' },
+  { key: 'timeSlot', label: 'Entry → Exit Time' },
+  { key: 'duration', label: 'Duration' },
+  { key: 'fee', label: 'Fee' },
+  { key: 'method', label: 'Method' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions', align: 'right' }
+]
 
 const router = useRouter()
 
@@ -128,7 +154,9 @@ const fetchParkingData = async () => {
           checkInTime: item.entryTime,
           duration: item.totalParkingHours || '0m',
           gate: item.gate || 1,
-          status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked')
+          status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked'),
+          scheduledEndTime: item.scheduledEndTime,
+          maxAllowedHours: item.maxAllowedHours
         }
       })
       activeSessions.value = mappedActive
@@ -241,6 +269,24 @@ const calculateCharge = (vehicleType: VehicleType, checkInTime: string, checkOut
   // Car: ₱30 for 3 hours, then ₱10/hr after
   if (diffHours <= 3) return '₱30.00'
   return `₱${30 + (diffHours - 3) * 10}.00`
+}
+
+const getActiveSessionFee = (session: ActiveSession) => {
+  if ((session as any).fee) return (session as any).fee
+  if ((session as any).penaltyFee != null) return `₱${(session as any).penaltyFee.toFixed(2)}`
+  const checkOutStr = now.value.toISOString()
+  return calculateCharge(session.vehicleType, session.checkInTime, checkOutStr)
+}
+
+const getMustExitByTime = (item: ActiveSession): string => {
+  if (item.scheduledEndTime) {
+    return item.scheduledEndTime
+  }
+  const checkIn = new Date(item.checkInTime)
+  if (isNaN(checkIn.getTime())) return '—'
+  const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' || item.role === 'NonAcademicPersonnel' ? 8 : 4)
+  const mustExitDate = new Date(checkIn.getTime() + maxAllowed * 3600 * 1000)
+  return mustExitDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
 // View state
@@ -580,208 +626,186 @@ const getRoleLabel = (role: string) => {
     </div>
 
     <!-- Tables -->
-    <div class="table-card">
-      <div class="table-responsive">
-        <!-- Active Sessions Table -->
-        <table v-if="currentTab === 'active'" class="parking-table">
-          <thead>
-            <tr>
-              <th>Vehicle</th>
-              <th>Owner</th>
-              <th>Role</th>
-              <th>Entry Time</th>
-              <th>Duration</th>
-              <th>Status</th>
-              <th class="actions-header">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="isLoading">
-              <td colspan="7">
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
-                <SkeletonLoader variant="table-row" :columns="7" />
-              </td>
-            </tr>
-            <tr v-else-if="filteredActiveSessions.length === 0">
-              <td colspan="7" class="empty-state">No active parking sessions found.</td>
-            </tr>
-            <tr
-              v-else
-              v-for="session in paginatedActiveSessions"
-              :key="session.id"
-              class="parking-row"
-              @click="openDetails(session)"
-            >
-              <td>
-                <div class="vehicle-cell">
-                  <div class="vehicle-icon">
-                    <svg v-if="session.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="11" width="18" height="6" rx="2" />
-                      <path d="M5 17h14" />
-                      <circle cx="7" cy="17" r="2" />
-                      <circle cx="17" cy="17" r="2" />
-                      <path d="M6 11l1.5-4.5h9L18 11" />
-                    </svg>
-                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="5" cy="18" r="3" />
-                      <circle cx="19" cy="18" r="3" />
-                      <path d="M12 18V8h4" />
-                      <path d="M5 18h14" opacity="0.3" />
-                    </svg>
-                  </div>
-                  <div class="vehicle-info">
-                    <span class="plate-number">{{ session.vehiclePlate }}</span>
-                    <span class="vehicle-brand">{{ session.brand || 'Unknown' }}</span>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="owner-name">{{ session.ownerName }}</span>
-              </td>
-              <td>
-                <span class="role-text">{{ getRoleLabel(session.role) }}</span>
-              </td>
-              <td>
-                <span class="time-text">{{ new Date(session.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-                <span class="date-sub">{{ new Date(session.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
-              </td>
-              <td>
-                <span class="duration-text">{{ getDuration(session) }}</span>
-              </td>
-              <td>
-                <span class="status-cell-text" :class="'status-cell-text--' + session.status.toLowerCase()">
-                  {{ session.status }}
-                </span>
-              </td>
-              <td class="actions-cell" @click.stop>
-                <div class="actions-group">
-                  <button class="action-icon-btn" title="View Details" @click="openDetails(session)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                  </button>
-                  <button
-                    class="action-icon-btn action-icon-btn--checkout"
-                    title="Manual Checkout"
-                    @click="handleManualCheckout(session)"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+    <div class="table-card p-0 overflow-hidden">
+      <!-- Active Sessions Table -->
+      <UiTable
+        v-if="currentTab === 'active'"
+        :columns="activeColumns"
+        :data="paginatedActiveSessions"
+        :is-loading="isLoading"
+        empty-text="No active parking sessions found."
+        @row-click="openDetails"
+      >
+        <template #cell-vehicle="{ item }">
+          <div class="vehicle-cell flex items-center gap-3">
+            <div class="vehicle-icon p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <svg v-if="item.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="6" rx="2" />
+                <path d="M5 17h14" />
+                <circle cx="7" cy="17" r="2" />
+                <circle cx="17" cy="17" r="2" />
+                <path d="M6 11l1.5-4.5h9L18 11" />
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="5" cy="18" r="3" />
+                <circle cx="19" cy="18" r="3" />
+                <path d="M12 18V8h4" />
+                <path d="M5 18h14" opacity="0.3" />
+              </svg>
+            </div>
+            <div class="vehicle-info flex flex-col">
+              <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
+              <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand || 'Unknown' }}</span>
+            </div>
+          </div>
+        </template>
 
-        <!-- Parking History Table -->
-        <table v-else class="parking-table">
-          <thead>
-            <tr>
-              <th>Vehicle</th>
-              <th>Owner</th>
-              <th>Role</th>
-              <th>Entry Time</th>
-              <th>Exit Time</th>
-              <th>Duration</th>
-              <th>Fee Charged</th>
-              <th>Entry Method</th>
-              <th>Status</th>
-              <th class="actions-header">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="isLoading">
-              <td colspan="10">
-                <SkeletonLoader variant="table-row" :columns="10" />
-                <SkeletonLoader variant="table-row" :columns="10" />
-                <SkeletonLoader variant="table-row" :columns="10" />
-                <SkeletonLoader variant="table-row" :columns="10" />
-                <SkeletonLoader variant="table-row" :columns="10" />
-              </td>
-            </tr>
-            <tr v-else-if="filteredHistorySessions.length === 0">
-              <td colspan="10" class="empty-state">No parking history logs found.</td>
-            </tr>
-            <tr
-              v-else
-              v-for="session in paginatedHistorySessions"
-              :key="session.id"
-              class="parking-row"
-              @click="openDetails(session)"
+        <template #cell-owner="{ item }">
+          <span class="owner-name font-semibold text-slate-900 dark:text-white">{{ item.ownerName }}</span>
+        </template>
+
+        <template #cell-role="{ item }">
+          <span class="role-text text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
+        </template>
+
+        <template #cell-entryTime="{ item }">
+          <div class="flex flex-col">
+            <span class="time-text font-semibold text-slate-900 dark:text-white">{{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+            <span class="date-sub text-[11px] text-slate-400">{{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+          </div>
+        </template>
+
+        <template #cell-mustExitBy="{ item }">
+          <span
+            class="font-semibold text-xs"
+            :class="item.status === 'Overstay' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-700 dark:text-slate-300'"
+          >
+            {{ getMustExitByTime(item) }}
+          </span>
+        </template>
+
+        <template #cell-duration="{ item }">
+          <span class="duration-text font-medium text-slate-700 dark:text-slate-300">{{ getDuration(item) }}</span>
+        </template>
+
+        <template #cell-fee="{ item }">
+          <span class="font-bold text-slate-900 dark:text-white text-xs">
+            {{ getActiveSessionFee(item) }}
+          </span>
+        </template>
+
+        <template #cell-status="{ item }">
+          <UiStatusText :variant="item.status === 'Active' ? 'success' : item.status === 'Overdue' ? 'danger' : 'warning'" size="xs">
+            {{ item.status }}
+          </UiStatusText>
+        </template>
+
+        <template #cell-actions="{ item }">
+          <div class="actions-group flex items-center justify-end gap-1" @click.stop>
+            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="View Details" @click="openDetails(item)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </button>
+            <button
+              class="action-icon-btn action-icon-btn--checkout p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+              title="Manual Checkout"
+              @click="handleManualCheckout(item)"
             >
-              <td>
-                <div class="vehicle-cell">
-                  <div class="vehicle-icon">
-                    <svg v-if="session.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="11" width="18" height="6" rx="2" />
-                      <path d="M5 17h14" />
-                      <circle cx="7" cy="17" r="2" />
-                      <circle cx="17" cy="17" r="2" />
-                      <path d="M6 11l1.5-4.5h9L18 11" />
-                    </svg>
-                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="5" cy="18" r="3" />
-                      <circle cx="19" cy="18" r="3" />
-                      <path d="M12 18V8h4" />
-                      <path d="M5 18h14" opacity="0.3" />
-                    </svg>
-                  </div>
-                  <div class="vehicle-info">
-                    <span class="plate-number">{{ session.vehiclePlate }}</span>
-                    <span class="vehicle-brand">{{ session.brand || 'Unknown' }}</span>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="owner-name">{{ session.ownerName }}</span>
-              </td>
-              <td>
-                <span class="role-text">{{ getRoleLabel(session.role) }}</span>
-              </td>
-              <td>
-                <span class="time-text">{{ new Date(session.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-                <span class="date-sub">{{ new Date(session.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
-              </td>
-              <td>
-                <span class="time-text">{{ session.checkOutTime ? new Date(session.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' }}</span>
-                <span class="date-sub" v-if="session.checkOutTime">{{ new Date(session.checkOutTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
-              </td>
-              <td>
-                <span class="duration-text">{{ session.duration }}</span>
-              </td>
-              <td>
-                <span class="charge-text">{{ session.charge }}</span>
-              </td>
-              <td>
-                <span class="method-text">{{ session.method === 'QrCode' ? 'QR Code' : 'Manual' }}</span>
-              </td>
-              <td>
-                <span class="status-cell-text status-cell-text--exited">
-                  {{ session.status }}
-                </span>
-              </td>
-              <td class="actions-cell" @click.stop>
-                <div class="actions-group">
-                  <button class="action-icon-btn" title="View Details" @click="openDetails(session)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </UiTable>
+
+      <!-- Parking History Table -->
+      <UiTable
+        v-else
+        :columns="historyColumns"
+        :data="paginatedHistorySessions"
+        :is-loading="isLoading"
+        empty-text="No parking history logs found."
+        @row-click="openDetails"
+      >
+        <template #cell-vehicle="{ item }">
+          <div class="vehicle-cell flex items-center gap-3">
+            <div class="vehicle-icon p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <svg v-if="item.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="6" rx="2" />
+                <path d="M5 17h14" />
+                <circle cx="7" cy="17" r="2" />
+                <circle cx="17" cy="17" r="2" />
+                <path d="M6 11l1.5-4.5h9L18 11" />
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="5" cy="18" r="3" />
+                <circle cx="19" cy="18" r="3" />
+                <path d="M12 18V8h4" />
+                <path d="M5 18h14" opacity="0.3" />
+              </svg>
+            </div>
+            <div class="vehicle-info flex flex-col">
+              <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
+              <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand || 'Unknown' }}</span>
+            </div>
+          </div>
+        </template>
+
+        <template #cell-owner="{ item }">
+          <span class="owner-name font-semibold text-slate-900 dark:text-white">{{ item.ownerName }}</span>
+        </template>
+
+        <template #cell-role="{ item }">
+          <span class="role-text text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
+        </template>
+
+        <template #cell-timeSlot="{ item }">
+          <div class="flex flex-col">
+            <span class="time-text font-semibold text-slate-900 dark:text-white text-xs">
+              {{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+              <span class="text-slate-400 dark:text-slate-500 font-normal mx-0.5">→</span>
+              {{ item.checkOutTime ? new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' }}
+            </span>
+            <span class="date-sub text-[11px] text-slate-400">
+              {{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}
+            </span>
+          </div>
+        </template>
+
+        <template #cell-duration="{ item }">
+          <span class="duration-text font-medium text-slate-700 dark:text-slate-300">{{ item.duration }}</span>
+        </template>
+
+        <template #cell-fee="{ item }">
+          <span class="charge-text font-semibold text-slate-900 dark:text-white">{{ item.charge }}</span>
+        </template>
+
+        <template #cell-method="{ item }">
+          <span class="method-text text-xs text-slate-600 dark:text-slate-400">{{ item.method === 'QrCode' ? 'QR Code' : 'Manual' }}</span>
+        </template>
+
+        <template #cell-status="{ item }">
+          <UiStatusText variant="neutral" size="xs">
+            {{ item.status }}
+          </UiStatusText>
+        </template>
+
+        <template #cell-actions="{ item }">
+          <div class="actions-group flex items-center justify-end" @click.stop>
+            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="View Details" @click="openDetails(item)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </UiTable>
 
       <!-- Reusable Table Pagination Footer -->
       <TablePagination

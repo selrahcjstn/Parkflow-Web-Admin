@@ -1,10 +1,21 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
+import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
-import { cachedApprovals } from '@/features/dashboard/dashboardCache'
+
+const regColumns: TableColumn[] = [
+  { key: 'applicant', label: 'Applicant' },
+  { key: 'category', label: 'Category' },
+  { key: 'dateApplied', label: 'Date Applied' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions', align: 'right' }
+]
+import { cachedApprovals } from '@/stores/appCache'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 
 export type ApprovalCategory = 'Registration' | 'Schedule' | 'Vehicle'
 
@@ -22,6 +33,7 @@ export interface ApprovalItem {
   email: string
   role: string
   dateApplied: string
+  academicTerm?: string
   vehiclePlate: string
   vehicleType: string
   brand: string
@@ -47,6 +59,16 @@ const dayNames: Record<number, string> = {
   0: 'Sunday'
 }
 const weeklyDays = [1, 2, 3, 4, 5, 6, 0]
+
+function getScheduleSummary(schedules?: ScheduleItem[]): string {
+  if (!schedules || schedules.length === 0) return 'No schedule set'
+  const dayAbbrs: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' }
+  const activeDays = schedules.map(s => dayAbbrs[s.dayOfWeek] || '').filter(Boolean).join(', ')
+  const firstTime = schedules[0]
+  const formatTime = (t: string) => t ? t.slice(0, 5) : ''
+  const timeStr = firstTime ? `${formatTime(firstTime.startTime)} - ${formatTime(firstTime.endTime)}` : ''
+  return activeDays ? `${activeDays}${timeStr ? ' • ' + timeStr : ''}` : 'No active days'
+}
 
 // Persistent caching & reactive state initialization
 const approvals = ref<ApprovalItem[]>(cachedApprovals.value || [])
@@ -242,6 +264,7 @@ async function fetchApprovals() {
           email: sub.email || `applicant-${i + 1}@parkflow.app`,
           role: sub.userRole || 'Student',
           dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
+          academicTerm: sub.academicTerm || '1st Sem AY 2026-2027',
           vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'ABC 1234',
           vehicleType: sub.vehicleType || 'Motorcycle',
           brand: sub.brand || 'Honda Click 125i',
@@ -370,8 +393,29 @@ async function fetchApprovals() {
   isLoading.value = false
 }
 
+let autoSyncTimer: ReturnType<typeof setInterval> | null = null
+let unsubscribeApprovalUpdates: (() => void) | null = null
+
 onMounted(() => {
+  const notifStore = useAdminNotificationStore()
+  notifStore.initSignalRConnection()
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
+    console.log('[RegistrationsPage] Live approval update received via SignalR -> refreshing...')
+    fetchApprovals()
+  })
+
   fetchApprovals()
+
+  autoSyncTimer = setInterval(() => {
+    if (!notifStore.isSignalRConnected) {
+      fetchApprovals()
+    }
+  }, 120000)
+})
+
+onUnmounted(() => {
+  if (autoSyncTimer) clearInterval(autoSyncTimer)
+  if (unsubscribeApprovalUpdates) unsubscribeApprovalUpdates()
 })
 
 // Inspector Modal Controller
@@ -697,8 +741,8 @@ function openZoomImage(url?: string) {
             </span>
           </div>
 
-          <!-- Vehicle Badge Bar -->
-          <div class="vehicle-bar">
+          <!-- Vehicle Badge Bar (Vehicle category only) -->
+          <div v-if="item.category === 'Vehicle'" class="vehicle-bar">
             <div class="vehicle-tag">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="5" cy="16" r="3" />
@@ -808,72 +852,51 @@ function openZoomImage(url?: string) {
     </div>
 
     <!-- LIST TABLE MODE -->
-    <div v-else class="registrations-card">
-      <div class="registrations-table-wrapper">
-        <table class="registrations-table">
-          <thead>
-            <tr>
-              <th>Applicant</th>
-              <th>Category</th>
-              <th>Date Applied</th>
-              <th>Vehicle Details</th>
-              <th>Status</th>
-              <th class="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(item, index) in paginatedApprovals"
-              :key="item.id"
-              :class="{
-                'row--approved': item.status === 'approved',
-                'row--rejected': item.status === 'rejected',
-              }"
-            >
-              <td>
-                <div class="applicant-cell">
-                  <div class="applicant-avatar" :style="{ background: getGradient(index) }">
-                    {{ getInitials(item.fullName) }}
-                  </div>
-                  <div class="applicant-info">
-                    <span class="applicant-name">{{ item.fullName }}</span>
-                    <span class="applicant-email">{{ item.email }}</span>
-                  </div>
-                </div>
-              </td>
+    <div v-else class="registrations-card p-0 overflow-hidden">
+      <UiTable
+        :columns="regColumns"
+        :data="paginatedApprovals"
+        :is-loading="isLoading"
+        empty-text="No registrations found matching criteria."
+        @row-click="(item) => openInspector(item)"
+      >
+        <template #cell-applicant="{ item, index }">
+          <div class="applicant-cell flex items-center gap-3">
+            <div class="applicant-avatar w-8 h-8 rounded-full text-white font-bold flex items-center justify-center text-xs" :style="{ background: getGradient(index) }">
+              {{ getInitials(item.fullName) }}
+            </div>
+            <div class="applicant-info flex flex-col">
+              <span class="applicant-name font-semibold text-slate-900 dark:text-white text-xs">{{ item.fullName }}</span>
+              <span class="applicant-email text-[11px] text-slate-500 dark:text-slate-400">{{ item.email }}</span>
+            </div>
+          </div>
+        </template>
 
-              <td>
-                <span class="category-badge" :class="`category-badge--${item.category.toLowerCase()}`">
-                  {{ item.category }}
-                </span>
-              </td>
+        <template #cell-category="{ item }">
+          <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">
+            {{ item.category }}
+          </span>
+        </template>
 
-              <td>
-                <span class="cell-date">{{ item.dateApplied }}</span>
-              </td>
+        <template #cell-dateApplied="{ item }">
+          <span class="cell-date text-xs text-slate-500 dark:text-slate-400">{{ item.dateApplied }}</span>
+        </template>
 
-              <td>
-                <div class="vehicle-info">
-                  <span class="vehicle-plate monospace">{{ item.vehiclePlate }}</span>
-                  <span class="vehicle-type">{{ item.brand }} ({{ item.vehicleType }})</span>
-                </div>
-              </td>
+        <template #cell-status="{ item }">
+          <UiStatusText
+            :variant="item.status === 'approved' ? 'success' : item.status === 'rejected' ? 'danger' : 'warning'"
+            size="xs"
+          >
+            {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
+          </UiStatusText>
+        </template>
 
-              <td>
-                <span class="status-badge" :class="`status-badge--${item.status}`">
-                  {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
-                </span>
-              </td>
-
-              <td class="text-right">
-                <button class="btn-inspect" @click="openInspector(item)">
-                  Review
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <template #cell-actions="{ item }">
+          <button class="btn-inspect px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer border-none" @click.stop="openInspector(item)">
+            Review
+          </button>
+        </template>
+      </UiTable>
     </div>
 
     <!-- Table Pagination Footer -->
@@ -1100,7 +1123,7 @@ function openZoomImage(url?: string) {
                   </div>
                 </div>
 
-                <div class="sidebar-section">
+                <div v-if="inspectorItem.category === 'Vehicle'" class="sidebar-section">
                   <h4 class="sidebar-label">Vehicle Clearance</h4>
                   <div class="meta-row">
                     <span class="meta-key">Plate Number</span>
@@ -1113,6 +1136,17 @@ function openZoomImage(url?: string) {
                   <div class="meta-row">
                     <span class="meta-key">Classification</span>
                     <span class="meta-val">{{ inspectorItem.vehicleType }}</span>
+                  </div>
+                </div>
+                <div v-else class="sidebar-section">
+                  <h4 class="sidebar-label">Academic Schedule Clearance</h4>
+                  <div class="meta-row">
+                    <span class="meta-key">Academic Term</span>
+                    <span class="meta-val font-semibold">{{ inspectorItem.academicTerm || '1st Sem AY 2026-2027' }}</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-key">Schedule Summary</span>
+                    <span class="meta-val">{{ getScheduleSummary(inspectorItem.schedules) }}</span>
                   </div>
                 </div>
 
@@ -2408,5 +2442,58 @@ function openZoomImage(url?: string) {
   color: #ffffff;
   font-size: 32px;
   cursor: pointer;
+}
+
+.schedule-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.academic-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.academic-text {
+  background: #e0f2fe;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.schedule-desc {
+  color: #334155;
+  font-weight: 500;
+}
+
+.schedule-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.academic-term-badge {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 12px;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.schedule-summary-text {
+  font-size: 13px;
+  color: #475569;
 }
 </style>

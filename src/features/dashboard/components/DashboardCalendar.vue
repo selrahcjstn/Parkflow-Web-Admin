@@ -3,15 +3,16 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiAvatar from '@/components/ui/UiAvatar.vue'
 
-import { cachedReservations } from '../dashboardCache'
+import { cachedReservations } from '@/stores/appCache'
 
 const router = useRouter()
 
-// Current date state
 const today = new Date()
 const currentYear = ref(today.getFullYear())
-const currentMonth = ref(today.getMonth()) // 0-indexed
+const currentMonth = ref(today.getMonth())
 const selectedDate = ref<string>(formatDateToKey(today))
 
 const isLoading = ref(!cachedReservations.value)
@@ -34,7 +35,6 @@ function formatDateToKey(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-// Navigation between months
 const monthNames = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'
@@ -69,7 +69,6 @@ function goToToday() {
   selectedDate.value = formatDateToKey(now)
 }
 
-// Days calculation for calendar grid
 interface CalendarDay {
   date: Date
   dateKey: string
@@ -87,13 +86,11 @@ const calendarDays = computed<CalendarDay[]>(() => {
   const firstDayOfMonth = new Date(year, month, 1)
   const lastDayOfMonth = new Date(year, month + 1, 0)
 
-  // Sunday = 0
   const startDayOfWeek = firstDayOfMonth.getDay()
   const daysInMonth = lastDayOfMonth.getDate()
 
   const days: CalendarDay[] = []
 
-  // 1. Prev month padding days
   const prevMonthLastDay = new Date(year, month, 0).getDate()
   for (let i = startDayOfWeek - 1; i >= 0; i--) {
     const d = new Date(year, month - 1, prevMonthLastDay - i)
@@ -109,7 +106,6 @@ const calendarDays = computed<CalendarDay[]>(() => {
     })
   }
 
-  // 2. Current month days
   for (let day = 1; day <= daysInMonth; day++) {
     const d = new Date(year, month, day)
     const key = formatDateToKey(d)
@@ -124,7 +120,6 @@ const calendarDays = computed<CalendarDay[]>(() => {
     })
   }
 
-  // 3. Next month padding days to complete grid (multiples of 7)
   const remainingCells = (7 - (days.length % 7)) % 7
   for (let day = 1; day <= remainingCells; day++) {
     const d = new Date(year, month + 1, day)
@@ -155,7 +150,6 @@ function selectDay(day: CalendarDay) {
   }
 }
 
-// Selected date reservations
 const selectedDateReservations = computed(() => {
   return reservations.value.filter(r => r.date === selectedDate.value)
 })
@@ -195,7 +189,6 @@ const reservationSectionTitle = computed(() => {
   }
 })
 
-// Fetch reservations from API with realistic mock fallback
 onMounted(async () => {
   if (!cachedReservations.value || cachedReservations.value.length === 0) {
     isLoading.value = true
@@ -299,15 +292,7 @@ function populateMockReservations() {
   ]
 }
 
-function getInitials(name: string): string {
-  const parts = name.replace(/^(Dr\.|Prof\.|Engr\.)\s+/i, '').split(' ')
-  if (parts.length >= 2) {
-    return `${parts[0]?.charAt(0) || ''}${parts[1]?.charAt(0) || ''}`.toUpperCase()
-  }
-  return (name.slice(0, 2) || 'PF').toUpperCase()
-}
-
-const avatarColors = [
+const avatarGradients = [
   'linear-gradient(135deg, #3b82f6, #1d4ed8)',
   'linear-gradient(135deg, #10b981, #059669)',
   'linear-gradient(135deg, #f59e0b, #d97706)',
@@ -316,7 +301,7 @@ const avatarColors = [
 ]
 
 function getAvatarColor(idx: number): string {
-  return avatarColors[idx % avatarColors.length] || 'linear-gradient(135deg, #D22730, #991b1b)'
+  return avatarGradients[idx % avatarGradients.length] || 'linear-gradient(135deg, #D22730, #991b1b)'
 }
 
 function navigateToReservations() {
@@ -325,34 +310,39 @@ function navigateToReservations() {
 </script>
 
 <template>
-  <div class="calendar-widget">
-    <!-- Calendar Card Header -->
-    <div class="calendar-widget__header">
-      <div class="calendar-widget__title-wrap">
-        <h3 class="calendar-widget__month">{{ currentMonthLabel }}</h3>
+  <UiCard custom-class="flex flex-col">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2.5">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white tracking-tight m-0">
+          {{ currentMonthLabel }}
+        </h3>
         <button
           v-if="selectedDate !== formatDateToKey(today)"
-          class="calendar-widget__today-btn"
+          type="button"
           @click="goToToday"
+          class="text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-md cursor-pointer transition-all"
         >
           Today
         </button>
       </div>
 
-      <div class="calendar-widget__nav-btns">
+      <div class="flex items-center gap-1.5">
         <button
-          class="calendar-widget__arrow-btn"
+          type="button"
           aria-label="Previous month"
           @click="prevMonth"
+          class="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white flex items-center justify-center cursor-pointer transition-all"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
         <button
-          class="calendar-widget__arrow-btn"
+          type="button"
           aria-label="Next month"
           @click="nextMonth"
+          class="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white flex items-center justify-center cursor-pointer transition-all"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6" />
@@ -362,63 +352,66 @@ function navigateToReservations() {
     </div>
 
     <!-- Weekday Header Row -->
-    <div class="calendar-widget__weekdays">
-      <span class="calendar-widget__weekday">S</span>
-      <span class="calendar-widget__weekday">M</span>
-      <span class="calendar-widget__weekday">T</span>
-      <span class="calendar-widget__weekday">W</span>
-      <span class="calendar-widget__weekday">T</span>
-      <span class="calendar-widget__weekday">F</span>
-      <span class="calendar-widget__weekday">S</span>
+    <div class="grid grid-cols-7 gap-1 mb-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-1.5">
+      <span v-for="w in ['S', 'M', 'T', 'W', 'T', 'F', 'S']" :key="w" class="text-center text-[11.5px] font-semibold text-slate-500 dark:text-slate-400 uppercase">
+        {{ w }}
+      </span>
     </div>
 
-    <!-- Day Matrix Grid -->
-    <div v-if="isLoading" class="calendar-widget__grid">
+    <!-- Day Grid -->
+    <div v-if="isLoading" class="grid grid-cols-7 gap-1">
       <SkeletonLoader v-for="i in 35" :key="`skel-grid-${i}`" variant="rect" height="38px" style="border-radius: 10px;" />
     </div>
-    <div v-else class="calendar-widget__grid">
+    <div v-else class="grid grid-cols-7 gap-1">
       <button
         v-for="(day, idx) in calendarDays"
         :key="`day-${idx}-${day.dateKey}`"
-        class="calendar-widget__day-cell"
-        :class="{
-          'calendar-widget__day-cell--outside': !day.isCurrentMonth,
-          'calendar-widget__day-cell--today': day.isToday,
-          'calendar-widget__day-cell--selected': day.isSelected
-        }"
+        type="button"
         @click="selectDay(day)"
+        :class="[
+          'relative flex flex-col items-center justify-center h-9 rounded-xl border-none cursor-pointer text-xs font-medium transition-all p-0.5',
+          !day.isCurrentMonth ? 'text-slate-400 opacity-45 dark:text-slate-500' : 'text-slate-800 dark:text-slate-200',
+          day.isToday && !day.isSelected ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-bold' : '',
+          day.isSelected ? 'bg-rose-600 text-white font-bold shadow-md shadow-rose-600/30 dark:bg-rose-600 dark:text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+        ]"
       >
-        <span class="calendar-widget__day-number">{{ day.dayNumber }}</span>
-
-        <!-- Clean event bar indicator (no dots, no numbers on day cell) -->
-        <span v-if="day.eventsCount > 0" class="calendar-widget__event-bar" />
+        <span class="leading-none">{{ day.dayNumber }}</span>
+        <span v-if="day.eventsCount > 0" :class="['absolute bottom-1 w-3.5 h-[2.5px] rounded-full', day.isSelected ? 'bg-white' : 'bg-rose-600']" />
       </button>
     </div>
 
     <!-- Divider -->
-    <div class="calendar-widget__divider" />
+    <div class="h-px bg-slate-100 dark:bg-slate-800 my-4" />
 
-    <!-- Interactive Reservations Section -->
-    <div class="calendar-widget__upcoming-header">
-      <div class="calendar-widget__upcoming-title-row">
-        <h4 class="calendar-widget__upcoming-title">{{ reservationSectionTitle }}</h4>
-        <span class="calendar-widget__selected-tag">{{ selectedDateLabel }}</span>
+    <!-- Interactive Reservations Header -->
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2 min-w-0">
+        <h4 class="text-sm font-bold text-slate-900 dark:text-white m-0 tracking-tight truncate">
+          {{ reservationSectionTitle }}
+        </h4>
+        <span class="text-[10.5px] font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-400 px-1.5 py-0.5 rounded-md flex-shrink-0">
+          {{ selectedDateLabel }}
+        </span>
       </div>
-      <button class="calendar-widget__see-all" @click="navigateToReservations">
+      <button
+        type="button"
+        @click="navigateToReservations"
+        class="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
+      >
         View all →
       </button>
     </div>
 
     <!-- Upcoming List -->
-    <div class="calendar-widget__upcoming-list">
+    <div class="flex flex-col gap-2">
       <template v-if="isLoading">
         <SkeletonLoader v-for="i in 2" :key="`skel-res-${i}`" variant="rect" height="54px" style="border-radius: 12px;" />
       </template>
       <div
         v-else-if="upcomingReservations.length === 0"
-        class="calendar-widget__empty"
+        class="flex flex-col items-center justify-center gap-1.5 p-6 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl"
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-slate-400">
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
           <line x1="8" y1="2" x2="8" y2="6" />
@@ -431,22 +424,22 @@ function navigateToReservations() {
         v-else
         v-for="(item, i) in upcomingReservations"
         :key="item.id"
-        class="calendar-widget__item"
         @click="navigateToReservations"
+        class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 cursor-pointer hover:bg-indigo-50/40 hover:border-indigo-300 dark:hover:bg-slate-800 transition-all shadow-2xs"
       >
-        <div class="calendar-widget__item-avatar" :style="{ background: getAvatarColor(i) }">
-          {{ getInitials(item.userName) }}
+        <UiAvatar :name="item.userName" :bg-gradient="getAvatarColor(i)" size="sm" />
+
+        <div class="flex flex-col flex-1 min-w-0">
+          <span class="text-xs font-semibold text-slate-900 dark:text-white truncate leading-snug">
+            {{ item.userName }}
+          </span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+            {{ item.userRole }} • {{ item.plateNumber }}
+          </span>
         </div>
 
-        <div class="calendar-widget__item-details">
-          <div class="calendar-widget__item-name-row">
-            <span class="calendar-widget__item-name">{{ item.userName }}</span>
-          </div>
-          <span class="calendar-widget__item-role">{{ item.userRole }} • {{ item.plateNumber }}</span>
-        </div>
-
-        <div class="calendar-widget__item-time-pill">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 rounded-full text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex-shrink-0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
@@ -454,332 +447,5 @@ function navigateToReservations() {
         </div>
       </div>
     </div>
-  </div>
+  </UiCard>
 </template>
-
-<style scoped>
-.calendar-widget {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-}
-
-/* Header */
-.calendar-widget__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-
-.calendar-widget__title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.calendar-widget__month {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-  letter-spacing: -0.2px;
-}
-
-.calendar-widget__today-btn {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-primary);
-  background: var(--color-primary-light);
-  border: 1px solid rgba(210, 39, 48, 0.2);
-  padding: 2px 7px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.calendar-widget__today-btn:hover {
-  background: var(--color-primary);
-  color: #fff;
-}
-
-.calendar-widget__nav-btns {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.calendar-widget__arrow-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: transparent;
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.calendar-widget__arrow-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  border-color: var(--color-subtle);
-}
-
-/* Weekdays */
-.calendar-widget__weekdays {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-  margin-bottom: 8px;
-  background: var(--color-surface-lighter);
-  border-radius: 10px;
-  padding: 6px 2px;
-}
-
-.calendar-widget__weekday {
-  text-align: center;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-}
-
-/* Day grid */
-.calendar-widget__grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
-}
-
-.calendar-widget__day-cell {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 38px;
-  border-radius: 10px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text);
-  transition: all var(--transition-fast);
-  padding: 2px 0;
-}
-
-.calendar-widget__day-cell:hover:not(.calendar-widget__day-cell--selected) {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-}
-
-.calendar-widget__day-cell--outside {
-  color: var(--color-subtle);
-  opacity: 0.45;
-}
-
-.calendar-widget__day-cell--today:not(.calendar-widget__day-cell--selected) {
-  font-weight: 700;
-  color: var(--color-primary);
-  background: var(--color-primary-light);
-}
-
-.calendar-widget__day-cell--selected {
-  background: var(--color-primary) !important;
-  color: #ffffff !important;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.35);
-}
-
-.calendar-widget__day-cell--selected .calendar-widget__event-bar {
-  background: #ffffff !important;
-}
-
-.calendar-widget__day-number {
-  line-height: 1;
-}
-
-/* Event Bar Indicator */
-.calendar-widget__event-bar {
-  position: absolute;
-  bottom: 4px;
-  width: 14px;
-  height: 2.5px;
-  border-radius: 2px;
-  background: var(--color-primary, #D22730);
-}
-
-.calendar-widget__dot {
-  width: 3.5px;
-  height: 3.5px;
-  border-radius: 50%;
-  background: var(--color-primary);
-}
-
-/* Divider */
-.calendar-widget__divider {
-  height: 1px;
-  background: var(--color-border);
-  margin: 18px 0;
-}
-
-/* Upcoming Section */
-.calendar-widget__upcoming-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-
-.calendar-widget__upcoming-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.calendar-widget__upcoming-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-  letter-spacing: -0.2px;
-  white-space: nowrap;
-}
-
-.calendar-widget__selected-tag {
-  font-size: 10.5px;
-  font-weight: 600;
-  color: var(--color-primary);
-  background: var(--color-primary-light);
-  padding: 1.5px 7px;
-  border-radius: 4px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.calendar-widget__see-all {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-primary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: opacity var(--transition-fast);
-}
-
-.calendar-widget__see-all:hover {
-  opacity: 0.8;
-  text-decoration: underline;
-}
-
-/* Upcoming List Items */
-.calendar-widget__upcoming-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.calendar-widget__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 24px 12px;
-  color: var(--color-muted);
-  font-size: 12.5px;
-  text-align: center;
-  background: var(--color-surface-lighter);
-  border-radius: 12px;
-}
-
-.calendar-widget__item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: #ffffff;
-  border: 1px solid var(--color-border, #e2e8f0);
-  cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
-}
-
-.calendar-widget__item:hover {
-  background: #f0f4fe;
-  border-color: #818cf8;
-  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
-}
-
-.calendar-widget__item-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-  letter-spacing: 0.5px;
-}
-
-.calendar-widget__item-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-width: 0;
-}
-
-.calendar-widget__item-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.calendar-widget__item-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.calendar-widget__item-role {
-  font-size: 11px;
-  color: var(--color-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.calendar-widget__item-time-pill {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  flex-shrink: 0;
-}
-</style>

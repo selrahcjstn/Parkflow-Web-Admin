@@ -9,7 +9,7 @@ import RecentFeedbackOverview from '../components/RecentFeedbackOverview.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import api from '@/api/axios'
 
-import { cachedStatsData, cachedActivityData } from '../dashboardCache'
+import { cachedStatsData, cachedActivityData } from '@/stores/appCache'
 
 const isLoading = ref(!cachedStatsData.value)
 
@@ -119,15 +119,19 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="dashboard">
+  <div class="flex flex-col gap-6">
     <!-- Welcome Header -->
-    <div class="dashboard__welcome">
-      <h1 class="dashboard__welcome-title">Welcome back, Admin</h1>
-      <p class="dashboard__welcome-date">{{ formattedDate }}</p>
+    <div class="flex flex-col gap-1">
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
+        Welcome back, Admin
+      </h1>
+      <p class="text-sm font-medium text-slate-500 dark:text-slate-400 m-0">
+        {{ formattedDate }}
+      </p>
     </div>
 
-    <!-- Stats Grid (Full Width Top Baseline) -->
-    <div class="dashboard__stats-grid">
+    <!-- Stats Grid (Full Width Baseline) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       <template v-if="isLoading">
         <SkeletonLoader v-for="i in 4" :key="`skel-stat-${i}`" variant="rect" height="148px" />
       </template>
@@ -152,20 +156,20 @@ onMounted(async () => {
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            <!-- Slot Occupancy Icon (Parking Stall Bay) -->
+            <!-- Slot Occupancy Icon -->
             <svg v-else-if="i === 1" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="4" />
               <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
               <circle cx="16" cy="15" r="1.5" fill="currentColor" />
             </svg>
-            <!-- Daily Revenue Icon (Card & Payment Receipt) -->
+            <!-- Daily Revenue Icon -->
             <svg v-else-if="i === 2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="2" y="4" width="20" height="16" rx="3" />
               <line x1="2" y1="10" x2="22" y2="10" />
               <path d="M6 15h2" />
               <circle cx="16" cy="15" r="1.5" fill="currentColor" />
             </svg>
-            <!-- Pending Citations Icon (Security Shield Alert) -->
+            <!-- Pending Citations Icon -->
             <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <line x1="12" y1="8" x2="12" y2="12" />
@@ -176,12 +180,12 @@ onMounted(async () => {
       </template>
     </div>
 
-    <!-- Main Content Area: Chart & Tables on Left, Calendar on Right -->
-    <div class="dashboard__content-layout">
-      <!-- Left Main Column -->
-      <div class="dashboard__left-col">
+    <!-- Main Content Area: Chart & Tables on Left, Calendar & Feedback on Right -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Left Main Column (2 cols wide on desktop) -->
+      <div class="lg:col-span-2 flex flex-col gap-6 min-w-0">
         <!-- Parking Chart -->
-        <div class="dashboard__chart-wrap">
+        <div class="w-full">
           <template v-if="isLoading">
             <SkeletonLoader variant="rect" height="300px" />
           </template>
@@ -197,119 +201,11 @@ onMounted(async () => {
         <PendingRegistrations />
       </div>
 
-      <!-- Right Column: Grounded Calendar & Feedback Overview -->
-      <div class="dashboard__right-col">
+      <!-- Right Column: Grounded Calendar & Feedback Overview (1 col wide on desktop) -->
+      <div class="flex flex-col gap-6">
         <DashboardCalendar />
         <RecentFeedbackOverview />
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  padding: 0;
-}
-
-/* Welcome Header */
-.dashboard__welcome {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.dashboard__welcome-title {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0;
-  letter-spacing: -0.3px;
-}
-
-.dashboard__welcome-date {
-  font-size: 14px;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-/* Stats Grid - Solid top 4-card row */
-.dashboard__stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-
-.dashboard__stats-grid > *:nth-child(1) { animation: fadeSlideUp 0.4s ease 0.05s both; }
-.dashboard__stats-grid > *:nth-child(2) { animation: fadeSlideUp 0.4s ease 0.1s both; }
-.dashboard__stats-grid > *:nth-child(3) { animation: fadeSlideUp 0.4s ease 0.15s both; }
-.dashboard__stats-grid > *:nth-child(4) { animation: fadeSlideUp 0.4s ease 0.2s both; }
-
-@keyframes fadeSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Main Content Layout - Grounded, no floating/sticky */
-.dashboard__content-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: 24px;
-}
-
-/* Left column containing chart and tables */
-.dashboard__left-col {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-width: 0;
-}
-
-.dashboard__chart-wrap {
-  width: 100%;
-}
-
-/* Right column containing calendar - completely grounded */
-.dashboard__right-col {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 1280px) {
-  .dashboard__content-layout {
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 20px;
-  }
-
-  .dashboard__stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 1024px) {
-  .dashboard__content-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .dashboard__stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboard__stats-grid {
-    grid-template-columns: 1fr;
-  }
-}
-</style>

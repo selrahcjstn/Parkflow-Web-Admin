@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/axios'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
+import { useAdminNotificationStore } from '@/stores/notification.store'
+import { cachedVehicleApprovals } from '@/stores/appCache'
 
 interface VehicleApprovalItem {
   id: string
@@ -61,8 +63,8 @@ const initialMockVehicles: VehicleApprovalItem[] = [
   }
 ]
 
-const vehicles = ref<VehicleApprovalItem[]>(initialMockVehicles)
-const isLoading = ref(true)
+const vehicles = ref<VehicleApprovalItem[]>(cachedVehicleApprovals.value || initialMockVehicles)
+const isLoading = ref(!cachedVehicleApprovals.value)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
 const selectedVehicle = ref<VehicleApprovalItem | null>(null)
@@ -86,7 +88,9 @@ function handleImageError(event: Event, fallback: string) {
 }
 
 async function fetchVehicles() {
-  isLoading.value = true
+  if (!cachedVehicleApprovals.value) {
+    isLoading.value = true
+  }
   apiErrorNotice.value = null
   try {
     const response = await api.get('/vehicles')
@@ -94,13 +98,16 @@ async function fetchVehicles() {
     const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
 
     if (items && items.length > 0) {
-      vehicles.value = items.map((v: any) => ({
+      const mapped = items.map((v: any) => ({
         ...v,
         orcrDocumentUrl: formatDocUrl(v.orcrDocumentUrl, defaultOrcrImage),
         vehiclePictureUrl: formatDocUrl(v.vehiclePictureUrl, defaultMotorImage)
       }))
+      vehicles.value = mapped
+      cachedVehicleApprovals.value = [...mapped]
     } else if (items && items.length === 0) {
       vehicles.value = []
+      cachedVehicleApprovals.value = []
     }
   } catch (err: any) {
     console.warn('Backend API warning, using fallback vehicle records:', err)
@@ -118,8 +125,29 @@ async function fetchVehicles() {
   }
 }
 
+let autoSyncTimer: ReturnType<typeof setInterval> | null = null
+let unsubscribeApprovalUpdates: (() => void) | null = null
+
 onMounted(() => {
+  const notifStore = useAdminNotificationStore()
+  notifStore.initSignalRConnection()
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
+    console.log('[VehicleApprovalPage] Live update received via SignalR -> refreshing...')
+    fetchVehicles()
+  })
+
   fetchVehicles()
+
+  autoSyncTimer = setInterval(() => {
+    if (!notifStore.isSignalRConnected) {
+      fetchVehicles()
+    }
+  }, 120000)
+})
+
+onUnmounted(() => {
+  if (autoSyncTimer) clearInterval(autoSyncTimer)
+  if (unsubscribeApprovalUpdates) unsubscribeApprovalUpdates()
 })
 
 const pendingCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 1 || v.verificationStatus === 0 || v.verificationStatus === undefined || v.verificationStatus === null).length)

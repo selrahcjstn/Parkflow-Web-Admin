@@ -4,7 +4,18 @@ import type { Vehicle } from '../types'
 import VehicleDetailModal from '../components/VehicleDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
+
+const vehicleColumns: TableColumn[] = [
+  { key: 'vehicle', label: 'Vehicle / Brand' },
+  { key: 'owner', label: 'Owner Name' },
+  { key: 'role', label: 'Role' },
+  { key: 'clearance', label: 'Primary Clearance Pass' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions', align: 'right' }
+]
 
 // Toast type
 interface Toast {
@@ -338,129 +349,96 @@ const getRoleLabel = (role: string) => {
     </div>
 
     <!-- Vehicles Table Card -->
-    <div class="table-card">
-      <div class="table-responsive">
-        <table class="vehicles-table">
-          <thead>
-            <tr>
-              <th>Vehicle / Brand</th>
-              <th>Owner Name</th>
-              <th>Role</th>
-              <th>Primary Clearance Pass</th>
-              <th>Status</th>
-              <th class="actions-header">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="isLoading">
-              <td colspan="6">
-                <SkeletonLoader variant="table-row" :columns="6" v-for="i in 5" :key="i" />
-              </td>
-            </tr>
-            <tr v-else-if="filteredVehicles.length === 0">
-              <td colspan="6" class="empty-state">
-                <div class="empty-state-content">
-                  <div class="empty-icon-wrapper">
-                    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/>
-                      <circle cx="7" cy="17" r="2"/>
-                      <path d="M9 17h6"/>
-                      <circle cx="17" cy="17" r="2"/>
-                    </svg>
-                  </div>
-                  <h3>No Registered Vehicles Found</h3>
-                  <p>There are no vehicles matching your search or filter criteria.</p>
-                </div>
-              </td>
-            </tr>
-            <tr
-              v-else
-              v-for="vehicle in filteredVehicles"
-              :key="vehicle.id"
-              class="vehicle-row"
-              @click="openDetails(vehicle)"
+    <div class="table-card p-0 overflow-hidden">
+      <UiTable
+        :columns="vehicleColumns"
+        :data="filteredVehicles"
+        :is-loading="isLoading"
+        empty-text="No Registered Vehicles Found"
+        @row-click="openDetails"
+      >
+        <template #cell-vehicle="{ item }">
+          <div class="vehicle-cell flex items-center gap-3">
+            <div class="vehicle-icon p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+              <svg v-if="item.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="6" rx="2" />
+                <path d="M5 17h14" />
+                <circle cx="7" cy="17" r="2" />
+                <circle cx="17" cy="17" r="2" />
+                <path d="M6 11l1.5-4.5h9L18 11" />
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="5" cy="18" r="3" />
+                <circle cx="19" cy="18" r="3" />
+                <path d="M12 18V8h4" />
+                <path d="M5 18h14" opacity="0.3" />
+              </svg>
+            </div>
+            <div class="vehicle-info flex flex-col">
+              <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber }}</span>
+              <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand }}</span>
+            </div>
+          </div>
+        </template>
+
+        <template #cell-owner="{ item }">
+          <span class="owner-name font-semibold text-slate-900 dark:text-white" :title="item.ownerName">
+            {{ cleanOwnerName(item.ownerName) }}
+          </span>
+        </template>
+
+        <template #cell-role="{ item }">
+          <span class="text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.ownerRole) }}</span>
+        </template>
+
+        <template #cell-clearance="{ item }">
+          <span
+            class="cursor-pointer text-xs font-semibold select-none"
+            :class="item.isPrimary ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'"
+            @click.stop="handleTogglePrimary(item.id)"
+            :title="item.isPrimary ? 'Primary parking RFID pass' : 'Click to set as primary pass'"
+          >
+            {{ item.isPrimary ? 'Primary Pass' : 'Secondary Pass' }}
+          </span>
+        </template>
+
+        <template #cell-status="{ item }">
+          <UiStatusText :variant="item.status === 'Active' ? 'success' : 'danger'" size="xs">
+            {{ item.status }}
+          </UiStatusText>
+        </template>
+
+        <template #cell-actions="{ item }">
+          <div class="actions-group flex items-center justify-end gap-1" @click.stop>
+            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="Inspect Vehicle Details" @click="openDetails(item)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+            <button
+              class="action-icon-btn p-1.5 rounded-lg text-slate-400 transition-colors"
+              :class="item.status === 'Active' ? 'hover:text-rose-600 hover:bg-rose-50' : 'hover:text-emerald-600 hover:bg-emerald-50'"
+              :title="item.status === 'Active' ? 'Suspend Vehicle' : 'Activate Vehicle'"
+              @click="openVehicleStatusConfirm(item, item.status === 'Active' ? 'Suspended' : 'Active')"
             >
-              <td>
-                <div class="vehicle-cell">
-                  <div class="vehicle-icon">
-                    <svg v-if="vehicle.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="3" y="11" width="18" height="6" rx="2" />
-                      <path d="M5 17h14" />
-                      <circle cx="7" cy="17" r="2" />
-                      <circle cx="17" cy="17" r="2" />
-                      <path d="M6 11l1.5-4.5h9L18 11" />
-                    </svg>
-                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="5" cy="18" r="3" />
-                      <circle cx="19" cy="18" r="3" />
-                      <path d="M12 18V8h4" />
-                      <path d="M5 18h14" opacity="0.3" />
-                    </svg>
-                  </div>
-                  <div class="vehicle-info">
-                    <span class="plate-number monospace">{{ vehicle.plateNumber }}</span>
-                    <span class="vehicle-brand">{{ vehicle.brand }}</span>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <span class="owner-name" :title="vehicle.ownerName">{{ cleanOwnerName(vehicle.ownerName) }}</span>
-              </td>
-              <td>
-                <span class="role-text">{{ getRoleLabel(vehicle.ownerRole) }}</span>
-              </td>
-              <td>
-                <span
-                  class="pass-text"
-                  :class="{ 'pass-text--primary': vehicle.isPrimary }"
-                  @click.stop="handleTogglePrimary(vehicle.id)"
-                  :title="vehicle.isPrimary ? 'Primary parking RFID pass' : 'Click to set as primary pass'"
-                >
-                  {{ vehicle.isPrimary ? 'Primary' : 'Secondary' }}
-                </span>
-              </td>
-              <td>
-                <span
-                  class="status-cell-text"
-                  :class="vehicle.status === 'Active' ? 'status-cell-text--active' : 'status-cell-text--suspended'"
-                >
-                  {{ vehicle.status }}
-                </span>
-              </td>
-              <td class="actions-cell" @click.stop>
-                <div class="actions-group">
-                  <button class="action-icon-btn" title="Inspect Vehicle Details" @click="openDetails(vehicle)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  </button>
-                  <button
-                    class="action-icon-btn"
-                    :class="vehicle.status === 'Active' ? 'action-icon-btn--suspend' : 'action-icon-btn--verify'"
-                    :title="vehicle.status === 'Active' ? 'Suspend Vehicle' : 'Activate Vehicle'"
-                    @click="openVehicleStatusConfirm(vehicle, vehicle.status === 'Active' ? 'Suspended' : 'Active')"
-                  >
-                    <svg v-if="vehicle.status === 'Active'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
-                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                    <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                  <button class="action-icon-btn action-icon-btn--delete" title="Delete Vehicle" @click="openDeleteConfirm(vehicle)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              <svg v-if="item.status === 'Active'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete Vehicle" @click="openDeleteConfirm(item)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </UiTable>
     </div>
 
     <!-- Modals -->

@@ -3,7 +3,21 @@ import { ref, computed, onMounted } from 'vue'
 import type { Violation } from '../types'
 import ViolationDetailModal from '../components/ViolationDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
+
+const violColumns: TableColumn[] = [
+  { key: 'reference', label: 'Reference Code' },
+  { key: 'vehicle', label: 'Vehicle' },
+  { key: 'owner', label: 'Owner' },
+  { key: 'role', label: 'Role' },
+  { key: 'type', label: 'Violation Type' },
+  { key: 'fine', label: 'Penalty Fine' },
+  { key: 'issuedAt', label: 'Issued At' },
+  { key: 'status', label: 'Status' },
+  { key: 'actions', label: 'Actions', align: 'right' }
+]
 
 // Toast type
 interface Toast {
@@ -329,102 +343,81 @@ const getRoleLabel = (role: string) => {
     </div>
 
     <!-- Violations Table -->
-    <div class="table-card">
-      <div class="table-responsive">
-        <table class="violations-table">
-          <thead>
-            <tr>
-              <th>Reference Code</th>
-              <th>Vehicle</th>
-              <th>Owner</th>
-              <th>Role</th>
-              <th>Violation Type</th>
-              <th>Penalty Fine</th>
-              <th>Issued At</th>
-              <th>Status</th>
-              <th class="actions-header">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="isLoading">
-              <td colspan="9">
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
-                <SkeletonLoader variant="table-row" :columns="9" />
-              </td>
-            </tr>
-            <tr v-else-if="filteredViolations.length === 0">
-              <td colspan="9" class="empty-state">No violation tickets found.</td>
-            </tr>
-            <tr
-              v-else
-              v-for="violation in filteredViolations"
-              :key="violation.violationId"
-              class="violation-row"
-              @click="openDetails(violation)"
+    <div class="table-card p-0 overflow-hidden">
+      <UiTable
+        :columns="violColumns"
+        :data="filteredViolations"
+        :is-loading="isLoading"
+        empty-text="No violation tickets found."
+        @row-click="openDetails"
+      >
+        <template #cell-reference="{ item }">
+          <span class="ref-code font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.referenceNumber }}</span>
+        </template>
+
+        <template #cell-vehicle="{ item }">
+          <div class="vehicle-cell flex flex-col">
+            <span class="plate-number font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.plateNumber }}</span>
+            <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand }}</span>
+          </div>
+        </template>
+
+        <template #cell-owner="{ item }">
+          <span class="owner-name font-semibold text-slate-900 dark:text-white text-xs">{{ item.firstName }} {{ item.lastName }}</span>
+        </template>
+
+        <template #cell-role="{ item }">
+          <span class="role-badge text-xs text-slate-600 dark:text-slate-400">
+            {{ getRoleLabel(item.roleName) }}
+          </span>
+        </template>
+
+        <template #cell-type="{ item }">
+          <span class="violation-type-text text-xs text-slate-700 dark:text-slate-300">{{ item.violationType }}</span>
+        </template>
+
+        <template #cell-fine="{ item }">
+          <span class="fine-price font-semibold text-slate-900 dark:text-white text-xs">₱{{ item.penaltyFee.toFixed(2) }}</span>
+        </template>
+
+        <template #cell-issuedAt="{ item }">
+          <div class="flex flex-col">
+            <span class="time-text font-semibold text-slate-900 dark:text-white text-xs">{{ new Date(item.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+            <span class="date-sub text-[11px] text-slate-400">{{ new Date(item.issuedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+          </div>
+        </template>
+
+        <template #cell-status="{ item }">
+          <UiStatusText
+            :variant="item.settlementStatus === 'Paid' ? 'success' : 'danger'"
+            size="xs"
+          >
+            {{ item.settlementStatus }}
+          </UiStatusText>
+        </template>
+
+        <template #cell-actions="{ item }">
+          <div class="actions-group flex items-center justify-end gap-1" @click.stop>
+            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="View Details" @click="openDetails(item)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="16" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </button>
+            <button
+              v-if="item.settlementStatus === 'Unpaid'"
+              class="action-icon-btn action-icon-btn--settle p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50"
+              title="Process Settlement"
+              @click="openPaymentModal(item)"
             >
-              <td>
-                <span class="ref-code monospace">{{ violation.referenceNumber }}</span>
-              </td>
-              <td>
-                <div class="vehicle-cell">
-                  <span class="plate-number">{{ violation.plateNumber }}</span>
-                  <span class="vehicle-brand">{{ violation.brand }}</span>
-                </div>
-              </td>
-              <td>
-                <span class="owner-name">{{ violation.firstName }} {{ violation.lastName }}</span>
-              </td>
-              <td>
-                <span class="role-badge" :class="'role-badge--' + violation.roleName.toLowerCase()">
-                  {{ getRoleLabel(violation.roleName) }}
-                </span>
-              </td>
-              <td>
-                <span class="violation-type-text">{{ violation.violationType }}</span>
-              </td>
-              <td>
-                <span class="fine-price">₱{{ violation.penaltyFee.toFixed(2) }}</span>
-              </td>
-              <td>
-                <span class="time-text">{{ new Date(violation.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-                <span class="date-sub">{{ new Date(violation.issuedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
-              </td>
-              <td>
-                <span
-                  class="status-pill"
-                  :class="violation.settlementStatus === 'Paid' ? 'status-pill--paid' : 'status-pill--unpaid'"
-                >
-                  {{ violation.settlementStatus }}
-                </span>
-              </td>
-              <td class="actions-cell" @click.stop>
-                <div class="actions-group">
-                  <button class="action-icon-btn" title="View Details" @click="openDetails(violation)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="16" x2="12" y2="12" />
-                      <line x1="12" y1="8" x2="12.01" y2="8" />
-                    </svg>
-                  </button>
-                  <button
-                    v-if="violation.settlementStatus === 'Unpaid'"
-                    class="action-icon-btn action-icon-btn--settle"
-                    title="Process Settlement"
-                    @click="openPaymentModal(violation)"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </button>
+          </div>
+        </template>
+      </UiTable>
     </div>
 
     <!-- Modals -->

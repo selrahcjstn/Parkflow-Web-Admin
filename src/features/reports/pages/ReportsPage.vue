@@ -79,8 +79,10 @@ const fetchReportsData = async () => {
 onMounted(() => {
   fetchReportsData()
   autoRefreshTimer.value = setInterval(() => {
-    fetchReportsData()
-  }, 10000)
+    if (document.visibilityState === 'visible') {
+      fetchReportsData()
+    }
+  }, 180000)
 })
 
 onUnmounted(() => {
