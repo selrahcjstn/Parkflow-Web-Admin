@@ -107,16 +107,20 @@ let durationInterval: any = null
 const notifiedOverstayPlates = new Set<string>()
 
 const checkSessionOverstay = (item: any): boolean => {
-  const checkIn = new Date(item.entryTime || item.checkInTime).getTime()
-  if (isNaN(checkIn)) return false
-  const elapsedHours = (now.value.getTime() - checkIn) / (3600 * 1000)
-
   // Explicit overstay flag from backend or overstay hours
   if (item.status === 'Overstay' || (item.overstayHours && item.overstayHours > 0)) {
     return true
   }
 
-  // Schedule time boundary check:
+  // Backend maximumExitTime check
+  if (item.maximumExitTime && !item.maximumExitTime.startsWith('0001')) {
+    const maxExit = new Date(item.maximumExitTime).getTime()
+    if (!isNaN(maxExit) && now.value.getTime() > maxExit) {
+      return true
+    }
+  }
+
+  // Schedule time boundary check
   if (item.scheduledEndTime) {
     const [schedH, schedM] = item.scheduledEndTime.split(':').map(Number)
     if (!isNaN(schedH)) {
@@ -125,6 +129,10 @@ const checkSessionOverstay = (item: any): boolean => {
       if (now.value > scheduledDate) return true
     }
   }
+
+  const checkIn = new Date(item.entryTime || item.checkInTime).getTime()
+  if (isNaN(checkIn)) return false
+  const elapsedHours = (now.value.getTime() - checkIn) / (3600 * 1000)
 
   // Allowed class/shift schedule limit (Students 4h slot, Staff 8h)
   const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' ? 8 : 4)
@@ -156,7 +164,11 @@ const fetchParkingData = async () => {
           gate: item.gate || 1,
           status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked'),
           scheduledEndTime: item.scheduledEndTime,
-          maxAllowedHours: item.maxAllowedHours
+          maximumExitTime: item.maximumExitTime,
+          maxAllowedHours: item.maxAllowedHours,
+          overstayHours: item.overstayHours,
+          amount: item.amount,
+          fee: item.amount != null ? (item.amount > 0 ? `₱${Number(item.amount).toFixed(2)}` : '₱0.00') : undefined
         }
       })
       activeSessions.value = mappedActive
@@ -174,8 +186,8 @@ const fetchParkingData = async () => {
           durationStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
         }
 
-        const chargeStr = item.parkingDuration != null 
-          ? calculateCharge(item.type, item.entryTime, item.exitTime)
+        const chargeStr = item.hasViolation && item.violationFee > 0
+          ? `₱${Number(item.violationFee).toFixed(2)}`
           : 'Free'
 
         // Determine Entry Method dynamically (QR Code vs Manual)
@@ -255,30 +267,42 @@ const getDuration = (session: ActiveSession | ParkingHistoryItem) => {
   return `${mins}m`
 }
 
-// Calculate fee on exit
-const calculateCharge = (vehicleType: VehicleType, checkInTime: string, checkOutTime: string) => {
-  const start = new Date(checkInTime).getTime()
-  const end = new Date(checkOutTime).getTime()
-  const diffMs = end - start
-  const diffHours = Math.ceil(diffMs / (3600 * 1000))
-  if (diffHours <= 0) return 'Free'
-
-  if (vehicleType === 'ElectricBike') return '₱10.00'
-  if (vehicleType === 'Motorcycle') return '₱20.00'
-  
-  // Car: ₱30 for 3 hours, then ₱10/hr after
-  if (diffHours <= 3) return '₱30.00'
-  return `₱${30 + (diffHours - 3) * 10}.00`
-}
-
 const getActiveSessionFee = (session: ActiveSession) => {
-  if ((session as any).fee) return (session as any).fee
-  if ((session as any).penaltyFee != null) return `₱${(session as any).penaltyFee.toFixed(2)}`
-  const checkOutStr = now.value.toISOString()
-  return calculateCharge(session.vehicleType, session.checkInTime, checkOutStr)
+  if (session.amount !== undefined && session.amount !== null && Number(session.amount) > 0) {
+    return `₱${Number(session.amount).toFixed(2)}`
+  }
+  if ((session as any).penaltyFee != null && Number((session as any).penaltyFee) > 0) {
+    return `₱${Number((session as any).penaltyFee).toFixed(2)}`
+  }
+  if (session.fee) return session.fee
+
+  // If overstayed in client timer before next polling cycle
+  if (session.status === 'Overstay') {
+    let overstayHours = session.overstayHours || 0
+    if (session.maximumExitTime && !session.maximumExitTime.startsWith('0001')) {
+      const maxExitMs = new Date(session.maximumExitTime).getTime()
+      if (!isNaN(maxExitMs) && now.value.getTime() > maxExitMs) {
+        overstayHours = Math.max(overstayHours, (now.value.getTime() - maxExitMs) / (3600 * 1000))
+      }
+    }
+    if (overstayHours > 0) {
+      const hourlyRate = 100
+      const calculated = Math.ceil(overstayHours) * hourlyRate
+      return `₱${calculated.toFixed(2)}`
+    }
+  }
+
+  // Parking is schedule-based and completely free within authorized schedule & grace period!
+  return '₱0.00'
 }
 
 const getMustExitByTime = (item: ActiveSession): string => {
+  if (item.maximumExitTime && !item.maximumExitTime.startsWith('0001')) {
+    const d = new Date(item.maximumExitTime)
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  }
   if (item.scheduledEndTime) {
     return item.scheduledEndTime
   }

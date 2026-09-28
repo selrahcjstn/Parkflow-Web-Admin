@@ -112,6 +112,16 @@ const getEntryMethod = computed(() => {
                   <span class="detail-label">Duration</span>
                   <span class="detail-value">{{ session.duration }}</span>
                 </div>
+                <div class="detail-item" v-if="isActive && (session as ActiveSession).maximumExitTime && !(session as ActiveSession).maximumExitTime?.startsWith('0001')">
+                  <span class="detail-label">Must Exit By</span>
+                  <span class="detail-value font-semibold">{{ new Date((session as ActiveSession).maximumExitTime!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+                </div>
+                <div class="detail-item" v-if="isActive">
+                  <span class="detail-label">Estimated Fee</span>
+                  <span class="detail-value cost-value" :class="{ 'cost-danger': Number((session as ActiveSession).amount ?? 0) > 0 }">
+                    {{ Number((session as ActiveSession).amount ?? 0) > 0 ? `₱${Number((session as ActiveSession).amount).toFixed(2)}` : '₱0.00' }}
+                  </span>
+                </div>
                 <div class="detail-item" v-if="!isActive">
                   <span class="detail-label">Parking Fee</span>
                   <span class="detail-value cost-value">{{ (session as ParkingHistoryItem).charge }}</span>
@@ -295,6 +305,11 @@ const getEntryMethod = computed(() => {
 
 .cost-value {
   color: var(--color-success);
+}
+
+.cost-danger {
+  color: var(--color-danger);
+  font-weight: 700;
 }
 
 .modal-footer {

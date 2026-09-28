@@ -14,7 +14,11 @@ export interface ActiveSession {
   gate: number
   status: ParkingStatus
   scheduledEndTime?: string
+  maximumExitTime?: string
   maxAllowedHours?: number
+  overstayHours?: number
+  amount?: number
+  fee?: string
 }
 
 export interface ParkingHistoryItem {
