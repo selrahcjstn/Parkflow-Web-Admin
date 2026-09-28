@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
@@ -24,15 +25,12 @@ const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'done' | 'rejecte
 const selectedDateFilter = ref<string>('')
 const notificationToast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
 let pollTimer: number | null = null
+const router = useRouter()
 
 // Modal states
 const reviewModalItem = ref<ParkingReservationItem | null>(null)
 const reviewNotes = ref('')
 const isSubmittingReview = ref(false)
-
-// QR Pass modal state
-const qrPassModalItem = ref<ParkingReservationItem | null>(null)
-const isQrZoomed = ref(false)
 const isCopied = ref(false)
 
 function copyRef(refNum: string) {
@@ -132,26 +130,17 @@ function getStatusKey(target: ReservationStatusType | ParkingReservationItem): s
   return formatStatus(target as ReservationStatusType).toLowerCase()
 }
 
-function openQrPassModal(item: ParkingReservationItem) {
+function navigateToPass(item: ParkingReservationItem | null) {
+  if (!item) return
   if (getStatusKey(item) === 'done' || isReservationDone(item)) {
     showToast('Cannot open pass: this reservation schedule is already completed.', 'error')
     return
   }
-  qrPassModalItem.value = item
+  router.push(`/reservations/${item.id}/pass`)
 }
 
-function closeQrPassModal() {
-  qrPassModalItem.value = null
-  isQrZoomed.value = false
-}
-
-function printPass() {
-  window.print()
-}
-
-function downloadQrCode(item: ParkingReservationItem) {
-  const url = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(item.referenceNumber)}`
-  window.open(url, '_blank')
+function openQrPassModal(item: ParkingReservationItem) {
+  navigateToPass(item)
 }
 
 // Create modal state
@@ -717,7 +706,7 @@ async function handleCreateReservation() {
             <button
               v-if="getStatusKey(item) === 'approved'"
               class="btn-action btn-qr-pass px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold text-xs hover:bg-indigo-100 transition-colors cursor-pointer border border-indigo-200/80"
-              @click="openQrPassModal(item)"
+              @click="navigateToPass(item)"
               title="View Official QR Pass"
             >
               QR Pass
@@ -998,7 +987,7 @@ async function handleCreateReservation() {
                 <button
                   v-else-if="getStatusKey(reviewModalItem) === 'approved'"
                   class="btn-inspect-qr"
-                  @click="openQrPassModal(reviewModalItem); closeReviewModal();"
+                  @click="navigateToPass(reviewModalItem); closeReviewModal();"
                 >
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -1031,181 +1020,6 @@ async function handleCreateReservation() {
                   </button>
                 </template>
               </div>
-            </div>
-
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- DIGITAL QR PARKING PASS TICKET MODAL -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="qrPassModalItem" class="modal-backdrop" @click="closeQrPassModal">
-          <div class="qr-ticket-container" @click.stop>
-            
-            <!-- Pass Ticket Card -->
-            <div class="qr-ticket-card">
-              
-              <!-- Ticket Header (BulSU Crimson Gradient) -->
-              <div class="qr-ticket-header">
-                <div class="qr-ticket-header-top">
-                  <div class="qr-brand-badge">
-                    <div class="qr-brand-icon">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-                      </svg>
-                    </div>
-                    <div class="qr-brand-text">
-                      <span class="qr-brand-org">BULACAN STATE UNIVERSITY</span>
-                      <span class="qr-brand-sub">ParkFlow Security & Parking System</span>
-                    </div>
-                  </div>
-                  <button class="qr-ticket-close-btn" @click="closeQrPassModal" title="Close Pass">&times;</button>
-                </div>
-
-                <div class="qr-ticket-header-mid">
-                  <div class="qr-pass-title-row">
-                    <h2 class="qr-ticket-pass-name">
-                      {{ (qrPassModalItem.type === 1 || qrPassModalItem.type === 'Special') ? 'Special Campus Parking Pass' : 'Campus Visitor Permit' }}
-                    </h2>
-                    <span class="qr-ticket-status-pill" :class="`qr-ticket-status-pill--${getStatusKey(qrPassModalItem.status)}`">
-                      <span class="status-pulse-dot"></span>
-                      {{ formatStatus(qrPassModalItem.status) }}
-                    </span>
-                  </div>
-
-                  <div class="qr-ticket-ref-bar">
-                    <span class="qr-ticket-ref-label">PASS PERMIT NO.</span>
-                    <div class="qr-ticket-ref-code">
-                      <span class="monospace">{{ qrPassModalItem.referenceNumber }}</span>
-                      <button class="qr-ticket-copy-btn" @click="copyRef(qrPassModalItem.referenceNumber)" title="Copy permit number">
-                        <svg v-if="!isCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                        </svg>
-                        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
-                          <polyline points="20 6 9 17 4 12"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Ticket Notch Divider (Boarding Pass Punchout Effect) -->
-              <div class="ticket-notch-divider">
-                <div class="ticket-notch ticket-notch--left"></div>
-                <div class="ticket-dashed-line"></div>
-                <div class="ticket-notch ticket-notch--right"></div>
-              </div>
-
-              <!-- Ticket Body -->
-              <div class="qr-ticket-body">
-                
-                <!-- QR Hero Section with Alignment Corners -->
-                <div class="qr-code-showcase">
-                  <div class="qr-box-wrapper" @click="isQrZoomed = true" title="Click to view full-resolution QR code">
-                    <div class="qr-corner qr-corner--tl"></div>
-                    <div class="qr-corner qr-corner--tr"></div>
-                    <div class="qr-corner qr-corner--bl"></div>
-                    <div class="qr-corner qr-corner--br"></div>
-                    
-                    <img
-                      :src="`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(qrPassModalItem.referenceNumber)}`"
-                      alt="Digital Pass QR Code"
-                      class="qr-code-matrix"
-                    />
-
-                    <div class="qr-zoom-badge">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                        <line x1="11" y1="8" x2="11" y2="14"/>
-                        <line x1="8" y1="11" x2="14" y2="11"/>
-                      </svg>
-                      <span>Enlarge QR</span>
-                    </div>
-                  </div>
-                  
-                  <div class="qr-instructions">
-                    <div class="qr-gate-badge">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-                        <polyline points="2 17 12 22 22 17"/>
-                        <polyline points="2 12 12 17 22 12"/>
-                      </svg>
-                      <span>Valid at Campus Gate Readers</span>
-                    </div>
-                    <p class="qr-subtext">Scan at terminal or show to security guard on duty</p>
-                  </div>
-                </div>
-
-                <!-- Pass Holder & Verification Details 2x2 Grid -->
-                <div class="qr-specs-grid">
-                  <div class="qr-spec-card">
-                    <span class="qr-spec-label">PASS HOLDER</span>
-                    <span class="qr-spec-val font-600">{{ qrPassModalItem.userFullName || 'Campus Visitor / Staff' }}</span>
-                    <span class="qr-spec-sub">{{ getDisplayEmail(qrPassModalItem) }}</span>
-                  </div>
-
-                  <div class="qr-spec-card">
-                    <span class="qr-spec-label">VALID DATE</span>
-                    <span class="qr-spec-val text-amber font-600">
-                      {{ formatReservationDate(qrPassModalItem.reservationDate) }}
-                    </span>
-                    <span class="qr-spec-sub">Single-Day Pass</span>
-                  </div>
-
-                  <div class="qr-spec-card">
-                    <span class="qr-spec-label">ACCESS TIME WINDOW</span>
-                    <span class="qr-spec-val text-primary font-600">
-                      {{ formatTimeSlot(qrPassModalItem.startTime, qrPassModalItem.endTime) }}
-                    </span>
-                    <span class="qr-spec-sub">Gate Security Window</span>
-                  </div>
-
-                  <div class="qr-spec-card">
-                    <span class="qr-spec-label">EVENT / PURPOSE</span>
-                    <span class="qr-spec-val font-500 ellipsis" :title="qrPassModalItem.reason">
-                      {{ qrPassModalItem.reason }}
-                    </span>
-                    <span class="qr-spec-sub" v-if="qrPassModalItem.plateNumber">Plate: {{ qrPassModalItem.plateNumber }}</span>
-                    <span class="qr-spec-sub" v-else>Campus Event Priority</span>
-                  </div>
-                </div>
-
-                <!-- Barcode Simulation for Authentic Paper/Digital Pass Look -->
-                <div class="qr-barcode-strip">
-                  <div class="barcode-lines"></div>
-                  <span class="barcode-digits monospace">{{ qrPassModalItem.referenceNumber }}</span>
-                </div>
-
-              </div>
-
-              <!-- Ticket Action Footer -->
-              <div class="qr-ticket-footer">
-                <button class="btn-ticket-close" @click="closeQrPassModal">Close</button>
-                <div class="ticket-action-group">
-                  <button class="btn-ticket-download" @click="downloadQrCode(qrPassModalItem)" title="Download High-Res QR">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="7 10 12 15 17 10"/>
-                      <line x1="12" y1="15" x2="12" y2="3"/>
-                    </svg>
-                    Download QR
-                  </button>
-                  <button class="btn-ticket-print" @click="printPass" title="Print Digital Permit">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="6 9 6 2 18 2 18 9"/>
-                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                      <rect x="6" y="14" width="12" height="8"/>
-                    </svg>
-                    Print Official Pass
-                  </button>
-                </div>
-              </div>
-
             </div>
 
           </div>
