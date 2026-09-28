@@ -1,4 +1,4 @@
-export type ReservationStatusType = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled' | 0 | 1 | 2 | 3
+export type ReservationStatusType = 'Pending' | 'Approved' | 'Rejected' | 'Cancelled' | 'Done' | 'Expired' | 0 | 1 | 2 | 3 | 4
 
 export interface ParkingReservationItem {
   id: string

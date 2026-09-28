@@ -19,7 +19,7 @@ const reservations = ref<ParkingReservationItem[]>([])
 const isLoading = ref(true)
 const fetchError = ref<string | null>(null)
 const searchQuery = ref('')
-const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
+const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'done' | 'rejected'>('all')
 const selectedDateFilter = ref<string>('')
 const notificationToast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
 let pollTimer: number | null = null
@@ -43,7 +43,99 @@ function copyRef(refNum: string) {
   }, 2000)
 }
 
+function parseReservationEndDateTime(dateStr?: string, endTimeStr?: string): Date | null {
+  if (!dateStr) return null
+  const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  let year: number, month: number, day: number
+  if (dateMatch) {
+    year = parseInt(dateMatch[1]!, 10)
+    month = parseInt(dateMatch[2]!, 10) - 1
+    day = parseInt(dateMatch[3]!, 10)
+  } else {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return null
+    year = d.getFullYear()
+    month = d.getMonth()
+    day = d.getDate()
+  }
+
+  let hours = 23
+  let minutes = 59
+  let seconds = 59
+
+  if (endTimeStr) {
+    const trimmed = endTimeStr.trim()
+    const ampmMatch = trimmed.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i)
+    if (ampmMatch) {
+      let h = parseInt(ampmMatch[1]!, 10)
+      const m = parseInt(ampmMatch[2]!, 10)
+      const s = ampmMatch[3] ? parseInt(ampmMatch[3]!, 10) : 0
+      const isPm = ampmMatch[4]!.toUpperCase() === 'PM'
+      if (isPm && h < 12) h += 12
+      if (!isPm && h === 12) h = 0
+      hours = h
+      minutes = m
+      seconds = s
+    } else {
+      const parts = trimmed.split(':')
+      if (parts.length >= 2) {
+        hours = parseInt(parts[0]!, 10) || 0
+        minutes = parseInt(parts[1]!, 10) || 0
+        seconds = parts[2] ? parseInt(parts[2]!, 10) || 0 : 0
+      }
+    }
+  }
+
+  return new Date(year, month, day, hours, minutes, seconds)
+}
+
+function isReservationDone(item: ParkingReservationItem): boolean {
+  if (!item) return false
+  const rawStatus = String(item.status ?? '').toLowerCase()
+  if (rawStatus === 'done' || rawStatus === 'completed' || item.status === 4) return true
+  // Rejected and Cancelled are explicit termination states, not concluded/done
+  if (rawStatus === 'rejected' || rawStatus === 'cancelled' || item.status === 2 || item.status === 3) return false
+
+  const endDateTime = parseReservationEndDateTime(item.reservationDate, item.endTime)
+  if (!endDateTime) return false
+  return new Date() > endDateTime
+}
+
+function getItemEffectiveStatus(item: ParkingReservationItem): 'Done' | 'Approved' | 'Pending' | 'Rejected' | 'Cancelled' | 'Expired' {
+  const raw = formatStatus(item.status)
+  if (raw === 'Rejected' || raw === 'Cancelled') return raw as any
+  if (isReservationDone(item)) {
+    return raw === 'Pending' ? 'Expired' : 'Done'
+  }
+  return raw as any
+}
+
+function formatStatus(status: ReservationStatusType): string {
+  if (status === 0 || String(status).toLowerCase() === 'pending') return 'Pending'
+  if (status === 1 || String(status).toLowerCase() === 'approved') return 'Approved'
+  if (status === 2 || String(status).toLowerCase() === 'rejected') return 'Rejected'
+  if (status === 3 || String(status).toLowerCase() === 'cancelled') return 'Cancelled'
+  if (status === 4 || String(status).toLowerCase() === 'done' || String(status).toLowerCase() === 'completed') return 'Done'
+  if (String(status).toLowerCase() === 'expired') return 'Expired'
+  return String(status || 'Pending')
+}
+
+function formatItemStatus(item: ParkingReservationItem): string {
+  return getItemEffectiveStatus(item)
+}
+
+function getStatusKey(target: ReservationStatusType | ParkingReservationItem): string {
+  if (target && typeof target === 'object' && 'reservationDate' in target) {
+    return getItemEffectiveStatus(target as ParkingReservationItem).toLowerCase()
+  }
+  return formatStatus(target as ReservationStatusType).toLowerCase()
+}
+
 function openQrPassModal(item: ParkingReservationItem) {
+  if (getStatusKey(item) === 'done' || isReservationDone(item)) {
+    showToast('Cannot open pass: this reservation schedule is already completed.', 'error')
+    return
+  }
   qrPassModalItem.value = item
 }
 
@@ -73,18 +165,6 @@ const createForm = ref({
   sendEmail: false,
   notifyEmail: ''
 })
-
-function formatStatus(status: ReservationStatusType): string {
-  if (status === 0 || String(status).toLowerCase() === 'pending') return 'Pending'
-  if (status === 1 || String(status).toLowerCase() === 'approved') return 'Approved'
-  if (status === 2 || String(status).toLowerCase() === 'rejected') return 'Rejected'
-  if (status === 3 || String(status).toLowerCase() === 'cancelled') return 'Cancelled'
-  return String(status || 'Pending')
-}
-
-function getStatusKey(status: ReservationStatusType): string {
-  return formatStatus(status).toLowerCase()
-}
 
 async function fetchReservations(silent = false) {
   if (!silent) {
@@ -143,18 +223,20 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
 
 // Stats computations
 const totalCount = computed(() => reservations.value.length)
-const pendingCount = computed(() => reservations.value.filter(r => getStatusKey(r.status) === 'pending').length)
-const approvedCount = computed(() => reservations.value.filter(r => getStatusKey(r.status) === 'approved').length)
-const rejectedCount = computed(() => reservations.value.filter(r => getStatusKey(r.status) === 'rejected' || getStatusKey(r.status) === 'cancelled').length)
+const pendingCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'pending').length)
+const approvedCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'approved').length)
+const doneCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'done' || getStatusKey(r) === 'expired').length)
+const rejectedCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'rejected' || getStatusKey(r) === 'cancelled').length)
 
 // Filtered list
 const filteredReservations = computed(() => {
   return reservations.value.filter(item => {
-    const statusKey = getStatusKey(item.status)
+    const statusKey = getStatusKey(item)
     
     // Tab filter
     if (selectedStatusTab.value === 'pending' && statusKey !== 'pending') return false
     if (selectedStatusTab.value === 'approved' && statusKey !== 'approved') return false
+    if (selectedStatusTab.value === 'done' && statusKey !== 'done' && statusKey !== 'expired') return false
     if (selectedStatusTab.value === 'rejected' && statusKey !== 'rejected' && statusKey !== 'cancelled') return false
 
     // Date filter
@@ -418,12 +500,25 @@ async function handleCreateReservation() {
       <div class="stat-card">
         <div class="stat-card__left">
           <span class="stat-card__value text-emerald">{{ approvedCount }}</span>
-          <span class="stat-card__title">Approved Passes</span>
+          <span class="stat-card__title">Active Passes</span>
         </div>
         <div class="stat-card__icon" style="background: linear-gradient(135deg, #10b981, #059669);">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-card__left">
+          <span class="stat-card__value text-slate-500 dark:text-slate-300">{{ doneCount }}</span>
+          <span class="stat-card__title">Done / Concluded</span>
+        </div>
+        <div class="stat-card__icon" style="background: linear-gradient(135deg, #64748b, #475569);">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
           </svg>
         </div>
       </div>
@@ -466,7 +561,14 @@ async function handleCreateReservation() {
           :class="{ 'tab-btn--active': selectedStatusTab === 'approved' }"
           @click="selectedStatusTab = 'approved'"
         >
-          Approved ({{ approvedCount }})
+          Active Passes ({{ approvedCount }})
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ 'tab-btn--active': selectedStatusTab === 'done' }"
+          @click="selectedStatusTab = 'done'"
+        >
+          Done ({{ doneCount }})
         </button>
         <button
           class="tab-btn"
@@ -557,17 +659,25 @@ async function handleCreateReservation() {
 
         <template #cell-status="{ item }">
           <UiStatusText
-            :variant="getStatusKey(item.status) === 'approved' ? 'success' : getStatusKey(item.status) === 'rejected' || getStatusKey(item.status) === 'cancelled' ? 'danger' : 'warning'"
+            :variant="
+              getStatusKey(item) === 'approved'
+                ? 'success'
+                : getStatusKey(item) === 'done' || getStatusKey(item) === 'expired'
+                ? 'neutral'
+                : getStatusKey(item) === 'rejected' || getStatusKey(item) === 'cancelled'
+                ? 'danger'
+                : 'warning'
+            "
             size="xs"
           >
-            {{ formatStatus(item.status) }}
+            {{ formatItemStatus(item) }}
           </UiStatusText>
         </template>
 
         <template #cell-actions="{ item }">
           <div class="action-buttons flex items-center justify-end gap-1.5" @click.stop>
             <button
-              v-if="getStatusKey(item.status) === 'pending'"
+              v-if="getStatusKey(item) === 'pending'"
               class="btn-action btn-approve px-2.5 py-1 rounded-md bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors cursor-pointer border-none"
               @click="handleApprove(item)"
               title="Approve Reservation"
@@ -575,7 +685,7 @@ async function handleCreateReservation() {
               Approve
             </button>
             <button
-              v-if="getStatusKey(item.status) === 'pending'"
+              v-if="getStatusKey(item) === 'pending'"
               class="btn-action btn-reject px-2.5 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-xs hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80"
               @click="handleReject(item)"
               title="Decline Reservation"
@@ -583,16 +693,32 @@ async function handleCreateReservation() {
               Decline
             </button>
             <button
+              v-if="getStatusKey(item) === 'approved'"
               class="btn-action btn-qr-pass px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold text-xs hover:bg-indigo-100 transition-colors cursor-pointer border border-indigo-200/80"
               @click="openQrPassModal(item)"
               title="View Official QR Pass"
             >
               QR Pass
             </button>
+            <span
+              v-if="getStatusKey(item) === 'done'"
+              class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 mr-1 px-2 py-0.5 rounded bg-slate-100/80 dark:bg-slate-800/80"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Concluded
+            </span>
+            <span
+              v-else-if="getStatusKey(item) === 'expired'"
+              class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 mr-1 px-2 py-0.5 rounded bg-slate-100/80 dark:bg-slate-800/80"
+            >
+              Expired
+            </span>
             <button
               class="btn-action btn-review px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition-colors cursor-pointer border-none"
               @click="openReviewModal(item)"
-              title="Review Details"
+              title="Inspect Details"
             >
               Inspect
             </button>
@@ -607,14 +733,31 @@ async function handleCreateReservation() {
         <div v-if="reviewModalItem" class="modal-backdrop" @click="closeReviewModal">
           <div class="modal-card inspect-modal-card" @click.stop>
             
-            <!-- Modern Header with BulSU Red Accent & Reference -->
+            <!-- Modern Accent Bar with BulSU Red / Status Glow -->
+            <div
+              class="inspect-top-glow"
+              :class="`inspect-top-glow--${getStatusKey(reviewModalItem)}`"
+            ></div>
+
+            <!-- Modern Header with Reference, Type & Status -->
             <div class="inspect-header">
               <div class="inspect-header-left">
-                <div class="inspect-type-pill" :class="{ 'inspect-type-pill--special': reviewModalItem.type === 1 || reviewModalItem.type === 'Special' }">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4z"/>
-                  </svg>
-                  <span>{{ (reviewModalItem.type === 1 || reviewModalItem.type === 'Special') ? 'Special Campus Pass' : 'Standard Reservation' }}</span>
+                <div class="inspect-tag-cluster">
+                  <div class="inspect-type-pill" :class="{ 'inspect-type-pill--special': reviewModalItem.type === 1 || reviewModalItem.type === 'Special' }">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4z"/>
+                    </svg>
+                    <span>{{ (reviewModalItem.type === 1 || reviewModalItem.type === 'Special') ? 'Special Campus Pass' : 'Standard Reservation' }}</span>
+                  </div>
+                  <span v-if="getStatusKey(reviewModalItem) === 'done'" class="inspect-done-pill">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Schedule Concluded
+                  </span>
+                  <span v-else-if="getStatusKey(reviewModalItem) === 'expired'" class="inspect-done-pill">
+                    Expired Request
+                  </span>
                 </div>
                 <div class="inspect-ref-row">
                   <h2 class="inspect-title">{{ reviewModalItem.referenceNumber }}</h2>
@@ -631,33 +774,101 @@ async function handleCreateReservation() {
                 </div>
               </div>
               <div class="inspect-header-right">
-                <span class="status-badge status-badge--large" :class="`status-badge--${getStatusKey(reviewModalItem.status)}`">
+                <span class="status-badge status-badge--large" :class="`status-badge--${getStatusKey(reviewModalItem)}`">
                   <span class="status-dot"></span>
-                  {{ formatStatus(reviewModalItem.status) }}
+                  {{ formatItemStatus(reviewModalItem) }}
                 </span>
-                <button class="close-btn inspect-close-btn" @click="closeReviewModal">&times;</button>
+                <button class="close-btn inspect-close-btn" @click="closeReviewModal" title="Close">&times;</button>
               </div>
             </div>
 
-            <!-- Modal Body with Structured Cards -->
+            <!-- Status Context Banner -->
+            <div
+              class="inspect-context-banner"
+              :class="`inspect-context-banner--${getStatusKey(reviewModalItem)}`"
+            >
+              <div class="inspect-context-icon">
+                <svg v-if="getStatusKey(reviewModalItem) === 'done'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+                <svg v-else-if="getStatusKey(reviewModalItem) === 'approved'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <svg v-else-if="getStatusKey(reviewModalItem) === 'pending'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="15" y1="9" x2="9" y2="15"/>
+                  <line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+              </div>
+              <div class="inspect-context-text">
+                <span class="inspect-context-title">
+                  {{
+                    getStatusKey(reviewModalItem) === 'done'
+                      ? 'Reservation Schedule Completed'
+                      : getStatusKey(reviewModalItem) === 'expired'
+                      ? 'Reservation Schedule Expired'
+                      : getStatusKey(reviewModalItem) === 'approved'
+                      ? 'Active Approved Reservation'
+                      : getStatusKey(reviewModalItem) === 'pending'
+                      ? 'Awaiting Administrative Review'
+                      : 'Reservation Request Declined / Cancelled'
+                  }}
+                </span>
+                <span class="inspect-context-desc">
+                  {{
+                    getStatusKey(reviewModalItem) === 'done'
+                      ? 'This reservation time window has elapsed. The digital QR pass is inactive and entry privileges are closed.'
+                      : getStatusKey(reviewModalItem) === 'expired'
+                      ? 'The requested date and time has passed without approval.'
+                      : getStatusKey(reviewModalItem) === 'approved'
+                      ? 'Pass is active and verified for entry on the scheduled date and time window.'
+                      : getStatusKey(reviewModalItem) === 'pending'
+                      ? 'Review the requested schedule, applicant information, and purpose before approving or declining.'
+                      : 'This schedule request is not permitted for campus gate entry.'
+                  }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Modal Body with Structured Bento Cards -->
             <div class="inspect-body">
               
-              <!-- 1. Applicant Information Card -->
-              <div class="inspect-card">
+              <!-- 1. Applicant & Vehicle Bento Card -->
+              <div class="inspect-card inspect-applicant-card">
                 <div class="inspect-card-header">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
                     <circle cx="12" cy="7" r="4"/>
                   </svg>
-                  <span>Applicant Information</span>
+                  <span>Applicant & Access Details</span>
                 </div>
+                
                 <div class="inspect-user-row">
                   <div class="inspect-avatar" :style="{ background: getAvatarGradient(0) }">
                     {{ getInitials(reviewModalItem.userFullName || 'Campus User') }}
                   </div>
                   <div class="inspect-user-details">
-                    <h3 class="inspect-user-name">{{ reviewModalItem.userFullName || 'Campus User' }}</h3>
+                    <div class="flex items-center gap-2">
+                      <h3 class="inspect-user-name">{{ reviewModalItem.userFullName || 'Campus User' }}</h3>
+                      <span class="inspect-role-pill">Applicant</span>
+                    </div>
                     <p class="inspect-user-email">{{ reviewModalItem.userEmail || 'N/A' }}</p>
+                  </div>
+
+                  <!-- Designated Vehicle badge on right -->
+                  <div v-if="reviewModalItem.plateNumber" class="inspect-vehicle-chip">
+                    <span class="inspect-vehicle-chip-label">DESIGNATED VEHICLE</span>
+                    <span class="inspect-vehicle-chip-plate monospace">{{ reviewModalItem.plateNumber }}</span>
+                    <span v-if="reviewModalItem.brand" class="inspect-vehicle-chip-brand">{{ reviewModalItem.brand }}</span>
+                  </div>
+                  <div v-else class="inspect-vehicle-chip inspect-vehicle-chip--none">
+                    <span class="inspect-vehicle-chip-label">DESIGNATED VEHICLE</span>
+                    <span class="inspect-vehicle-chip-plate">Unassigned / Event</span>
                   </div>
                 </div>
 
@@ -670,7 +881,7 @@ async function handleCreateReservation() {
                     </svg>
                   </div>
                   <div class="inspect-notify-text">
-                    <span class="inspect-notify-label">Pass Receiver Email</span>
+                    <span class="inspect-notify-label">Direct Notification Email</span>
                     <span class="inspect-notify-val">{{ getNotifyEmailFromNotes(reviewModalItem.adminNotes) }}</span>
                   </div>
                 </div>
@@ -692,7 +903,7 @@ async function handleCreateReservation() {
                   <div class="inspect-grid-item">
                     <span class="inspect-grid-label">Reservation Date</span>
                     <div class="inspect-grid-val text-amber font-600">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                         <line x1="16" y1="2" x2="16" y2="6"/>
                         <line x1="8" y1="2" x2="8" y2="6"/>
@@ -704,7 +915,7 @@ async function handleCreateReservation() {
                   <div class="inspect-grid-item">
                     <span class="inspect-grid-label">Time Window</span>
                     <div class="inspect-grid-val text-primary font-600">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="10"/>
                         <polyline points="12 6 12 12 16 14"/>
                       </svg>
@@ -715,14 +926,10 @@ async function handleCreateReservation() {
                   <div class="inspect-grid-item inspect-grid-item--full">
                     <span class="inspect-grid-label">Purpose / Stated Reason</span>
                     <div class="inspect-reason-box">
-                      {{ reviewModalItem.reason }}
-                    </div>
-                  </div>
-
-                  <div v-if="reviewModalItem.plateNumber" class="inspect-grid-item">
-                    <span class="inspect-grid-label">Designated Vehicle</span>
-                    <div class="inspect-grid-val font-600 monospace">
-                      {{ reviewModalItem.plateNumber }} <span v-if="reviewModalItem.brand" class="text-muted font-normal">({{ reviewModalItem.brand }})</span>
+                      <svg class="inspect-quote-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+                      </svg>
+                      <span>{{ reviewModalItem.reason }}</span>
                     </div>
                   </div>
                 </div>
@@ -741,7 +948,8 @@ async function handleCreateReservation() {
                   v-model="reviewNotes"
                   rows="2"
                   class="inspect-textarea"
-                  placeholder="Enter remarks, instructions, or decline rationale (optional)..."
+                  :placeholder="getStatusKey(reviewModalItem) === 'done' ? 'No remarks recorded for this completed reservation.' : 'Enter remarks, instructions, or decline rationale (optional)...'"
+                  :disabled="getStatusKey(reviewModalItem) === 'done' || getStatusKey(reviewModalItem) === 'expired'"
                 ></textarea>
               </div>
 
@@ -750,8 +958,23 @@ async function handleCreateReservation() {
             <!-- Modal Footer Actions -->
             <div class="inspect-footer">
               <button class="btn-inspect-close" @click="closeReviewModal">Close</button>
+              
               <div class="inspect-footer-actions">
+                <!-- If Done: show completed notice, NO QR pass button! -->
+                <div
+                  v-if="getStatusKey(reviewModalItem) === 'done' || getStatusKey(reviewModalItem) === 'expired'"
+                  class="inspect-done-status-badge"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="9 12 11 14 15 10"/>
+                  </svg>
+                  <span>Reservation Concluded • Pass Inactive</span>
+                </div>
+
+                <!-- If Approved & Not Done: show View QR Pass button -->
                 <button
+                  v-else-if="getStatusKey(reviewModalItem) === 'approved'"
                   class="btn-inspect-qr"
                   @click="openQrPassModal(reviewModalItem); closeReviewModal();"
                 >
@@ -761,28 +984,30 @@ async function handleCreateReservation() {
                   </svg>
                   View QR Pass
                 </button>
-                <button
-                  v-if="getStatusKey(reviewModalItem.status) === 'pending'"
-                  class="btn-inspect-decline"
-                  :disabled="isSubmittingReview"
-                  @click="handleReject(reviewModalItem)"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
-                  Decline Request
-                </button>
-                <button
-                  v-if="getStatusKey(reviewModalItem.status) === 'pending'"
-                  class="btn-inspect-approve"
-                  :disabled="isSubmittingReview"
-                  @click="handleApprove(reviewModalItem)"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                  Approve Pass
-                </button>
+
+                <!-- If Pending: show Decline and Approve buttons -->
+                <template v-else-if="getStatusKey(reviewModalItem) === 'pending'">
+                  <button
+                    class="btn-inspect-decline"
+                    :disabled="isSubmittingReview"
+                    @click="handleReject(reviewModalItem)"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Decline Request
+                  </button>
+                  <button
+                    class="btn-inspect-approve"
+                    :disabled="isSubmittingReview"
+                    @click="handleApprove(reviewModalItem)"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                    Approve Pass
+                  </button>
+                </template>
               </div>
             </div>
 
@@ -1999,16 +2224,41 @@ async function handleCreateReservation() {
    REVIEW / INSPECT MODAL (BulSU Red Accent & Dark Slate Modern Structure)
    ========================================================================== */
 .inspect-modal-card {
-  max-width: 640px !important;
-  border-radius: 18px !important;
+  max-width: 660px !important;
+  border-radius: 20px !important;
   overflow: hidden;
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 25px 65px -15px rgba(0, 0, 0, 0.45);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
+  position: relative;
+}
+
+.inspect-top-glow {
+  height: 4px;
+  width: 100%;
+  background: linear-gradient(90deg, #d22730 0%, #ef4444 50%, #f59e0b 100%);
+}
+
+.inspect-top-glow--done,
+.inspect-top-glow--expired {
+  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
+}
+
+.inspect-top-glow--approved {
+  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.inspect-top-glow--pending {
+  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.inspect-top-glow--rejected,
+.inspect-top-glow--cancelled {
+  background: linear-gradient(90deg, #ef4444 0%, #b91c1c 100%);
 }
 
 .inspect-header {
-  padding: 20px 24px;
+  padding: 18px 24px 14px;
   background: var(--color-surface-muted);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -2020,7 +2270,14 @@ async function handleCreateReservation() {
 .inspect-header-left {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+}
+
+.inspect-tag-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .inspect-type-pill {
@@ -2045,6 +2302,21 @@ async function handleCreateReservation() {
   border-color: rgba(210, 39, 48, 0.25);
 }
 
+.inspect-done-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  background: rgba(100, 116, 139, 0.12);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
 .inspect-ref-row {
   display: flex;
   align-items: center;
@@ -2053,7 +2325,7 @@ async function handleCreateReservation() {
 }
 
 .inspect-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--color-text);
   margin: 0;
@@ -2094,6 +2366,12 @@ async function handleCreateReservation() {
   font-weight: 700;
 }
 
+.status-badge--done,
+.status-badge--expired {
+  background: rgba(100, 116, 139, 0.15);
+  color: #64748b;
+}
+
 .inspect-close-btn {
   width: 32px;
   height: 32px;
@@ -2116,6 +2394,85 @@ async function handleCreateReservation() {
   color: var(--color-text);
 }
 
+/* Status Context Banner */
+.inspect-context-banner {
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.inspect-context-banner--done,
+.inspect-context-banner--expired {
+  background: rgba(100, 116, 139, 0.08);
+  border-bottom-color: rgba(100, 116, 139, 0.2);
+}
+.inspect-context-banner--done .inspect-context-icon,
+.inspect-context-banner--done .inspect-context-title,
+.inspect-context-banner--expired .inspect-context-icon,
+.inspect-context-banner--expired .inspect-context-title {
+  color: #64748b;
+}
+
+.inspect-context-banner--approved {
+  background: rgba(16, 185, 129, 0.08);
+  border-bottom-color: rgba(16, 185, 129, 0.2);
+}
+.inspect-context-banner--approved .inspect-context-icon,
+.inspect-context-banner--approved .inspect-context-title {
+  color: #10b981;
+}
+
+.inspect-context-banner--pending {
+  background: rgba(245, 158, 11, 0.08);
+  border-bottom-color: rgba(245, 158, 11, 0.2);
+}
+.inspect-context-banner--pending .inspect-context-icon,
+.inspect-context-banner--pending .inspect-context-title {
+  color: #f59e0b;
+}
+
+.inspect-context-banner--rejected,
+.inspect-context-banner--cancelled {
+  background: rgba(239, 68, 68, 0.08);
+  border-bottom-color: rgba(239, 68, 68, 0.2);
+}
+.inspect-context-banner--rejected .inspect-context-icon,
+.inspect-context-banner--rejected .inspect-context-title,
+.inspect-context-banner--cancelled .inspect-context-icon,
+.inspect-context-banner--cancelled .inspect-context-title {
+  color: #ef4444;
+}
+
+.inspect-context-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.inspect-context-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.inspect-context-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.inspect-context-desc {
+  font-size: 11.5px;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
 .inspect-body {
   padding: 20px 24px;
   display: flex;
@@ -2133,6 +2490,10 @@ async function handleCreateReservation() {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.inspect-applicant-card {
+  position: relative;
 }
 
 .inspect-card-header {
@@ -2177,6 +2538,52 @@ async function handleCreateReservation() {
   font-weight: 700;
   color: var(--color-text);
   margin: 0;
+}
+
+.inspect-role-pill {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.inspect-vehicle-chip {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.inspect-vehicle-chip-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--color-muted);
+  letter-spacing: 0.5px;
+}
+
+.inspect-vehicle-chip-plate {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.inspect-vehicle-chip-brand {
+  font-size: 11px;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.inspect-vehicle-chip--none {
+  opacity: 0.7;
 }
 
 .inspect-user-email {
@@ -2257,16 +2664,26 @@ async function handleCreateReservation() {
   gap: 6px;
 }
 
+.inspect-quote-icon {
+  color: var(--color-primary, #d22730);
+  opacity: 0.6;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .inspect-reason-box {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 10px 14px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--color-text);
   white-space: pre-wrap;
   word-break: break-word;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .inspect-textarea {
@@ -2302,6 +2719,19 @@ async function handleCreateReservation() {
   display: flex;
   gap: 10px;
   align-items: center;
+}
+
+.inspect-done-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  background: rgba(100, 116, 139, 0.12);
+  border: 1px solid rgba(100, 116, 139, 0.25);
+  color: #64748b;
+  font-size: 12.5px;
+  font-weight: 600;
 }
 
 .btn-inspect-close {
