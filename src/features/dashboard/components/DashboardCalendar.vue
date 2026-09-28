@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 
 import { cachedReservations } from '@/stores/appCache'
 
@@ -189,8 +190,8 @@ const reservationSectionTitle = computed(() => {
   }
 })
 
-onMounted(async () => {
-  if (!cachedReservations.value || cachedReservations.value.length === 0) {
+async function fetchReservationsData(silent = false) {
+  if (!silent && (!cachedReservations.value || cachedReservations.value.length === 0)) {
     isLoading.value = true
   }
   try {
@@ -210,13 +211,34 @@ onMounted(async () => {
       reservations.value = mapped
       cachedReservations.value = mapped
     } else {
-      populateMockReservations()
+      if (!silent) populateMockReservations()
     }
   } catch (err) {
-    populateMockReservations()
+    if (!silent && reservations.value.length === 0) populateMockReservations()
   } finally {
-    isLoading.value = false
+    if (!silent) isLoading.value = false
   }
+}
+
+let unsubscribeRes: (() => void) | null = null
+let unsubscribeApp: (() => void) | null = null
+
+onMounted(async () => {
+  const notifStore = useAdminNotificationStore()
+  notifStore.initSignalRConnection()
+
+  const handleUpdate = () => {
+    fetchReservationsData(true)
+  }
+  unsubscribeRes = notifStore.onReservationUpdate(handleUpdate)
+  unsubscribeApp = notifStore.onApprovalUpdate(handleUpdate)
+
+  await fetchReservationsData()
+})
+
+onUnmounted(() => {
+  if (unsubscribeRes) unsubscribeRes()
+  if (unsubscribeApp) unsubscribeApp()
 })
 
 function populateMockReservations() {

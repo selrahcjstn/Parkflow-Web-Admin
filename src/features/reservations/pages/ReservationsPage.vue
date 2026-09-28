@@ -4,6 +4,7 @@ import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
 
 const resColumns: TableColumn[] = [
@@ -199,8 +200,23 @@ async function fetchReservations(silent = false) {
   }
 }
 
+let unsubscribeReservationUpdates: (() => void) | null = null
+let unsubscribeApprovalUpdates: (() => void) | null = null
+
 onMounted(() => {
+  const notifStore = useAdminNotificationStore()
+  notifStore.initSignalRConnection()
+
+  const handleLiveUpdate = (data: any) => {
+    console.log('[ReservationsPage] Live reservation update received via SignalR -> refreshing...', data)
+    fetchReservations(true)
+  }
+
+  unsubscribeReservationUpdates = notifStore.onReservationUpdate(handleLiveUpdate)
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(handleLiveUpdate)
+
   fetchReservations()
+
   pollTimer = window.setInterval(() => {
     if (document.visibilityState === 'visible') {
       fetchReservations(true)
@@ -211,6 +227,12 @@ onMounted(() => {
 onUnmounted(() => {
   if (pollTimer !== null) {
     clearInterval(pollTimer)
+  }
+  if (unsubscribeReservationUpdates) {
+    unsubscribeReservationUpdates()
+  }
+  if (unsubscribeApprovalUpdates) {
+    unsubscribeApprovalUpdates()
   }
 })
 

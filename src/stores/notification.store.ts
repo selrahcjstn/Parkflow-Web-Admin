@@ -2,7 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import api from '@/api/axios'
-import { cachedApprovals, cachedRegistrations, cachedScheduleSubmissions, cachedVehicleApprovals } from '@/stores/appCache'
+import { cachedApprovals, cachedRegistrations, cachedScheduleSubmissions, cachedVehicleApprovals, cachedReservations } from '@/stores/appCache'
 
 export interface AdminNotification {
   id: string
@@ -28,10 +28,20 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
   type ApprovalListener = (data: any) => void
   const approvalListeners = new Set<ApprovalListener>()
 
+  type ReservationListener = (data: any) => void
+  const reservationListeners = new Set<ReservationListener>()
+
   function onApprovalUpdate(callback: ApprovalListener) {
     approvalListeners.add(callback)
     return () => {
       approvalListeners.delete(callback)
+    }
+  }
+
+  function onReservationUpdate(callback: ReservationListener) {
+    reservationListeners.add(callback)
+    return () => {
+      reservationListeners.delete(callback)
     }
   }
 
@@ -40,11 +50,23 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     cachedRegistrations.value = null
     cachedScheduleSubmissions.value = null
     cachedVehicleApprovals.value = null
+    cachedReservations.value = null
     approvalListeners.forEach((listener) => {
       try {
         listener(data)
       } catch (e) {
         console.error('Error in approval update listener:', e)
+      }
+    })
+  }
+
+  function triggerReservationUpdate(data: any) {
+    cachedReservations.value = null
+    reservationListeners.forEach((listener) => {
+      try {
+        listener(data)
+      } catch (e) {
+        console.error('Error in reservation update listener:', e)
       }
     })
   }
@@ -166,21 +188,22 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
 
       // 4. Fetch pending Parking Space Reservations
       try {
-        const resRes = await api.get('/parking-reservations')
+        const resRes = await api.get('/parking-reservations/admin/all')
         const items = resRes.data?.data || (Array.isArray(resRes.data) ? resRes.data : [])
         if (Array.isArray(items)) {
-          const pendingRes = items.filter((r: any) => r.status === 'Pending' || r.status === 1)
+          const pendingRes = items.filter((r: any) => r.status === 'Pending' || r.status === 0)
           pendingRes.forEach((item: any) => {
-            const refCode = item.id || `res-${item.id}`
+            const refCode = item.referenceNumber || item.id || `res-${item.id}`
+            const timeStr = item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending Review'
             addNotification({
               type: 'reservation_pending',
               title: 'Parking Reservation Request',
-              subtitle: item.slotName || 'Parking Space Reservation',
-              message: `Reservation request by ${item.userName || 'Applicant'} for slot ${item.slotNumber || ''}.`,
-              timestamp: 'Pending Action',
+              subtitle: item.referenceNumber || 'Reservation Request',
+              message: `Reservation [${item.referenceNumber || 'Pending'}] by ${item.userFullName || item.userEmail || 'Applicant'} awaiting admin review.`,
+              timestamp: timeStr,
               actionUrl: '/reservations',
               actionLabel: 'View Reservation',
-              priority: 'medium',
+              priority: 'high',
               referenceCode: refCode
             })
           })
@@ -358,9 +381,36 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
       triggerApprovalUpdate(data)
     })
 
+    hubConnection.on('ReservationSubmitted', (data: any) => {
+      console.log('[SignalR Admin] ReservationSubmitted received:', data)
+      const refNum = data?.referenceNumber || data?.ReferenceNumber || 'Reservation'
+      const applicant = data?.userFullName || data?.UserFullName || 'Applicant'
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      addNotification({
+        type: 'reservation_pending',
+        title: 'New Reservation Request',
+        subtitle: refNum,
+        message: `Reservation [${refNum}] submitted by ${applicant} awaiting approval (${timeStr}).`,
+        timestamp: timeStr,
+        actionUrl: '/reservations',
+        actionLabel: 'Review Reservation',
+        priority: 'high',
+        referenceCode: `res-${refNum}-${Date.now()}`
+      }, true)
+      triggerReservationUpdate(data)
+      triggerApprovalUpdate(data)
+    })
+
+    hubConnection.on('ReservationUpdated', (data: any) => {
+      console.log('[SignalR Admin] ReservationUpdated received:', data)
+      triggerReservationUpdate(data)
+      triggerApprovalUpdate(data)
+    })
+
     hubConnection.on('ApprovalListUpdated', (data: any) => {
       console.log('[SignalR Admin] ApprovalListUpdated received:', data)
       triggerApprovalUpdate(data)
+      triggerReservationUpdate(data)
     })
 
     hubConnection.start()
@@ -396,6 +446,8 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     fetchPendingAdminNotifications,
     initSignalRConnection,
     onApprovalUpdate,
-    triggerApprovalUpdate
+    triggerApprovalUpdate,
+    onReservationUpdate,
+    triggerReservationUpdate
   }
 })
