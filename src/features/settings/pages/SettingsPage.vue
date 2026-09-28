@@ -7,7 +7,12 @@ const router = useRouter()
 
 interface SystemSettings {
   violationRatePerHour: number
+  feeCalculationMode: 'per_hour' | 'per_day' | 'one_time' | 'one_time_hourly' | 'no_fee'
+  baseFee: number
+  isGracePeriodEnabled: boolean
   gracePeriodMinutes: number
+  isEarlyParkingAllowed: boolean
+  earlyParkingMinutes: number
   academicYear: string
   currentSemester: string
   lastResetDate?: string
@@ -30,7 +35,12 @@ const isSuperAdmin = computed(() => {
 
 const settings = ref<SystemSettings>({
   violationRatePerHour: 100,
+  feeCalculationMode: 'per_hour',
+  baseFee: 50,
+  isGracePeriodEnabled: true,
   gracePeriodMinutes: 15,
+  isEarlyParkingAllowed: true,
+  earlyParkingMinutes: 15,
   academicYear: '2026-2027',
   currentSemester: '1st Semester',
   totalCapacity: 500,
@@ -96,7 +106,7 @@ async function saveSettings() {
   }
 }
 
-async function toggleFeature(key: 'maintenanceMode' | 'rfidInstantScanEnabled' | 'autoApproveVerification') {
+async function toggleFeature(key: 'maintenanceMode' | 'rfidInstantScanEnabled' | 'autoApproveVerification' | 'isGracePeriodEnabled' | 'isEarlyParkingAllowed') {
   settings.value[key] = !settings.value[key]
   await saveSettings()
 }
@@ -318,7 +328,7 @@ onMounted(() => {
 
       <!-- Main Content Grid -->
       <div class="settings-grid">
-        <!-- Section 1: Violation Rate & Rules -->
+        <!-- Section 1: Overstay Fee & Timing Rules -->
         <div class="settings-card">
           <div class="settings-card__header">
             <div class="icon-wrapper icon-wrapper--amber">
@@ -328,44 +338,132 @@ onMounted(() => {
               </svg>
             </div>
             <div>
-              <h3 class="settings-card__title">Violation Rate Customization</h3>
-              <p class="settings-card__subtitle">Set penalty fees per hour that connect dynamically to Mobile App & Collections</p>
+              <h3 class="settings-card__title">Overstay Fee & Timing Rules</h3>
+              <p class="settings-card__subtitle">Configure overstay penalty mode, rate, grace period, and early entry allowance</p>
             </div>
           </div>
 
           <div class="settings-form">
+            <!-- Fee Calculation Mode -->
             <div class="form-group">
-              <label class="form-label">Violation / Overstay Rate per Hour (₱)</label>
-              <div class="input-with-prefix">
-                <span class="input-prefix">₱</span>
-                <input
-                  v-model.number="settings.violationRatePerHour"
-                  type="number"
-                  step="5"
-                  min="0"
-                  placeholder="100.00"
-                  class="form-input"
-                />
-              </div>
-              <span class="form-help">Calculates fine fees when vehicles exceed allotted parking duration.</span>
+              <label class="form-label">Overstay Fee Calculation Mode</label>
+              <select v-model="settings.feeCalculationMode" class="form-select">
+                <option value="per_hour">Per Hour — ₱ × overstay hours</option>
+                <option value="per_day">Per Day (Flat Rate) — fixed ₱ per occurrence</option>
+                <option value="one_time">One-Time Fee — flat base fee only</option>
+                <option value="one_time_hourly">One-Time Base + Per Hour — ₱base + (₱/hr × hours)</option>
+                <option value="no_fee">No Fee — violations recorded but no penalty charged</option>
+              </select>
+              <span class="form-help">Determines how overstay violation penalties are computed for mobile app and collections.</span>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Grace Period (Minutes)</label>
+            <div class="form-row">
+              <!-- Violation Rate -->
+              <div class="form-group">
+                <label class="form-label">
+                  {{ settings.feeCalculationMode === 'per_day' ? 'Flat Day Rate (₱)' : 'Overstay Rate per Hour (₱)' }}
+                </label>
+                <div class="input-with-prefix">
+                  <span class="input-prefix">₱</span>
+                  <input
+                    v-model.number="settings.violationRatePerHour"
+                    type="number"
+                    step="5"
+                    min="0"
+                    placeholder="100.00"
+                    class="form-input"
+                    :disabled="settings.feeCalculationMode === 'no_fee' || settings.feeCalculationMode === 'one_time'"
+                  />
+                </div>
+                <span class="form-help">Hourly rate applied to overstay duration (or flat daily rate).</span>
+              </div>
+
+              <!-- Base Fee (only shown for one_time and one_time_hourly) -->
+              <div class="form-group" v-if="settings.feeCalculationMode === 'one_time' || settings.feeCalculationMode === 'one_time_hourly'">
+                <label class="form-label">Base Fee (₱)</label>
+                <div class="input-with-prefix">
+                  <span class="input-prefix">₱</span>
+                  <input
+                    v-model.number="settings.baseFee"
+                    type="number"
+                    step="5"
+                    min="0"
+                    placeholder="50.00"
+                    class="form-input"
+                  />
+                </div>
+                <span class="form-help">Fixed charge added to (or replacing) the hourly calculation.</span>
+              </div>
+            </div>
+
+            <!-- Grace Period Section -->
+            <div class="section-divider">
+              <span>Exit Grace Period</span>
+            </div>
+
+            <div class="toggle-item" style="margin-bottom: 14px;">
+              <div class="toggle-info">
+                <span class="toggle-title">Enable Exit Grace Period</span>
+                <span class="toggle-desc">Allow users extra minutes after schedule end before overstay is triggered</span>
+              </div>
+              <button
+                class="switch-btn"
+                :class="{ 'switch-btn--on': settings.isGracePeriodEnabled }"
+                @click="toggleFeature('isGracePeriodEnabled')"
+              >
+                <span class="switch-handle"></span>
+              </button>
+            </div>
+
+            <div class="form-group" v-if="settings.isGracePeriodEnabled">
+              <label class="form-label">Grace Period Duration (Minutes)</label>
               <input
                 v-model.number="settings.gracePeriodMinutes"
                 type="number"
-                min="0"
+                min="1"
+                max="120"
                 placeholder="15"
                 class="form-input"
               />
-              <span class="form-help">Minutes allowed before overstay violation penalty begins accruing.</span>
+              <span class="form-help">Minutes allowed after schedule end before overstay violation penalty begins accruing.</span>
+            </div>
+
+            <!-- Early Parking Section -->
+            <div class="section-divider">
+              <span>Early Entry Allowance</span>
+            </div>
+
+            <div class="toggle-item" style="margin-bottom: 14px;">
+              <div class="toggle-info">
+                <span class="toggle-title">Allow Early Parking Entry</span>
+                <span class="toggle-desc">Permit users to enter campus parking before their schedule start time</span>
+              </div>
+              <button
+                class="switch-btn"
+                :class="{ 'switch-btn--on': settings.isEarlyParkingAllowed }"
+                @click="toggleFeature('isEarlyParkingAllowed')"
+              >
+                <span class="switch-handle"></span>
+              </button>
+            </div>
+
+            <div class="form-group" v-if="settings.isEarlyParkingAllowed">
+              <label class="form-label">Early Entry Buffer (Minutes Before Schedule)</label>
+              <input
+                v-model.number="settings.earlyParkingMinutes"
+                type="number"
+                min="1"
+                max="120"
+                placeholder="15"
+                class="form-input"
+              />
+              <span class="form-help">How many minutes before their schedule start time a user is permitted to enter.</span>
             </div>
 
             <div class="form-actions">
               <button class="save-btn" :disabled="isSaving" @click="saveSettings">
                 <span v-if="isSaving">Saving Settings...</span>
-                <span v-else>Save Rate Settings</span>
+                <span v-else>Save Fee & Timing Settings</span>
               </button>
             </div>
           </div>
@@ -1008,6 +1106,25 @@ onMounted(() => {
 .form-help {
   font-size: 11px;
   color: var(--color-muted);
+}
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  margin: 16px 0 12px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted);
+}
+
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--color-border);
+  margin-left: 10px;
 }
 
 .input-with-prefix {
