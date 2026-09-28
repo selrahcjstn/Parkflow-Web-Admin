@@ -40,6 +40,24 @@ async function handleSubmit() {
       const token = response.data.data.token
       localStorage.setItem('parkflow_token', token)
       localStorage.setItem('parkflow_user_email', email.value.toLowerCase().trim())
+
+      try {
+        const parts = token.split('.')
+        if (parts[1]) {
+          const payload = JSON.parse(window.atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+          const userId = payload.user_id || payload.sub || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || payload.nameid || payload.id
+          if (userId) {
+            localStorage.setItem('parkflow_user_id', userId)
+          }
+          const role = payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || payload.profile_type
+          if (role) {
+            localStorage.setItem('parkflow_user_role', role)
+          }
+        }
+      } catch (err) {
+        console.warn('Could not extract user details from token', err)
+      }
+
       alertType.value = 'success'
       alertMessage.value = 'Login successful! Redirecting...'
       setTimeout(() => {
@@ -57,6 +75,8 @@ async function handleSubmit() {
       const mockToken = 'mock_admin_token_' + Date.now()
       localStorage.setItem('parkflow_token', mockToken)
       localStorage.setItem('parkflow_user_email', email.value.toLowerCase().trim() || 'admin@parkflow.com')
+      localStorage.setItem('parkflow_user_id', '00000000-0000-0000-0000-000000000001')
+      localStorage.setItem('parkflow_user_role', 'Admin')
       alertType.value = 'success'
       alertMessage.value = 'Backend server offline (502). Logging in under Admin local session mode...'
       setTimeout(() => {

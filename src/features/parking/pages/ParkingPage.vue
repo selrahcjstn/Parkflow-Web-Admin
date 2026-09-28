@@ -71,26 +71,32 @@ const historySessions = ref<ParkingHistoryItem[]>(cachedHistorySessions.value ||
 const isLoading = ref(!cachedActiveSessions.value)
 
 const getLoggedInUserId = (): string => {
+  const directId = localStorage.getItem('parkflow_user_id')
+  if (directId) return directId
+
   const token = localStorage.getItem('parkflow_token')
-  if (!token) return localStorage.getItem('parkflow_user_id') || ''
+  if (!token) return ''
   try {
     const parts = token.split('.')
     const base64Url = parts[1]
-    if (!base64Url) return localStorage.getItem('parkflow_user_id') || ''
+    if (!base64Url) return ''
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     const payload = JSON.parse(window.atob(base64))
-    return (
+    const userId = (
       payload.user_id ||
       payload.sub ||
       payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
       payload.nameid ||
       payload.id ||
-      localStorage.getItem('parkflow_user_id') ||
       ''
     )
+    if (userId) {
+      localStorage.setItem('parkflow_user_id', userId)
+    }
+    return userId
   } catch (e) {
     console.error('Error decoding token:', e)
-    return localStorage.getItem('parkflow_user_id') || ''
+    return ''
   }
 }
 
@@ -435,10 +441,6 @@ const handleManualEntrySubmit = async (payload: {
   }
 
   const loggedInUserId = getLoggedInUserId()
-  if (!loggedInUserId) {
-    showToast('Failed to log entry: admin or guard user ID is not available.', 'warning')
-    return
-  }
 
   try {
     const response = await api.post('/parking-logs/manual-entry', {
@@ -446,7 +448,7 @@ const handleManualEntrySubmit = async (payload: {
       vehicleType: payload.vehicleType,
       phoneNumber: payload.phoneNumber || null,
       brand: payload.brand || null,
-      userId: loggedInUserId
+      userId: loggedInUserId || undefined
     })
 
     if (response.data && response.data.isSuccess) {
@@ -494,16 +496,12 @@ const executeManualCheckout = async () => {
   }
 
   const loggedInUserId = getLoggedInUserId()
-  if (!loggedInUserId) {
-    showToast('Failed to checkout: admin or guard user ID is not available. Please re-login.', 'warning')
-    return
-  }
 
   isCheckingOut.value = true
   try {
     const response = await api.patch('/parking-logs/manual-exit', {
       plateNumber: plate,
-      userId: loggedInUserId
+      userId: loggedInUserId || undefined
     })
 
     if (response.data && response.data.isSuccess) {

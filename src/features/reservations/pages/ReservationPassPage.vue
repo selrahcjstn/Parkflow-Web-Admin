@@ -499,7 +499,7 @@ onMounted(() => {
                     <div class="qr-corner qr-corner--br"></div>
                     
                     <img
-                      :src="getQrImageUrl(reservation.referenceNumber, 280)"
+                      :src="getQrImageUrl(reservation.referenceNumber, 320)"
                       alt="Digital Pass QR Code"
                       class="qr-code-matrix"
                     />
@@ -1240,38 +1240,43 @@ onMounted(() => {
   grid-template-columns: 440px 1fr;
   gap: 24px;
   width: 100%;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 @media (max-width: 1024px) {
   .pass-dashboard-grid {
     grid-template-columns: 1fr;
+    align-items: flex-start;
   }
 }
 
 /* ==========================================================================
-   LEFT COLUMN: TICKET CARD SHOWCASE
+   LEFT COLUMN: TICKET CARD SHOWCASE (MAXIMIZED VERTICAL HEIGHT)
    ========================================================================== */
 .pass-grid-col-left {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  position: sticky;
-  top: 88px;
+  height: 100%;
 }
 
 .pass-showcase-wrapper {
   width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .qr-ticket-card {
   width: 100%;
+  height: 100%;
   background: #ffffff;
   border-radius: 22px;
   overflow: hidden;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   position: relative;
   color: #0f172a;
 }
@@ -1496,10 +1501,12 @@ onMounted(() => {
 
 /* Ticket Body */
 .qr-ticket-body {
-  padding: 14px 24px 20px;
+  padding: 18px 24px 22px;
   background: #ffffff;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  justify-content: space-between;
   gap: 16px;
 }
 
@@ -1568,8 +1575,8 @@ onMounted(() => {
 }
 
 .qr-code-matrix {
-  width: 200px;
-  height: 200px;
+  width: 220px;
+  height: 220px;
   display: block;
   border-radius: 8px;
   background: #ffffff;
