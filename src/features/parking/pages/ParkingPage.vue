@@ -8,6 +8,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import api from '@/api/axios'
 import { cachedActiveSessions, cachedHistorySessions } from '@/stores/appCache'
 
@@ -71,17 +72,25 @@ const isLoading = ref(!cachedActiveSessions.value)
 
 const getLoggedInUserId = (): string => {
   const token = localStorage.getItem('parkflow_token')
-  if (!token) return ''
+  if (!token) return localStorage.getItem('parkflow_user_id') || ''
   try {
     const parts = token.split('.')
     const base64Url = parts[1]
-    if (!base64Url) return ''
+    if (!base64Url) return localStorage.getItem('parkflow_user_id') || ''
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     const payload = JSON.parse(window.atob(base64))
-    return payload.user_id || payload.sub || ''
+    return (
+      payload.user_id ||
+      payload.sub ||
+      payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
+      payload.nameid ||
+      payload.id ||
+      localStorage.getItem('parkflow_user_id') ||
+      ''
+    )
   } catch (e) {
     console.error('Error decoding token:', e)
-    return ''
+    return localStorage.getItem('parkflow_user_id') || ''
   }
 }
 
@@ -454,22 +463,56 @@ const handleManualEntrySubmit = async (payload: {
   }
 }
 
-const handleManualCheckout = async (session: ActiveSession | ParkingHistoryItem) => {
-  const loggedInUserId = getLoggedInUserId()
-  if (!loggedInUserId) {
-    showToast('Failed to checkout: admin or guard user ID is not available.', 'warning')
+// Manual Checkout Confirmation Modal State (Reusable ConfirmModal)
+const isConfirmCheckoutOpen = ref(false)
+const checkoutTargetSession = ref<ActiveSession | ParkingHistoryItem | null>(null)
+const isCheckingOut = ref(false)
+
+const checkoutConfirmMessage = computed(() => {
+  if (!checkoutTargetSession.value) return 'Are you sure you want to checkout this vehicle?'
+  const plate = checkoutTargetSession.value.vehiclePlate || (checkoutTargetSession.value as any).plateNumber || 'Unknown'
+  const owner = checkoutTargetSession.value.ownerName ? ` (${checkoutTargetSession.value.ownerName})` : ''
+  const amount = (checkoutTargetSession.value as any).amount
+  const feeText = amount != null && Number(amount) > 0
+    ? `<br/><span style="display:inline-block; margin-top:8px; font-size:13px;" class="text-amber-600 dark:text-amber-400 font-semibold">Estimated Overstay / Parking Fee: ₱${Number(amount).toFixed(2)}</span>`
+    : ''
+  return `Are you sure you want to manually checkout vehicle <strong class="font-mono text-slate-900 dark:text-white font-bold">${plate}</strong>${owner}?<br/><span class="text-xs text-slate-500">This will record the vehicle's exit at the campus gate and finalize the active parking session.</span>${feeText}`
+})
+
+const handleManualCheckout = (session: ActiveSession | ParkingHistoryItem) => {
+  checkoutTargetSession.value = session
+  isConfirmCheckoutOpen.value = true
+}
+
+const executeManualCheckout = async () => {
+  if (!checkoutTargetSession.value) return
+  const session = checkoutTargetSession.value
+  const plate = session.vehiclePlate || (session as any).plateNumber
+  if (!plate) {
+    showToast('Failed to checkout: plate number is missing.', 'warning')
     return
   }
 
+  const loggedInUserId = getLoggedInUserId()
+  if (!loggedInUserId) {
+    showToast('Failed to checkout: admin or guard user ID is not available. Please re-login.', 'warning')
+    return
+  }
+
+  isCheckingOut.value = true
   try {
     const response = await api.patch('/parking-logs/manual-exit', {
-      plateNumber: session.vehiclePlate,
+      plateNumber: plate,
       userId: loggedInUserId
     })
 
     if (response.data && response.data.isSuccess) {
-      const fee = response.data.data?.penaltyFee != null ? `₱${response.data.data.penaltyFee.toFixed(2)}` : 'Free'
-      showToast(`Vehicle ${session.vehiclePlate} checked out. Fee: ${fee}`, 'success')
+      const fee = response.data.data?.penaltyFee != null && response.data.data.penaltyFee > 0
+        ? `₱${response.data.data.penaltyFee.toFixed(2)}`
+        : 'Free'
+      showToast(`Vehicle ${plate} checked out successfully. Fee: ${fee}`, 'success')
+      isConfirmCheckoutOpen.value = false
+      checkoutTargetSession.value = null
       if (isSessionDetailOpen.value) {
         isSessionDetailOpen.value = false
       }
@@ -481,6 +524,8 @@ const handleManualCheckout = async (session: ActiveSession | ParkingHistoryItem)
     console.error('Error checking out vehicle:', error)
     const errMessage = error.response?.data?.message || 'Failed to checkout vehicle.'
     showToast(errMessage, 'warning')
+  } finally {
+    isCheckingOut.value = false
   }
 }
 
@@ -853,6 +898,20 @@ const getRoleLabel = (role: string) => {
       :is-open="isSessionDetailOpen"
       @close="isSessionDetailOpen = false"
       @exit="handleManualCheckout"
+    />
+
+    <!-- Reusable Confirmation Modal for Manual Checkout -->
+    <ConfirmModal
+      :is-open="isConfirmCheckoutOpen"
+      title="Confirm Manual Checkout"
+      :message="checkoutConfirmMessage"
+      confirm-text="Checkout Vehicle"
+      cancel-text="Cancel"
+      variant="warning"
+      :is-submitting="isCheckingOut"
+      @confirm="executeManualCheckout"
+      @cancel="isConfirmCheckoutOpen = false"
+      @close="isConfirmCheckoutOpen = false"
     />
 
     <!-- Toast Notifications -->

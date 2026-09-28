@@ -22,16 +22,24 @@ const successToast = ref<string | null>(null)
 
 const getLoggedInUserId = (): string => {
   const token = localStorage.getItem('parkflow_token')
-  if (!token) return ''
+  if (!token) return localStorage.getItem('parkflow_user_id') || ''
   try {
     const parts = token.split('.')
     const base64Url = parts[1]
-    if (!base64Url) return ''
+    if (!base64Url) return localStorage.getItem('parkflow_user_id') || ''
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     const payload = JSON.parse(window.atob(base64))
-    return payload.user_id || payload.sub || ''
+    return (
+      payload.user_id ||
+      payload.sub ||
+      payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
+      payload.nameid ||
+      payload.id ||
+      localStorage.getItem('parkflow_user_id') ||
+      ''
+    )
   } catch (e) {
-    return ''
+    return localStorage.getItem('parkflow_user_id') || ''
   }
 }
 
