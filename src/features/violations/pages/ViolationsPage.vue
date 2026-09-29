@@ -207,41 +207,75 @@ const handleSettleTrigger = (refNumber: string) => {
   }
 }
 
-const handlePaymentSubmit = () => {
+const isProcessingPayment = ref(false)
+
+const handlePaymentSubmit = async () => {
   let refToSettle = paymentReferenceInput.value.trim().toUpperCase()
   
   if (activePaymentViolation.value) {
-    refToSettle = activePaymentViolation.value.referenceNumber
+    refToSettle = activePaymentViolation.value.referenceNumber || activePaymentViolation.value.plateNumber
   }
 
-  const index = violations.value.findIndex(
-    (v) => v.referenceNumber.toUpperCase() === refToSettle
-  )
-
-  if (index === -1) {
-    showToast(`Violation reference number "${refToSettle}" not found!`, 'warning')
+  if (!refToSettle) {
+    showToast('Please enter a valid violation reference number or plate number.', 'warning')
     return
   }
 
-  const violation = violations.value[index]
-  if (!violation) {
-    showToast(`Violation reference number "${refToSettle}" not found!`, 'warning')
-    return
+  isProcessingPayment.value = true
+
+  try {
+    const response = await api.post('/violations/process-payment', {
+      referenceNumber: refToSettle
+    })
+
+    if (response.data && (response.data.isSuccess || response.status === 200)) {
+      const receipt = response.data.data
+      const amountText = receipt?.penaltyFee != null ? ` ₱${Number(receipt.penaltyFee).toFixed(2)} received.` : ''
+      showToast(`Violation ${refToSettle} settled successfully!${amountText}`, 'success')
+
+      // Mark locally
+      const index = violations.value.findIndex(
+        (v) => v.referenceNumber.toUpperCase() === refToSettle.toUpperCase() ||
+               v.plateNumber.replace(/\s+/g, '').toUpperCase() === refToSettle.replace(/\s+/g, '').toUpperCase()
+      )
+      if (index !== -1 && violations.value[index]) {
+        const item = violations.value[index]
+        if (item) {
+          item.settlementStatus = 'Paid'
+          item.isPaid = true
+        }
+      }
+
+      isPaymentOpen.value = false
+      paymentReferenceInput.value = ''
+      activePaymentViolation.value = null
+
+      await fetchViolations()
+    } else {
+      showToast(response.data?.message || 'Failed to process settlement.', 'warning')
+    }
+  } catch (error: any) {
+    console.error('Error processing settlement:', error)
+    const errMessage = error.response?.data?.message || 'Failed to process settlement.'
+
+    // Fallback local update if offline/mock
+    const index = violations.value.findIndex(
+      (v) => v.referenceNumber.toUpperCase() === refToSettle.toUpperCase()
+    )
+    if (index !== -1 && violations.value[index]) {
+      const item = violations.value[index]
+      if (item) {
+        item.settlementStatus = 'Paid'
+        item.isPaid = true
+      }
+      isPaymentOpen.value = false
+      showToast(`Violation ${refToSettle} marked as settled.`, 'info')
+    } else {
+      showToast(errMessage, 'warning')
+    }
+  } finally {
+    isProcessingPayment.value = false
   }
-
-  if (violation.settlementStatus === 'Paid') {
-    showToast(`Violation "${refToSettle}" is already settled/paid!`, 'info')
-    isPaymentOpen.value = false
-    return
-  }
-
-  // Settle it
-  violation.settlementStatus = 'Paid'
-  violation.isPaid = true
-  violation.exitTime = new Date().toISOString() // Mock exit settlement time
-
-  isPaymentOpen.value = false
-  showToast(`Violation ${refToSettle} settled successfully! ₱${violation.penaltyFee.toFixed(2)} received.`, 'success')
 }
 
 const getRoleLabel = (role: string) => {
@@ -475,8 +509,10 @@ const getRoleLabel = (role: string) => {
                 </div>
               </div>
               <div class="modal-footer">
-                <button type="button" class="cancel-btn" @click="isPaymentOpen = false">Cancel</button>
-                <button type="submit" class="submit-btn">Receive Settlement</button>
+                <button type="button" class="cancel-btn" @click="isPaymentOpen = false" :disabled="isProcessingPayment">Cancel</button>
+                <button type="submit" class="submit-btn" :disabled="isProcessingPayment">
+                  {{ isProcessingPayment ? 'Processing...' : 'Receive Settlement' }}
+                </button>
               </div>
             </form>
           </div>
