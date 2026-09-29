@@ -546,7 +546,7 @@ const getRoleLabel = (role: string) => {
         <StatsCard
           title="Today's Entries"
           :value="String(todaysEntriesCount)"
-          subtitle="RFID & Scanner check-ins"
+          subtitle="Scanner check-ins"
           trend="Today Logged"
           :trend-up="true"
           accent-color="#2563eb"
