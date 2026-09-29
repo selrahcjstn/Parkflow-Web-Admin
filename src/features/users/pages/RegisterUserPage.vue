@@ -354,7 +354,7 @@ const executeRegistration = async () => {
 </script>
 
 <template>
-  <div class="space-y-6 w-full max-w-5xl mx-auto">
+  <div class="space-y-6 w-full">
     <!-- Header Title -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
