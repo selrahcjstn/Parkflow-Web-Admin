@@ -81,15 +81,36 @@ onMounted(async () => {
 const searchQuery = ref('')
 const selectedRole = ref<string>('all')
 const selectedStatus = ref<string>('all')
+const selectedVehicleFilter = ref<string>('all')
 const viewMode = ref<'grid' | 'table'>('grid')
 
+const studentCount = computed(() => users.value.filter((u) => u.role === 'Student').length)
+const facultyCount = computed(() => users.value.filter((u) => u.role === 'UniversityStaff').length)
+const staffCount = computed(() => users.value.filter((u) => u.role === 'NonAcademicPersonnel').length)
+const guardCount = computed(() => users.value.filter((u) => u.role === 'Guard').length)
+const adminCount = computed(() => users.value.filter((u) => u.role === 'Admin' || (u.role as string) === 'SuperAdmin').length)
 
+function setRoleFilter(role: string) {
+  selectedRole.value = role
+  const query = { ...route.query }
+  if (role === 'all') {
+    delete query.role
+  } else {
+    query.role = role
+  }
+  router.replace({ query })
+}
 
 const applyRouteQueries = () => {
   if (route.query.status) {
     selectedStatus.value = String(route.query.status)
   } else {
     selectedStatus.value = 'all'
+  }
+  if (route.query.vehicle) {
+    selectedVehicleFilter.value = String(route.query.vehicle)
+  } else {
+    selectedVehicleFilter.value = 'all'
   }
   if (route.query.role) {
     const roleVal = String(route.query.role)
@@ -142,16 +163,23 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
 // Stats Computations
 const stats = computed(() => {
   const total = users.value.length
-  const students = users.value.filter((u) => u.role === 'Student').length
-  const personnel = users.value.filter((u) => u.role === 'UniversityStaff' || u.role === 'NonAcademicPersonnel').length
-  const guards = users.value.filter((u) => u.role === 'Guard').length
+  const students = studentCount.value
+  const faculty = facultyCount.value
+  const staff = staffCount.value
+  const guards = guardCount.value
 
-  return [
+  const list = [
     { title: 'Total Registered', value: total, icon: 'people', gradient: 'linear-gradient(135deg, #6366f1, #818cf8)' },
     { title: 'Students', value: students, icon: 'student', gradient: 'linear-gradient(135deg, #10b981, #34d399)' },
-    { title: 'Faculty & Staff', value: personnel, icon: 'briefcase', gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)' },
-    { title: 'Security Guards', value: guards, icon: 'shield', gradient: 'linear-gradient(135deg, #ef4444, #f87171)' }
+    { title: 'Faculty', value: faculty, icon: 'briefcase', gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)' },
+    { title: 'Staff (Non-Academic)', value: staff, icon: 'briefcase', gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)' }
   ]
+
+  if (isSuperAdmin.value) {
+    list.push({ title: 'Security Guards', value: guards, icon: 'shield', gradient: 'linear-gradient(135deg, #ef4444, #f87171)' })
+  }
+
+  return list
 })
 
 const displayStatus = (user: UserWithDetails) => {
@@ -171,6 +199,8 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
 // Dynamic Header Properties
 const headerTitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Student Client Directory'
+  if (selectedRole.value === 'UniversityStaff') return 'Faculty Client Directory'
+  if (selectedRole.value === 'NonAcademicPersonnel') return 'Staff Client Directory'
   if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Staff & Faculty Directory'
   if (selectedRole.value === 'AdminStaff') return 'Staff & Admin Directory'
   if (selectedRole.value === 'Guard') return 'Security Guards Directory'
@@ -180,6 +210,8 @@ const headerTitle = computed(() => {
 
 const headerSubtitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
+  if (selectedRole.value === 'UniversityStaff') return 'Manage faculty accounts, department assignments, and vehicle clearance.'
+  if (selectedRole.value === 'NonAcademicPersonnel') return 'Manage non-academic personnel accounts, administrative departments, and vehicle clearance.'
   if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Manage staff and faculty accounts, department assignments, and vehicle clearance.'
   if (selectedRole.value === 'AdminStaff') return 'Manage registered campus security guards and system administrator accounts.'
   if (selectedRole.value === 'Guard') return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
@@ -188,7 +220,7 @@ const headerSubtitle = computed(() => {
 })
 
 // Filtered Users list
-const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff')
+const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff' || selectedRole.value === 'Guard' || selectedRole.value === 'Admin')
 
 const userColumns = computed<TableColumn[]>(() => {
   const cols: TableColumn[] = [
@@ -229,7 +261,13 @@ const filteredUsers = computed(() => {
       selectedStatus.value === 'all' ||
       displayStatus(user) === selectedStatus.value
 
-    return matchesSearch && matchesRole && matchesStatus
+    const hasVehicles = user.vehicles && user.vehicles.length > 0
+    const matchesVehicle =
+      selectedVehicleFilter.value === 'all' ||
+      (selectedVehicleFilter.value === 'with-vehicle' && hasVehicles) ||
+      (selectedVehicleFilter.value === 'no-vehicle' && !hasVehicles)
+
+    return matchesSearch && matchesRole && matchesStatus && matchesVehicle
   })
 })
 
@@ -243,7 +281,7 @@ const paginatedUsers = computed(() => {
   return filteredUsers.value.slice(start, end)
 })
 
-watch([searchQuery, selectedRole, selectedStatus, itemsPerPage], () => {
+watch([searchQuery, selectedRole, selectedStatus, selectedVehicleFilter, itemsPerPage], () => {
   currentPage.value = 1
 })
 
@@ -256,11 +294,16 @@ const getIdentifier = (user: UserWithDetails) => {
 
 const getRoleLabel = (role: UserRole) => {
   switch (role) {
+    case 'Student':
+      return 'Student'
     case 'UniversityStaff':
+      return 'Faculty'
     case 'NonAcademicPersonnel':
-      return 'Staff/Faculty'
+      return 'Staff'
     case 'Guard':
       return 'Security Guard'
+    case 'Admin':
+      return 'Administrator'
     default:
       return role
   }
@@ -597,7 +640,56 @@ const handleFormSubmit = async (formData: any) => {
       </template>
     </div>
 
-    <!-- Filters Bar (Search & Filter Dropdowns aligned to right) -->
+    <!-- Account Type Category Filter Tabs -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-wrap">
+      <button
+        type="button"
+        @click="setRoleFilter('all')"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+        :class="selectedRole === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+      >
+        All Accounts ({{ users.length }})
+      </button>
+
+      <button
+        type="button"
+        @click="setRoleFilter('Student')"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+        :class="selectedRole === 'Student' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+      >
+        Students ({{ studentCount }})
+      </button>
+
+      <button
+        type="button"
+        @click="setRoleFilter('UniversityStaff')"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+        :class="selectedRole === 'UniversityStaff' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+      >
+        Faculty ({{ facultyCount }})
+      </button>
+
+      <button
+        type="button"
+        @click="setRoleFilter('NonAcademicPersonnel')"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+        :class="selectedRole === 'NonAcademicPersonnel' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+      >
+        Staff ({{ staffCount }})
+      </button>
+
+      <button
+        v-if="isSuperAdmin"
+        type="button"
+        @click="setRoleFilter('Guard')"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+        :class="selectedRole === 'Guard' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+      >
+        Security Guards ({{ guardCount }})
+      </button>
+    </div>
+
+    <!-- Filters Bar (Search & Filter Dropdowns) -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <!-- Search Input -->
       <div class="relative flex-1 max-w-md">
@@ -613,25 +705,26 @@ const handleFormSubmit = async (formData: any) => {
         />
       </div>
 
-      <!-- Filter Dropdowns (Account Type & Status Filter aligned to the right) -->
-      <div class="flex items-center gap-3 sm:ml-auto">
+      <!-- Filter Dropdowns (Account Type, Status & Vehicle Filter) -->
+      <div class="flex items-center gap-3 sm:ml-auto flex-wrap">
         <!-- Account Type Filter -->
         <select
           v-model="selectedRole"
-          @change="router.replace({ query: { ...route.query, role: selectedRole } })"
+          @change="router.replace({ query: { ...route.query, role: selectedRole === 'all' ? undefined : selectedRole } })"
           class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
         >
-          <option value="all">All Account Types</option>
-          <option value="Student">Student Accounts</option>
-          <option value="staff">Staff & Faculty</option>
-          <option v-if="isSuperAdmin" value="Guard">Security Guards</option>
-          <option v-if="isSuperAdmin" value="AdminStaff">Admins & Staff</option>
+          <option value="all">All Account Types ({{ users.length }})</option>
+          <option value="Student">Students ({{ studentCount }})</option>
+          <option value="UniversityStaff">Faculty ({{ facultyCount }})</option>
+          <option value="NonAcademicPersonnel">Staff (Non-Academic) ({{ staffCount }})</option>
+          <option v-if="isSuperAdmin" value="Guard">Security Guards ({{ guardCount }})</option>
+          <option v-if="isSuperAdmin" value="Admin">Administrators ({{ adminCount }})</option>
         </select>
 
         <!-- Status Filter -->
         <select
           v-model="selectedStatus"
-          @change="router.replace({ query: { ...route.query, status: selectedStatus } })"
+          @change="router.replace({ query: { ...route.query, status: selectedStatus === 'all' ? undefined : selectedStatus } })"
           class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
         >
           <option value="all">All Statuses</option>
@@ -640,6 +733,17 @@ const handleFormSubmit = async (formData: any) => {
           <option value="NotSubmitted">Not Submitted</option>
           <option value="Rejected">Rejected</option>
           <option value="Suspended">Suspended</option>
+        </select>
+
+        <!-- New Vehicle Clearance Filter -->
+        <select
+          v-model="selectedVehicleFilter"
+          @change="router.replace({ query: { ...route.query, vehicle: selectedVehicleFilter === 'all' ? undefined : selectedVehicleFilter } })"
+          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
+        >
+          <option value="all">All Vehicles</option>
+          <option value="with-vehicle">With Registered Vehicle</option>
+          <option value="no-vehicle">No Vehicle Registered</option>
         </select>
       </div>
     </div>
