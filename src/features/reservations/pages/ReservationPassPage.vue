@@ -203,10 +203,7 @@ function getDisplayEmail(item?: ParkingReservationItem | null): string {
 function getDisplayNotes(item?: ParkingReservationItem | null): string {
   if (!item) return ''
   if (item.adminNotes && item.adminNotes.trim()) return item.adminNotes
-  if (item.type === 1 || item.type === 'Special') {
-    return 'Special campus parking priority pass. Authorized by Security Administration.'
-  }
-  return 'Standard campus visitor clearance permit.'
+  return 'Standard campus parking clearance pass.'
 }
 
 function getQrImageUrl(refCode: string, size: number = 320): string {
@@ -459,9 +456,9 @@ onMounted(() => {
               </div>
 
               <div class="detail-item">
-                <span class="detail-label">Pass Category</span>
+                <span class="detail-label">Pass Type</span>
                 <span class="detail-value font-semibold">
-                  {{ (reservation.type === 1 || reservation.type === 'Special') ? 'Special Priority Pass' : 'Visitor Entry Permit' }}
+                  Official Parking Pass
                 </span>
               </div>
 
@@ -542,7 +539,7 @@ onMounted(() => {
           <div class="detail-item">
             <span class="detail-label">Clearance Tier</span>
             <span class="detail-value">
-              {{ (reservation.type === 1 || reservation.type === 'Special') ? 'All-Zone Priority Access' : 'Designated Visitor Zone' }}
+              Designated Campus Zone
             </span>
           </div>
 

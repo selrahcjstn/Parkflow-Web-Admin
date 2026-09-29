@@ -27,20 +27,7 @@ const notificationToast = ref<{ message: string; type: 'success' | 'error' } | n
 let pollTimer: number | null = null
 const router = useRouter()
 
-// Modal states
-const reviewModalItem = ref<ParkingReservationItem | null>(null)
-const reviewNotes = ref('')
-const isSubmittingReview = ref(false)
-const isCopied = ref(false)
 
-function copyRef(refNum: string) {
-  if (!refNum) return
-  navigator.clipboard.writeText(refNum)
-  isCopied.value = true
-  setTimeout(() => {
-    isCopied.value = false
-  }, 2000)
-}
 
 function parseReservationEndDateTime(dateStr?: string, endTimeStr?: string): Date | null {
   if (!dateStr) return null
@@ -143,18 +130,7 @@ function openQrPassModal(item: ParkingReservationItem) {
   navigateToPass(item)
 }
 
-// Create modal state
-const showCreateModal = ref(false)
-const isCreating = ref(false)
-const createForm = ref({
-  reservationDate: new Date().toISOString().split('T')[0],
-  startTime: '07:00',
-  endTime: '23:59',
-  reason: 'Campus Special Event / Administrative Schedule',
-  type: 1, // 1 = Special (No Fees), 0 = Normal
-  sendEmail: false,
-  notifyEmail: ''
-})
+
 
 async function fetchReservations(silent = false) {
   if (!silent) {
@@ -340,91 +316,23 @@ function getDisplayEmail(item: ParkingReservationItem): string {
   return item.userEmail || 'N/A'
 }
 
-function openReviewModal(item: ParkingReservationItem) {
-  reviewModalItem.value = item
-  reviewNotes.value = item.adminNotes || ''
-}
-
-function closeReviewModal() {
-  reviewModalItem.value = null
-  reviewNotes.value = ''
-}
-
 async function handleApprove(item: ParkingReservationItem) {
-  isSubmittingReview.value = true
   try {
-    await api.post(`/parking-reservations/${item.id}/approve`, { notes: reviewNotes.value })
+    await api.post(`/parking-reservations/${item.id}/approve`, { notes: '' })
     item.status = 'Approved'
-    item.adminNotes = reviewNotes.value
     showToast(`Reservation ${item.referenceNumber} approved successfully.`)
-    closeReviewModal()
   } catch (error: any) {
     showToast(`Failed to approve reservation: ${error.response?.data?.message || error.message}`, 'error')
-  } finally {
-    isSubmittingReview.value = false
   }
 }
 
 async function handleReject(item: ParkingReservationItem) {
-  isSubmittingReview.value = true
   try {
-    await api.post(`/parking-reservations/${item.id}/reject`, { notes: reviewNotes.value })
+    await api.post(`/parking-reservations/${item.id}/reject`, { notes: '' })
     item.status = 'Rejected'
-    item.adminNotes = reviewNotes.value
     showToast(`Reservation ${item.referenceNumber} rejected.`, 'error')
-    closeReviewModal()
   } catch (error: any) {
     showToast(`Failed to reject reservation: ${error.response?.data?.message || error.message}`, 'error')
-  } finally {
-    isSubmittingReview.value = false
-  }
-}
-
-async function handleCreateReservation() {
-  if (!createForm.value.reservationDate) {
-    showToast('Please select a reservation date.', 'error')
-    return
-  }
-  if (createForm.value.sendEmail && !createForm.value.notifyEmail.trim()) {
-    showToast('Please enter a notification email address.', 'error')
-    return
-  }
-  isCreating.value = true
-  try {
-    const endTimeVal = createForm.value.type === 1 ? '23:59:59' : (createForm.value.endTime.includes(':') && createForm.value.endTime.split(':').length === 2 ? createForm.value.endTime + ':00' : createForm.value.endTime)
-    const payload: Record<string, any> = {
-      reservationDate: createForm.value.reservationDate,
-      startTime: createForm.value.startTime.includes(':') && createForm.value.startTime.split(':').length === 2 ? createForm.value.startTime + ':00' : createForm.value.startTime,
-      endTime: endTimeVal,
-      reason: createForm.value.reason,
-      type: createForm.value.type
-    }
-    if (createForm.value.sendEmail && createForm.value.notifyEmail.trim()) {
-      payload.notifyEmail = createForm.value.notifyEmail.trim()
-    }
-    const response = await api.post('/parking-reservations', payload)
-    if (response.data && response.data.data) {
-      reservations.value.unshift(response.data.data)
-    } else {
-      await fetchReservations()
-    }
-    const emailMsg = createForm.value.sendEmail ? ' Notification email sent.' : ''
-    showToast('Schedule reservation created & reserved successfully.' + emailMsg)
-    showCreateModal.value = false
-    // reset form
-    createForm.value = {
-      reservationDate: new Date().toISOString().split('T')[0],
-      startTime: '07:00',
-      endTime: '23:59',
-      reason: 'Campus Special Event / Administrative Schedule',
-      type: 1,
-      sendEmail: false,
-      notifyEmail: ''
-    }
-  } catch (error: any) {
-    showToast('Failed to create reservation: ' + (error.response?.data?.message || error.message), 'error')
-  } finally {
-    isCreating.value = false
   }
 }
 </script>
@@ -464,16 +372,16 @@ async function handleCreateReservation() {
       <div class="page-header__left">
         <h1 class="page-title">Parking Reservations & Schedule Management</h1>
         <p class="page-subtitle">
-          Review user parking schedule requests, approve special date passes, and reserve parking slots for campus events.
+          Review user parking schedule requests, approve date passes, and reserve parking slots for campus events.
         </p>
       </div>
       <div class="page-header__right">
-        <button class="btn-primary" @click="showCreateModal = true">
+        <button class="btn-primary" @click="router.push('/reservations/create')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
             <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
-          Reserve Special Schedule
+          Reserve Schedule
         </button>
       </div>
     </div>
@@ -630,12 +538,7 @@ async function handleCreateReservation() {
         empty-text="No schedule reservations found matching your criteria."
       >
         <template #cell-reference="{ item }">
-          <div class="flex items-center gap-2">
-            <span class="ref-badge monospace font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.referenceNumber }}</span>
-            <span v-if="item.type === 1 || item.type === 'Special'" class="special-pass-chip text-[10px] font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 dark:text-indigo-300 px-1.5 py-0.5 rounded">
-              ★ Special Pass
-            </span>
-          </div>
+          <span class="ref-badge monospace font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.referenceNumber }}</span>
         </template>
 
         <template #cell-creator="{ item, index }">
@@ -728,7 +631,7 @@ async function handleCreateReservation() {
             </span>
             <button
               class="btn-action btn-review px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition-colors cursor-pointer border-none"
-              @click="openReviewModal(item)"
+              @click="router.push('/reservations/' + item.id)"
               title="Inspect Details"
             >
               Inspect
@@ -737,406 +640,6 @@ async function handleCreateReservation() {
         </template>
       </UiTable>
     </div>
-
-    <!-- REVIEW / INSPECT MODAL -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="reviewModalItem" class="modal-backdrop" @click="closeReviewModal">
-          <div class="modal-card inspect-modal-card" @click.stop>
-            
-            <!-- Modern Accent Bar with BulSU Red / Status Glow -->
-            <div
-              class="inspect-top-glow"
-              :class="`inspect-top-glow--${getStatusKey(reviewModalItem)}`"
-            ></div>
-
-            <!-- Modern Header with Reference, Type & Status -->
-            <div class="inspect-header">
-              <div class="inspect-header-left">
-                <div class="inspect-tag-cluster">
-                  <div class="inspect-type-pill" :class="{ 'inspect-type-pill--special': reviewModalItem.type === 1 || reviewModalItem.type === 'Special' }">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4z"/>
-                    </svg>
-                    <span>{{ (reviewModalItem.type === 1 || reviewModalItem.type === 'Special') ? 'Special Campus Pass' : 'Standard Reservation' }}</span>
-                  </div>
-                  <span v-if="getStatusKey(reviewModalItem) === 'done'" class="inspect-done-pill">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    Schedule Concluded
-                  </span>
-                  <span v-else-if="getStatusKey(reviewModalItem) === 'expired'" class="inspect-done-pill">
-                    Expired Request
-                  </span>
-                </div>
-                <div class="inspect-ref-row">
-                  <h2 class="inspect-title">{{ reviewModalItem.referenceNumber }}</h2>
-                  <button class="inspect-copy-btn" @click="copyRef(reviewModalItem.referenceNumber)" title="Copy Reference Number">
-                    <svg v-if="!isCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                    <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    <span>{{ isCopied ? 'Copied' : 'Copy' }}</span>
-                  </button>
-                </div>
-              </div>
-              <div class="inspect-header-right">
-                <span class="status-badge status-badge--large" :class="`status-badge--${getStatusKey(reviewModalItem)}`">
-                  <span class="status-dot"></span>
-                  {{ formatItemStatus(reviewModalItem) }}
-                </span>
-                <button class="close-btn inspect-close-btn" @click="closeReviewModal" title="Close">&times;</button>
-              </div>
-            </div>
-
-            <!-- Status Context Banner -->
-            <div
-              class="inspect-context-banner"
-              :class="`inspect-context-banner--${getStatusKey(reviewModalItem)}`"
-            >
-              <div class="inspect-context-icon">
-                <svg v-if="getStatusKey(reviewModalItem) === 'done'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                  <polyline points="22 4 12 14.01 9 11.01"/>
-                </svg>
-                <svg v-else-if="getStatusKey(reviewModalItem) === 'approved'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                <svg v-else-if="getStatusKey(reviewModalItem) === 'pending'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12 6 12 12 16 14"/>
-                </svg>
-                <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <circle cx="12" cy="12" r="10"/>
-                  <line x1="15" y1="9" x2="9" y2="15"/>
-                  <line x1="9" y1="9" x2="15" y2="15"/>
-                </svg>
-              </div>
-              <div class="inspect-context-text">
-                <span class="inspect-context-title">
-                  {{
-                    getStatusKey(reviewModalItem) === 'done'
-                      ? 'Reservation Schedule Completed'
-                      : getStatusKey(reviewModalItem) === 'expired'
-                      ? 'Reservation Schedule Expired'
-                      : getStatusKey(reviewModalItem) === 'approved'
-                      ? 'Active Approved Reservation'
-                      : getStatusKey(reviewModalItem) === 'pending'
-                      ? 'Awaiting Administrative Review'
-                      : 'Reservation Request Declined / Cancelled'
-                  }}
-                </span>
-                <span class="inspect-context-desc">
-                  {{
-                    getStatusKey(reviewModalItem) === 'done'
-                      ? 'This reservation time window has elapsed. The digital QR pass is inactive and entry privileges are closed.'
-                      : getStatusKey(reviewModalItem) === 'expired'
-                      ? 'The requested date and time has passed without approval.'
-                      : getStatusKey(reviewModalItem) === 'approved'
-                      ? 'Pass is active and verified for entry on the scheduled date and time window.'
-                      : getStatusKey(reviewModalItem) === 'pending'
-                      ? 'Review the requested schedule, applicant information, and purpose before approving or declining.'
-                      : 'This schedule request is not permitted for campus gate entry.'
-                  }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Modal Body with Structured Bento Cards -->
-            <div class="inspect-body">
-              
-              <!-- 1. Applicant & Vehicle Bento Card -->
-              <div class="inspect-card inspect-applicant-card">
-                <div class="inspect-card-header">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  <span>Applicant & Access Details</span>
-                </div>
-                
-                <div class="inspect-user-row">
-                  <div class="inspect-avatar" :style="{ background: getAvatarGradient(0) }">
-                    {{ getInitials(reviewModalItem.userFullName || 'Campus User') }}
-                  </div>
-                  <div class="inspect-user-details">
-                    <div class="flex items-center gap-2">
-                      <h3 class="inspect-user-name">{{ reviewModalItem.userFullName || 'Campus User' }}</h3>
-                      <span class="inspect-role-pill">Applicant</span>
-                    </div>
-                    <p class="inspect-user-email">{{ reviewModalItem.userEmail || 'N/A' }}</p>
-                  </div>
-
-                  <!-- Designated Vehicle badge on right -->
-                  <div v-if="reviewModalItem.plateNumber" class="inspect-vehicle-chip">
-                    <span class="inspect-vehicle-chip-label">DESIGNATED VEHICLE</span>
-                    <span class="inspect-vehicle-chip-plate monospace">{{ reviewModalItem.plateNumber }}</span>
-                    <span v-if="reviewModalItem.brand" class="inspect-vehicle-chip-brand">{{ reviewModalItem.brand }}</span>
-                  </div>
-                  <div v-else class="inspect-vehicle-chip inspect-vehicle-chip--none">
-                    <span class="inspect-vehicle-chip-label">DESIGNATED VEHICLE</span>
-                    <span class="inspect-vehicle-chip-plate">Unassigned / Event</span>
-                  </div>
-                </div>
-
-                <!-- Recipient Alert Banner if Special pass has dedicated receiver email -->
-                <div v-if="getNotifyEmailFromNotes(reviewModalItem.adminNotes)" class="inspect-notify-card">
-                  <div class="inspect-notify-icon">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                      <polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                  </div>
-                  <div class="inspect-notify-text">
-                    <span class="inspect-notify-label">Direct Notification Email</span>
-                    <span class="inspect-notify-val">{{ getNotifyEmailFromNotes(reviewModalItem.adminNotes) }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 2. Schedule & Details Grid Card -->
-              <div class="inspect-card">
-                <div class="inspect-card-header">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6"/>
-                    <line x1="8" y1="2" x2="8" y2="6"/>
-                    <line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                  <span>Requested Schedule & Purpose</span>
-                </div>
-                
-                <div class="inspect-grid">
-                  <div class="inspect-grid-item">
-                    <span class="inspect-grid-label">Reservation Date</span>
-                    <div class="inspect-grid-val text-amber font-600">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                      </svg>
-                      {{ formatReservationDate(reviewModalItem.reservationDate) }}
-                    </div>
-                  </div>
-
-                  <div class="inspect-grid-item">
-                    <span class="inspect-grid-label">Time Window</span>
-                    <div class="inspect-grid-val text-primary font-600">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/>
-                        <polyline points="12 6 12 12 16 14"/>
-                      </svg>
-                      {{ formatTimeSlot(reviewModalItem.startTime, reviewModalItem.endTime) }}
-                    </div>
-                  </div>
-
-                  <div class="inspect-grid-item inspect-grid-item--full">
-                    <span class="inspect-grid-label">Purpose / Stated Reason</span>
-                    <div class="inspect-reason-box">
-                      <svg class="inspect-quote-icon" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
-                      </svg>
-                      <span>{{ reviewModalItem.reason }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 3. Admin Remarks Section -->
-              <div class="inspect-card">
-                <div class="inspect-card-header">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                  <span>Admin Review Remarks / Notes</span>
-                </div>
-                <textarea
-                  v-model="reviewNotes"
-                  rows="2"
-                  class="inspect-textarea"
-                  :placeholder="getStatusKey(reviewModalItem) === 'done' ? 'No remarks recorded for this completed reservation.' : 'Enter remarks, instructions, or decline rationale (optional)...'"
-                  :disabled="getStatusKey(reviewModalItem) === 'done' || getStatusKey(reviewModalItem) === 'expired'"
-                ></textarea>
-              </div>
-
-            </div>
-
-            <!-- Modal Footer Actions -->
-            <div class="inspect-footer">
-              <button class="btn-inspect-close" @click="closeReviewModal">Close</button>
-              
-              <div class="inspect-footer-actions">
-                <!-- If Done: show completed notice, NO QR pass button! -->
-                <div
-                  v-if="getStatusKey(reviewModalItem) === 'done' || getStatusKey(reviewModalItem) === 'expired'"
-                  class="inspect-done-status-badge"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <circle cx="12" cy="12" r="10"/>
-                    <polyline points="9 12 11 14 15 10"/>
-                  </svg>
-                  <span>Reservation Concluded • Pass Inactive</span>
-                </div>
-
-                <!-- If Approved & Not Done: show View QR Pass button -->
-                <button
-                  v-else-if="getStatusKey(reviewModalItem) === 'approved'"
-                  class="btn-inspect-qr"
-                  @click="navigateToPass(reviewModalItem); closeReviewModal();"
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                    <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                  </svg>
-                  View QR Pass
-                </button>
-
-                <!-- If Pending: show Decline and Approve buttons -->
-                <template v-else-if="getStatusKey(reviewModalItem) === 'pending'">
-                  <button
-                    class="btn-inspect-decline"
-                    :disabled="isSubmittingReview"
-                    @click="handleReject(reviewModalItem)"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                    Decline Request
-                  </button>
-                  <button
-                    class="btn-inspect-approve"
-                    :disabled="isSubmittingReview"
-                    @click="handleApprove(reviewModalItem)"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                    Approve Pass
-                  </button>
-                </template>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <!-- CREATE SPECIAL SCHEDULE RESERVATION MODAL -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="showCreateModal" class="modal-backdrop" @click="showCreateModal = false">
-          <div class="modal-card" @click.stop style="max-width: 520px;">
-            <div class="modal-header">
-              <div>
-                <span class="modal-tag">System Schedule Reserve</span>
-                <h2 class="modal-title">Reserve Special Schedule</h2>
-              </div>
-              <button class="close-btn" @click="showCreateModal = false">&times;</button>
-            </div>
-
-            <div class="modal-body">
-              <div class="form-group">
-                <label class="form-label">Reservation Date</label>
-                <input
-                  type="date"
-                  v-model="createForm.reservationDate"
-                  class="form-input"
-                />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Reservation Type</label>
-                <select v-model.number="createForm.type" class="form-select">
-                  <option :value="1">Special Pass (Admin Pass)</option>
-                  <option :value="0">Normal (Standard Pass)</option>
-                </select>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Start Time</label>
-                  <input
-                    type="time"
-                    v-model="createForm.startTime"
-                    class="form-input"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">End Time</label>
-                  <input
-                    type="time"
-                    v-model="createForm.endTime"
-                    class="form-input"
-                  />
-                </div>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Event / Pass Purpose</label>
-                <textarea
-                  v-model="createForm.reason"
-                  rows="3"
-                  class="form-textarea"
-                  placeholder="Describe the campus event or special pass reason..."
-                ></textarea>
-              </div>
-
-              <!-- Email Notification Toggle -->
-              <div class="notify-toggle-section">
-                <div class="notify-toggle-row">
-                  <div class="notify-toggle-info">
-                    <span class="notify-toggle-label">Send Email Notification</span>
-                    <span class="notify-toggle-desc">Notify a recipient about this special schedule via email</span>
-                  </div>
-                  <button
-                    type="button"
-                    class="toggle-switch"
-                    :class="{ 'toggle-switch--on': createForm.sendEmail }"
-                    @click="createForm.sendEmail = !createForm.sendEmail"
-                    :aria-checked="createForm.sendEmail"
-                    role="switch"
-                  >
-                    <span class="toggle-knob"></span>
-                  </button>
-                </div>
-
-                <Transition name="slide-down">
-                  <div v-if="createForm.sendEmail" class="notify-email-field">
-                    <label class="form-label">Recipient Email Address</label>
-                    <input
-                      v-model="createForm.notifyEmail"
-                      type="email"
-                      class="form-input"
-                      placeholder="e.g. student@university.edu"
-                      autocomplete="off"
-                    />
-                    <p class="notify-hint">A special schedule notice will be sent to this email after reservation is created.</p>
-                  </div>
-                </Transition>
-              </div>
-            </div>
-
-            <div class="modal-footer">
-              <button class="btn-modal-cancel" @click="showCreateModal = false">Cancel</button>
-              <button
-                class="btn-modal-submit"
-                :disabled="isCreating"
-                @click="handleCreateReservation"
-              >
-                <svg v-if="!isCreating" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-                <span>{{ isCreating ? 'Reserving Schedule...' : 'Confirm & Reserve' }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
   </div>
 </template>
 
