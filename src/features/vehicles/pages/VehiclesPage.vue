@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import type { Vehicle } from '../types'
 import VehicleDetailModal from '../components/VehicleDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
 
 const vehicleColumns: TableColumn[] = [
@@ -126,7 +127,7 @@ const stats = computed(() => [
   {
     title: 'Total Vehicles',
     value: String(totalCount.value),
-    subtitle: 'RFID & Plate registered',
+    subtitle: 'Registered & active passes',
     icon: 'total',
     gradient: 'linear-gradient(135deg, #6366f1, #818cf8)'
   },
@@ -166,6 +167,19 @@ const filteredVehicles = computed(() => {
 
     return matchesSearch && matchesType && matchesStatus
   })
+})
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+watch([searchQuery, filterType, filterStatus], () => {
+  currentPage.value = 1
+})
+
+const paginatedVehicles = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  return filteredVehicles.value.slice(start, start + itemsPerPage.value)
 })
 
 // Handlers
@@ -264,7 +278,7 @@ const getRoleLabel = (role: string) => {
     <div class="vehicles-header">
       <div class="vehicles-header__left">
         <h1 class="vehicles-title">Registered Vehicle Directory & Clearance</h1>
-        <p class="vehicles-subtitle">Inspect active vehicle plate records, RFID pass statuses, owner roles, and primary clearance passes across campus gates.</p>
+        <p class="vehicles-subtitle">Inspect active vehicle plate records, pass statuses, owner roles, and primary clearance passes across campus gates.</p>
       </div>
 
       <button class="refresh-btn" @click="fetchVehicles" title="Refresh">
@@ -352,7 +366,7 @@ const getRoleLabel = (role: string) => {
     <div class="table-card p-0 overflow-hidden">
       <UiTable
         :columns="vehicleColumns"
-        :data="filteredVehicles"
+        :data="paginatedVehicles"
         :is-loading="isLoading"
         empty-text="No Registered Vehicles Found"
         @row-click="openDetails"
@@ -396,7 +410,7 @@ const getRoleLabel = (role: string) => {
             class="cursor-pointer text-xs font-semibold select-none"
             :class="item.isPrimary ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'"
             @click.stop="handleTogglePrimary(item.id)"
-            :title="item.isPrimary ? 'Primary parking RFID pass' : 'Click to set as primary pass'"
+            :title="item.isPrimary ? 'Primary parking pass' : 'Click to set as primary pass'"
           >
             {{ item.isPrimary ? 'Primary Pass' : 'Secondary Pass' }}
           </span>
@@ -439,6 +453,12 @@ const getRoleLabel = (role: string) => {
           </div>
         </template>
       </UiTable>
+
+      <TablePagination
+        v-model:current-page="currentPage"
+        v-model:items-per-page="itemsPerPage"
+        :total-items="filteredVehicles.length"
+      />
     </div>
 
     <!-- Modals -->
