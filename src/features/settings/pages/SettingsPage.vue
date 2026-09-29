@@ -294,10 +294,6 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-3">
-          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-900">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Online · System Active
-          </span>
           <UiButton
             variant="primary"
             :loading="isSaving"
