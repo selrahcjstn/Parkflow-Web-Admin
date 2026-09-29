@@ -336,7 +336,6 @@ const filterStatus = ref<string>('all')
 const filterMethod = ref<string>('all')
 
 // Modals state
-const isManualEntryOpen = ref(false)
 const isSessionDetailOpen = ref(false)
 const selectedSession = ref<ActiveSession | ParkingHistoryItem | null>(null)
 
@@ -425,45 +424,6 @@ const openDetails = (session: ActiveSession | ParkingHistoryItem) => {
   isSessionDetailOpen.value = true
 }
 
-const handleManualEntrySubmit = async (payload: {
-  plateNumber: string
-  vehicleType: VehicleType
-  brand: string
-  phoneNumber: string
-}) => {
-  const alreadyParked = activeSessions.value.some(
-    (s) => s.vehiclePlate.replace(/\s+/g, '').toUpperCase() === payload.plateNumber.replace(/\s+/g, '').toUpperCase()
-  )
-
-  if (alreadyParked) {
-    showToast(`Vehicle ${payload.plateNumber} is already parked!`, 'warning')
-    return
-  }
-
-  const loggedInUserId = getLoggedInUserId()
-
-  try {
-    const response = await api.post('/parking-logs/manual-entry', {
-      plateNumber: payload.plateNumber,
-      vehicleType: payload.vehicleType,
-      phoneNumber: payload.phoneNumber || null,
-      brand: payload.brand || null,
-      userId: loggedInUserId || undefined
-    })
-
-    if (response.data && response.data.isSuccess) {
-      showToast(`Manual entry logged successfully for ${payload.plateNumber}!`, 'success')
-      isManualEntryOpen.value = false
-      await fetchParkingData()
-    } else {
-      showToast(response.data?.message || 'Failed to log manual entry.', 'warning')
-    }
-  } catch (error: any) {
-    console.error('Error logging manual entry:', error)
-    const errMessage = error.response?.data?.message || 'Failed to log manual entry.'
-    showToast(errMessage, 'warning')
-  }
-}
 
 // Manual Checkout Confirmation Modal State (Reusable ConfirmModal)
 const isConfirmCheckoutOpen = ref(false)
@@ -554,13 +514,6 @@ const getRoleLabel = (role: string) => {
             <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
           </svg>
         </button>
-        <button class="add-entry-btn" @click="router.push('/parking/manual-entry')">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
-            <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          Log Manual Entry
-        </button>
       </div>
     </div>
 
@@ -593,7 +546,7 @@ const getRoleLabel = (role: string) => {
         <StatsCard
           title="Today's Entries"
           :value="String(todaysEntriesCount)"
-          subtitle="RFID & Guard manual check-ins"
+          subtitle="RFID & Scanner check-ins"
           trend="Today Logged"
           :trend-up="true"
           accent-color="#2563eb"
