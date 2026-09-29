@@ -11,10 +11,12 @@ import { cachedVehicleApprovals } from '@/stores/appCache'
 
 const vehicleColumns: TableColumn[] = [
   { key: 'vehicle', label: 'Plate Number' },
-  { key: 'brand', label: 'Vehicle Brand & Model' },
+  { key: 'vehicleType', label: 'Vehicle Type' },
+  { key: 'brand', label: 'Brand & Model' },
   { key: 'owner', label: 'Owner Name' },
   { key: 'role', label: 'Role' },
-  { key: 'clearance', label: 'Primary Clearance Pass' },
+  { key: 'vstatus', label: 'Status' },
+  { key: 'clearance', label: 'Primary Pass' },
   { key: 'actions', label: 'Actions', align: 'right' }
 ]
 
@@ -65,7 +67,8 @@ const fetchVehicles = async () => {
           status: 'Active',
           isPrimary: Boolean(v.isPrimary),
           ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned'),
-          ownerRole: v.ownerRole || 'Student'
+          ownerRole: v.ownerRole || 'Student',
+          verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : 1
         }
       })
     }
@@ -305,6 +308,21 @@ const getRoleLabel = (role: string) => {
   if (role === 'NonAcademicPersonnel') return 'Staff'
   return role
 }
+
+const getVehicleTypeLabel = (type: string) => {
+  if (type === 'Car') return 'Car'
+  if (type === 'Motorcycle') return 'Motorcycle'
+  if (type === 'ElectricBike') return 'E-Bike'
+  return type
+}
+
+const getVerificationLabel = (status: number) => {
+  if (status === 2) return 'Approved'
+  if (status === 3) return 'Rejected'
+  return 'Pending'
+}
+
+const isApproved = (status: number) => status === 2
 </script>
 
 <template>
@@ -390,6 +408,15 @@ const getRoleLabel = (role: string) => {
 
     <!-- Vehicles Table Card -->
     <div class="table-card p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+
+      <!-- Info note -->
+      <div class="approved-notice">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span>Only <strong>Approved</strong> vehicles are granted campus parking clearance. Pending and rejected vehicles cannot use the gate.</span>
+      </div>
+
       <UiTable
         :columns="vehicleColumns"
         :data="paginatedVehicles"
@@ -407,15 +434,27 @@ const getRoleLabel = (role: string) => {
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg v-else-if="item.vehicleType === 'Motorcycle'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="5" cy="18" r="3" />
                 <circle cx="19" cy="18" r="3" />
                 <path d="M12 18V8h4" />
                 <path d="M5 18h14" opacity="0.3" />
               </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="6" cy="19" r="3" />
+                <circle cx="17" cy="19" r="3" />
+                <path d="M17 19h-7V10h4" />
+                <path d="M12 10L9 7h4" />
+              </svg>
             </div>
             <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber }}</span>
           </div>
+        </template>
+
+        <template #cell-vehicleType="{ item }">
+          <span class="vtype-badge" :class="`vtype-badge--${item.vehicleType.toLowerCase()}`">
+            {{ getVehicleTypeLabel(item.vehicleType) }}
+          </span>
         </template>
 
         <template #cell-brand="{ item }">
@@ -432,8 +471,22 @@ const getRoleLabel = (role: string) => {
           <span class="text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.ownerRole) }}</span>
         </template>
 
+        <template #cell-vstatus="{ item }">
+          <span
+            class="vstatus-chip"
+            :class="{
+              'vstatus--pending': item.verificationStatus === 0 || item.verificationStatus === 1,
+              'vstatus--approved': item.verificationStatus === 2,
+              'vstatus--rejected': item.verificationStatus === 3
+            }"
+          >
+            {{ getVerificationLabel(item.verificationStatus) }}
+          </span>
+        </template>
+
         <template #cell-clearance="{ item }">
           <span
+            v-if="isApproved(item.verificationStatus)"
             class="cursor-pointer text-xs font-semibold select-none"
             :class="item.isPrimary ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'"
             @click.stop="handleTogglePrimary(item.id)"
@@ -441,22 +494,26 @@ const getRoleLabel = (role: string) => {
           >
             {{ item.isPrimary ? 'Primary Pass' : 'Secondary Pass' }}
           </span>
+          <span v-else class="text-slate-300 dark:text-slate-600 text-xs">—</span>
         </template>
 
         <template #cell-actions="{ item }">
           <div class="actions-group flex items-center justify-end gap-1" @click.stop>
-            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="Inspect Vehicle Details" @click="openDetails(item)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete Vehicle" @click.stop="openDeleteConfirm(item)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
+            <template v-if="isApproved(item.verificationStatus)">
+              <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="Inspect Vehicle Details" @click="openDetails(item)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete Vehicle" @click.stop="openDeleteConfirm(item)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </template>
+            <span v-else class="text-slate-300 dark:text-slate-600 text-xs px-2">—</span>
           </div>
         </template>
       </UiTable>
@@ -663,6 +720,66 @@ const getRoleLabel = (role: string) => {
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-soft);
   overflow: hidden;
+}
+
+.approved-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: rgba(99, 102, 241, 0.06);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+  font-size: 13px;
+  color: #6366f1;
+}
+
+.vstatus-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.vstatus--pending {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+}
+
+.vstatus--approved {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.vstatus--rejected {
+  background: rgba(239, 68, 68, 0.12);
+  color: #dc2626;
+}
+
+.vtype-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.vtype-badge--car {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.vtype-badge--motorcycle {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.vtype-badge--electricbike {
+  background: rgba(16, 185, 129, 0.1);
+  color: #059669;
 }
 
 .toast-container {

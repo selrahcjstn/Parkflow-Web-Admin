@@ -79,10 +79,6 @@ const getRoleLabel = (role: string) => {
                   </span>
                 </div>
                 <div class="detail-item">
-                  <span class="detail-label">QR Code Pass Hash</span>
-                  <span class="detail-value monospace code-text">{{ vehicle.qrCodeHash || 'QR-NOT-GENERATED' }}</span>
-                </div>
-                <div class="detail-item">
                   <span class="detail-label">System Record ID</span>
                   <span class="detail-value monospace mini-id">{{ vehicle.id }}</span>
                 </div>

@@ -10,4 +10,5 @@ export interface Vehicle {
   isPrimary: boolean
   ownerName: string
   ownerRole: string
+  verificationStatus: 0 | 1 | 2 | 3  // 0=NotSubmitted, 1=Pending, 2=Verified, 3=Rejected
 }
