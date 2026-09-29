@@ -12,6 +12,7 @@ const form = ref({
   startTime: '07:00',
   endTime: '23:59',
   reason: '',
+  type: 1, // Default to Special Schedule (1) on Admin side
   sendEmail: false,
   notifyEmail: ''
 })
@@ -62,7 +63,7 @@ async function handleSubmit() {
       startTime: formatTimeWithSec(form.value.startTime),
       endTime: formatTimeWithSec(form.value.endTime),
       reason: form.value.reason.trim(),
-      type: 0 // Normal reservation
+      type: Number(form.value.type)
     }
 
     if (form.value.sendEmail && form.value.notifyEmail.trim()) {
@@ -143,6 +144,14 @@ async function handleSubmit() {
         </div>
 
         <div class="form-grid">
+          <div class="form-group full-width">
+            <label class="form-label">Reservation Classification <span class="required">*</span></label>
+            <select v-model="form.type" class="form-input">
+              <option :value="1">Special Schedule / Event Pass (Full Day Authorization)</option>
+              <option :value="0">Standard Schedule Reservation</option>
+            </select>
+          </div>
+
           <div class="form-group full-width">
             <label class="form-label">Reservation Date <span class="required">*</span></label>
             <input
