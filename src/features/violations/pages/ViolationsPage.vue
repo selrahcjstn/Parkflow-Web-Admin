@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { Violation } from '../types'
 import ViolationDetailModal from '../components/ViolationDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
+import { cachedViolations } from '@/stores/appCache'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 
 const violColumns: TableColumn[] = [
   { key: 'reference', label: 'Reference Code' },
@@ -37,70 +39,42 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
   }, 4000)
 }
 
-const isLoading = ref(false)
+const notifStore = useAdminNotificationStore()
+let unsubscribeApprovalUpdates: (() => void) | null = null
 
-// Violations list
-const violations = ref<Violation[]>([
-  {
-    violationId: 'vio-1',
-    referenceNumber: 'VIO-20260612-A8E2',
-    violationType: 'Overstay Limit',
-    penaltyFee: 500.0,
-    settlementStatus: 'Unpaid',
-    isPaid: false,
-    firstName: 'Maria',
-    lastName: 'Santos',
-    roleName: 'Student',
-    plateNumber: 'XYZ 5678',
-    brand: 'Honda Click 125i',
-    vehicleType: 'Motorcycle',
-    entryTime: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-    issuedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    violationId: 'vio-2',
-    referenceNumber: 'VIO-20260611-C4F1',
-    violationType: 'Unauthorized Parking',
-    penaltyFee: 1000.0,
-    settlementStatus: 'Unpaid',
-    isPaid: false,
-    firstName: 'Elena',
-    lastName: 'Cruz',
-    roleName: 'Staff',
-    plateNumber: 'JKL 7890',
-    brand: 'Yamaha Mio',
-    vehicleType: 'Motorcycle',
-    entryTime: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    issuedAt: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString()
-  }
-])
+const isLoading = ref(!cachedViolations.value || cachedViolations.value.length === 0)
+
+// Violations list with cached data fallback
+const violations = ref<Violation[]>(cachedViolations.value || [])
 
 const fetchViolations = async () => {
-  isLoading.value = true
+  if (!cachedViolations.value || cachedViolations.value.length === 0) {
+    isLoading.value = true
+  }
   try {
     const response = await api.get('/violations/history/page/1/1000')
     if (response.data && response.data.isSuccess) {
       const items = response.data.data?.items || []
-      if (items.length > 0) {
-        violations.value = items.map((item: any) => ({
-          violationId: item.violationId,
-          referenceNumber: item.referenceNumber,
-          violationType: item.violationType,
-          penaltyFee: item.penaltyFee,
-          settlementStatus: (item.settlementStatus === 'Settled' || item.isPaid) ? 'Paid' : 'Unpaid',
-          isPaid: item.settlementStatus === 'Settled' || item.isPaid,
-          firstName: item.firstName,
-          lastName: item.lastName,
-          middleName: item.middleName,
-          roleName: item.roleName,
-          plateNumber: item.plateNumber,
-          brand: item.brand,
-          vehicleType: item.vehicleType,
-          entryTime: item.entryTime,
-          exitTime: item.exitTime,
-          issuedAt: item.issuedAt
-        }))
-      }
+      const mapped = items.map((item: any) => ({
+        violationId: item.violationId,
+        referenceNumber: item.referenceNumber,
+        violationType: item.violationType,
+        penaltyFee: item.penaltyFee,
+        settlementStatus: (item.settlementStatus === 'Settled' || item.isPaid) ? 'Paid' : 'Unpaid',
+        isPaid: item.settlementStatus === 'Settled' || item.isPaid,
+        firstName: item.firstName,
+        lastName: item.lastName,
+        middleName: item.middleName,
+        roleName: item.roleName,
+        plateNumber: item.plateNumber,
+        brand: item.brand,
+        vehicleType: item.vehicleType,
+        entryTime: item.entryTime,
+        exitTime: item.exitTime,
+        issuedAt: item.issuedAt
+      }))
+      violations.value = mapped
+      cachedViolations.value = [...mapped]
     }
   } catch (error) {
     console.error('Error fetching violations:', error)
@@ -111,6 +85,15 @@ const fetchViolations = async () => {
 
 onMounted(() => {
   fetchViolations()
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
+    fetchViolations()
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribeApprovalUpdates) {
+    unsubscribeApprovalUpdates()
+  }
 })
 
 // Filter and Search State
@@ -244,6 +227,7 @@ const handlePaymentSubmit = async () => {
           item.settlementStatus = 'Paid'
           item.isPaid = true
         }
+        cachedViolations.value = [...violations.value]
       }
 
       isPaymentOpen.value = false
@@ -268,6 +252,7 @@ const handlePaymentSubmit = async () => {
         item.settlementStatus = 'Paid'
         item.isPaid = true
       }
+      cachedViolations.value = [...violations.value]
       isPaymentOpen.value = false
       showToast(`Violation ${refToSettle} marked as settled.`, 'info')
     } else {
@@ -293,20 +278,33 @@ const getRoleLabel = (role: string) => {
         <h1 class="violations-title">Collections Log</h1>
         <p class="violations-subtitle">Track collection tickets, penalty fees, and process reference code payments.</p>
       </div>
-      <button class="settle-btn" @click="openPaymentModal()">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        Settle Collection
-      </button>
+      <div class="violations-header__actions">
+        <button class="refresh-btn" @click="fetchViolations" title="Refresh">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
+            <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
+          </svg>
+        </button>
+        <button class="settle-btn" @click="openPaymentModal()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Settle Collection
+        </button>
+      </div>
     </div>
 
     <!-- Stats Cards -->
     <div class="stats-grid">
       <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <div v-if="isLoading">
-          <SkeletonLoader variant="rect" height="100px" style="width: 100%; border-radius: var(--radius-card);" />
-        </div>
+        <template v-if="isLoading">
+          <div class="stat-card__left" style="width: 100%">
+            <SkeletonLoader variant="rect" height="28px" style="width: 50%; border-radius: 6px; margin-bottom: 8px;" />
+            <SkeletonLoader variant="rect" height="13px" style="width: 70%; border-radius: 4px; margin-bottom: 4px;" />
+            <SkeletonLoader variant="rect" height="11px" style="width: 45%; border-radius: 4px;" />
+          </div>
+          <SkeletonLoader variant="circle" height="44px" width="44px" style="border-radius: 12px; flex-shrink: 0;" />
+        </template>
         <template v-else>
           <div class="stat-card__left">
             <span class="stat-card__value">{{ stat.value }}</span>
@@ -382,6 +380,7 @@ const getRoleLabel = (role: string) => {
         :columns="violColumns"
         :data="filteredViolations"
         :is-loading="isLoading"
+        :loading-rows="6"
         empty-text="No violation tickets found."
         @row-click="openDetails"
       >
@@ -574,6 +573,31 @@ const getRoleLabel = (role: string) => {
   font-size: 14px;
   color: var(--color-muted);
   margin: 4px 0 0 0;
+}
+
+.violations-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.refresh-btn {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.refresh-btn:hover {
+  background: var(--color-surface-lighter);
+  color: var(--color-text);
 }
 
 .settle-btn {

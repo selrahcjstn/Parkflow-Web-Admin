@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Vehicle } from '../types'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
@@ -7,7 +7,8 @@ import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
-import { cachedVehicleApprovals } from '@/stores/appCache'
+import { cachedVehicleApprovals, cachedVehicles } from '@/stores/appCache'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 
 const router = useRouter()
 
@@ -39,13 +40,18 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
   }, 4000)
 }
 
-const isLoading = ref(false)
+const notifStore = useAdminNotificationStore()
+let unsubscribeApprovalUpdates: (() => void) | null = null
 
-// Vehicles list
-const vehicles = ref<Vehicle[]>([])
+const isLoading = ref(!cachedVehicles.value || cachedVehicles.value.length === 0)
+
+// Vehicles list with reactive cache
+const vehicles = ref<Vehicle[]>(cachedVehicles.value || [])
 
 const fetchVehicles = async () => {
-  isLoading.value = true
+  if (!cachedVehicles.value || cachedVehicles.value.length === 0) {
+    isLoading.value = true
+  }
   try {
     const response = await api.get('/vehicles')
     const rawData = response.data
@@ -55,7 +61,7 @@ const fetchVehicles = async () => {
 
     if (items && items.length > 0) {
       cachedVehicleApprovals.value = items
-      vehicles.value = items.map((v: any, index: number) => {
+      const mapped = items.map((v: any, index: number) => {
         const rawId = v.id ?? v.vehicleId ?? v.guid ?? v.vehicleGuid
         const safeId = rawId ? String(rawId) : `veh-${index + 1}`
         return {
@@ -72,6 +78,8 @@ const fetchVehicles = async () => {
           verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : 1
         }
       })
+      vehicles.value = mapped
+      cachedVehicles.value = [...mapped]
     }
   } catch (error) {
     console.error('Error fetching vehicles:', error)
@@ -82,6 +90,15 @@ const fetchVehicles = async () => {
 
 onMounted(() => {
   fetchVehicles()
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
+    fetchVehicles()
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribeApprovalUpdates) {
+    unsubscribeApprovalUpdates()
+  }
 })
 
 // Clean & Format helpers
@@ -178,6 +195,7 @@ const confirmDeleteVehicle = async () => {
 
   // 1. Immediately remove from local list for 0ms instant UI response
   vehicles.value = vehicles.value.filter((v) => v.id !== target.id && v.plateNumber !== target.plateNumber)
+  cachedVehicles.value = [...vehicles.value]
   if (cachedVehicleApprovals.value && Array.isArray(cachedVehicleApprovals.value)) {
     cachedVehicleApprovals.value = cachedVehicleApprovals.value.filter(
       (v: any) => v.id !== target.id && v.id !== targetRawId && v.plateNumber !== target.plateNumber && v.guid !== target.id && v.guid !== targetRawId
@@ -312,40 +330,50 @@ const isApproved = (status: number) => status === 2
     <!-- Stats Grid -->
     <div class="stats-grid">
       <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value">{{ stat.value }}</span>
-          <span class="stat-card__title">{{ stat.title }}</span>
-          <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
-        </div>
-        <div class="stat-card__icon" :style="{ background: stat.gradient }">
-          <!-- Total Vehicles Icon -->
-          <svg v-if="stat.icon === 'total'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-            <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-          </svg>
-          <!-- Car Icon -->
-          <svg v-if="stat.icon === 'car'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="6" rx="2" />
-            <path d="M5 17h14" />
-            <circle cx="7" cy="17" r="2" />
-            <circle cx="17" cy="17" r="2" />
-            <path d="M6 11l1.5-4.5h9L18 11" />
-          </svg>
-          <!-- Moto Icon -->
-          <svg v-if="stat.icon === 'moto'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="5" cy="18" r="3" />
-            <circle cx="19" cy="18" r="3" />
-            <path d="M12 18V8h4" />
-            <path d="M5 18h14" opacity="0.3" />
-          </svg>
-          <!-- EBike Icon -->
-          <svg v-if="stat.icon === 'ebike'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="6" cy="19" r="3" />
-            <circle cx="17" cy="19" r="3" />
-            <path d="M17 19h-7V10h4" />
-            <path d="M12 10L9 7h4" />
-          </svg>
-        </div>
+        <template v-if="isLoading">
+          <div class="stat-card__left" style="width: 100%">
+            <SkeletonLoader variant="rect" height="28px" style="width: 50%; border-radius: 6px; margin-bottom: 8px;" />
+            <SkeletonLoader variant="rect" height="13px" style="width: 70%; border-radius: 4px; margin-bottom: 4px;" />
+            <SkeletonLoader variant="rect" height="11px" style="width: 45%; border-radius: 4px;" />
+          </div>
+          <SkeletonLoader variant="circle" height="44px" width="44px" style="border-radius: 12px; flex-shrink: 0;" />
+        </template>
+        <template v-else>
+          <div class="stat-card__left">
+            <span class="stat-card__value">{{ stat.value }}</span>
+            <span class="stat-card__title">{{ stat.title }}</span>
+            <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
+          </div>
+          <div class="stat-card__icon" :style="{ background: stat.gradient }">
+            <!-- Total Vehicles Icon -->
+            <svg v-if="stat.icon === 'total'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
+            </svg>
+            <!-- Car Icon -->
+            <svg v-if="stat.icon === 'car'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="6" rx="2" />
+              <path d="M5 17h14" />
+              <circle cx="7" cy="17" r="2" />
+              <circle cx="17" cy="17" r="2" />
+              <path d="M6 11l1.5-4.5h9L18 11" />
+            </svg>
+            <!-- Moto Icon -->
+            <svg v-if="stat.icon === 'moto'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="5" cy="18" r="3" />
+              <circle cx="19" cy="18" r="3" />
+              <path d="M12 18V8h4" />
+              <path d="M5 18h14" opacity="0.3" />
+            </svg>
+            <!-- EBike Icon -->
+            <svg v-if="stat.icon === 'ebike'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="6" cy="19" r="3" />
+              <circle cx="17" cy="19" r="3" />
+              <path d="M17 19h-7V10h4" />
+              <path d="M12 10L9 7h4" />
+            </svg>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -380,6 +408,7 @@ const isApproved = (status: number) => status === 2
         :columns="vehicleColumns"
         :data="paginatedVehicles"
         :is-loading="isLoading"
+        :loading-rows="6"
         empty-text="No Registered Vehicles Found"
       >
         <template #cell-vehicle="{ item }">
