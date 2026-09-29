@@ -9,7 +9,8 @@ import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
 
 const vehicleColumns: TableColumn[] = [
-  { key: 'vehicle', label: 'Vehicle / Brand' },
+  { key: 'vehicle', label: 'Plate Number' },
+  { key: 'brand', label: 'Vehicle Brand & Model' },
   { key: 'owner', label: 'Owner Name' },
   { key: 'role', label: 'Role' },
   { key: 'clearance', label: 'Primary Clearance Pass' },
@@ -354,11 +355,12 @@ const getRoleLabel = (role: string) => {
                 <path d="M5 18h14" opacity="0.3" />
               </svg>
             </div>
-            <div class="vehicle-info flex flex-col">
-              <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber }}</span>
-              <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand }}</span>
-            </div>
+            <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber }}</span>
           </div>
+        </template>
+
+        <template #cell-brand="{ item }">
+          <span class="vehicle-brand font-medium text-slate-700 dark:text-slate-300">{{ item.brand }}</span>
         </template>
 
         <template #cell-owner="{ item }">
