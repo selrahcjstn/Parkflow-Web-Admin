@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
@@ -245,6 +246,19 @@ const filteredReservations = computed(() => {
 
     return true
   })
+})
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+watch([searchQuery, selectedStatusTab, selectedDateFilter], () => {
+  currentPage.value = 1
+})
+
+const paginatedReservations = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  return filteredReservations.value.slice(start, start + itemsPerPage.value)
 })
 
 function formatReservationDate(dateStr: string): string {
@@ -551,8 +565,9 @@ async function handleReject(item: ParkingReservationItem) {
     <div class="table-container p-0 overflow-hidden">
       <UiTable
         :columns="resColumns"
-        :data="filteredReservations"
+        :data="paginatedReservations"
         :is-loading="isLoading"
+        :loading-rows="6"
         empty-text="No schedule reservations found matching your criteria."
       >
         <template #cell-reference="{ item }">
@@ -657,6 +672,12 @@ async function handleReject(item: ParkingReservationItem) {
           </div>
         </template>
       </UiTable>
+
+      <TablePagination
+        v-model:current-page="currentPage"
+        v-model:items-per-page="itemsPerPage"
+        :total-items="filteredReservations.length"
+      />
     </div>
 
     <!-- Approve Confirmation Modal -->

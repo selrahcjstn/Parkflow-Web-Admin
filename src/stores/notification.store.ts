@@ -2,7 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
 import api from '@/api/axios'
-import { cachedApprovals, cachedRegistrations, cachedScheduleSubmissions, cachedVehicleApprovals, cachedReservations, cachedVehicles, cachedViolations } from '@/stores/appCache'
+import { cachedApprovals, cachedRegistrations, cachedScheduleSubmissions, cachedVehicleApprovals, cachedReservations, cachedVehicles, cachedViolations, cachedFeedbacks } from '@/stores/appCache'
 
 export interface AdminNotification {
   id: string
@@ -53,6 +53,7 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     cachedVehicles.value = null
     cachedReservations.value = null
     cachedViolations.value = null
+    cachedFeedbacks.value = null
     approvalListeners.forEach((listener) => {
       try {
         listener(data)

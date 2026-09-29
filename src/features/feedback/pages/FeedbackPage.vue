@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { FeedbackItem, FeedbackStatus } from '../types'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
+import { cachedFeedbacks } from '@/stores/appCache'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 
 const feedColumns: TableColumn[] = [
   { key: 'user', label: 'User / Applicant' },
@@ -33,9 +35,12 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'dang
   }, 4000)
 }
 
-// State
-const feedbacks = ref<FeedbackItem[]>([])
-const isLoading = ref(true)
+const notifStore = useAdminNotificationStore()
+let unsubscribeApprovalUpdates: (() => void) | null = null
+
+// State with reactive cache initialization
+const feedbacks = ref<FeedbackItem[]>(cachedFeedbacks.value || [])
+const isLoading = ref(!cachedFeedbacks.value || cachedFeedbacks.value.length === 0)
 const searchQuery = ref('')
 const selectedCategory = ref('All')
 const selectedStatus = ref<string>('All')
@@ -90,11 +95,15 @@ const getHoursElapsed = (createdAt?: string) => {
 
 // Fetch Feedback items from API
 const fetchFeedbacks = async () => {
-  isLoading.value = true
+  if (!cachedFeedbacks.value || cachedFeedbacks.value.length === 0) {
+    isLoading.value = true
+  }
   try {
     const res = await api.get<any>('/feedbacks')
     const rawData = Array.isArray(res.data) ? res.data : (res.data?.data || [])
-    feedbacks.value = Array.isArray(rawData) ? rawData : []
+    const items = Array.isArray(rawData) ? rawData : []
+    feedbacks.value = items
+    cachedFeedbacks.value = [...items]
   } catch (err: any) {
     console.error('Failed to fetch feedbacks:', err)
     showToast(err.response?.data?.message || 'Failed to load feedbacks.', 'danger')
@@ -105,6 +114,15 @@ const fetchFeedbacks = async () => {
 
 onMounted(() => {
   fetchFeedbacks()
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
+    fetchFeedbacks()
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribeApprovalUpdates) {
+    unsubscribeApprovalUpdates()
+  }
 })
 
 // KPI Computations
@@ -210,6 +228,7 @@ const handleSendReply = async () => {
         }
       }
     }
+    cachedFeedbacks.value = [...feedbacks.value]
 
     showToast('Reply and automated email sent successfully to user!', 'success')
     closeDetailModal()
@@ -242,6 +261,7 @@ const handleUpdateStatus = async () => {
       targetItem.adminNotes = editAdminNotes.value
       targetItem.updatedAt = new Date().toISOString()
     }
+    cachedFeedbacks.value = [...feedbacks.value]
 
     showToast('Feedback status updated successfully!', 'success')
     closeDetailModal()
@@ -338,53 +358,89 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
     <!-- KPI Summary Cards -->
     <div class="kpi-grid">
       <div class="kpi-card">
-        <div class="kpi-icon-wrap kpi-blue">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-          </svg>
-        </div>
-        <div class="kpi-content">
-          <span class="kpi-label">Total Submissions</span>
-          <span class="kpi-value">{{ totalCount }}</span>
-        </div>
+        <template v-if="isLoading">
+          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
+          <div class="kpi-content" style="width: 100%">
+            <SkeletonLoader variant="rect" height="12px" style="width: 65%; border-radius: 4px; margin-bottom: 6px;" />
+            <SkeletonLoader variant="rect" height="22px" style="width: 35%; border-radius: 6px;" />
+          </div>
+        </template>
+        <template v-else>
+          <div class="kpi-icon-wrap kpi-blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Total Submissions</span>
+            <span class="kpi-value">{{ totalCount }}</span>
+          </div>
+        </template>
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-icon-wrap kpi-gold">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-          </svg>
-        </div>
-        <div class="kpi-content">
-          <span class="kpi-label">Average Rating</span>
-          <span class="kpi-value">{{ averageRating }} <span class="kpi-sub">/ 5.0</span></span>
-        </div>
+        <template v-if="isLoading">
+          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
+          <div class="kpi-content" style="width: 100%">
+            <SkeletonLoader variant="rect" height="12px" style="width: 60%; border-radius: 4px; margin-bottom: 6px;" />
+            <SkeletonLoader variant="rect" height="22px" style="width: 45%; border-radius: 6px;" />
+          </div>
+        </template>
+        <template v-else>
+          <div class="kpi-icon-wrap kpi-gold">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Average Rating</span>
+            <span class="kpi-value">{{ averageRating }} <span class="kpi-sub">/ 5.0</span></span>
+          </div>
+        </template>
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-icon-wrap kpi-amber">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-        </div>
-        <div class="kpi-content">
-          <span class="kpi-label">Pending Inquiry SLA</span>
-          <span class="kpi-value text-amber">{{ pendingCount }}</span>
-        </div>
+        <template v-if="isLoading">
+          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
+          <div class="kpi-content" style="width: 100%">
+            <SkeletonLoader variant="rect" height="12px" style="width: 70%; border-radius: 4px; margin-bottom: 6px;" />
+            <SkeletonLoader variant="rect" height="22px" style="width: 30%; border-radius: 6px;" />
+          </div>
+        </template>
+        <template v-else>
+          <div class="kpi-icon-wrap kpi-amber">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Pending Inquiry SLA</span>
+            <span class="kpi-value text-amber">{{ pendingCount }}</span>
+          </div>
+        </template>
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-icon-wrap kpi-green">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-          </svg>
-        </div>
-        <div class="kpi-content">
-          <span class="kpi-label">Resolved Items</span>
-          <span class="kpi-value text-green">{{ resolvedCount }}</span>
-        </div>
+        <template v-if="isLoading">
+          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
+          <div class="kpi-content" style="width: 100%">
+            <SkeletonLoader variant="rect" height="12px" style="width: 60%; border-radius: 4px; margin-bottom: 6px;" />
+            <SkeletonLoader variant="rect" height="22px" style="width: 35%; border-radius: 6px;" />
+          </div>
+        </template>
+        <template v-else>
+          <div class="kpi-icon-wrap kpi-green">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <div class="kpi-content">
+            <span class="kpi-label">Resolved Items</span>
+            <span class="kpi-value text-green">{{ resolvedCount }}</span>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -451,6 +507,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
         :columns="feedColumns"
         :data="filteredFeedbacks"
         :is-loading="isLoading"
+        :loading-rows="6"
         empty-text="No user feedback matches your current search and filter criteria."
       >
         <template #cell-user="{ item }">
