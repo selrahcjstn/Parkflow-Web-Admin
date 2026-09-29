@@ -34,11 +34,11 @@ const emit = defineEmits<{
     </div>
 
     <div class="space-y-3">
-      <!-- RFID Scan -->
+      <!-- QR Code Gate Scan -->
       <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
         <div>
-          <span class="text-xs font-bold text-slate-900 dark:text-white block">RFID Instant Scanning Mode</span>
-          <span class="text-[11px] text-slate-500 dark:text-slate-400">Processes gate barrier signals automatically without manual operator verification.</span>
+          <span class="text-xs font-bold text-slate-900 dark:text-white block">QR Code Instant Gate Validation Mode</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400">Processes gate barrier QR scans automatically without manual operator verification.</span>
         </div>
         <input
           :checked="settings.rfidInstantScanEnabled"

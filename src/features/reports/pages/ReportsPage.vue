@@ -1,17 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/api/axios'
-import UiCard from '@/components/ui/UiCard.vue'
 import UiTabs from '@/components/ui/UiTabs.vue'
-import UiInput from '@/components/ui/UiInput.vue'
-import UiSelect from '@/components/ui/UiSelect.vue'
-import UiTable from '@/components/ui/UiTable.vue'
-import UiStatusText from '@/components/ui/UiStatusText.vue'
-import TablePagination from '@/components/ui/TablePagination.vue'
-import ReportMetrics from '../components/ReportMetrics.vue'
 import ReportFilters from '../components/ReportFilters.vue'
-import OccupancyChart from '../components/OccupancyChart.vue'
-import VehicleDistributionChart from '../components/VehicleDistributionChart.vue'
+import ReportOverviewTab from '../components/ReportOverviewTab.vue'
+import ReportActivityTab from '../components/ReportActivityTab.vue'
+import ReportViolationsTab from '../components/ReportViolationsTab.vue'
+import ReportVehiclesTab from '../components/ReportVehiclesTab.vue'
 import PrintableReportView from '../components/PrintableReportView.vue'
 
 // Toast Notification State
@@ -38,22 +33,6 @@ const activeTab = ref<'overview' | 'activity' | 'violations' | 'vehicles'>('over
 // Global Filters State
 const dateRange = ref('7d')
 const reportVehicleType = ref('all')
-
-// Search & Sub-filters State
-const activitySearch = ref('')
-const activityStatusFilter = ref('all')
-const violationsSearch = ref('')
-const violationsStatusFilter = ref('all')
-const vehiclesSearch = ref('')
-const vehiclesTypeFilter = ref('all')
-
-// Pagination State
-const activityPage = ref(1)
-const activityPageSize = ref(10)
-const violationsPage = ref(1)
-const violationsPageSize = ref(10)
-const vehiclesPage = ref(1)
-const vehiclesPageSize = ref(10)
 
 // Export State
 const exportingCSV = ref(false)
@@ -154,16 +133,6 @@ const formatDate = (dateStr?: string) => {
   return isNaN(d.getTime()) ? '—' : d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-const getVerificationStatus = (status: any): { label: string; variant: 'success' | 'warning' | 'danger' } => {
-  if (status === 2 || status === '2' || status === 'Verified' || status === 'Approved') {
-    return { label: 'Approved', variant: 'success' }
-  }
-  if (status === 3 || status === '3' || status === 'Rejected') {
-    return { label: 'Rejected', variant: 'danger' }
-  }
-  return { label: 'Pending', variant: 'warning' }
-}
-
 const formatEntryMethod = (method: any): string => {
   if (method === 0 || method === '0' || method === 'QrCode' || method === 'QRCode') return 'QR Code'
   if (method === 1 || method === '1' || method === 'Manual') return 'Manual Entry'
@@ -173,7 +142,6 @@ const formatEntryMethod = (method: any): string => {
 }
 
 const computeSessionDuration = (log: any): { text: string; hours: number } => {
-  // 1. If explicit duration is provided as number or string
   let rawDuration = log.parkingDuration ?? log.totalParkingHours ?? log.duration
 
   if (typeof rawDuration === 'string') {
@@ -183,7 +151,6 @@ const computeSessionDuration = (log: any): { text: string; hours: number } => {
     }
   }
 
-  // 2. Compute from EntryTime and ExitTime (or now if active)
   if ((rawDuration === undefined || rawDuration === null || rawDuration === 0 || isNaN(Number(rawDuration))) && log.entryTime) {
     const start = new Date(log.entryTime).getTime()
     const end = log.exitTime ? new Date(log.exitTime).getTime() : Date.now()
@@ -316,111 +283,38 @@ const allGateActivity = computed(() => {
   return list
 })
 
-// Filtered Lists
-const filteredParkingLogs = computed(() => {
+// Scoped Lists based on global date range & vehicle type
+const scopedParkingLogs = computed(() => {
   return allGateActivity.value.filter((log: any) => {
     const dateMatch = log.isActive || isWithinDateRange(log.entryTime || log.createdAt)
     const typeMatch = matchesVehicleType(log.vehicleType)
-    
-    // Sub-search
-    const q = activitySearch.value.toLowerCase().trim()
-    const plate = (log.plateNumber || '').toLowerCase()
-    const driver = (log.ownerName || '').toLowerCase()
-    const method = (log.entryMethod || '').toLowerCase()
-    const queryMatch = !q || plate.includes(q) || driver.includes(q) || method.includes(q)
-
-    // Sub-status filter
-    let statusMatch = true
-    if (activityStatusFilter.value === 'active') {
-      statusMatch = log.isActive // Includes both active parked and active overstays!
-    } else if (activityStatusFilter.value === 'overstay') {
-      statusMatch = log.isOverstay // Includes any overstaying session
-    } else if (activityStatusFilter.value === 'completed') {
-      statusMatch = !log.isActive
-    }
-
-    return dateMatch && typeMatch && queryMatch && statusMatch
+    return dateMatch && typeMatch
   })
 })
 
-const filteredViolations = computed(() => {
+const scopedViolations = computed(() => {
   return rawViolations.value.filter((v: any) => {
     const dateMatch = isWithinDateRange(v.issuedAt || v.createdAt)
     const typeMatch = matchesVehicleType(v.vehicleType)
-
-    // Sub-search
-    const q = violationsSearch.value.toLowerCase().trim()
-    const queryMatch = !q ||
-      (v.referenceNumber && v.referenceNumber.toLowerCase().includes(q)) ||
-      (v.plateNumber && v.plateNumber.toLowerCase().includes(q)) ||
-      (v.violationType && v.violationType.toLowerCase().includes(q)) ||
-      (v.firstName && v.firstName.toLowerCase().includes(q)) ||
-      (v.lastName && v.lastName.toLowerCase().includes(q))
-
-    // Sub-status
-    const isPaid = v.settlementStatus === 'Settled' || v.settlementStatus === 'Paid' || v.isPaid
-    const statusMatch = violationsStatusFilter.value === 'all' ||
-      (violationsStatusFilter.value === 'paid' && isPaid) ||
-      (violationsStatusFilter.value === 'unpaid' && !isPaid)
-
-    return dateMatch && typeMatch && queryMatch && statusMatch
+    return dateMatch && typeMatch
   })
 })
 
-const filteredVehicles = computed(() => {
+const scopedVehicles = computed(() => {
   return rawVehicles.value.filter((veh: any) => {
-    const typeMatch = matchesVehicleType(veh.vehicleType)
-
-    // Sub-search
-    const q = vehiclesSearch.value.toLowerCase().trim()
-    const plate = (veh.plateNumber || '').toLowerCase()
-    const brand = (veh.brand || '').toLowerCase()
-    const model = (veh.model || '').toLowerCase()
-    const owner = (veh.ownerName || veh.ownerFullName || veh.fullName || '').toLowerCase()
-    const queryMatch = !q || plate.includes(q) || brand.includes(q) || model.includes(q) || owner.includes(q)
-
-    // Sub-status filter
-    const statusObj = getVerificationStatus(veh.verificationStatus)
-    const statusMatch = vehiclesTypeFilter.value === 'all' ||
-      statusObj.label.toLowerCase() === vehiclesTypeFilter.value.toLowerCase()
-
-    return typeMatch && queryMatch && statusMatch
+    return matchesVehicleType(veh.vehicleType)
   })
 })
-
-// Paginated Lists
-const paginatedActivity = computed(() => {
-  const start = (activityPage.value - 1) * activityPageSize.value
-  return filteredParkingLogs.value.slice(start, start + activityPageSize.value)
-})
-
-const paginatedViolations = computed(() => {
-  const start = (violationsPage.value - 1) * violationsPageSize.value
-  return filteredViolations.value.slice(start, start + violationsPageSize.value)
-})
-
-const paginatedVehicles = computed(() => {
-  const start = (vehiclesPage.value - 1) * vehiclesPageSize.value
-  return filteredVehicles.value.slice(start, start + vehiclesPageSize.value)
-})
-
-// Tab Options
-const reportTabs = computed(() => [
-  { key: 'overview', label: 'Executive Overview' },
-  { key: 'activity', label: 'Gate Activity & Logs', count: filteredParkingLogs.value.length },
-  { key: 'violations', label: 'Citations Ledger', count: filteredViolations.value.length },
-  { key: 'vehicles', label: 'Vehicle Fleet', count: filteredVehicles.value.length }
-])
 
 // Dynamic Graph & Calculations
 const hourlyOccupancyPoints = computed(() => {
   const baseData = [20, 35, 80, 94, 75, 55, 30]
-  if (!filteredParkingLogs.value.length && !filteredViolations.value.length) {
+  if (!scopedParkingLogs.value.length && !scopedViolations.value.length) {
     return baseData
   }
 
   const hoursCount: number[] = [0, 0, 0, 0, 0, 0, 0]
-  const allEvents = [...filteredParkingLogs.value, ...filteredViolations.value]
+  const allEvents = [...scopedParkingLogs.value, ...scopedViolations.value]
 
   allEvents.forEach((item: any) => {
     const rawDate = item.entryTime || item.issuedAt || item.createdAt
@@ -468,9 +362,9 @@ const occupancySvgPath = computed(() => {
 
 // Vehicle Pie Breakdown
 const vehiclePieData = computed(() => {
-  let cars = filteredVehicles.value.filter((v: any) => v.vehicleType === 'Car' || v.vehicleType === 2 || String(v.vehicleType).toLowerCase() === 'car').length
-  let motos = filteredVehicles.value.filter((v: any) => v.vehicleType === 'Motorcycle' || v.vehicleType === 0 || String(v.vehicleType).toLowerCase() === 'motorcycle').length
-  let ebikes = filteredVehicles.value.filter((v: any) => v.vehicleType === 'ElectricBike' || v.vehicleType === 1 || String(v.vehicleType).toLowerCase().includes('bike')).length
+  let cars = scopedVehicles.value.filter((v: any) => v.vehicleType === 'Car' || v.vehicleType === 2 || String(v.vehicleType).toLowerCase() === 'car').length
+  let motos = scopedVehicles.value.filter((v: any) => v.vehicleType === 'Motorcycle' || v.vehicleType === 0 || String(v.vehicleType).toLowerCase() === 'motorcycle').length
+  let ebikes = scopedVehicles.value.filter((v: any) => v.vehicleType === 'ElectricBike' || v.vehicleType === 1 || String(v.vehicleType).toLowerCase().includes('bike')).length
 
   if (!cars && !motos && !ebikes) {
     cars = 18
@@ -512,7 +406,7 @@ const vehiclePieData = computed(() => {
 
 // Dynamic Summary Calculations
 const totalRevenueAmount = computed(() => {
-  return filteredViolations.value
+  return scopedViolations.value
     .filter((v: any) => v.settlementStatus === 'Settled' || v.settlementStatus === 'Paid' || v.isPaid)
     .reduce((sum: number, v: any) => sum + (Number(v.penaltyFee) || 0), 0)
 })
@@ -523,11 +417,11 @@ const peakOccupancyFormatted = computed(() => {
 })
 
 const avgDurationFormatted = computed(() => {
-  if (!filteredParkingLogs.value.length) return '3h 15m'
+  if (!allGateActivity.value.length) return '3h 15m'
   let totalMinutes = 0
   let count = 0
-  filteredParkingLogs.value.forEach((l: any) => {
-    if (l.totalParkingHours) {
+  allGateActivity.value.forEach((l: any) => {
+    if (l.totalParkingHours && l.totalParkingHours > 0) {
       totalMinutes += Number(l.totalParkingHours) * 60
       count++
     }
@@ -536,13 +430,13 @@ const avgDurationFormatted = computed(() => {
   const avgMins = Math.round(totalMinutes / count)
   const hrs = Math.floor(avgMins / 60)
   const mins = avgMins % 60
-  return `${hrs}h ${mins}m`
+  return hrs > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`) : `${mins}m`
 })
 
 const stats = computed(() => [
   {
     title: 'Total Gate Inflow',
-    value: String(filteredParkingLogs.value.length || activeSessions.value.length || 0),
+    value: String(scopedParkingLogs.value.length || activeSessions.value.length || 0),
     subtitle: 'Verified campus entries',
     icon: 'duration',
     gradient: 'linear-gradient(135deg, #3b82f6, #60a5fa)'
@@ -564,13 +458,12 @@ const stats = computed(() => [
   {
     title: 'Settled Fines Collection',
     value: `₱${totalRevenueAmount.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    subtitle: `${filteredViolations.value.length} Citations Recorded`,
+    subtitle: `${scopedViolations.value.length} Citations Recorded`,
     icon: 'revenue',
     gradient: 'linear-gradient(135deg, #10b981, #34d399)'
   }
 ])
 
-// Hourly Traffic Load Data for Overview & PDF
 const hourlyTrafficData = computed(() => [
   { timeSlot: '06:00 AM - 08:00 AM', loadPercent: hourlyOccupancyPoints.value[0] || 20, status: 'Morning Gate Inflow' },
   { timeSlot: '08:00 AM - 10:00 AM', loadPercent: hourlyOccupancyPoints.value[1] || 45, status: 'Moderate Traffic' },
@@ -579,6 +472,13 @@ const hourlyTrafficData = computed(() => [
   { timeSlot: '02:00 PM - 04:00 PM', loadPercent: hourlyOccupancyPoints.value[4] || 75, status: 'High Occupancy' },
   { timeSlot: '04:00 PM - 06:00 PM', loadPercent: hourlyOccupancyPoints.value[5] || 55, status: 'Afternoon Gate Outflow' },
   { timeSlot: '06:00 PM - 08:00 PM', loadPercent: hourlyOccupancyPoints.value[6] || 30, status: 'Evening Clearance' }
+])
+
+const reportTabs = computed(() => [
+  { key: 'overview', label: 'Executive Overview' },
+  { key: 'activity', label: 'Gate Activity & Logs', count: scopedParkingLogs.value.length },
+  { key: 'violations', label: 'Citations Ledger', count: scopedViolations.value.length },
+  { key: 'vehicles', label: 'Vehicle Fleet', count: scopedVehicles.value.length }
 ])
 
 // Export Handlers
@@ -595,10 +495,10 @@ const triggerExport = (format: 'csv' | 'pdf') => {
       if (activeTab.value === 'violations' || activeTab.value === 'overview') {
         fileName = 'ParkFlow_Citations_Audit'
         headers = ['Citation Reference', 'Plate Number', 'Driver / Owner', 'Infraction Type', 'Penalty Fee', 'Settlement Status', 'Date Issued']
-        rows = filteredViolations.value.map((v: any) => [
+        rows = scopedViolations.value.map((v: any) => [
           `"${v.referenceNumber || ''}"`,
           `"${v.plateNumber || ''}"`,
-          `"${(v.firstName || '') + ' ' + (v.lastName || '')}"`,
+          `"${(v.firstName || '') + ' ' + (v.lastName || '') || v.ownerName || 'Driver'}"`,
           `"${v.violationType || ''}"`,
           `"${v.penaltyFee || 0}"`,
           `"${(v.settlementStatus === 'Settled' || v.isPaid) ? 'Paid' : 'Unpaid'}"`,
@@ -606,22 +506,23 @@ const triggerExport = (format: 'csv' | 'pdf') => {
         ])
       } else if (activeTab.value === 'activity') {
         fileName = 'ParkFlow_Gate_Activity_Logs'
-        headers = ['Session ID', 'Plate Number', 'Owner Name', 'Vehicle Type', 'Entry Time', 'Exit Time', 'Duration (Hours)', 'Entry Method', 'Status']
-        rows = filteredParkingLogs.value.map((l: any) => [
-          `"${l.sessionId || l.id || ''}"`,
+        headers = ['Session ID', 'Plate Number', 'Driver / Owner', 'Role', 'Vehicle Type', 'Entry Time', 'Exit Time', 'Duration', 'Entry Method', 'Status']
+        rows = scopedParkingLogs.value.map((l: any) => [
+          `"${l.sessionId || ''}"`,
           `"${l.plateNumber || ''}"`,
           `"${l.ownerName || ''}"`,
+          `"${formatRole(l.role)}"`,
           `"${getVehicleTypeLabel(l.vehicleType)}"`,
           `"${l.entryTime ? new Date(l.entryTime).toLocaleString() : ''}"`,
           `"${l.exitTime ? new Date(l.exitTime).toLocaleString() : 'Active'}"`,
-          `"${l.totalParkingHours || '0'}"`,
-          `"${l.entryMethod || 'RFID'}"`,
+          `"${l.duration || formatDuration(l.totalParkingHours, l.isActive)}"`,
+          `"${formatEntryMethod(l.entryMethod)}"`,
           `"${l.status || 'Active'}"`
         ])
       } else if (activeTab.value === 'vehicles') {
         fileName = 'ParkFlow_Campus_Vehicle_Registry'
         headers = ['Plate Number', 'Brand / Model', 'Vehicle Classification', 'Owner Name', 'Role', 'Approval Status']
-        rows = filteredVehicles.value.map((v: any) => [
+        rows = scopedVehicles.value.map((v: any) => [
           `"${v.plateNumber || ''}"`,
           `"${(v.brand || '') + ' ' + (v.model || '')}"`,
           `"${getVehicleTypeLabel(v.vehicleType)}"`,
@@ -659,53 +560,22 @@ const triggerExport = (format: 'csv' | 'pdf') => {
   }
 }
 
-// Table Column Definitions
-const activityColumns = [
-  { key: 'plateNumber', label: 'Plate Number' },
-  { key: 'ownerName', label: 'Driver / Owner' },
-  { key: 'vehicleType', label: 'Vehicle Class' },
-  { key: 'entryTime', label: 'Entry Timestamp' },
-  { key: 'exitTime', label: 'Exit Timestamp' },
-  { key: 'duration', label: 'Duration' },
-  { key: 'entryMethod', label: 'Entry Method' },
-  { key: 'status', label: 'Session Status' }
-]
-
-const violationsColumns = [
-  { key: 'referenceNumber', label: 'Citation Ref' },
-  { key: 'plateNumber', label: 'Plate Number' },
-  { key: 'driver', label: 'Driver / Owner' },
-  { key: 'violationType', label: 'Infraction Type' },
-  { key: 'penaltyFee', label: 'Penalty Fee' },
-  { key: 'settlementStatus', label: 'Settlement Status' },
-  { key: 'issuedAt', label: 'Date Issued' }
-]
-
-const vehicleColumns = [
-  { key: 'plateNumber', label: 'Plate Number' },
-  { key: 'brandModel', label: 'Brand & Model' },
-  { key: 'vehicleType', label: 'Vehicle Class' },
-  { key: 'ownerName', label: 'Registered Owner' },
-  { key: 'ownerRole', label: 'Classification' },
-  { key: 'verificationStatus', label: 'Approval Status' }
-]
-
 // Printable Report Props Payload
 const printableSummary = computed(() => ({
-  totalEntries: filteredParkingLogs.value.length || activeSessions.value.length,
+  totalEntries: scopedParkingLogs.value.length || activeSessions.value.length,
   peakOccupancy: peakOccupancyFormatted.value,
   avgDuration: avgDurationFormatted.value,
   totalRevenue: `₱${totalRevenueAmount.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-  totalViolations: filteredViolations.value.length,
+  totalViolations: scopedViolations.value.length,
   activeParked: activeSessions.value.length,
-  totalVehicles: filteredVehicles.value.length
+  totalVehicles: scopedVehicles.value.length
 }))
 
 const printableViolations = computed(() => {
-  return filteredViolations.value.map((v: any) => ({
+  return scopedViolations.value.map((v: any) => ({
     ref: v.referenceNumber || 'N/A',
     plate: v.plateNumber || 'N/A',
-    driver: (v.firstName || '') + ' ' + (v.lastName || '') || 'Driver',
+    driver: (v.firstName || '') + ' ' + (v.lastName || '') || v.ownerName || 'Driver',
     type: v.violationType || 'Violation',
     status: (v.settlementStatus === 'Settled' || v.isPaid) ? 'Paid' : 'Unpaid',
     amount: Number(v.penaltyFee) || 0,
@@ -714,15 +584,15 @@ const printableViolations = computed(() => {
 })
 
 const printableRecentLogs = computed(() => {
-  return filteredParkingLogs.value.slice(0, 10).map((l: any) => ({
+  return scopedParkingLogs.value.slice(0, 12).map((l: any) => ({
     plate: l.plateNumber || 'N/A',
     driver: l.ownerName || 'Driver',
     type: getVehicleTypeLabel(l.vehicleType),
     entryTime: formatDate(l.entryTime),
-    exitTime: l.exitTime ? formatDate(l.exitTime) : 'Active',
-    duration: l.totalParkingHours ? `${l.totalParkingHours}h` : '—',
-    method: l.entryMethod || 'RFID',
-    status: l.status || 'Active'
+    exitTime: l.exitTime ? formatDate(l.exitTime) : 'Active Parked',
+    duration: l.duration || formatDuration(l.totalParkingHours, l.isActive),
+    method: formatEntryMethod(l.entryMethod),
+    status: l.isOverstay ? 'Overstay' : (l.isActive ? 'Active' : 'Completed')
   }))
 })
 
@@ -744,17 +614,6 @@ const vehicleTypeScopeLabel = computed(() => {
   if (reportVehicleType.value === 'motorcycles') return 'Motorcycles Only'
   if (reportVehicleType.value === 'ebikes') return 'Electric Bikes Only'
   return 'All Vehicle Classifications'
-})
-
-// Watch filters to reset page numbers
-watch([dateRange, reportVehicleType, activitySearch, activityStatusFilter], () => {
-  activityPage.value = 1
-})
-watch([dateRange, reportVehicleType, violationsSearch, violationsStatusFilter], () => {
-  violationsPage.value = 1
-})
-watch([dateRange, reportVehicleType, vehiclesSearch, vehiclesTypeFilter], () => {
-  vehiclesPage.value = 1
 })
 </script>
 
@@ -790,311 +649,54 @@ watch([dateRange, reportVehicleType, vehiclesSearch, vehiclesTypeFilter], () => 
       />
     </div>
 
-    <!-- Global Report Filters & Action Toolbar (Screen only) -->
+    <!-- Global Report Filters Toolbar (Frameless / Borderless, No Card box) -->
     <div class="no-print">
-      <UiCard custom-class="p-4">
-        <ReportFilters
-          v-model:date-range="dateRange"
-          v-model:report-vehicle-type="reportVehicleType"
-          :exporting-c-s-v="exportingCSV"
-          :exporting-p-d-f="exportingPDF"
-          :last-sync-time="lastSyncTime"
-          @export="triggerExport"
-          @refresh="fetchReportsData"
-        />
-      </UiCard>
+      <ReportFilters
+        v-model:date-range="dateRange"
+        v-model:report-vehicle-type="reportVehicleType"
+        :exporting-c-s-v="exportingCSV"
+        :exporting-p-d-f="exportingPDF"
+        :last-sync-time="lastSyncTime"
+        @export="triggerExport"
+        @refresh="fetchReportsData"
+      />
     </div>
 
     <!-- TAB 1: EXECUTIVE OVERVIEW -->
-    <div v-if="activeTab === 'overview'" class="no-print space-y-6">
-      <!-- Performance Metrics KPI Cards -->
-      <ReportMetrics
+    <div v-if="activeTab === 'overview'" class="no-print">
+      <ReportOverviewTab
         :is-loading="isLoading"
         :stats="stats"
+        :occupancy-svg-path="occupancySvgPath"
+        :vehicle-pie-data="vehiclePieData"
+        :hourly-traffic-data="hourlyTrafficData"
+        :total-campus-capacity="totalCampusCapacity"
+        :last-sync-time="lastSyncTime"
       />
-
-      <!-- Visual Analytics Graphs -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <OccupancyChart
-          :occupancy-svg-path="occupancySvgPath"
-          :last-sync-time="lastSyncTime"
-        />
-        <VehicleDistributionChart
-          :vehicle-pie-data="vehiclePieData"
-        />
-      </div>
-
-      <!-- Operational Hourly Traffic Table -->
-      <UiCard custom-class="p-5">
-        <div class="flex items-center justify-between mb-4">
-          <div>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white">
-              Hourly Peak Traffic Distribution
-            </h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-              Breakdown of campus parking load factor across operational windows
-            </p>
-          </div>
-          <span class="text-xs font-bold text-[#D22730] bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900">
-            Capacity: {{ totalCampusCapacity }} Slots
-          </span>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs text-left border-collapse">
-            <thead>
-              <tr class="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
-                <th class="py-2.5 px-3">Time Window</th>
-                <th class="py-2.5 px-3">Load Factor</th>
-                <th class="py-2.5 px-3">Traffic Intensity</th>
-                <th class="py-2.5 px-3 text-right">Operational Status</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-              <tr v-for="item in hourlyTrafficData" :key="item.timeSlot" class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                <td class="py-3 px-3 font-semibold text-slate-800 dark:text-slate-200">{{ item.timeSlot }}</td>
-                <td class="py-3 px-3">
-                  <div class="flex items-center gap-2">
-                    <div class="w-28 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                      <div
-                        class="h-full rounded-full transition-all duration-500"
-                        :class="item.loadPercent >= 85 ? 'bg-[#D22730]' : item.loadPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'"
-                        :style="{ width: `${item.loadPercent}%` }"
-                      ></div>
-                    </div>
-                    <span class="font-bold text-slate-700 dark:text-slate-300">{{ item.loadPercent }}%</span>
-                  </div>
-                </td>
-                <td class="py-3 px-3">
-                  <span
-                    class="inline-flex items-center gap-1.5 font-bold"
-                    :class="item.loadPercent >= 85 ? 'text-[#D22730]' : item.loadPercent >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'"
-                  >
-                    <span
-                      class="w-1.5 h-1.5 rounded-full"
-                      :class="item.loadPercent >= 85 ? 'bg-[#D22730]' : item.loadPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'"
-                    ></span>
-                    {{ item.loadPercent >= 85 ? 'Heavy Peak Load' : item.loadPercent >= 60 ? 'Moderate Demand' : 'Normal Operations' }}
-                  </span>
-                </td>
-                <td class="py-3 px-3 text-right text-slate-600 dark:text-slate-400 font-medium">{{ item.status }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </UiCard>
     </div>
 
     <!-- TAB 2: GATE ACTIVITY & PARKING LOGS -->
-    <div v-else-if="activeTab === 'activity'" class="no-print space-y-4">
-      <UiCard custom-class="p-4">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-          <div class="w-full sm:w-72">
-            <UiInput
-              v-model="activitySearch"
-              placeholder="Search plate, driver, or method..."
-              size="sm"
-            />
-          </div>
-          <div class="w-full sm:w-56">
-            <UiSelect
-              v-model="activityStatusFilter"
-              :options="[
-                { label: 'All Session Statuses', value: 'all' },
-                { label: 'Active Parked', value: 'active' },
-                { label: 'Overstay / Exceeded', value: 'overstay' },
-                { label: 'Completed Sessions', value: 'completed' }
-              ]"
-              size="sm"
-            />
-          </div>
-        </div>
-
-        <UiTable
-          :columns="activityColumns"
-          :data="paginatedActivity"
-          :is-loading="isLoading"
-          empty-text="No parking activity records found matching criteria."
-        >
-          <template #cell-plateNumber="{ item }">
-            <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber || '—' }}</span>
-          </template>
-          <template #cell-ownerName="{ item }">
-            <span class="font-medium text-slate-800 dark:text-slate-200">{{ item.ownerName || 'Guest Driver' }}</span>
-          </template>
-          <template #cell-vehicleType="{ item }">
-            <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
-          </template>
-          <template #cell-entryTime="{ item }">
-            <span class="text-xs text-slate-600 dark:text-slate-400">{{ formatDate(item.entryTime) }}</span>
-          </template>
-          <template #cell-exitTime="{ item }">
-            <span class="text-xs text-slate-600 dark:text-slate-400">{{ item.exitTime ? formatDate(item.exitTime) : '—' }}</span>
-          </template>
-          <template #cell-duration="{ item }">
-            <span
-              class="font-medium text-xs"
-              :class="item.isOverstay ? 'text-[#D22730] font-bold' : 'text-slate-700 dark:text-slate-300'"
-            >
-              {{ item.duration }}
-            </span>
-          </template>
-          <template #cell-entryMethod="{ item }">
-            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">{{ formatEntryMethod(item.entryMethod) }}</span>
-          </template>
-          <template #cell-status="{ item }">
-            <UiStatusText
-              :variant="item.isOverstay ? 'danger' : item.isActive ? 'info' : 'success'"
-            >
-              {{ item.isOverstay ? (item.isActive ? 'Overstay' : 'Overdue Exit') : item.isActive ? 'Active Parked' : 'Completed' }}
-            </UiStatusText>
-          </template>
-        </UiTable>
-
-        <div class="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
-          <TablePagination
-            v-model:current-page="activityPage"
-            v-model:page-size="activityPageSize"
-            :total-items="filteredParkingLogs.length"
-          />
-        </div>
-      </UiCard>
+    <div v-else-if="activeTab === 'activity'" class="no-print">
+      <ReportActivityTab
+        :items="scopedParkingLogs"
+        :is-loading="isLoading"
+      />
     </div>
 
     <!-- TAB 3: CITATIONS LEDGER -->
-    <div v-else-if="activeTab === 'violations'" class="no-print space-y-4">
-      <UiCard custom-class="p-4">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-          <div class="w-full sm:w-72">
-            <UiInput
-              v-model="violationsSearch"
-              placeholder="Search reference, plate, or driver..."
-              size="sm"
-            />
-          </div>
-          <div class="w-full sm:w-48">
-            <UiSelect
-              v-model="violationsStatusFilter"
-              :options="[
-                { label: 'All Settlement Statuses', value: 'all' },
-                { label: 'Settled / Paid', value: 'paid' },
-                { label: 'Unpaid Citations', value: 'unpaid' }
-              ]"
-              size="sm"
-            />
-          </div>
-        </div>
-
-        <UiTable
-          :columns="violationsColumns"
-          :data="paginatedViolations"
-          :is-loading="isLoading"
-          empty-text="No infraction citations recorded matching criteria."
-        >
-          <template #cell-referenceNumber="{ item }">
-            <span class="font-mono font-bold text-[#D22730]">{{ item.referenceNumber || 'N/A' }}</span>
-          </template>
-          <template #cell-plateNumber="{ item }">
-            <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber || '—' }}</span>
-          </template>
-          <template #cell-driver="{ item }">
-            <span class="font-medium text-slate-800 dark:text-slate-200">
-              {{ (item.firstName || '') + ' ' + (item.lastName || '') || 'Driver' }}
-            </span>
-          </template>
-          <template #cell-violationType="{ item }">
-            <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ item.violationType || 'General Violation' }}</span>
-          </template>
-          <template #cell-penaltyFee="{ item }">
-            <span class="font-bold text-slate-900 dark:text-white">₱{{ Number(item.penaltyFee || 0).toFixed(2) }}</span>
-          </template>
-          <template #cell-settlementStatus="{ item }">
-            <UiStatusText
-              :variant="item.settlementStatus === 'Settled' || item.settlementStatus === 'Paid' || item.isPaid ? 'success' : 'danger'"
-            >
-              {{ item.settlementStatus === 'Settled' || item.settlementStatus === 'Paid' || item.isPaid ? 'Paid' : 'Unpaid' }}
-            </UiStatusText>
-          </template>
-          <template #cell-issuedAt="{ item }">
-            <span class="text-xs text-slate-600 dark:text-slate-400">{{ formatDate(item.issuedAt || item.createdAt) }}</span>
-          </template>
-        </UiTable>
-
-        <div class="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
-          <TablePagination
-            v-model:current-page="violationsPage"
-            v-model:page-size="violationsPageSize"
-            :total-items="filteredViolations.length"
-          />
-        </div>
-      </UiCard>
+    <div v-else-if="activeTab === 'violations'" class="no-print">
+      <ReportViolationsTab
+        :items="scopedViolations"
+        :is-loading="isLoading"
+      />
     </div>
 
     <!-- TAB 4: CAMPUS VEHICLE FLEET -->
-    <div v-else-if="activeTab === 'vehicles'" class="no-print space-y-4">
-      <UiCard custom-class="p-4">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
-          <div class="w-full sm:w-72">
-            <UiInput
-              v-model="vehiclesSearch"
-              placeholder="Search plate, brand, or owner..."
-              size="sm"
-            />
-          </div>
-          <div class="w-full sm:w-48">
-            <UiSelect
-              v-model="vehiclesTypeFilter"
-              :options="[
-                { label: 'All Statuses', value: 'all' },
-                { label: 'Approved Only', value: 'approved' },
-                { label: 'Pending Only', value: 'pending' },
-                { label: 'Rejected Only', value: 'rejected' }
-              ]"
-              size="sm"
-            />
-          </div>
-        </div>
-
-        <UiTable
-          :columns="vehicleColumns"
-          :data="paginatedVehicles"
-          :is-loading="isLoading"
-          empty-text="No registered vehicles found matching criteria."
-        >
-          <template #cell-plateNumber="{ item }">
-            <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber || '—' }}</span>
-          </template>
-          <template #cell-brandModel="{ item }">
-            <span class="font-medium text-slate-800 dark:text-slate-200">
-              {{ (item.brand || '') + (item.model ? ' ' + item.model : '') || '—' }}
-            </span>
-          </template>
-          <template #cell-vehicleType="{ item }">
-            <span class="text-xs font-semibold text-slate-600 dark:text-slate-400">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
-          </template>
-          <template #cell-ownerName="{ item }">
-            <span class="font-medium text-slate-800 dark:text-slate-200">{{ item.ownerName || item.ownerFullName || item.fullName || 'Unassigned' }}</span>
-          </template>
-          <template #cell-ownerRole="{ item }">
-            <span class="text-xs text-slate-600 dark:text-slate-400 font-medium">{{ formatRole(item.ownerRole) }}</span>
-          </template>
-          <template #cell-verificationStatus="{ item }">
-            <UiStatusText
-              :variant="getVerificationStatus(item.verificationStatus).variant"
-            >
-              {{ getVerificationStatus(item.verificationStatus).label }}
-            </UiStatusText>
-          </template>
-        </UiTable>
-
-        <div class="mt-4 border-t border-slate-100 dark:border-slate-800 pt-3">
-          <TablePagination
-            v-model:current-page="vehiclesPage"
-            v-model:page-size="vehiclesPageSize"
-            :total-items="filteredVehicles.length"
-          />
-        </div>
-      </UiCard>
+    <div v-else-if="activeTab === 'vehicles'" class="no-print">
+      <ReportVehiclesTab
+        :items="scopedVehicles"
+        :is-loading="isLoading"
+      />
     </div>
 
     <!-- PRINTABLE INSTITUTIONAL REPORT VIEW (Printed on window.print()) -->

@@ -33,7 +33,7 @@ const handleAIQuestion = () => {
   setTimeout(() => {
     aiThinking.value = false
     if (query.includes('peak') || query.includes('hour') || query.includes('busy')) {
-      reply = 'Based on historical RFID gate entries, peak campus parking occupancy occurs between 10:15 AM and 1:30 PM on Tuesdays and Thursdays. Peak load averages 94% capacity during morning lecture windows.'
+      reply = 'Based on historical QR Code gate entries, peak campus parking occupancy occurs between 10:15 AM and 1:30 PM on Tuesdays and Thursdays. Peak load averages 94% capacity during morning lecture windows.'
     } else if (query.includes('revenue') || query.includes('money') || query.includes('collection') || query.includes('fine') || query.includes('paid')) {
       reply = `According to our real database, total settled violation penalties amount to ${props.formattedRevenue}. A total of ${props.totalViolationsCount} infractions have been recorded in the system.`
     } else if (query.includes('violation') || query.includes('overstay') || query.includes('ticket')) {
