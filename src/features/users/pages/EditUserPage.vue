@@ -226,8 +226,9 @@ function syncToCachedUsers() {
     status: form.value.status,
     profilePictureUrl: form.value.photoUrl || '',
     avatarUrl: form.value.photoUrl || '',
-    photoUrl: form.value.photoUrl || '',
-    corVerificationStatus: form.value.status === 'Active' ? 'Verified' : (form.value.status === 'Suspended' ? 'Suspended' : 'PendingVerification'),
+    corVerificationStatus: existingIdx !== -1 && cachedUsers.value[existingIdx]?.corVerificationStatus
+      ? cachedUsers.value[existingIdx].corVerificationStatus
+      : 'NotSubmitted',
     student: form.value.role === 'Student' ? {
       studentNumber: form.value.studentNumber,
       course: form.value.course,

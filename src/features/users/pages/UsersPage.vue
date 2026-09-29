@@ -35,7 +35,7 @@ const fetchUsers = async () => {
       if (cachedUsers.value && cachedUsers.value.length > 0) {
         users.value = fetched.map((f: UserWithDetails) => {
           const cached = cachedUsers.value?.find((c: any) => String(c.id) === String(f.id))
-          return cached ? { ...f, ...cached } : f
+          return cached ? { ...cached, ...f } : f
         })
         cachedUsers.value.forEach((c: any) => {
           if (!users.value.some((u) => String(u.id) === String(c.id))) {
@@ -156,14 +156,15 @@ const stats = computed(() => {
 
 const displayStatus = (user: UserWithDetails) => {
   if (user.status === 'Suspended') return 'Suspended'
-  if (user.role !== 'Student') return 'Active'
-  return user.corVerificationStatus || 'Verified'
+  if (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin') return 'Active'
+  return user.corVerificationStatus || 'NotSubmitted'
 }
 
 function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
   if (status === 'Verified' || status === 'Active') return 'success'
-  if (status === 'Pending') return 'warning'
+  if (status === 'Pending' || status === 'PendingVerification') return 'warning'
   if (status === 'Suspended' || status === 'Rejected') return 'danger'
+  if (status === 'NotSubmitted' || status === 'Unverified') return 'neutral'
   return 'neutral'
 }
 
@@ -267,6 +268,8 @@ const getRoleLabel = (role: UserRole) => {
 
 const formatStatusText = (status: string) => {
   if (status === 'NotSubmitted') return 'Not Submitted'
+  if (status === 'Unverified') return 'Not Submitted'
+  if (status === 'PendingVerification') return 'Pending'
   return status
 }
 
@@ -364,16 +367,13 @@ const handleRejectUser = async (user: UserWithDetails) => {
 const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
   const targetIndex = users.value.findIndex(u => String(u.id) === String(userId))
   if (targetIndex !== -1 && users.value[targetIndex]) {
-    const newCorStatus = (newStatus === 'Active' ? 'Verified' : (newStatus === 'Suspended' ? 'Rejected' : 'Pending')) as any
     const updatedUser = {
       ...users.value[targetIndex],
-      status: newStatus,
-      corVerificationStatus: newCorStatus
+      status: newStatus
     }
     users.value[targetIndex] = updatedUser
     if (selectedUser.value && String(selectedUser.value.id) === String(userId)) {
       selectedUser.value.status = newStatus
-      selectedUser.value.corVerificationStatus = newCorStatus
     }
     cachedUsers.value = [...users.value]
   }

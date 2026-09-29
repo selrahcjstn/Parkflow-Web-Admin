@@ -70,6 +70,7 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
   if (status === 'Active' || status === 'Verified') return 'success'
   if (status === 'PendingVerification' || status === 'Pending') return 'warning'
   if (status === 'Suspended' || status === 'Rejected') return 'danger'
+  if (status === 'NotSubmitted' || status === 'Unverified') return 'neutral'
   return 'neutral'
 }
 
@@ -78,8 +79,8 @@ const formatStatus = (status: string) => {
   return status
 }
 
-const formatCorStatus = (status: string) => {
-  if (status === 'NotSubmitted') return 'Not Submitted'
+const formatCorStatus = (status?: string) => {
+  if (!status || status === 'NotSubmitted' || status === 'Unverified') return 'Not Submitted'
   return status
 }
 </script>
