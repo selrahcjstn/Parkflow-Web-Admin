@@ -106,7 +106,8 @@ async function saveSettings() {
     }
   } catch (error: any) {
     console.error('Error saving settings:', error)
-    showNotification('System settings updated locally.', 'success')
+    const errorMsg = error.response?.data?.message || error.message || 'Failed to save system settings'
+    showNotification(errorMsg, 'error')
   } finally {
     isSaving.value = false
   }
