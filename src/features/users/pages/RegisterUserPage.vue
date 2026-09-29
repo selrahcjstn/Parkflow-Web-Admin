@@ -251,6 +251,12 @@ const handleSendOtp = async (isResend = false) => {
     }
 
     otpCode.value = ''
+    if (otpRes.data?.message && otpRes.data.message.includes('Verification code generated:')) {
+      const match = otpRes.data.message.match(/\d{6}/)
+      if (match) {
+        otpCode.value = match[0]
+      }
+    }
     otpModalVisible.value = true
     startResendTimer()
   } catch (err: any) {
