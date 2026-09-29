@@ -191,9 +191,16 @@ const vehiclePieData = computed(() => {
 // Dynamic Metrics Calculation
 const totalViolationsCount = computed(() => realViolations.value.length || 148)
 const totalPaidRevenueAmount = computed(() => {
-  if (!realViolations.value.length) return 128450
+  if (!realViolations.value.length) return 0
+  const todayStr = new Date().toDateString()
   return realViolations.value
-    .filter((v: any) => v.settlementStatus === 'Settled' || v.settlementStatus === 'Paid' || v.isPaid)
+    .filter((v: any) => {
+      const isSettled = v.settlementStatus === 'Settled' || v.settlementStatus === 'Paid' || v.isPaid
+      if (!isSettled) return false
+      const rawDate = v.updatedAt || v.createdAt || v.issueDate
+      if (!rawDate) return false
+      return new Date(rawDate).toDateString() === todayStr
+    })
     .reduce((sum: number, v: any) => sum + (v.penaltyFee || 0), 0)
 })
 
@@ -233,9 +240,9 @@ const stats = computed(() => [
     gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)'
   },
   {
-    title: 'Penalty Collection',
+    title: 'Daily Revenue Collection',
     value: summaryStats.value.totalRevenue,
-    subtitle: 'Settled violation fines',
+    subtitle: "Today's settled violation fines",
     icon: 'revenue',
     gradient: 'linear-gradient(135deg, #10b981, #34d399)'
   }

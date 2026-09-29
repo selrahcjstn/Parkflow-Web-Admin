@@ -107,7 +107,7 @@ onMounted(async () => {
       statsData.value = {
         totalUsers: 142,
         activeParking: 38,
-        todayRevenue: 2450,
+        todayRevenue: 0,
         violations: 5,
         maxCapacity: 150
       }
