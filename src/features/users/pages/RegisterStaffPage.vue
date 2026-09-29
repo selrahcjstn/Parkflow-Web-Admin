@@ -3,6 +3,10 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import UiCard from '@/components/ui/UiCard.vue'
+import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiModal from '@/components/ui/UiModal.vue'
 
 const router = useRouter()
 
@@ -19,10 +23,8 @@ const form = ref({
   email: '',
   password: 'Password123!',
   phoneNumber: '09171234567',
-  // Guard specific
   assignedGate: 1,
-  // Admin specific
-  roleLevel: 2 // Standard Admin
+  roleLevel: 2
 })
 
 function checkUserRole() {
@@ -70,7 +72,16 @@ function showNotification(msg: string, type: 'success' | 'error' = 'success') {
   }, 4000)
 }
 
-// Step 1: Send OTP code
+const gateOptions = [
+  { label: 'Gate 1 - Main Campus Entrance', value: 1 },
+  { label: 'Gate 2 - East Campus Entrance', value: 2 },
+  { label: 'Gate 3 - South Gate Entrance', value: 3 }
+]
+
+const roleLevelOptions = [
+  { label: 'System Administrator (Standard Admin)', value: 2 }
+]
+
 const handleInitiateSubmit = async () => {
   if (!form.value.firstName || !form.value.lastName || !form.value.email) {
     showNotification('Please fill out all required personal information fields.', 'error')
@@ -81,7 +92,6 @@ const handleInitiateSubmit = async () => {
   otpError.value = null
 
   try {
-    // Check if staff email is already in use
     try {
       const checkRes = await api.get(`/auth/check-email?email=${encodeURIComponent(form.value.email.trim())}`)
       if (checkRes.data?.isSuccess === false || checkRes.data?.data === false) {
@@ -117,7 +127,6 @@ const handleInitiateSubmit = async () => {
   }
 }
 
-// Step 2: Verify OTP and create account
 const handleVerifyOtpAndCreate = async () => {
   if (!otpCode.value || otpCode.value.trim().length < 4) {
     otpError.value = 'Please enter a valid 6-digit OTP code.'
@@ -150,51 +159,40 @@ const handleVerifyOtpAndCreate = async () => {
         profile: {
           firstName: form.value.firstName,
           lastName: form.value.lastName,
-          middleName: form.value.middleName || null,
-          profilePictureUrl: null
-        },
-        assignedGate: Number(form.value.assignedGate) || 1
+          middleName: form.value.middleName || undefined,
+          assignedGateNumber: form.value.assignedGate
+        }
       }
-
-      const res = await api.post('/guards/create', guardPayload)
-      if (!res.data?.isSuccess && res.data?.isSuccess === false) {
-        throw new Error(res.data?.message || 'Guard creation failed.')
+      const response = await api.post('/guards', guardPayload)
+      if (response.data?.isSuccess) {
+        showNotification('Campus Security Guard account registered successfully!', 'success')
+        showOtpModal.value = false
+        setTimeout(() => router.push('/users'), 1000)
+      } else {
+        otpError.value = response.data?.message || 'Failed to register guard.'
       }
     } else {
       const adminPayload = {
-        account: {
-          email: form.value.email,
-          password: form.value.password || undefined,
-          phoneNumber: form.value.phoneNumber
-        },
-        profile: {
-          firstName: form.value.firstName,
-          lastName: form.value.lastName,
-          middleName: form.value.middleName || null,
-          profilePictureUrl: null
-        },
-        roleLevel: Number(form.value.roleLevel) || 2,
-        registrationKey: 'ParkFlowSecretBootstrapAdminKey2026'
+        email: form.value.email,
+        password: form.value.password || undefined,
+        firstName: form.value.firstName,
+        lastName: form.value.lastName,
+        middleName: form.value.middleName || undefined,
+        phoneNumber: form.value.phoneNumber,
+        roleLevel: form.value.roleLevel
       }
-
-      const res = await api.post('/admin/register', adminPayload)
-      if (!res.data?.isSuccess && res.data?.isSuccess === false) {
-        throw new Error(res.data?.message || 'Admin creation failed.')
+      const response = await api.post('/users/staff', adminPayload)
+      if (response.data?.isSuccess) {
+        showNotification('System Administrator account registered successfully!', 'success')
+        showOtpModal.value = false
+        setTimeout(() => router.push('/users'), 1000)
+      } else {
+        otpError.value = response.data?.message || 'Failed to register admin staff.'
       }
     }
-
-    showOtpModal.value = false
-    showNotification(`New ${form.value.accountType} account successfully created!`, 'success')
-
-    setTimeout(() => {
-      router.push({ path: '/users', query: { role: form.value.accountType === 'Guard' ? 'Guard' : 'Admin' } })
-    }, 1200)
-
-  } catch (error: any) {
-    console.error('Account creation error:', error)
-    showOtpModal.value = false
-    const errMsg = error.response?.data?.message || error.message || `Failed to create ${form.value.accountType} account.`
-    showNotification(errMsg, 'error')
+  } catch (err: any) {
+    console.error('Account creation error:', err)
+    otpError.value = err.response?.data?.message || 'Verification failed. Please check your OTP code.'
   } finally {
     isVerifyingOtp.value = false
     isSubmitting.value = false
@@ -205,50 +203,43 @@ const handleVerifyOtpAndCreate = async () => {
 <template>
   <div class="space-y-6 w-full">
     <!-- Notification Toast -->
-    <Transition
-      enter-active-class="transition duration-300 ease-out"
-      enter-from-class="opacity-0 translate-y-[-8px]"
-      enter-to-class="opacity-100 translate-y-0"
-      leave-active-class="transition duration-200 ease-in"
-      leave-from-class="opacity-100 translate-y-0"
-      leave-to-class="opacity-0 translate-y-[-8px]"
-    >
+    <Transition name="fade">
       <div
         v-if="toastMessage"
-        class="fixed top-6 right-6 z-50 px-5 py-3.5 rounded-xl border shadow-lg text-sm font-medium flex items-center gap-2"
-        :class="toastType === 'success' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-red-600 border-red-500 text-white'"
+        class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
+        :class="toastType === 'error' ? 'bg-rose-600' : 'bg-emerald-600'"
       >
         <span>{{ toastMessage }}</span>
       </div>
     </Transition>
 
-    <!-- Header Title -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Register Staff Account</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Provision an official campus security guard or system administrator account.</p>
-      </div>
+    <!-- Header -->
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Register Staff Account</h1>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        Provision an official campus security guard or system administrator account.
+      </p>
     </div>
 
     <form @submit.prevent="handleInitiateSubmit" class="space-y-6 w-full">
       <!-- Card 1: Staff Account Role -->
-      <UiCard class="p-6 space-y-6">
-        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <UiCard custom-class="p-6 space-y-5">
+        <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-semibold text-slate-900 dark:text-white">1. Staff Role & Privileges</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Select staff account type for system permissions</p>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">1. Staff Role & Privileges</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Select staff account type for system permissions</p>
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div
             class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-            :class="form.accountType === 'Guard' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
+            :class="form.accountType === 'Guard' ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'"
             @click="toggleAdminRole('Guard')"
           >
             <div class="flex items-center justify-between">
@@ -259,22 +250,21 @@ const handleVerifyOtpAndCreate = async () => {
               </div>
               <div
                 class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-                :class="form.accountType === 'Guard' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
+                :class="form.accountType === 'Guard' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 dark:border-slate-600'"
               >
                 <div v-if="form.accountType === 'Guard'" class="w-2 h-2 rounded-full bg-white"></div>
               </div>
             </div>
             <div>
-              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">Campus Guard Account</h4>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Enables gate scanning, QR verification, and manual plate entry</p>
+              <h4 class="font-bold text-slate-900 dark:text-white text-xs">Campus Guard Account</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Enables gate scanning, QR verification, and manual plate entry</p>
             </div>
           </div>
 
-          <!-- System Administrator: SuperAdmin Only -->
           <div
             v-if="isSuperAdmin"
             class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-            :class="form.accountType === 'Admin' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
+            :class="form.accountType === 'Admin' ? 'border-purple-600 bg-purple-50/50 dark:bg-purple-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'"
             @click="toggleAdminRole('Admin')"
           >
             <div class="flex items-center justify-between">
@@ -286,22 +276,22 @@ const handleVerifyOtpAndCreate = async () => {
               </div>
               <div
                 class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-                :class="form.accountType === 'Admin' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
+                :class="form.accountType === 'Admin' ? 'border-purple-600 bg-purple-600' : 'border-slate-300 dark:border-slate-600'"
               >
                 <div v-if="form.accountType === 'Admin'" class="w-2 h-2 rounded-full bg-white"></div>
               </div>
             </div>
             <div>
-              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">System Administrator</h4>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Full Web Admin management, user verification, and system settings</p>
+              <h4 class="font-bold text-slate-900 dark:text-white text-xs">System Administrator</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Full Web Admin management, user verification, and system settings</p>
             </div>
           </div>
         </div>
       </UiCard>
 
       <!-- Card 2: Personal & Contact Information -->
-      <UiCard class="p-6 space-y-6">
-        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <UiCard custom-class="p-6 space-y-5">
+        <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -309,71 +299,71 @@ const handleVerifyOtpAndCreate = async () => {
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-semibold text-slate-900 dark:text-white">2. Staff Credentials & Contact Information</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Official staff identity details and authentication credentials</p>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">2. Staff Credentials & Contact Details</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Official staff identity details and authentication credentials</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">First Name <span class="text-red-500">*</span></label>
-            <input
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">First Name <span class="text-rose-500">*</span></label>
+            <UiInput
               v-model="form.firstName"
               type="text"
               placeholder="e.g. Ricardo"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              size="md"
               required
             />
           </div>
 
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Last Name <span class="text-red-500">*</span></label>
-            <input
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Last Name <span class="text-rose-500">*</span></label>
+            <UiInput
               v-model="form.lastName"
               type="text"
               placeholder="e.g. Santos"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              size="md"
               required
             />
           </div>
 
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Middle Name (Optional)</label>
-            <input
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Middle Name (Optional)</label>
+            <UiInput
               v-model="form.middleName"
               type="text"
               placeholder="e.g. Alonzo"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              size="md"
             />
           </div>
 
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Official Email Address <span class="text-red-500">*</span></label>
-            <input
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Official Email Address <span class="text-rose-500">*</span></label>
+            <UiInput
               v-model="form.email"
               type="email"
               placeholder="e.g. guard.santos@parkflow.com"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              size="md"
               required
             />
           </div>
 
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Phone Number <span class="text-red-500">*</span></label>
-            <input
+          <div>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Phone Number <span class="text-rose-500">*</span></label>
+            <UiInput
               v-model="form.phoneNumber"
               type="tel"
               placeholder="09171234567"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              size="md"
               required
             />
           </div>
         </div>
       </UiCard>
 
-      <!-- Card 3: Deployment & Role Specifics -->
-      <UiCard class="p-6 space-y-6">
-        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+      <!-- Card 3: Role Specific Assignment -->
+      <UiCard custom-class="p-6 space-y-5">
+        <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polygon points="12 2 2 7 12 12 22 7 12 2" />
@@ -382,124 +372,111 @@ const handleVerifyOtpAndCreate = async () => {
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-semibold text-slate-900 dark:text-white">3. {{ form.accountType === 'Guard' ? 'Guard Deployment Post' : 'Admin Authority Level' }}</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Role-dependent assignment and clearance parameters</p>
+            <h3 class="text-sm font-bold text-slate-900 dark:text-white">3. {{ form.accountType === 'Guard' ? 'Guard Deployment Post' : 'Admin Authority Level' }}</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Role-dependent assignment and clearance parameters</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div v-if="form.accountType === 'Guard'" class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Assigned Gate Entrance <span class="text-red-500">*</span></label>
-            <select
-              v-model.number="form.assignedGate"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-            >
-              <option :value="1">Gate 1 - Main Campus Entrance</option>
-              <option :value="2">Gate 2 - East Campus Entrance</option>
-              <option :value="3">Gate 3 - South Gate Entrance</option>
-            </select>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div v-if="form.accountType === 'Guard'">
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Assigned Gate Entrance <span class="text-rose-500">*</span></label>
+            <UiSelect
+              v-model="form.assignedGate"
+              :options="gateOptions"
+              size="md"
+            />
           </div>
 
-          <div v-else class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Admin Authority Level <span class="text-red-500">*</span></label>
-            <select
-              v-model.number="form.roleLevel"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-            >
-              <option :value="2">System Administrator (Standard Admin)</option>
-            </select>
+          <div v-else>
+            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Admin Authority Level <span class="text-rose-500">*</span></label>
+            <UiSelect
+              v-model="form.roleLevel"
+              :options="roleLevelOptions"
+              size="md"
+            />
           </div>
         </div>
       </UiCard>
 
       <!-- Action Footer Toolbar -->
       <div class="flex items-center justify-end gap-3 pt-2">
-        <router-link
-          to="/users"
-          class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition"
+        <UiButton
+          variant="secondary"
+          @click="router.push('/users')"
         >
           Cancel
-        </router-link>
-        <button
+        </UiButton>
+        <UiButton
           type="submit"
-          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          :disabled="isSendingOtp"
+          variant="primary"
+          :loading="isSendingOtp"
         >
-          <svg v-if="!isSendingOtp" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-          <span v-if="isSendingOtp">Requesting Security OTP...</span>
-          <span v-else>Authorize & Register {{ form.accountType }}</span>
-        </button>
+          Authorize & Register {{ form.accountType }}
+        </UiButton>
       </div>
     </form>
 
-    <!-- OTP Verification Modal -->
-    <Teleport to="body">
-      <div
-        v-if="showOtpModal"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-        @click="showOtpModal = false"
-      >
-        <div
-          class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 space-y-5 shadow-xl"
-          @click.stop
-        >
-          <div class="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-base font-bold text-slate-900 dark:text-white">SuperAdmin OTP Verification</h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400">Security verification required to execute staff account creation</p>
-            </div>
-          </div>
+    <!-- OTP Verification Modal using Reusable UiModal -->
+    <UiModal
+      :is-open="showOtpModal"
+      title="SuperAdmin OTP Verification"
+      size="sm"
+      @close="showOtpModal = false"
+    >
+      <div class="space-y-4">
+        <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+          A 6-digit Security OTP has been sent to <strong class="font-bold">{{ otpSentEmail }}</strong>. Enter the code below to authorize creating this <strong class="font-bold">{{ form.accountType }}</strong> account.
+        </div>
 
-          <div class="space-y-4">
-            <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-              A 6-digit Security OTP has been sent to <strong class="font-semibold text-amber-900 dark:text-amber-100">{{ otpSentEmail }}</strong>. Enter the code below to authorize creating this <strong class="font-semibold text-amber-900 dark:text-amber-100">{{ form.accountType }}</strong> account.
-            </div>
+        <div v-if="otpError" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs">
+          {{ otpError }}
+        </div>
 
-            <div v-if="otpError" class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs">
-              {{ otpError }}
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">6-Digit OTP Security Code <span class="text-red-500">*</span></label>
-              <input
-                v-model="otpCode"
-                type="text"
-                maxlength="6"
-                placeholder="123456"
-                class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-center text-xl tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-                autofocus
-              />
-            </div>
-          </div>
-
-          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition cursor-pointer"
-              @click="showOtpModal = false"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-50 cursor-pointer"
-              :disabled="isVerifyingOtp || isSubmitting"
-              @click="handleVerifyOtpAndCreate"
-            >
-              <span v-if="isVerifyingOtp || isSubmitting">Verifying & Registering...</span>
-              <span v-else>Verify OTP & Create Account</span>
-            </button>
-          </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+            6-Digit OTP Security Code <span class="text-rose-500">*</span>
+          </label>
+          <UiInput
+            v-model="otpCode"
+            type="text"
+            placeholder="123456"
+            size="lg"
+            custom-class="text-center font-mono text-lg tracking-widest"
+            :maxlength="6"
+            autofocus
+          />
         </div>
       </div>
-    </Teleport>
+
+      <template #footer>
+        <div class="flex items-center justify-end gap-2">
+          <UiButton
+            variant="secondary"
+            @click="showOtpModal = false"
+          >
+            Cancel
+          </UiButton>
+          <UiButton
+            variant="primary"
+            :loading="isVerifyingOtp || isSubmitting"
+            @click="handleVerifyOtpAndCreate"
+          >
+            Verify OTP & Create Account
+          </UiButton>
+        </div>
+      </template>
+    </UiModal>
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>
