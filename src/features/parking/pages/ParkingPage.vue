@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { ActiveSession, ParkingHistoryItem, VehicleType, ParkingStatus, EntryMethod } from '../types'
-import SessionDetailModal from '../components/SessionDetailModal.vue'
 import StatsCard from '@/features/dashboard/components/StatsCard.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
@@ -368,10 +367,6 @@ const filterVehicleType = ref<string>('all')
 const filterStatus = ref<string>('all')
 const filterMethod = ref<string>('all')
 
-// Modals state
-const isSessionDetailOpen = ref(false)
-const selectedSession = ref<ActiveSession | ParkingHistoryItem | null>(null)
-
 // Stats computations
 const occupancyCount = computed(() => activeSessions.value.length)
 const occupancyRate = computed(() => Math.round((occupancyCount.value / TOTAL_CAPACITY) * 100))
@@ -453,8 +448,8 @@ watch([searchQuery, filterVehicleType, filterStatus, filterMethod], () => {
 
 // Handlers
 const openDetails = (session: ActiveSession | ParkingHistoryItem) => {
-  selectedSession.value = session
-  isSessionDetailOpen.value = true
+  const targetId = session.id || session.vehiclePlate
+  router.push(`/parking/${encodeURIComponent(targetId)}`)
 }
 
 
@@ -504,9 +499,6 @@ const executeManualCheckout = async () => {
       showToast(`Vehicle ${plate} checked out successfully. Fee: ${fee}`, 'success')
       isConfirmCheckoutOpen.value = false
       checkoutTargetSession.value = null
-      if (isSessionDetailOpen.value) {
-        isSessionDetailOpen.value = false
-      }
       await fetchParkingData()
     } else {
       showToast(response.data?.message || 'Failed to checkout vehicle.', 'warning')
@@ -884,14 +876,6 @@ const getRoleLabel = (role: string) => {
     </div>
 
     <!-- Modals -->
-
-    <SessionDetailModal
-      :session="selectedSession"
-      :is-open="isSessionDetailOpen"
-      @close="isSessionDetailOpen = false"
-      @exit="handleManualCheckout"
-    />
-
     <!-- Reusable Confirmation Modal for Manual Checkout -->
     <ConfirmModal
       :is-open="isConfirmCheckoutOpen"
