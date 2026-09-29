@@ -844,7 +844,11 @@ function openZoomImage(url?: string) {
               Declined
             </span>
             <button class="btn-inspect" @click="openInspector(item)">
-              Review
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>{{ item.category === 'Schedule' ? 'Review Schedule' : item.category === 'Vehicle' ? 'Review Vehicle' : 'Review Registration' }}</span>
             </button>
           </div>
         </div>
@@ -892,8 +896,12 @@ function openZoomImage(url?: string) {
         </template>
 
         <template #cell-actions="{ item }">
-          <button class="btn-inspect px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer border-none" @click.stop="openInspector(item)">
-            Review
+          <button class="btn-inspect px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors cursor-pointer border-none flex items-center gap-1.5" @click.stop="openInspector(item)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            <span>{{ item.category === 'Schedule' ? 'Review Schedule' : item.category === 'Vehicle' ? 'Review Vehicle' : 'Review Registration' }}</span>
           </button>
         </template>
       </UiTable>
@@ -1530,6 +1538,7 @@ function openZoomImage(url?: string) {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 20px;
+  align-items: stretch;
 }
 
 @media (max-width: 768px) {
@@ -1546,6 +1555,8 @@ function openZoomImage(url?: string) {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
   display: flex;
   flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
   gap: 16px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1749,7 +1760,8 @@ function openZoomImage(url?: string) {
   justify-content: flex-end;
   align-items: center;
   gap: 12px;
-  padding-top: 12px;
+  padding-top: 14px;
+  margin-top: auto;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -1757,24 +1769,27 @@ function openZoomImage(url?: string) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 18px;
+  gap: 6px;
+  padding: 8px 16px;
   border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: #ffffff;
-  color: #0f172a;
+  border: 1px solid #4338ca;
+  background: #4f46e5;
+  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   margin-left: auto;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.2);
 }
 
 .registrations-table tbody tr:hover .btn-inspect,
 .review-card:hover .btn-inspect,
 .btn-inspect:hover {
-  background: #4f46e5;
-  border-color: #4f46e5;
+  background: #4338ca;
+  border-color: #3730a3;
   color: #ffffff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
 }
 
 .card-actions-group {
