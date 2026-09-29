@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserRole } from '../types'
 import api from '@/api/axios'
@@ -52,8 +52,12 @@ let resendTimer: any = null
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
-// Available courses and programs organized by college/discipline
-const courseGroups = [
+// Year level classifications
+const isJuniorHigh = computed(() => form.value.yearLevel >= 7 && form.value.yearLevel <= 10)
+const isCollege = computed(() => !isJuniorHigh.value)
+
+// College Degree Programs organized by college/discipline
+const collegeCourseGroups = [
   {
     college: 'College of Computer Studies & Information Technology',
     courses: [
@@ -150,34 +154,17 @@ const courseGroups = [
       'BS Criminology (BSCrim)',
       'BS Industrial Security Management (BSISM)'
     ]
-  },
-  {
-    college: 'Senior High School (SHS)',
-    courses: [
-      'Science, Technology, Engineering, and Mathematics (STEM)',
-      'Accountancy, Business, and Management (ABM)',
-      'Humanities and Social Sciences (HUMSS)',
-      'General Academic Strand (GAS)',
-      'TVL - Information and Communications Technology (ICT)',
-      'TVL - Home Economics (HE)',
-      'TVL - Industrial Arts (IA)'
-    ]
   }
 ]
 
-const selectedCourseDropdown = ref('')
-
-const onCourseDropdownChange = () => {
-  if (selectedCourseDropdown.value) {
-    form.value.course = selectedCourseDropdown.value
-    courseFieldError.value = null
-  }
-}
-
 watch(
-  () => form.value.course,
-  (newVal) => {
-    selectedCourseDropdown.value = newVal
+  () => form.value.yearLevel,
+  (newLevel) => {
+    if (newLevel >= 7 && newLevel <= 10) {
+      // Junior high school has no course or program
+      form.value.course = ''
+      courseFieldError.value = null
+    }
   }
 )
 
@@ -317,7 +304,6 @@ const resetFormAndContinue = () => {
     department: '',
     assignedGate: 1
   }
-  selectedCourseDropdown.value = ''
   isEmailVerified.value = false
   verifiedEmail.value = ''
   otpCode.value = ''
@@ -400,9 +386,9 @@ const handleInitialSubmit = () => {
       return
     }
 
-    if (!form.value.course.trim()) {
+    if (!isJuniorHigh.value && !form.value.course?.trim()) {
       courseFieldError.value = 'Course / Program is required.'
-      errorMessage.value = 'Please select or enter the client Course / Program.'
+      errorMessage.value = 'Please select the client Course / Program.'
       return
     }
 
@@ -443,7 +429,7 @@ const executeRegistration = async () => {
       isAdminCreated: true,
       student: form.value.role === 'Student' ? {
         studentNumber: form.value.studentNumber.trim(),
-        course: form.value.course.trim(),
+        course: isJuniorHigh.value ? null : (form.value.course?.trim() || null),
         section: form.value.section.trim(),
         yearLevel: form.value.yearLevel
       } : null,
@@ -716,6 +702,31 @@ const executeRegistration = async () => {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
           <!-- Student Specifics -->
           <template v-if="form.role === 'Student'">
+            <!-- Year Level -->
+            <div class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Year Level <span class="text-red-500">*</span>
+              </label>
+              <select
+                v-model.number="form.yearLevel"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+              >
+                <optgroup label="Laboratory High School (Junior High)">
+                  <option :value="7">Grade 7</option>
+                  <option :value="8">Grade 8</option>
+                  <option :value="9">Grade 9</option>
+                  <option :value="10">Grade 10</option>
+                </optgroup>
+                <optgroup label="College">
+                  <option :value="1">1st Year</option>
+                  <option :value="2">2nd Year</option>
+                  <option :value="3">3rd Year</option>
+                  <option :value="4">4th Year</option>
+                  <option :value="5">5th Year+</option>
+                </optgroup>
+              </select>
+            </div>
+
             <!-- Client ID (Digits only, 7-10 digits) -->
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
@@ -737,26 +748,6 @@ const executeRegistration = async () => {
               <p v-if="clientIdFieldError" class="text-xs text-red-500 mt-1">{{ clientIdFieldError }}</p>
             </div>
 
-            <!-- Course / Program (Dropdown containing ALL available courses and programs) -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Course / Program <span class="text-red-500">*</span>
-              </label>
-              <select
-                v-model="form.course"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
-                required
-              >
-                <option value="">-- Select Course / Program --</option>
-                <optgroup v-for="group in courseGroups" :key="group.college" :label="group.college">
-                  <option v-for="course in group.courses" :key="course" :value="course">
-                    {{ course }}
-                  </option>
-                </optgroup>
-              </select>
-              <p v-if="courseFieldError" class="text-xs text-red-500 mt-1">{{ courseFieldError }}</p>
-            </div>
-
             <!-- Section (Format: 1A-G1) -->
             <div class="space-y-1.5">
               <div class="flex items-center justify-between">
@@ -776,26 +767,26 @@ const executeRegistration = async () => {
               <p v-if="sectionFieldError" class="text-xs text-red-500 mt-1">{{ sectionFieldError }}</p>
             </div>
 
-            <!-- Year Level -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Year Level</label>
+            <!-- College Course / Program (Hidden for High School Grades 7-10) -->
+            <div v-if="!isJuniorHigh" class="space-y-1.5">
+              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Course / Program <span class="text-red-500">*</span>
+              </label>
               <select
-                v-model.number="form.yearLevel"
+                v-model="form.course"
                 class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+                required
               >
-                <option :value="7">Grade 7</option>
-                <option :value="8">Grade 8</option>
-                <option :value="9">Grade 9</option>
-                <option :value="10">Grade 10</option>
-                <option :value="11">Grade 11</option>
-                <option :value="12">Grade 12</option>
-                <option :value="1">1st Year</option>
-                <option :value="2">2nd Year</option>
-                <option :value="3">3rd Year</option>
-                <option :value="4">4th Year</option>
-                <option :value="5">5th Year+</option>
+                <option value="">-- Select Course / Program --</option>
+                <optgroup v-for="group in collegeCourseGroups" :key="group.college" :label="group.college">
+                  <option v-for="course in group.courses" :key="course" :value="course">
+                    {{ course }}
+                  </option>
+                </optgroup>
               </select>
+              <p v-if="courseFieldError" class="text-xs text-red-500 mt-1">{{ courseFieldError }}</p>
             </div>
+            <!-- If High School (Grades 7-10), course selector is hidden completely -->
           </template>
 
           <!-- Personnel Specifics -->
@@ -984,13 +975,15 @@ const executeRegistration = async () => {
                 <span class="text-slate-500 dark:text-slate-400 font-medium">Client ID</span>
                 <span class="font-bold text-slate-900 dark:text-white">{{ form.studentNumber }}</span>
               </div>
-              <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-                <span class="text-slate-500 dark:text-slate-400 font-medium">Course / Program</span>
-                <span class="font-semibold text-slate-900 dark:text-white text-right max-w-[260px] truncate">{{ form.course }}</span>
+              <div v-if="!isJuniorHigh" class="flex justify-between items-start gap-4 py-1 border-b border-slate-200/40 dark:border-slate-700/40">
+                <span class="text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Course / Program</span>
+                <span class="font-semibold text-slate-900 dark:text-white text-right leading-snug">{{ form.course }}</span>
               </div>
               <div class="flex justify-between items-center py-1">
                 <span class="text-slate-500 dark:text-slate-400 font-medium">Year & Section</span>
-                <span class="font-semibold text-slate-900 dark:text-white">Year {{ form.yearLevel }} - {{ form.section }}</span>
+                <span class="font-semibold text-slate-900 dark:text-white">
+                  {{ isJuniorHigh ? `Grade ${form.yearLevel}` : `Year ${form.yearLevel}` }} - {{ form.section }}
+                </span>
               </div>
             </template>
             <template v-else-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'">
