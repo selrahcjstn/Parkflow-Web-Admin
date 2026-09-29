@@ -31,9 +31,13 @@ const getStatusClass = (status: string) => {
 }
 
 const getEntryMethod = computed(() => {
-  if (!props.session) return 'QrCode'
-  if ('method' in props.session) return props.session.method
-  return 'QrCode' // Default for active sessions
+  if (!props.session) return 'QR Code'
+  const raw = ('method' in props.session ? props.session.method : (props.session as any)?.entryMethod) || ''
+  const str = String(raw).toLowerCase()
+  if (str.includes('manual') || raw === 'Manual' || raw === 1 || raw === '1') {
+    return 'Manual'
+  }
+  return 'QR Code'
 })
 </script>
 

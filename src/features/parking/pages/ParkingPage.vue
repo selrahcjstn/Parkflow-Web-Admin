@@ -167,6 +167,19 @@ const fetchParkingData = async () => {
           notifiedOverstayPlates.add(item.plateNumber)
         }
 
+        const rawMethod = (item.entryMethod || item.method || item.entryType || '').toString().toLowerCase()
+        let entryMethodVal: EntryMethod = 'QrCode'
+        if (
+          rawMethod.includes('manual') ||
+          item.entryMethod === 'Manual' ||
+          item.entryMethod === 1 ||
+          item.entryMethod === '1' ||
+          item.isManual === true ||
+          item.isManualEntry === true
+        ) {
+          entryMethodVal = 'Manual'
+        }
+
         return {
           id: item.plateNumber,
           vehiclePlate: item.plateNumber,
@@ -178,6 +191,7 @@ const fetchParkingData = async () => {
           duration: item.totalParkingHours || '0m',
           gate: item.gate || 1,
           status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked'),
+          method: entryMethodVal,
           scheduledEndTime: item.scheduledEndTime,
           maximumExitTime: item.maximumExitTime,
           maxAllowedHours: item.maxAllowedHours,
