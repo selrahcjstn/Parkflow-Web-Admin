@@ -30,14 +30,14 @@ const statusTabs = [
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 w-full max-w-full">
     <!-- Status Filter Tabs -->
-    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 no-scrollbar max-w-full">
       <button
         v-for="tab in statusTabs"
         :key="tab.id"
         type="button"
-        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer border"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer border flex-shrink-0"
         :class="[
           selectedStatusTab === tab.id
             ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm'
@@ -60,7 +60,7 @@ const statusTabs = [
     </div>
 
     <!-- Right Controls: Date Picker + Search -->
-    <div class="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+    <div class="flex items-center gap-2.5 flex-wrap sm:flex-nowrap w-full lg:w-auto">
       <!-- Date Picker Filter -->
       <div class="relative min-w-[150px]">
         <input

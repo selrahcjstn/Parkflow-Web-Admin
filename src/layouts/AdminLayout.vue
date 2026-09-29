@@ -44,6 +44,8 @@ const mainContentStyle = computed(() => ({
   display: flex;
   min-height: 100vh;
   background: var(--color-background);
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 .main-content {
@@ -51,6 +53,9 @@ const mainContentStyle = computed(() => ({
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   transition: margin-left 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -58,6 +63,10 @@ const mainContentStyle = computed(() => ({
   flex: 1;
   padding: 24px;
   overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 @media (min-width: 1024px) {

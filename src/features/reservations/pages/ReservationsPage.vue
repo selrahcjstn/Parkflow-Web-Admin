@@ -16,12 +16,12 @@ import type { ParkingReservationItem, ReservationStatusType } from '../types'
 const router = useRouter()
 
 const resColumns: TableColumn[] = [
-  { key: 'reference', label: 'Reference #' },
-  { key: 'creator', label: 'Creator of the reservation' },
-  { key: 'schedule', label: 'Date & Time Slot' },
+  { key: 'reference', label: 'Reference #', width: '130px' },
+  { key: 'creator', label: 'Applicant / Creator', width: '220px' },
+  { key: 'schedule', label: 'Date & Time Slot', width: '170px' },
   { key: 'purpose', label: 'Purpose / Reason' },
-  { key: 'status', label: 'Status' },
-  { key: 'actions', label: 'Actions', align: 'right' }
+  { key: 'status', label: 'Status', width: '110px' },
+  { key: 'actions', label: 'Actions', align: 'right', width: '200px' }
 ]
 
 const reservations = ref<ParkingReservationItem[]>([])
@@ -366,7 +366,7 @@ async function handleReject(item: ParkingReservationItem) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6 w-full max-w-full">
     <!-- API Error Banner -->
     <div v-if="fetchError" class="flex items-center gap-3 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-sm">
       <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -462,7 +462,7 @@ async function handleReject(item: ParkingReservationItem) {
     />
 
     <!-- Table Container -->
-    <UiCard custom-class="p-0 overflow-hidden">
+    <UiCard custom-class="p-0 overflow-hidden w-full max-w-full">
       <UiTable
         :columns="resColumns"
         :data="paginatedReservations"
@@ -477,14 +477,14 @@ async function handleReject(item: ParkingReservationItem) {
         </template>
 
         <template #cell-creator="{ item, index }">
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2.5 min-w-0 max-w-[210px]">
             <div
-              class="w-8 h-8 rounded-full text-white font-bold flex items-center justify-center text-xs flex-shrink-0"
+              class="w-7 h-7 rounded-full text-white font-bold flex items-center justify-center text-xs flex-shrink-0"
               :style="{ background: getAvatarGradient(index) }"
             >
               {{ getInitials(item.userFullName) }}
             </div>
-            <div class="flex flex-col min-w-0">
+            <div class="flex flex-col min-w-0 overflow-hidden">
               <span class="font-semibold text-slate-900 dark:text-white text-xs truncate">
                 {{ item.userFullName || 'Campus User' }}
               </span>
@@ -513,9 +513,11 @@ async function handleReject(item: ParkingReservationItem) {
         </template>
 
         <template #cell-purpose="{ item }">
-          <span class="text-xs text-slate-700 dark:text-slate-300 line-clamp-2" :title="item.reason">
-            {{ item.reason }}
-          </span>
+          <div class="min-w-[140px] max-w-[220px] lg:max-w-xs xl:max-w-md whitespace-normal">
+            <span class="text-xs text-slate-700 dark:text-slate-300 line-clamp-2" :title="item.reason">
+              {{ item.reason }}
+            </span>
+          </div>
         </template>
 
         <template #cell-status="{ item }">
