@@ -738,38 +738,23 @@ const executeRegistration = async () => {
               <p v-if="clientIdFieldError" class="text-xs text-red-500 mt-1">{{ clientIdFieldError }}</p>
             </div>
 
-            <!-- Course / Program (Dropdown with ALL programs + custom input option) -->
+            <!-- Course / Program (Dropdown containing ALL available courses and programs) -->
             <div class="space-y-1.5">
               <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Course / Program <span class="text-red-500">*</span>
               </label>
-              <div class="space-y-2">
-                <select
-                  v-model="selectedCourseDropdown"
-                  @change="onCourseDropdownChange"
-                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
-                >
-                  <option value="">-- Select from Available Courses & Programs --</option>
-                  <optgroup v-for="group in courseGroups" :key="group.college" :label="group.college">
-                    <option v-for="course in group.courses" :key="course" :value="course">
-                      {{ course }}
-                    </option>
-                  </optgroup>
-                </select>
-                <input
-                  v-model="form.course"
-                  list="course-list"
-                  type="text"
-                  placeholder="e.g. BS Computer Science"
-                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-                  required
-                />
-                <datalist id="course-list">
-                  <template v-for="group in courseGroups" :key="group.college">
-                    <option v-for="course in group.courses" :key="course" :value="course"></option>
-                  </template>
-                </datalist>
-              </div>
+              <select
+                v-model="form.course"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
+                required
+              >
+                <option value="">-- Select Course / Program --</option>
+                <optgroup v-for="group in courseGroups" :key="group.college" :label="group.college">
+                  <option v-for="course in group.courses" :key="course" :value="course">
+                    {{ course }}
+                  </option>
+                </optgroup>
+              </select>
               <p v-if="courseFieldError" class="text-xs text-red-500 mt-1">{{ courseFieldError }}</p>
             </div>
 
