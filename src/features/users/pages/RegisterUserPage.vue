@@ -236,13 +236,6 @@ const handleSendOtp = async (isResend = false) => {
 
   isSendingOtp.value = true
   try {
-    const availRes = await api.get(`/auth/check-email-availability?email=${encodeURIComponent(email)}`)
-    if (availRes.data?.isSuccess === false) {
-      emailFieldError.value = availRes.data?.message || 'This email address is already in use.'
-      isSendingOtp.value = false
-      return
-    }
-
     const otpRes = await api.post('/auth/send-email-otp', { email })
     if (otpRes.data?.isSuccess === false) {
       emailFieldError.value = otpRes.data?.message || 'Failed to dispatch verification code.'
