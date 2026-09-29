@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import { cachedReservations } from '@/stores/appCache'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
 
 const route = useRoute()
@@ -238,27 +239,64 @@ async function fetchReservation() {
   isLoading.value = true
   fetchError.value = null
 
+  // Check cache first
+  if (cachedReservations.value && Array.isArray(cachedReservations.value)) {
+    const cached = cachedReservations.value.find(
+      (r: any) =>
+        String(r.id) === reservationId.value ||
+        (r.referenceNumber && r.referenceNumber.toUpperCase() === reservationId.value.toUpperCase())
+    )
+    if (cached) {
+      reservation.value = cached as any
+    }
+  }
+
   try {
-    const response = await api.get('/reservations')
-    if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
-      const items: ParkingReservationItem[] = response.data.data
+    const response = await api.get('/parking-reservations/admin/all')
+    const rawData = response.data
+    const items = Array.isArray(rawData)
+      ? rawData
+      : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
+
+    if (items && items.length > 0) {
       const found = items.find(
-        (r) =>
+        (r: any) =>
           String(r.id) === reservationId.value ||
           (r.referenceNumber && r.referenceNumber.toUpperCase() === reservationId.value.toUpperCase())
       )
 
       if (found) {
         reservation.value = found
-      } else {
-        fetchError.value = `Reservation "${reservationId.value}" was not found in database records.`
+        fetchError.value = null
+        return
       }
-    } else {
-      fetchError.value = 'Failed to retrieve reservations database.'
+    }
+
+    // Try fetching directly by ID if GUID
+    if (reservationId.value.includes('-') && reservationId.value.length >= 30) {
+      try {
+        const singleRes = await api.get(`/parking-reservations/${reservationId.value}`)
+        if (singleRes.data && (singleRes.data.isSuccess || singleRes.status === 200)) {
+          const item = singleRes.data.data || singleRes.data
+          if (item) {
+            reservation.value = item
+            fetchError.value = null
+            return
+          }
+        }
+      } catch {}
+    }
+
+    if (!reservation.value) {
+      fetchError.value = `Reservation "${reservationId.value}" was not found in database records.`
     }
   } catch (err: any) {
     console.error('Error loading reservation pass:', err)
-    fetchError.value = err.response?.data?.message || 'Failed to connect to ParkFlow service.'
+    if (!reservation.value) {
+      const status = err.response?.status
+      const msg = err.response?.data?.message || err.message || 'Failed to connect to ParkFlow service.'
+      fetchError.value = status ? `API Error ${status}: ${msg}` : msg
+    }
   } finally {
     isLoading.value = false
   }
@@ -366,21 +404,25 @@ onMounted(() => {
       </div>
     </Transition>
 
-    <!-- ERROR STATE -->
-    <div v-if="fetchError" class="pass-error-state">
-      <div class="error-card">
-        <div class="error-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <!-- ERROR STATE (Tailwind Styled) -->
+    <div v-if="fetchError" class="min-h-[460px] flex items-center justify-center p-6 no-print">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl p-8 max-w-md w-full text-center flex flex-col items-center">
+        <div class="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-4 border border-rose-100 dark:border-rose-900/50">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-        <h2 class="error-title">Unable to Load Pass</h2>
-        <p class="error-message">{{ fetchError }}</p>
-        <div class="error-actions">
-          <button class="action-btn action-btn--secondary" @click="goBack">Back to Directory</button>
-          <button class="action-btn action-btn--primary" @click="fetchReservation">Retry</button>
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Unable to Load Pass</h2>
+        <p class="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">{{ fetchError }}</p>
+        <div class="flex items-center gap-3 w-full">
+          <button class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors cursor-pointer" @click="goBack">
+            Back to Directory
+          </button>
+          <button class="flex-1 px-4 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white font-semibold text-xs transition-colors cursor-pointer shadow-sm" @click="fetchReservation">
+            Retry
+          </button>
         </div>
       </div>
     </div>
