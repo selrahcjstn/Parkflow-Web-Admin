@@ -1,13 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Violation } from '../types'
-import ViolationDetailModal from '../components/ViolationDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
 import { cachedViolations } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
+
+const router = useRouter()
 
 const violColumns: TableColumn[] = [
   { key: 'reference', label: 'Reference Code' },
@@ -102,8 +105,6 @@ const filterViolationType = ref<string>('all')
 const filterStatus = ref<string>('all')
 
 // Modals State
-const selectedViolation = ref<Violation | null>(null)
-const isDetailOpen = ref(false)
 const isPaymentOpen = ref(false)
 const activePaymentViolation = ref<Violation | null>(null)
 const paymentReferenceInput = ref('')
@@ -166,9 +167,22 @@ const filteredViolations = computed(() => {
   })
 })
 
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+watch([searchQuery, filterViolationType, filterStatus], () => {
+  currentPage.value = 1
+})
+
+const paginatedViolations = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  return filteredViolations.value.slice(start, start + itemsPerPage.value)
+})
+
 const openDetails = (violation: Violation) => {
-  selectedViolation.value = violation
-  isDetailOpen.value = true
+  const targetId = violation.referenceNumber || violation.violationId
+  router.push(`/violations/${encodeURIComponent(targetId)}`)
 }
 
 const openPaymentModal = (violation?: Violation) => {
@@ -180,14 +194,6 @@ const openPaymentModal = (violation?: Violation) => {
     paymentReferenceInput.value = ''
   }
   isPaymentOpen.value = true
-}
-
-const handleSettleTrigger = (refNumber: string) => {
-  isDetailOpen.value = false
-  const vio = violations.value.find((v) => v.referenceNumber === refNumber)
-  if (vio) {
-    openPaymentModal(vio)
-  }
 }
 
 const isProcessingPayment = ref(false)
@@ -378,7 +384,7 @@ const getRoleLabel = (role: string) => {
     <div class="table-card p-0 overflow-hidden">
       <UiTable
         :columns="violColumns"
-        :data="filteredViolations"
+        :data="paginatedViolations"
         :is-loading="isLoading"
         :loading-rows="6"
         empty-text="No violation tickets found."
@@ -451,15 +457,13 @@ const getRoleLabel = (role: string) => {
           </div>
         </template>
       </UiTable>
-    </div>
 
-    <!-- Modals -->
-    <ViolationDetailModal
-      :violation="selectedViolation"
-      :is-open="isDetailOpen"
-      @close="isDetailOpen = false"
-      @settle="handleSettleTrigger"
-    />
+      <TablePagination
+        v-model:current-page="currentPage"
+        v-model:items-per-page="itemsPerPage"
+        :total-items="filteredViolations.length"
+      />
+    </div>
 
     <!-- Quick Settlement Modal -->
     <Teleport to="body">
