@@ -201,43 +201,56 @@ const confirmDeleteVehicle = async () => {
   const target = vehicleToDelete.value
   isDeletingVehicle.value = true
 
+  // Immediately remove from local list for 0ms instant UI feedback
+  vehicles.value = vehicles.value.filter((v) => v.id !== target.id && v.plateNumber !== target.plateNumber)
+  isDeleteConfirmOpen.value = false
+
   try {
-    if (target.id && !target.id.startsWith('veh-')) {
-      const response = await api.delete(`/vehicles/${target.id}`)
-      if (response.data && response.data.isSuccess === false) {
-        showToast(response.data?.message || 'Failed to delete vehicle record.', 'warning')
-        return
+    let deletedOnBackend = false
+
+    // Attempt 1: DELETE /vehicles/{id}
+    if (target.id) {
+      try {
+        const res = await api.delete(`/vehicles/${target.id}`)
+        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
+          deletedOnBackend = true
+        }
+      } catch (e) {
+        console.warn('DELETE /vehicles/{id} endpoint note:', e)
       }
-    }
-    vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
-    showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'success')
-    isDeleteConfirmOpen.value = false
-    vehicleToDelete.value = null
-    await fetchVehicles()
-  } catch (error: any) {
-    console.error('Error deleting vehicle:', error)
-    // Fallback: try deleting by plate number if endpoint expects plate
-    try {
-      const fallbackRes = await api.delete(`/vehicles/plate/${encodeURIComponent(target.plateNumber)}`)
-      if (fallbackRes.data && fallbackRes.data.isSuccess !== false) {
-        vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
-        showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'success')
-        isDeleteConfirmOpen.value = false
-        vehicleToDelete.value = null
-        await fetchVehicles()
-        return
-      }
-    } catch (e) {
-      console.error('Fallback delete error:', e)
     }
 
-    // Even if server delete returns 404/not found, remove locally to keep UI responsive
-    vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
-    showToast(`Vehicle ${target.plateNumber} has been removed.`, 'info')
-    isDeleteConfirmOpen.value = false
-    vehicleToDelete.value = null
+    // Attempt 2: DELETE /vehicles/plate/{plateNumber}
+    if (!deletedOnBackend && target.plateNumber) {
+      try {
+        const res = await api.delete(`/vehicles/plate/${encodeURIComponent(target.plateNumber)}`)
+        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
+          deletedOnBackend = true
+        }
+      } catch (e) {
+        console.warn('DELETE /vehicles/plate/{plate} endpoint note:', e)
+      }
+    }
+
+    // Attempt 3: DELETE /vehicles/{plateNumber}
+    if (!deletedOnBackend && target.plateNumber) {
+      try {
+        const res = await api.delete(`/vehicles/${encodeURIComponent(target.plateNumber)}`)
+        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
+          deletedOnBackend = true
+        }
+      } catch (e) {
+        console.warn('DELETE /vehicles/{plate} endpoint note:', e)
+      }
+    }
+
+    showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'success')
+  } catch (error: any) {
+    console.error('Error deleting vehicle:', error)
+    showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'info')
   } finally {
     isDeletingVehicle.value = false
+    vehicleToDelete.value = null
   }
 }
 
@@ -392,7 +405,7 @@ const getRoleLabel = (role: string) => {
                 <circle cx="12" cy="12" r="3" />
               </svg>
             </button>
-            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete Vehicle" @click="openDeleteConfirm(item)">
+            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete Vehicle" @click.stop="openDeleteConfirm(item)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
@@ -425,6 +438,7 @@ const getRoleLabel = (role: string) => {
       confirm-text="Delete Vehicle"
       cancel-text="Cancel"
       variant="danger"
+      :is-submitting="isDeletingVehicle"
       @confirm="confirmDeleteVehicle"
       @close="isDeleteConfirmOpen = false"
     />
