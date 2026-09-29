@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import { useAdminNotificationStore } from '@/stores/notification.store'
@@ -316,13 +317,30 @@ function getDisplayEmail(item: ParkingReservationItem): string {
   return item.userEmail || 'N/A'
 }
 
-async function handleApprove(item: ParkingReservationItem) {
+// Approve Modal State
+const isApproveModalOpen = ref(false)
+const reservationToApprove = ref<ParkingReservationItem | null>(null)
+const isApproving = ref(false)
+
+function openApproveModal(item: ParkingReservationItem) {
+  reservationToApprove.value = item
+  isApproveModalOpen.value = true
+}
+
+async function confirmApprove() {
+  if (!reservationToApprove.value) return
+  isApproving.value = true
   try {
+    const item = reservationToApprove.value
     await api.post(`/parking-reservations/${item.id}/approve`, { notes: '' })
     item.status = 'Approved'
     showToast(`Reservation ${item.referenceNumber} approved successfully.`)
+    isApproveModalOpen.value = false
+    reservationToApprove.value = null
   } catch (error: any) {
     showToast(`Failed to approve reservation: ${error.response?.data?.message || error.message}`, 'error')
+  } finally {
+    isApproving.value = false
   }
 }
 
@@ -593,7 +611,7 @@ async function handleReject(item: ParkingReservationItem) {
             <button
               v-if="getStatusKey(item) === 'pending'"
               class="btn-action btn-approve px-2.5 py-1 rounded-md bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors cursor-pointer border-none"
-              @click="handleApprove(item)"
+              @click="openApproveModal(item)"
               title="Approve Reservation"
             >
               Approve
@@ -640,6 +658,19 @@ async function handleReject(item: ParkingReservationItem) {
         </template>
       </UiTable>
     </div>
+
+    <!-- Approve Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isApproveModalOpen"
+      title="Approve Parking Reservation"
+      :message="`Are you sure you want to approve the parking reservation for <strong>${reservationToApprove?.userFullName || 'this applicant'}</strong> (${reservationToApprove?.referenceNumber || ''}) on <strong>${formatReservationDate(reservationToApprove?.reservationDate || '')}</strong>? This will generate their official entry permit pass.`"
+      confirm-text="Approve Reservation"
+      cancel-text="Cancel"
+      variant="success"
+      :is-submitting="isApproving"
+      @confirm="confirmApprove"
+      @close="isApproveModalOpen = false"
+    />
   </div>
 </template>
 

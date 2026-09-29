@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
 
@@ -209,6 +210,8 @@ async function fetchReservationDetail() {
   }
 }
 
+const isApproveModalOpen = ref(false)
+
 async function handleApprove() {
   if (!reservation.value) return
   isSubmittingAction.value = true
@@ -217,6 +220,7 @@ async function handleApprove() {
     reservation.value.status = 'Approved'
     reservation.value.adminNotes = reviewNotes.value
     showToast(`Reservation ${reservation.value.referenceNumber} approved.`)
+    isApproveModalOpen.value = false
   } catch (err: any) {
     showToast(`Failed to approve: ${err.response?.data?.message || err.message}`, 'error')
   } finally {
@@ -473,7 +477,7 @@ onMounted(() => {
               type="button"
               class="btn-success"
               :disabled="isSubmittingAction"
-              @click="handleApprove"
+              @click="isApproveModalOpen = true"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="20 6 9 17 4 12" />
@@ -520,6 +524,19 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- Approve Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isApproveModalOpen"
+      title="Approve Parking Pass"
+      :message="`Are you sure you want to approve the parking pass for <strong>${reservation?.userFullName || 'this applicant'}</strong> (${reservation?.referenceNumber || ''}) on <strong>${formatReservationDate(reservation?.reservationDate || '')}</strong>? This will generate their official QR gate entry permit.`"
+      confirm-text="Approve Pass"
+      cancel-text="Cancel"
+      variant="success"
+      :is-submitting="isSubmittingAction"
+      @confirm="handleApprove"
+      @close="isApproveModalOpen = false"
+    />
   </div>
 </template>
 
