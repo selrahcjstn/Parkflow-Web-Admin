@@ -2,6 +2,7 @@
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 
 const props = defineProps<{
   settings: {
@@ -13,6 +14,11 @@ const props = defineProps<{
     isEarlyParkingAllowed: boolean
     earlyParkingMinutes: number
   }
+  isSaving?: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'save'): void
 }>()
 
 const feeCalculationModeOptions = [
@@ -124,6 +130,25 @@ const feeCalculationModeOptions = [
             :disabled="!settings.isEarlyParkingAllowed"
           />
         </div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+        <UiButton
+          variant="primary"
+          size="sm"
+          :loading="isSaving"
+          @click="emit('save')"
+        >
+          <template #prefix>
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+          </template>
+          Save Rates & Billing Policy
+        </UiButton>
       </div>
     </div>
   </UiCard>

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiTabs, { type TabItem } from '@/components/ui/UiTabs.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import OverstayFeeCard from '../components/OverstayFeeCard.vue'
 import CampusCapacityCard from '../components/CampusCapacityCard.vue'
@@ -219,6 +220,15 @@ async function deactivateAnnouncement() {
   }
 }
 
+const activeTab = ref<'capacity' | 'billing' | 'announcements' | 'features'>('capacity')
+
+const settingsTabs: TabItem[] = [
+  { key: 'capacity', label: 'Campus Capacity & Cycle' },
+  { key: 'billing', label: 'Rates & Billing Policy' },
+  { key: 'announcements', label: 'System Announcements' },
+  { key: 'features', label: 'Feature Flags & Controls' }
+]
+
 function exportBackupConfig() {
   const jsonStr = JSON.stringify(settings.value, null, 2)
   const blob = new Blob([jsonStr], { type: 'application/json' })
@@ -276,10 +286,10 @@ onMounted(() => {
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            Customization & System Settings
+            System Settings & Customization
           </h1>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Configure violation rates per hour, campus capacity rules, feature toggles, and semester resets.
+            Manage campus capacity, semester transitions, violation billing policies, and feature toggles.
           </p>
         </div>
 
@@ -298,34 +308,54 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Settings Cards Grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- 1. Overstay Fee Card -->
-        <OverstayFeeCard :settings="settings" />
-
-        <!-- 2. Campus Capacity Card -->
-        <CampusCapacityCard
-          :settings="settings"
-          :is-saving="isSaving"
-          @save="saveSettings"
-          @open-reset-modal="showResetModal = true"
+      <!-- Navigation Tabs -->
+      <div class="flex items-center justify-start">
+        <UiTabs
+          v-model="activeTab"
+          :tabs="settingsTabs"
         />
+      </div>
 
-        <!-- 3. System Announcement Card -->
-        <SystemAnnouncementCard
-          :announcement="announcement"
-          :is-saving="isAnnouncementSaving"
-          @save="saveAnnouncement"
-          @deactivate="deactivateAnnouncement"
-        />
+      <!-- Separated Tab Contents -->
+      <div class="space-y-6">
+        <!-- 1. Campus Capacity & Semester Cycle Tab -->
+        <div v-show="activeTab === 'capacity'">
+          <CampusCapacityCard
+            :settings="settings"
+            :is-saving="isSaving"
+            @save="saveSettings"
+            @open-reset-modal="showResetModal = true"
+          />
+        </div>
 
-        <!-- 4. Feature Toggles Card -->
-        <FeatureTogglesCard
-          :settings="settings"
-          :is-saving="isSaving"
-          @toggle="toggleFeature"
-          @export-backup="exportBackupConfig"
-        />
+        <!-- 2. Rates & Billing Policy Tab -->
+        <div v-show="activeTab === 'billing'">
+          <OverstayFeeCard
+            :settings="settings"
+            :is-saving="isSaving"
+            @save="saveSettings"
+          />
+        </div>
+
+        <!-- 3. System Announcement Tab -->
+        <div v-show="activeTab === 'announcements'">
+          <SystemAnnouncementCard
+            :announcement="announcement"
+            :is-saving="isAnnouncementSaving"
+            @save="saveAnnouncement"
+            @deactivate="deactivateAnnouncement"
+          />
+        </div>
+
+        <!-- 4. Feature Toggles & Controls Tab -->
+        <div v-show="activeTab === 'features'">
+          <FeatureTogglesCard
+            :settings="settings"
+            :is-saving="isSaving"
+            @toggle="toggleFeature"
+            @export-backup="exportBackupConfig"
+          />
+        </div>
       </div>
 
       <!-- Reset Student Schedules Confirmation Modal -->
