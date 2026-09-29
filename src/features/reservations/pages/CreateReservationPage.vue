@@ -247,8 +247,7 @@ async function handleSubmit() {
 <style scoped>
 .create-reservation-page {
   animation: fadeSlideUp 0.35s ease both;
-  max-width: 860px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 @keyframes fadeSlideUp {

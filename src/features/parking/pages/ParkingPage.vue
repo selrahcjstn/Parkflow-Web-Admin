@@ -311,21 +311,33 @@ const getActiveSessionFee = (session: ActiveSession) => {
   return '₱0.00'
 }
 
+function formatMustExitDateTime(date: Date): string {
+  if (isNaN(date.getTime())) return '—'
+  const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  return `${dateStr}, ${timeStr}`
+}
+
 const getMustExitByTime = (item: ActiveSession): string => {
   if (item.maximumExitTime && !item.maximumExitTime.startsWith('0001')) {
     const d = new Date(item.maximumExitTime)
     if (!isNaN(d.getTime())) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      return formatMustExitDateTime(d)
     }
   }
   if (item.scheduledEndTime) {
+    const checkIn = new Date(item.checkInTime)
+    if (!isNaN(checkIn.getTime())) {
+      const dateStr = checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      return `${dateStr}, ${item.scheduledEndTime}`
+    }
     return item.scheduledEndTime
   }
   const checkIn = new Date(item.checkInTime)
   if (isNaN(checkIn.getTime())) return '—'
   const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' || item.role === 'NonAcademicPersonnel' ? 8 : 4)
   const mustExitDate = new Date(checkIn.getTime() + maxAllowed * 3600 * 1000)
-  return mustExitDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return formatMustExitDateTime(mustExitDate)
 }
 
 // View state

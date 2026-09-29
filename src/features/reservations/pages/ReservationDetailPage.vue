@@ -526,8 +526,7 @@ onMounted(() => {
 <style scoped>
 .reservation-detail-page {
   animation: fadeSlideUp 0.35s ease both;
-  max-width: 900px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 @keyframes fadeSlideUp {

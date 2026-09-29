@@ -114,7 +114,7 @@ const getEntryMethod = computed(() => {
                 </div>
                 <div class="detail-item" v-if="isActive && (session as ActiveSession).maximumExitTime && !(session as ActiveSession).maximumExitTime?.startsWith('0001')">
                   <span class="detail-label">Must Exit By</span>
-                  <span class="detail-value font-semibold">{{ new Date((session as ActiveSession).maximumExitTime!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+                  <span class="detail-value font-semibold">{{ new Date((session as ActiveSession).maximumExitTime!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}, {{ new Date((session as ActiveSession).maximumExitTime!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
                 </div>
                 <div class="detail-item" v-if="isActive">
                   <span class="detail-label">Estimated Fee</span>
