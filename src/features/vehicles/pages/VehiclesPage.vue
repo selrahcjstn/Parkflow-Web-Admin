@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import type { Vehicle } from '../types'
-import VehicleDetailModal from '../components/VehicleDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
 import { cachedVehicleApprovals } from '@/stores/appCache'
+
+const router = useRouter()
 
 const vehicleColumns: TableColumn[] = [
   { key: 'vehicle', label: 'Plate Number' },
@@ -16,7 +18,6 @@ const vehicleColumns: TableColumn[] = [
   { key: 'owner', label: 'Owner Name' },
   { key: 'role', label: 'Role' },
   { key: 'vstatus', label: 'Status' },
-  { key: 'clearance', label: 'Primary Pass' },
   { key: 'actions', label: 'Actions', align: 'right' }
 ]
 
@@ -95,10 +96,6 @@ function cleanOwnerName(name?: string) {
 const searchQuery = ref('')
 const filterType = ref<string>('all')
 
-// Modals State
-const selectedVehicle = ref<Vehicle | null>(null)
-const isDetailOpen = ref(false)
-
 // Stats computations
 const totalCount = computed(() => vehicles.value.length)
 const carsCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 'Car').length)
@@ -162,36 +159,6 @@ const paginatedVehicles = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
   return filteredVehicles.value.slice(start, start + itemsPerPage.value)
 })
-
-// Handlers
-const openDetails = (vehicle: Vehicle) => {
-  selectedVehicle.value = vehicle
-  isDetailOpen.value = true
-}
-
-const handleTogglePrimary = (vehicleId: string) => {
-  const index = vehicles.value.findIndex((v) => v.id === vehicleId)
-  if (index !== -1 && vehicles.value[index]) {
-    const targetOwnerName = vehicles.value[index].ownerName
-
-    // Unset primary for all other vehicles of the same owner
-    vehicles.value.forEach((v) => {
-      if (v.ownerName === targetOwnerName) {
-        v.isPrimary = false
-      }
-    })
-
-    // Set target vehicle to primary
-    vehicles.value[index].isPrimary = true
-    
-    // Sync modal active state
-    if (selectedVehicle.value && selectedVehicle.value.id === vehicleId) {
-      selectedVehicle.value.isPrimary = true
-    }
-
-    showToast(`Vehicle ${vehicles.value[index].plateNumber} is now set as Primary clearance pass.`, 'success')
-  }
-}
 
 // Delete confirmation state
 const vehicleToDelete = ref<Vehicle | null>(null)
@@ -330,7 +297,7 @@ const isApproved = (status: number) => status === 2
     <!-- Header -->
     <div class="vehicles-header">
       <div class="vehicles-header__left">
-        <h1 class="vehicles-title">Registered Vehicle Directory & Clearance</h1>
+        <h1 class="vehicles-title">Registered Vehicle Directory &amp; Clearance</h1>
         <p class="vehicles-subtitle">Inspect active vehicle plate records, pass statuses, owner roles, and primary clearance passes across campus gates.</p>
       </div>
 
@@ -409,20 +376,11 @@ const isApproved = (status: number) => status === 2
     <!-- Vehicles Table Card -->
     <div class="table-card p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
 
-      <!-- Info note -->
-      <div class="approved-notice">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
-        <span>Only <strong>Approved</strong> vehicles are granted campus parking clearance. Pending and rejected vehicles cannot use the gate.</span>
-      </div>
-
       <UiTable
         :columns="vehicleColumns"
         :data="paginatedVehicles"
         :is-loading="isLoading"
         empty-text="No Registered Vehicles Found"
-        @row-click="openDetails"
       >
         <template #cell-vehicle="{ item }">
           <div class="vehicle-cell flex items-center gap-3">
@@ -452,9 +410,7 @@ const isApproved = (status: number) => status === 2
         </template>
 
         <template #cell-vehicleType="{ item }">
-          <span class="vtype-badge" :class="`vtype-badge--${item.vehicleType.toLowerCase()}`">
-            {{ getVehicleTypeLabel(item.vehicleType) }}
-          </span>
+          <span class="text-sm text-slate-700 dark:text-slate-300">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
         </template>
 
         <template #cell-brand="{ item }">
@@ -473,47 +429,41 @@ const isApproved = (status: number) => status === 2
 
         <template #cell-vstatus="{ item }">
           <span
-            class="vstatus-chip"
-            :class="{
-              'vstatus--pending': item.verificationStatus === 0 || item.verificationStatus === 1,
-              'vstatus--approved': item.verificationStatus === 2,
-              'vstatus--rejected': item.verificationStatus === 3
-            }"
-          >
-            {{ getVerificationLabel(item.verificationStatus) }}
-          </span>
-        </template>
-
-        <template #cell-clearance="{ item }">
+            v-if="item.verificationStatus === 2"
+            style="color:#059669;font-weight:600"
+          >Approved</span>
           <span
-            v-if="isApproved(item.verificationStatus)"
-            class="cursor-pointer text-xs font-semibold select-none"
-            :class="item.isPrimary ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 hover:text-slate-600'"
-            @click.stop="handleTogglePrimary(item.id)"
-            :title="item.isPrimary ? 'Primary parking pass' : 'Click to set as primary pass'"
-          >
-            {{ item.isPrimary ? 'Primary Pass' : 'Secondary Pass' }}
-          </span>
-          <span v-else class="text-slate-300 dark:text-slate-600 text-xs">—</span>
+            v-else-if="item.verificationStatus === 3"
+            style="color:#dc2626;font-weight:600"
+          >Rejected</span>
+          <span
+            v-else
+            style="color:#d97706;font-weight:600"
+          >Pending</span>
         </template>
 
         <template #cell-actions="{ item }">
           <div class="actions-group flex items-center justify-end gap-1" @click.stop>
-            <template v-if="isApproved(item.verificationStatus)">
-              <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="Inspect Vehicle Details" @click="openDetails(item)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                  <circle cx="12" cy="12" r="3" />
-                </svg>
-              </button>
-              <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete Vehicle" @click.stop="openDeleteConfirm(item)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
-            </template>
-            <span v-else class="text-slate-300 dark:text-slate-600 text-xs px-2">—</span>
+            <button
+              class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+              title="View Vehicle Details"
+              @click="router.push('/vehicles/' + item.id)"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+            <button
+              class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+              title="Delete Vehicle"
+              @click.stop="openDeleteConfirm(item)"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
           </div>
         </template>
       </UiTable>
@@ -524,14 +474,6 @@ const isApproved = (status: number) => status === 2
         :total-items="filteredVehicles.length"
       />
     </div>
-
-    <!-- Modals -->
-    <VehicleDetailModal
-      :vehicle="selectedVehicle"
-      :is-open="isDetailOpen"
-      @close="isDetailOpen = false"
-      @togglePrimary="handleTogglePrimary"
-    />
 
     <!-- Delete Vehicle Confirmation Modal -->
     <ConfirmModal
@@ -720,66 +662,6 @@ const isApproved = (status: number) => status === 2
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-soft);
   overflow: hidden;
-}
-
-.approved-notice {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: rgba(99, 102, 241, 0.06);
-  border-bottom: 1px solid rgba(99, 102, 241, 0.12);
-  font-size: 13px;
-  color: #6366f1;
-}
-
-.vstatus-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: 99px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.vstatus--pending {
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
-}
-
-.vstatus--approved {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
-}
-
-.vstatus--rejected {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-}
-
-.vtype-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 10px;
-  border-radius: 99px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.vtype-badge--car {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-}
-
-.vtype-badge--motorcycle {
-  background: rgba(245, 158, 11, 0.1);
-  color: #d97706;
-}
-
-.vtype-badge--electricbike {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
 }
 
 .toast-container {
