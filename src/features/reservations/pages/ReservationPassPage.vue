@@ -29,7 +29,7 @@ function copyRef(refNum?: string) {
   if (!refNum) return
   navigator.clipboard.writeText(refNum)
   isCopied.value = true
-  showToast('Permit reference number copied to clipboard!')
+  showToast('Permit reference number copied!')
   setTimeout(() => {
     isCopied.value = false
   }, 2000)
@@ -38,7 +38,7 @@ function copyRef(refNum?: string) {
 function copyPassLink() {
   navigator.clipboard.writeText(window.location.href)
   isLinkCopied.value = true
-  showToast('Pass URL link copied to clipboard!')
+  showToast('Permit link copied!')
   setTimeout(() => {
     isLinkCopied.value = false
   }, 2000)
@@ -106,23 +106,23 @@ function isReservationDone(item: ParkingReservationItem | null): boolean {
   return new Date() > endDateTime
 }
 
-function getScheduleStatus(item: ParkingReservationItem | null): { label: string; tone: 'active' | 'upcoming' | 'concluded' | 'rejected' } {
-  if (!item) return { label: 'Unknown', tone: 'concluded' }
+function getScheduleStatus(item: ParkingReservationItem | null): { label: string; color: string } {
+  if (!item) return { label: 'Unknown', color: '#64748b' }
   const rawStatus = String(item.status ?? '').toLowerCase()
-  if (rawStatus === 'rejected' || item.status === 2) return { label: 'Application Declined', tone: 'rejected' }
-  if (rawStatus === 'cancelled' || item.status === 3) return { label: 'Reservation Cancelled', tone: 'rejected' }
-  
+  if (rawStatus === 'rejected' || item.status === 2) return { label: 'Rejected', color: '#dc2626' }
+  if (rawStatus === 'cancelled' || item.status === 3) return { label: 'Cancelled', color: '#dc2626' }
+
   if (isReservationDone(item)) {
-    return { label: 'Schedule Concluded', tone: 'concluded' }
+    return { label: 'Concluded', color: '#64748b' }
   }
 
   const now = new Date()
   const start = parseReservationStartDateTime(item.reservationDate, item.startTime)
   if (start && now < start) {
-    return { label: 'Upcoming Schedule', tone: 'upcoming' }
+    return { label: 'Upcoming', color: '#d97706' }
   }
 
-  return { label: 'Active & Valid for Entry', tone: 'active' }
+  return { label: 'Active & Valid', color: '#059669' }
 }
 
 function formatStatus(status?: ReservationStatusType): string {
@@ -130,20 +130,25 @@ function formatStatus(status?: ReservationStatusType): string {
   if (status === 1 || String(status).toLowerCase() === 'approved') return 'Approved'
   if (status === 2 || String(status).toLowerCase() === 'rejected') return 'Rejected'
   if (status === 3 || String(status).toLowerCase() === 'cancelled') return 'Cancelled'
-  if (status === 4 || String(status).toLowerCase() === 'done' || String(status).toLowerCase() === 'completed') return 'Done'
+  if (status === 4 || String(status).toLowerCase() === 'done' || String(status).toLowerCase() === 'completed') return 'Completed'
   if (String(status).toLowerCase() === 'expired') return 'Expired'
   return String(status || 'Pending')
 }
 
-function getStatusKey(target?: ReservationStatusType | ParkingReservationItem): string {
-  if (target && typeof target === 'object' && 'reservationDate' in target) {
-    if (isReservationDone(target as ParkingReservationItem)) {
-      const raw = formatStatus(target.status)
-      return raw === 'Pending' ? 'expired' : 'done'
+function getStatusColor(status?: ReservationStatusType | ParkingReservationItem): string {
+  if (status && typeof status === 'object' && 'reservationDate' in status) {
+    if (isReservationDone(status as ParkingReservationItem)) {
+      return '#64748b'
     }
-    return formatStatus(target.status).toLowerCase()
+    const raw = formatStatus(status.status)
+    if (raw === 'Approved') return '#059669'
+    if (raw === 'Rejected' || raw === 'Cancelled') return '#dc2626'
+    return '#d97706'
   }
-  return formatStatus(target as ReservationStatusType).toLowerCase()
+  const str = formatStatus(status as ReservationStatusType)
+  if (str === 'Approved') return '#059669'
+  if (str === 'Rejected' || str === 'Cancelled') return '#dc2626'
+  return '#d97706'
 }
 
 function formatReservationDate(dateStr?: string): string {
@@ -173,17 +178,6 @@ function formatReservationDate(dateStr?: string): string {
   }
 }
 
-function formatShortDate(dateStr?: string): string {
-  if (!dateStr) return 'N/A'
-  try {
-    const d = new Date(dateStr)
-    if (isNaN(d.getTime())) return dateStr
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  } catch {
-    return dateStr
-  }
-}
-
 function formatTimeSlot(start?: string, end?: string): string {
   if (!start || !end) return 'All Day Pass'
   const formatTime = (t: string) => {
@@ -199,15 +193,6 @@ function formatTimeSlot(start?: string, end?: string): string {
   return `${formatTime(start)} – ${formatTime(end)}`
 }
 
-function getUserInitials(name?: string): string {
-  if (!name || !name.trim()) return 'P'
-  const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) {
-    return `${parts[0]![0]}${parts[parts.length - 1]![0]}`.toUpperCase()
-  }
-  return parts[0]![0]!.toUpperCase()
-}
-
 function getDisplayEmail(item?: ParkingReservationItem | null): string {
   if (!item) return 'N/A'
   if (item.userEmail && item.userEmail.trim()) return item.userEmail
@@ -216,17 +201,17 @@ function getDisplayEmail(item?: ParkingReservationItem | null): string {
 }
 
 function getDisplayNotes(item?: ParkingReservationItem | null): string {
-  if (!item) return 'Standard system automated validation pass.'
+  if (!item) return ''
   if (item.adminNotes && item.adminNotes.trim()) return item.adminNotes
   if (item.type === 1 || item.type === 'Special') {
-    return 'Special campus parking priority pass. Authorized by BulSU Security Administration.'
+    return 'Special campus parking priority pass. Authorized by Security Administration.'
   }
-  return 'Approved standard visitor parking clearance. Present QR code at campus entry terminals.'
+  return 'Standard campus visitor clearance permit.'
 }
 
 function getQrImageUrl(refCode: string, size: number = 320): string {
   const cleanRef = (refCode || 'PARKFLOW').trim()
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(cleanRef)}&format=svg&qzone=1&color=0f172a`
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(cleanRef)}&format=svg&qzone=1&color=1e293b`
 }
 
 async function fetchReservation() {
@@ -288,13 +273,13 @@ async function fetchReservation() {
     }
 
     if (!reservation.value) {
-      fetchError.value = `Reservation "${reservationId.value}" was not found in database records.`
+      fetchError.value = `Reservation "${reservationId.value}" was not found in records.`
     }
   } catch (err: any) {
     console.error('Error loading reservation pass:', err)
     if (!reservation.value) {
       const status = err.response?.status
-      const msg = err.response?.data?.message || err.message || 'Failed to connect to ParkFlow service.'
+      const msg = err.response?.data?.message || err.message || 'Failed to connect to service.'
       fetchError.value = status ? `API Error ${status}: ${msg}` : msg
     }
   } finally {
@@ -306,14 +291,14 @@ function downloadQrCode() {
   if (!reservation.value) return
   const refCode = reservation.value.referenceNumber || 'PARKFLOW-PASS'
   const qrUrl = getQrImageUrl(refCode, 600)
-  
+
   const link = document.createElement('a')
   link.href = qrUrl
   link.download = `ParkFlow-Pass-${refCode}.svg`
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  showToast('QR code image download initiated!')
+  showToast('QR code downloaded!')
 }
 
 function printPass() {
@@ -331,15 +316,17 @@ onMounted(() => {
 
 <template>
   <div class="reservation-pass-page">
-    <!-- TOP HEADER WITH BREADCRUMBS & ACTIONS -->
-    <div class="pass-page-header no-print">
+    <!-- Top Header & Breadcrumbs & Action Buttons -->
+    <div class="page-header no-print">
       <div class="header-left">
-        <button class="back-nav-btn" @click="goBack">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <polyline points="15 18 9 12 15 6" />
+        <button class="back-btn" @click="goBack">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
           </svg>
-          <span>Back to Reservations Directory</span>
+          Back to Reservations Directory
         </button>
+
         <div class="header-titles">
           <div class="breadcrumbs">
             <span class="crumb-link" @click="goBack">Reservations</span>
@@ -348,34 +335,36 @@ onMounted(() => {
             <span class="crumb-sep">/</span>
             <span class="crumb-ref font-mono">{{ reservation?.referenceNumber || reservationId }}</span>
           </div>
-          <div class="title-with-tags">
-            <h1 class="page-title">Official Campus Parking Permit</h1>
-            <div v-if="reservation" class="tags-group">
-              <span class="type-tag" :class="`type-tag--${reservation.type === 1 || reservation.type === 'Special' ? 'special' : 'visitor'}`">
-                {{ reservation.type === 1 || reservation.type === 'Special' ? 'Special Priority Pass' : 'Visitor Entry Pass' }}
-              </span>
-              <span class="status-tag" :class="`status-tag--${getStatusKey(reservation)}`">
-                {{ getStatusKey(reservation) === 'done' ? 'Concluded' : (getStatusKey(reservation) === 'expired' ? 'Expired' : formatStatus(reservation.status)) }}
-              </span>
-            </div>
-          </div>
+          <h1 class="page-title">Official Parking Pass</h1>
+          <p class="page-subtitle">Inspect clearance pass validity, terminal scan code, and gate authorization record.</p>
         </div>
       </div>
 
-      <div class="header-right-actions">
-        <button class="btn-action btn-action--secondary" @click="copyPassLink" title="Share direct pass link">
-          <svg v-if="!isLinkCopied" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <div class="header-actions">
+        <button class="action-btn" @click="copyRef(reservation?.referenceNumber)">
+          <svg v-if="!isCopied" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>{{ isCopied ? 'Copied' : 'Copy Ref' }}</span>
+        </button>
+
+        <button class="action-btn" @click="copyPassLink">
+          <svg v-if="!isLinkCopied" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-          <svg v-else width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
+          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
           <span>{{ isLinkCopied ? 'Link Copied' : 'Share Link' }}</span>
         </button>
 
-        <button class="btn-action btn-action--secondary" @click="downloadQrCode" title="Download QR Image">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="action-btn" @click="downloadQrCode">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
@@ -383,18 +372,18 @@ onMounted(() => {
           <span>Download QR</span>
         </button>
 
-        <button class="btn-action btn-action--primary" @click="printPass" title="Print Digital Permit">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button class="action-btn action-btn--primary" @click="printPass">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 6 2 18 2 18 9"/>
             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
             <rect x="6" y="14" width="12" height="8"/>
           </svg>
-          <span>Print Permit</span>
+          <span>Print Pass</span>
         </button>
       </div>
     </div>
 
-    <!-- TOAST NOTIFICATION -->
+    <!-- Toast Notification -->
     <Transition name="toast-fade">
       <div v-if="toastMessage" class="toast-popup" :class="`toast-popup--${toastMessage.type}`">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -404,373 +393,301 @@ onMounted(() => {
       </div>
     </Transition>
 
-    <!-- ERROR STATE (Tailwind Styled) -->
-    <div v-if="fetchError" class="min-h-[460px] flex items-center justify-center p-6 no-print">
-      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl p-8 max-w-md w-full text-center flex flex-col items-center">
-        <div class="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-4 border border-rose-100 dark:border-rose-900/50">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </div>
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Unable to Load Pass</h2>
-        <p class="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">{{ fetchError }}</p>
-        <div class="flex items-center gap-3 w-full">
-          <button class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors cursor-pointer" @click="goBack">
-            Back to Directory
-          </button>
-          <button class="flex-1 px-4 py-2.5 rounded-xl bg-red-700 hover:bg-red-800 text-white font-semibold text-xs transition-colors cursor-pointer shadow-sm" @click="fetchReservation">
-            Retry
-          </button>
-        </div>
+    <!-- Error State -->
+    <div v-if="fetchError" class="not-found-card no-print">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      <p>{{ fetchError }}</p>
+      <button class="back-btn" @click="goBack">Return to directory</button>
+    </div>
+
+    <!-- Skeleton Loading -->
+    <div v-else-if="isLoading" class="loading-container no-print">
+      <div class="skeleton-card">
+        <SkeletonLoader height="180px" borderRadius="12px" />
+      </div>
+      <div class="skeleton-card" style="margin-top: 20px;">
+        <SkeletonLoader height="220px" borderRadius="12px" />
       </div>
     </div>
 
-    <!-- SKELETON LOADING STATE -->
-    <div v-else-if="isLoading" class="pass-loading-grid no-print">
-      <div class="skeleton-col-left">
-        <SkeletonLoader height="520px" borderRadius="18px" />
-      </div>
-      <div class="skeleton-col-right">
-        <SkeletonLoader height="160px" borderRadius="16px" />
-        <SkeletonLoader height="160px" borderRadius="16px" />
-        <SkeletonLoader height="160px" borderRadius="16px" />
-      </div>
-    </div>
+    <!-- Main Desktop Layout (Zero Repetition, Clean Light Professional) -->
+    <div v-else-if="reservation" class="pass-content-layout">
 
-    <!-- MAIN PASS CONTENT LAYOUT -->
-    <div v-else-if="reservation" class="pass-fullpage-layout">
-
-      <!-- Inactive / Concluded Pass Warning Banner -->
-      <div v-if="isReservationDone(reservation)" class="pass-warning-banner no-print">
-        <div class="warning-banner-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </div>
+      <!-- Concluded or Expired Notice Banner -->
+      <div v-if="isReservationDone(reservation)" class="notice-banner no-print">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
         <div>
-          <strong class="warning-banner-title">Reservation Schedule Concluded / Expired</strong>
-          <p class="warning-banner-desc">This parking schedule ended on {{ formatReservationDate(reservation.reservationDate) }} at {{ formatTimeSlot(reservation.startTime, reservation.endTime) }}. Gate terminal scanners will consider this pass inactive.</p>
+          <strong class="notice-title">Schedule Concluded</strong>
+          <span class="notice-desc">This parking schedule has ended. Gate terminal scanners will register this pass as completed.</span>
         </div>
       </div>
 
-      <!-- 2-COLUMN MAIN DASHBOARD GRID -->
-      <div class="pass-dashboard-grid">
-        
-        <!-- LEFT COLUMN: THE OFFICIAL DIGITAL TICKET CARD -->
-        <div class="pass-grid-col-left">
-          
-          <div class="pass-showcase-wrapper" id="printable-ticket">
-            
-            <div class="official-pass-card">
-              
-              <!-- Pass Top Header -->
-              <div class="pass-card-header">
-                <div class="university-branding">
-                  <div class="university-logo-box">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <span class="org-name">BULACAN STATE UNIVERSITY</span>
-                    <span class="org-sub">ParkFlow Smart Gate Entry Permit</span>
-                  </div>
-                </div>
-
-                <div class="pass-status-pill" :class="`pass-status-pill--${getStatusKey(reservation)}`">
-                  <span class="status-dot" v-if="getStatusKey(reservation) === 'approved'"></span>
-                  {{ getStatusKey(reservation) === 'done' ? 'Concluded' : (getStatusKey(reservation) === 'expired' ? 'Expired' : formatStatus(reservation.status)) }}
-                </div>
-              </div>
-
-              <!-- Pass Title & Reference Code Header -->
-              <div class="pass-card-title-section">
-                <h2 class="pass-title-text">
-                  {{ (reservation.type === 1 || reservation.type === 'Special') ? 'Special Campus Parking Pass' : 'Campus Visitor Entry Permit' }}
-                </h2>
-                <div class="permit-code-badge">
-                  <span class="code-label">PERMIT NO:</span>
-                  <span class="code-val font-mono">{{ reservation.referenceNumber }}</span>
-                  <button class="copy-code-btn no-print" @click="copyRef(reservation.referenceNumber)" title="Copy permit number">
-                    <svg v-if="!isCopied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                    <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
-                      <polyline points="20 6 9 17 4 12"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <!-- QR Code Container -->
-              <div class="pass-qr-container">
-                <div class="qr-frame" @click="isQrZoomed = true" title="Click to enlarge QR code">
-                  <img
-                    :src="getQrImageUrl(reservation.referenceNumber, 320)"
-                    alt="Official Entry QR Code"
-                    class="qr-img"
-                  />
-                  <div class="qr-hover-hint no-print">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="11" cy="11" r="8"/>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                      <line x1="11" y1="8" x2="11" y2="14"/>
-                      <line x1="8" y1="11" x2="14" y2="11"/>
-                    </svg>
-                    <span>Tap to Enlarge</span>
-                  </div>
-                </div>
-                <p class="qr-instruction-text">Present this QR code to the gate terminal scanner or guard on duty</p>
-              </div>
-
-              <!-- Essential Pass Data Grid (Non-repetitive key fields) -->
-              <div class="pass-key-details-grid">
-                <div class="pass-detail-cell">
-                  <span class="cell-label">Pass Holder</span>
-                  <span class="cell-value font-semibold">{{ reservation.userFullName || 'Campus Visitor' }}</span>
-                </div>
-
-                <div class="pass-detail-cell">
-                  <span class="cell-label">Vehicle Plate</span>
-                  <span class="cell-value font-mono font-bold">{{ reservation.plateNumber || 'N/A' }}</span>
-                </div>
-
-                <div class="pass-detail-cell">
-                  <span class="cell-label">Authorized Date</span>
-                  <span class="cell-value font-semibold">{{ formatShortDate(reservation.reservationDate) }}</span>
-                </div>
-
-                <div class="pass-detail-cell">
-                  <span class="cell-label">Time Window</span>
-                  <span class="cell-value font-semibold text-primary">{{ formatTimeSlot(reservation.startTime, reservation.endTime) }}</span>
-                </div>
-              </div>
-
-              <!-- Pass Footer Actions -->
-              <div class="pass-card-footer no-print">
-                <button class="footer-btn footer-btn--download" @click="downloadQrCode">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                  </svg>
-                  <span>Download QR</span>
-                </button>
-                <button class="footer-btn footer-btn--print" @click="printPass">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="6 9 6 2 18 2 18 9"/>
-                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
-                    <rect x="6" y="14" width="12" height="8"/>
-                  </svg>
-                  <span>Print Pass</span>
-                </button>
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <!-- RIGHT COLUMN: CLEARANCE DETAILS & PERMIT DOSSIER -->
-        <div class="pass-grid-col-right no-print">
-          
-          <!-- Card 1: Permit Holder & Vehicle Info -->
-          <div class="info-card">
-            <div class="info-card-header">
-              <div class="header-icon-badge header-icon-badge--red">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="info-card-title">Applicant & Vehicle Info</h3>
-                <p class="info-card-sub">Registered owner details and designated vehicle</p>
-              </div>
-            </div>
-
-            <div class="info-card-body">
-              <div class="holder-profile-strip">
-                <div class="avatar-initials">
-                  {{ getUserInitials(reservation.userFullName) }}
-                </div>
-                <div class="holder-text-info">
-                  <h4 class="holder-name">{{ reservation.userFullName || 'Campus Visitor' }}</h4>
-                  <p class="holder-email">{{ getDisplayEmail(reservation) }}</p>
-                </div>
-              </div>
-
-              <div class="info-fields-grid">
-                <div class="info-field">
-                  <span class="field-label">Vehicle Plate & Model</span>
-                  <span class="field-value font-semibold">
-                    <span class="font-mono font-bold">{{ reservation.plateNumber || 'N/A' }}</span>
-                    <span v-if="reservation.brand" class="text-slate-500 font-normal"> — {{ reservation.brand }}</span>
-                  </span>
-                </div>
-                <div class="info-field">
-                  <span class="field-label">Account Role</span>
-                  <span class="field-value font-medium">
-                    {{ (reservation.type === 1 || reservation.type === 'Special') ? 'Administrative / VIP Priority' : 'Visitor / Client Permit' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card 2: Gate Clearance & Schedule Window -->
-          <div class="info-card">
-            <div class="info-card-header">
-              <div class="header-icon-badge header-icon-badge--amber">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-              </div>
-              <div>
-                <h3 class="info-card-title">Gate Clearance & Schedule Window</h3>
-                <p class="info-card-sub">Authorized entry time and operational gate status</p>
-              </div>
-
-              <div class="live-status-pill" :class="`live-status-pill--${getScheduleStatus(reservation).tone}`">
-                <span class="live-dot"></span>
-                <span>{{ getScheduleStatus(reservation).label }}</span>
-              </div>
-            </div>
-
-            <div class="info-card-body">
-              <div class="info-fields-grid">
-                <div class="info-field">
-                  <span class="field-label">Permitted Date</span>
-                  <span class="field-value font-bold text-base">{{ formatReservationDate(reservation.reservationDate) }}</span>
-                </div>
-
-                <div class="info-field">
-                  <span class="field-label">Time Slot Window</span>
-                  <span class="field-value font-bold text-base text-primary">{{ formatTimeSlot(reservation.startTime, reservation.endTime) }}</span>
-                </div>
-
-                <div class="info-field">
-                  <span class="field-label">Authorized Gates</span>
-                  <span class="field-value font-medium">Gate 1 (Main Entrance) & Gate 2 (Guinhawa)</span>
-                </div>
-
-                <div class="info-field">
-                  <span class="field-label">Clearance Tier</span>
-                  <span class="field-value font-medium">
-                    {{ (reservation.type === 1 || reservation.type === 'Special') ? 'All-Zone Special Campus Clearance' : 'Designated Visitor Parking Zone' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-      </div>
-
-      <!-- FULL-WIDTH SECTION: Purpose, Administrative Remarks & Security Guidelines -->
-      <div class="info-card info-card--fullwidth no-print">
-        <div class="info-card-header">
-          <div class="header-icon-badge header-icon-badge--slate">
+      <!-- CARD 1: Pass Clearance & QR Terminal Code -->
+      <div class="form-card">
+        <div class="card-header">
+          <div class="card-icon-badge card-icon-badge--blue">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
           <div>
-            <h3 class="info-card-title">Purpose & Security Protocol</h3>
-            <p class="info-card-sub">Approved campus entry reason, audit timestamps, and gate inspection guidelines</p>
+            <h3 class="card-title">Pass Clearance &amp; QR Terminal Code</h3>
+            <p class="card-subtitle">Official permit credentials and gate optical scanning code</p>
           </div>
         </div>
 
-        <div class="info-card-body">
-          <div class="fullwidth-details-grid">
-            
-            <!-- Left: Stated Purpose & Timestamps -->
-            <div class="details-col-left">
-              <div class="reason-callout-box">
-                <span class="callout-title">Stated Reason for Entry</span>
-                <p class="callout-text">{{ reservation.reason }}</p>
+        <div class="qr-overview-row">
+          <!-- Left side: Clearance details -->
+          <div class="qr-details-side">
+            <div class="details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Permit Reference</span>
+                <span class="detail-value font-mono font-bold text-base text-slate-800">
+                  {{ reservation.referenceNumber }}
+                </span>
               </div>
 
-              <div class="timestamps-row">
-                <div v-if="reservation.createdAt" class="timestamp-item">
-                  <span class="timestamp-label">Submitted On:</span>
-                  <span class="timestamp-val">{{ new Date(reservation.createdAt).toLocaleString() }}</span>
-                </div>
-                <div v-if="reservation.approvedAt" class="timestamp-item">
-                  <span class="timestamp-label">Approved On:</span>
-                  <span class="timestamp-val">{{ new Date(reservation.approvedAt).toLocaleString() }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right: Admin Notes & Security Guidelines -->
-            <div class="details-col-right">
-              <div v-if="getDisplayNotes(reservation)" class="admin-notes-box">
-                <span class="notes-title">Administrative Remarks</span>
-                <p class="notes-text">{{ getDisplayNotes(reservation) }}</p>
+              <div class="detail-item">
+                <span class="detail-label">Pass Category</span>
+                <span class="detail-value font-semibold">
+                  {{ (reservation.type === 1 || reservation.type === 'Special') ? 'Special Priority Pass' : 'Visitor Entry Permit' }}
+                </span>
               </div>
 
-              <div class="security-protocol-box">
-                <h5 class="protocol-title">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  </svg>
-                  Gate Security Inspection Protocol
-                </h5>
-                <ul class="protocol-list">
-                  <li>Scan the QR code at the campus gate terminal reader.</li>
-                  <li>Ensure vehicle plate matches <strong class="font-mono">{{ reservation.plateNumber || 'registered vehicle' }}</strong> upon entry.</li>
-                  <li>In case of scanner terminal failure, manually verify permit reference <strong class="font-mono">{{ reservation.referenceNumber }}</strong>.</li>
-                </ul>
+              <div class="detail-item">
+                <span class="detail-label">Clearance Status</span>
+                <span class="detail-value font-bold" :style="{ color: getStatusColor(reservation) }">
+                  {{ isReservationDone(reservation) ? 'Concluded' : formatStatus(reservation.status) }}
+                </span>
+              </div>
+
+              <div class="detail-item">
+                <span class="detail-label">Schedule Validity</span>
+                <span class="detail-value font-semibold" :style="{ color: getScheduleStatus(reservation).color }">
+                  {{ getScheduleStatus(reservation).label }}
+                </span>
+              </div>
+
+              <div class="detail-item detail-item--full">
+                <span class="detail-label">Authorized Entry Terminals</span>
+                <span class="detail-value">Gate 1 (Main Entrance) &amp; Gate 2 (Guinhawa)</span>
               </div>
             </div>
+          </div>
 
+          <!-- Right side: QR Code Box -->
+          <div class="qr-code-side">
+            <div class="qr-frame" @click="isQrZoomed = true" title="Click to enlarge">
+              <img
+                :src="getQrImageUrl(reservation.referenceNumber, 280)"
+                alt="Entry QR Code"
+                class="qr-img"
+              />
+              <div class="qr-zoom-hint no-print">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  <line x1="11" y1="8" x2="11" y2="14"/>
+                  <line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+                <span>Enlarge</span>
+              </div>
+            </div>
+            <span class="qr-caption no-print">Scan at campus optical reader terminal</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 2: Schedule Window -->
+      <div class="form-card">
+        <div class="card-header">
+          <div class="card-icon-badge card-icon-badge--purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Schedule Window</h3>
+            <p class="card-subtitle">Permitted date and time duration for campus parking access</p>
+          </div>
+        </div>
+
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="detail-label">Permitted Date</span>
+            <span class="detail-value font-semibold">
+              {{ formatReservationDate(reservation.reservationDate) }}
+            </span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Authorized Time Slot</span>
+            <span class="detail-value font-semibold text-slate-800">
+              {{ formatTimeSlot(reservation.startTime, reservation.endTime) }}
+            </span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Clearance Tier</span>
+            <span class="detail-value">
+              {{ (reservation.type === 1 || reservation.type === 'Special') ? 'All-Zone Priority Access' : 'Designated Visitor Zone' }}
+            </span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Gate Policy</span>
+            <span class="detail-value">Single Authorized Session</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 3: Applicant & Vehicle Record -->
+      <div class="form-card">
+        <div class="card-header">
+          <div class="card-icon-badge card-icon-badge--orange">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Applicant &amp; Vehicle</h3>
+            <p class="card-subtitle">Registered holder identification and designated vehicle details</p>
+          </div>
+        </div>
+
+        <div class="details-grid">
+          <div class="detail-item">
+            <span class="detail-label">Pass Holder Name</span>
+            <span class="detail-value font-semibold">
+              {{ reservation.userFullName || 'Campus Visitor' }}
+            </span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Contact Email</span>
+            <span class="detail-value font-mono">
+              {{ getDisplayEmail(reservation) }}
+            </span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Designated Vehicle Plate</span>
+            <span class="detail-value font-mono font-bold text-slate-800">
+              {{ reservation.plateNumber || 'N/A' }}
+            </span>
+          </div>
+
+          <div class="detail-item">
+            <span class="detail-label">Vehicle Brand &amp; Model</span>
+            <span class="detail-value">
+              {{ reservation.brand || '—' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 4: Purpose, Remarks & Audit History -->
+      <div class="form-card">
+        <div class="card-header">
+          <div class="card-icon-badge card-icon-badge--slate">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="card-title">Purpose &amp; Audit History</h3>
+            <p class="card-subtitle">Stated entry purpose, audit timestamps, and security inspection notes</p>
+          </div>
+        </div>
+
+        <div class="details-grid">
+          <div class="detail-item detail-item--full" v-if="reservation.reason">
+            <span class="detail-label">Stated Purpose of Campus Entry</span>
+            <div class="text-callout-box">
+              <p class="text-callout-body">{{ reservation.reason }}</p>
+            </div>
+          </div>
+
+          <div class="detail-item" v-if="reservation.createdAt">
+            <span class="detail-label">Submitted On</span>
+            <span class="detail-value">
+              {{ new Date(reservation.createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) }}
+            </span>
+          </div>
+
+          <div class="detail-item" v-if="reservation.approvedAt">
+            <span class="detail-label">Approved On</span>
+            <span class="detail-value">
+              {{ new Date(reservation.approvedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) }}
+            </span>
+          </div>
+
+          <div class="detail-item detail-item--full" v-if="getDisplayNotes(reservation)">
+            <span class="detail-label">Administrative Remarks</span>
+            <div class="remarks-box">
+              <p class="remarks-text">{{ getDisplayNotes(reservation) }}</p>
+            </div>
+          </div>
+
+          <div class="detail-item detail-item--full">
+            <span class="detail-label">Gate Verification Protocol</span>
+            <div class="protocol-box">
+              <ol class="protocol-list">
+                <li>Driver presents digital pass or QR printout at gate terminal scanner.</li>
+                <li>Security officer confirms physical plate matches <strong class="font-mono">{{ reservation.plateNumber || 'registered plate' }}</strong>.</li>
+                <li>In case of reader downtime, guard verifies reference <strong class="font-mono">{{ reservation.referenceNumber }}</strong> in Guard Station terminal.</li>
+              </ol>
+            </div>
           </div>
         </div>
       </div>
 
     </div>
 
-    <!-- FULLSCREEN QR ZOOM MODAL -->
+    <!-- Fullscreen QR Zoom Modal -->
     <Teleport to="body">
       <Transition name="fade">
         <div v-if="isQrZoomed && reservation" class="zoom-modal-backdrop" @click="isQrZoomed = false">
           <div class="zoom-modal-card" @click.stop>
             <div class="zoom-modal-header">
-              <h3 class="zoom-modal-title">QR Gate Pass — High Resolution</h3>
+              <h3 class="zoom-modal-title">Gate Optical Scan Code</h3>
               <button class="zoom-close-btn" @click="isQrZoomed = false">&times;</button>
             </div>
-            <div class="zoom-modal-body">
-              <img
-                :src="getQrImageUrl(reservation.referenceNumber, 520)"
-                alt="Enlarged Entry QR Code"
-                class="zoom-qr-img"
-              />
-              <p class="zoom-ref-code font-mono">{{ reservation.referenceNumber }}</p>
-              <p class="zoom-caption">Official BulSU Campus Parking Entry Permit</p>
-            </div>
+            <img
+              :src="getQrImageUrl(reservation.referenceNumber, 480)"
+              alt="QR Code"
+              class="zoom-qr-img"
+            />
+            <p class="zoom-ref-code font-mono">{{ reservation.referenceNumber }}</p>
             <div class="zoom-modal-footer">
-              <button class="btn-action btn-action--secondary" @click="isQrZoomed = false">Close</button>
-              <button class="btn-action btn-action--primary" @click="downloadQrCode">Download Image</button>
+              <button class="action-btn" @click="downloadQrCode">
+                Download SVG
+              </button>
+              <button class="action-btn action-btn--primary" @click="isQrZoomed = false">
+                Close
+              </button>
             </div>
           </div>
         </div>
       </Transition>
     </Teleport>
-
   </div>
 </template>
 
@@ -779,36 +696,30 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  width: 100%;
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 8px 24px 60px;
 }
 
-/* TOP HEADER */
-.pass-page-header {
+/* Page Header */
+.page-header {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: flex-end;
-  flex-wrap: wrap;
   gap: 20px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  flex-wrap: wrap;
 }
 
 .header-left {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
-.back-nav-btn {
+.back-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: transparent;
   border: none;
-  color: var(--color-text-muted, #64748b);
+  color: var(--color-muted, #64748b);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -817,14 +728,14 @@ onMounted(() => {
   width: fit-content;
 }
 
-.back-nav-btn:hover {
-  color: #800000;
+.back-btn:hover {
+  color: #4f46e5;
 }
 
 .header-titles {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .breadcrumbs {
@@ -832,7 +743,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: var(--color-text-muted, #94a3b8);
+  color: var(--color-muted, #64748b);
 }
 
 .crumb-link {
@@ -841,7 +752,7 @@ onMounted(() => {
 }
 
 .crumb-link:hover {
-  color: #800000;
+  color: var(--color-text, #1e293b);
 }
 
 .crumb-sep {
@@ -849,154 +760,68 @@ onMounted(() => {
 }
 
 .crumb-active {
-  color: var(--color-text, #0f172a);
+  color: var(--color-text, #1e293b);
   font-weight: 600;
 }
 
 .crumb-ref {
-  color: #800000;
+  color: #4f46e5;
   font-weight: 700;
-}
-
-.title-with-tags {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  flex-wrap: wrap;
 }
 
 .page-title {
   font-size: 24px;
   font-weight: 800;
-  color: var(--color-text, #0f172a);
+  color: var(--color-text, #1e293b);
   margin: 0;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
 }
 
-.tags-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.page-subtitle {
+  font-size: 13px;
+  color: var(--color-muted, #64748b);
+  margin: 0;
 }
 
-.type-tag {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.type-tag--special {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-.type-tag--visitor {
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #bbf7d0;
-}
-
-.status-tag {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.status-tag--approved {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-}
-
-.status-tag--pending {
-  background: #fffbeb;
-  color: #b45309;
-  border: 1px solid #fde68a;
-}
-
-.status-tag--done, .status-tag--expired {
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
-}
-
-.status-tag--rejected, .status-tag--cancelled {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-}
-
-.header-right-actions {
+/* Header Actions */
+.header-actions {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.btn-action {
+.action-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 9px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-button, 8px);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: all 150ms ease;
-  border: none;
-}
-
-.btn-action--secondary {
   background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  border: 1px solid var(--color-border, #cbd5e1);
+  border: 1px solid var(--color-border, #e2e8f0);
+  color: var(--color-text, #1e293b);
 }
 
-.btn-action--secondary:hover {
-  background: var(--color-surface-lighter, #f8fafc);
-  border-color: #94a3b8;
+.action-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
-.btn-action--primary {
-  background: #800000;
+.action-btn--primary {
+  background: #4f46e5;
+  border-color: #4338ca;
   color: #ffffff;
 }
 
-.btn-action--primary:hover {
-  background: #660000;
+.action-btn--primary:hover {
+  background: #4338ca;
 }
 
-/* WARNING BANNER & TOAST */
-.pass-warning-banner {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px 20px;
-  background: #fffbe6;
-  border: 1px solid #ffe58f;
-  border-radius: 12px;
-  color: #873800;
-}
-
-.warning-banner-title {
-  display: block;
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 2px;
-}
-
-.warning-banner-desc {
-  font-size: 13px;
-  margin: 0;
-  line-height: 1.45;
-}
-
+/* Toast */
 .toast-popup {
   position: fixed;
   bottom: 24px;
@@ -1006,344 +831,110 @@ onMounted(() => {
   gap: 10px;
   padding: 12px 18px;
   border-radius: 10px;
-  background: #0f172a;
-  color: #ffffff;
   font-size: 13px;
   font-weight: 600;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  z-index: 9999;
+  z-index: 10000;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-/* MAIN DASHBOARD GRID & PASS CARD */
-.pass-dashboard-grid {
-  display: grid;
-  grid-template-columns: 420px 1fr;
-  gap: 28px;
-  align-items: stretch;
-}
-
-@media (max-width: 1024px) {
-  .pass-dashboard-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.pass-showcase-wrapper {
-  height: 100%;
-}
-
-.official-pass-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  height: 100%;
-}
-
-.dark .official-pass-card {
-  background: #1e293b;
-  border-color: #334155;
-}
-
-.pass-card-header {
-  background: linear-gradient(135deg, #800000 0%, #590000 100%);
-  color: #ffffff;
-  padding: 20px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.university-branding {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.university-logo-box {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.toast-popup--success {
+  background: #059669;
   color: #ffffff;
 }
 
-.org-name {
-  display: block;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
+.toast-popup--error {
+  background: #dc2626;
   color: #ffffff;
 }
 
-.org-sub {
-  display: block;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.8);
-  font-weight: 500;
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: all 250ms ease;
 }
 
-.pass-status-pill {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+.toast-fade-enter-from,
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateY(12px);
 }
 
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #4ade80;
-}
-
-.pass-card-title-section {
-  padding: 20px 24px 14px;
-  text-align: center;
-  border-bottom: 1px dashed #e2e8f0;
-}
-
-.dark .pass-card-title-section {
-  border-bottom-color: #334155;
-}
-
-.pass-title-text {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--color-text, #0f172a);
-  margin: 0 0 8px;
-}
-
-.permit-code-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-}
-
-.dark .permit-code-badge {
-  background: #0f172a;
-  border-color: #334155;
-}
-
-.code-label {
-  color: #64748b;
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.5px;
-}
-
-.code-val {
-  font-weight: 800;
-  color: #800000;
-}
-
-.copy-code-btn {
-  background: transparent;
-  border: none;
-  color: #64748b;
-  cursor: pointer;
-  padding: 2px;
-  display: flex;
-  align-items: center;
-}
-
-.copy-code-btn:hover {
-  color: #800000;
-}
-
-/* QR Container */
-.pass-qr-container {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
-
-.qr-frame {
-  position: relative;
-  padding: 16px;
-  background: #ffffff;
-  border: 2px solid #f1f5f9;
-  border-radius: 16px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-  cursor: pointer;
-  transition: transform 150ms ease, box-shadow 150ms ease;
-}
-
-.qr-frame:hover {
-  transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-}
-
-.qr-img {
-  width: 220px;
-  height: 220px;
-  display: block;
-  object-fit: contain;
-}
-
-.qr-hover-hint {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(15, 23, 42, 0.75);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  backdrop-filter: blur(4px);
-}
-
-.qr-instruction-text {
-  font-size: 12px;
-  color: var(--color-text-muted, #64748b);
-  text-align: center;
-  margin: 0;
-  max-width: 260px;
-  line-height: 1.4;
-}
-
-/* Key Details Grid */
-.pass-key-details-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  padding: 16px 24px 24px;
-  background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
-  flex: 1;
-}
-
-.dark .pass-key-details-grid {
-  background: #0f172a;
-  border-top-color: #334155;
-}
-
-.pass-detail-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.cell-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.cell-value {
-  font-size: 13.5px;
-  color: var(--color-text, #0f172a);
-  word-break: break-word;
-}
-
-.pass-card-footer {
-  display: flex;
-  gap: 10px;
-  padding: 16px 24px;
-  border-top: 1px solid #e2e8f0;
-  background: #ffffff;
-}
-
-.dark .pass-card-footer {
-  background: #1e293b;
-  border-top-color: #334155;
-}
-
-.footer-btn {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-  border: none;
-}
-
-.footer-btn--download {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-.footer-btn--download:hover {
-  background: #e2e8f0;
-}
-
-.footer-btn--print {
-  background: #800000;
-  color: #ffffff;
-}
-
-.footer-btn--print:hover {
-  background: #660000;
-}
-
-/* RIGHT COLUMN: INFORMATION CARDS */
-.pass-grid-col-right {
+/* Skeletons & Not Found */
+.loading-container {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.info-card {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+.skeleton-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 16px);
   padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
 }
 
-.dark .info-card {
-  background: #1e293b;
-  border-color: #334155;
+.not-found-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 16px);
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--color-muted, #64748b);
+  font-size: 14px;
 }
 
-.info-card-header {
+/* Notice Banner */
+.notice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-card, 16px);
+  color: #64748b;
+}
+
+.notice-title {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text, #1e293b);
+}
+
+.notice-desc {
+  font-size: 13px;
+}
+
+/* Main Content Layout */
+.pass-content-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Form Card (Desktop Web Admin Pattern matching VehicleDetailPage and EditUserPage) */
+.form-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 16px);
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.card-header {
   display: flex;
   align-items: center;
   gap: 14px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 18px;
-  position: relative;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  margin-bottom: 20px;
 }
 
-.dark .info-card-header {
-  border-bottom-color: #334155;
-}
-
-.header-icon-badge {
+.card-icon-badge {
   width: 40px;
   height: 40px;
   border-radius: 10px;
@@ -1353,284 +944,222 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
-.header-icon-badge--red {
-  background: #fef2f2;
-  color: #991b1b;
+.card-icon-badge--blue {
+  background: rgba(79, 70, 229, 0.1);
+  color: #4f46e5;
 }
 
-.header-icon-badge--amber {
-  background: #fffbeb;
-  color: #b45309;
+.card-icon-badge--purple {
+  background: rgba(147, 51, 234, 0.1);
+  color: #9333ea;
 }
 
-.header-icon-badge--slate {
-  background: #f1f5f9;
+.card-icon-badge--orange {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.card-icon-badge--slate {
+  background: rgba(100, 116, 139, 0.12);
   color: #475569;
 }
 
-.info-card-title {
-  font-size: 16px;
+.card-title {
+  font-size: 15px;
   font-weight: 700;
-  color: var(--color-text, #0f172a);
-  margin: 0 0 2px;
-}
-
-.info-card-sub {
-  font-size: 12.5px;
-  color: var(--color-text-muted, #64748b);
+  color: var(--color-text, #1e293b);
   margin: 0;
 }
 
-.live-status-pill {
-  margin-left: auto;
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.card-subtitle {
+  font-size: 12px;
+  color: var(--color-muted, #64748b);
+  margin: 2px 0 0 0;
 }
 
-.live-status-pill--active {
-  background: #ecfdf5;
-  color: #047857;
-}
-
-.live-status-pill--upcoming {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.live-status-pill--concluded, .live-status-pill--rejected {
-  background: #f1f5f9;
-  color: #64748b;
-}
-
-.live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-/* Profile Strip */
-.holder-profile-strip {
+/* Card 1: QR Overview Row */
+.qr-overview-row {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+@media (max-width: 768px) {
+  .qr-overview-row {
+    flex-direction: column-reverse;
+  }
+}
+
+.qr-details-side {
+  flex: 1;
+}
+
+.qr-code-side {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 14px;
-  padding-bottom: 16px;
-  margin-bottom: 16px;
-  border-bottom: 1px dashed #f1f5f9;
+  flex-shrink: 0;
 }
 
-.dark .holder-profile-strip {
-  border-bottom-color: #334155;
+.qr-frame {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: transform 150ms ease;
 }
 
-.avatar-initials {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  background: #800000;
+.qr-frame:hover {
+  transform: scale(1.02);
+}
+
+.qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.qr-zoom-hint {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 41, 59, 0.7);
+  border-radius: 10px;
   color: #ffffff;
-  font-size: 17px;
-  font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 150ms ease;
 }
 
-.holder-name {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text, #0f172a);
-  margin: 0 0 2px;
+.qr-frame:hover .qr-zoom-hint {
+  opacity: 1;
 }
 
-.holder-email {
-  font-size: 13px;
-  color: var(--color-text-muted, #64748b);
-  margin: 0;
+.qr-caption {
+  font-size: 11.5px;
+  color: var(--color-muted, #64748b);
+  margin-top: 8px;
+  text-align: center;
 }
 
-.info-fields-grid {
+/* Details Grid */
+.details-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  gap: 20px 32px;
 }
 
 @media (max-width: 640px) {
-  .info-fields-grid {
+  .details-grid {
     grid-template-columns: 1fr;
   }
 }
 
-.info-field {
+.detail-item {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.field-label {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #64748b;
+.detail-item--full {
+  grid-column: 1 / -1;
 }
 
-.field-value {
-  font-size: 14px;
-  color: var(--color-text, #0f172a);
-}
-
-/* FULL WIDTH DETAILS GRID */
-.fullwidth-details-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-@media (max-width: 768px) {
-  .fullwidth-details-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.details-col-left, .details-col-right {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.reason-callout-box {
-  background: #f8fafc;
-  border-left: 4px solid #800000;
-  padding: 14px 18px;
-  border-radius: 0 10px 10px 0;
-}
-
-.dark .reason-callout-box {
-  background: #0f172a;
-}
-
-.callout-title {
-  display: block;
+.detail-label {
   font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
+  font-weight: 600;
   text-transform: uppercase;
-  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #64748b);
 }
 
-.callout-text {
-  font-size: 14px;
-  color: var(--color-text, #0f172a);
+.detail-value {
+  font-size: 14.5px;
+  color: var(--color-text, #1e293b);
+}
+
+/* Callout Boxes */
+.text-callout-box {
+  background: #f8fafc;
+  border-left: 3px solid #4f46e5;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  margin-top: 4px;
+}
+
+.text-callout-body {
+  font-size: 13.5px;
+  color: var(--color-text, #1e293b);
   margin: 0;
   line-height: 1.5;
 }
 
-.timestamps-row {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
-}
-
-.timestamp-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.timestamp-label {
-  font-size: 11px;
-  color: #64748b;
-}
-
-.timestamp-val {
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--color-text, #0f172a);
-}
-
-.admin-notes-box {
+.remarks-box {
   background: #fffbeb;
   border: 1px solid #fde68a;
-  padding: 14px 18px;
-  border-radius: 10px;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 4px;
 }
 
-.notes-title {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: #b45309;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.notes-text {
-  font-size: 13.5px;
+.remarks-text {
+  font-size: 13px;
   color: #78350f;
   margin: 0;
   line-height: 1.45;
 }
 
-.security-protocol-box {
+.protocol-box {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+  border-radius: 8px;
   padding: 14px 18px;
-  border-radius: 10px;
-}
-
-.dark .security-protocol-box {
-  background: #0f172a;
-  border-color: #334155;
-}
-
-.protocol-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text, #0f172a);
-  margin: 0 0 8px;
+  margin-top: 4px;
 }
 
 .protocol-list {
   margin: 0;
-  padding-left: 18px;
-  font-size: 12.5px;
-  color: var(--color-text-muted, #64748b);
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text, #1e293b);
+  line-height: 1.45;
 }
 
-/* ZOOM MODAL */
+/* Fullscreen Zoom Modal */
 .zoom-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 99999;
+  padding: 16px;
 }
 
 .zoom-modal-card {
   background: #ffffff;
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 24px;
   max-width: 440px;
-  width: 90%;
+  width: 100%;
   text-align: center;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
-}
-
-.dark .zoom-modal-card {
-  background: #1e293b;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.15);
 }
 
 .zoom-modal-header {
@@ -1643,7 +1172,7 @@ onMounted(() => {
 .zoom-modal-title {
   font-size: 16px;
   font-weight: 700;
-  color: var(--color-text, #0f172a);
+  color: var(--color-text, #1e293b);
   margin: 0;
 }
 
@@ -1651,13 +1180,15 @@ onMounted(() => {
   background: transparent;
   border: none;
   font-size: 24px;
+  line-height: 1;
   color: #64748b;
   cursor: pointer;
+  padding: 0;
 }
 
 .zoom-qr-img {
-  width: 280px;
-  height: 280px;
+  width: 260px;
+  height: 260px;
   margin: 0 auto 12px;
   display: block;
 }
@@ -1665,14 +1196,8 @@ onMounted(() => {
 .zoom-ref-code {
   font-size: 15px;
   font-weight: 800;
-  color: #800000;
-  margin: 0 0 4px;
-}
-
-.zoom-caption {
-  font-size: 12px;
-  color: #64748b;
-  margin: 0 0 18px;
+  color: #4f46e5;
+  margin: 0 0 16px;
 }
 
 .zoom-modal-footer {
@@ -1680,41 +1205,26 @@ onMounted(() => {
   gap: 10px;
 }
 
-.zoom-modal-footer .btn-action {
+.zoom-modal-footer .action-btn {
   flex: 1;
   justify-content: center;
 }
 
-/* PRINT STYLES */
+/* Print Styles */
 @media print {
-  body {
-    background: #ffffff !important;
-  }
-
   .no-print {
     display: none !important;
   }
 
   .reservation-pass-page {
     padding: 0 !important;
-    max-width: 100% !important;
   }
 
-  .pass-dashboard-grid {
-    display: block !important;
-  }
-
-  .official-pass-card {
-    border: 2px solid #000000 !important;
+  .form-card {
+    border: 1px solid #000000 !important;
     box-shadow: none !important;
-    max-width: 480px !important;
-    margin: 0 auto !important;
-  }
-
-  .pass-card-header {
-    background: #800000 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    page-break-inside: avoid;
+    margin-bottom: 20px;
   }
 }
 </style>

@@ -12,6 +12,29 @@ const vehicleId = computed(() => String(route.params.id || ''))
 const isLoading = ref(true)
 const vehicle = ref<any>(null)
 
+// Zoom Modal State
+const isZoomed = ref(false)
+const zoomedImage = ref('')
+const zoomedTitle = ref('')
+
+function openZoom(url: string, title: string) {
+  if (!url) return
+  zoomedImage.value = url
+  zoomedTitle.value = title
+  isZoomed.value = true
+}
+
+function closeZoom() {
+  isZoomed.value = false
+  zoomedImage.value = ''
+  zoomedTitle.value = ''
+}
+
+function checkIsPdf(url?: string | null): boolean {
+  if (!url) return false
+  return url.toLowerCase().includes('.pdf')
+}
+
 // --- Helpers ---
 function getVehicleTypeLabel(type: any): string {
   if (type === 0 || type === 'Motorcycle') return 'Motorcycle'
@@ -58,6 +81,7 @@ function mapRawVehicle(v: any) {
     isPrimary: Boolean(v.isPrimary),
     ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || ''),
     ownerRole: v.ownerRole || 'Student',
+    ownerEmail: v.ownerEmail || v.email || '',
     vehiclePictureUrl: v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || null,
     orcrDocumentUrl: v.orcrDocumentUrl || v.orcrUrl || v.documentUrl || null
   }
@@ -123,7 +147,7 @@ function goBack() {
       </button>
       <div class="header-titles">
         <h1 class="page-title">Vehicle Record Details</h1>
-        <p class="page-subtitle">Inspect full vehicle registration info, documents, and owner classification.</p>
+        <p class="page-subtitle">Inspect registration verification documents, vehicle specifications, and owner clearance.</p>
       </div>
     </div>
 
@@ -154,58 +178,186 @@ function goBack() {
     <!-- Content -->
     <div v-else class="detail-container">
 
-      <!-- Card 1: Vehicle Photo & Identity -->
+      <!-- TOP VIEW: 2-COLUMN UPLOADED DOCUMENTS -->
       <div class="form-card">
         <div class="card-header">
           <div class="card-icon-badge card-icon-badge--blue">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="6" rx="2" />
-              <path d="M5 17h14" />
-              <circle cx="7" cy="17" r="2" />
-              <circle cx="17" cy="17" r="2" />
-              <path d="M6 11l1.5-4.5h9L18 11" />
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
             </svg>
           </div>
           <div>
-            <h3 class="card-title">Vehicle</h3>
-            <p class="card-subtitle">Registered vehicle identification and photo</p>
+            <h3 class="card-title">Uploaded Registration Documents</h3>
+            <p class="card-subtitle">Official vehicle photograph and OR/CR certificate for identity verification</p>
           </div>
         </div>
 
-        <!-- Hero: Vehicle Photo -->
-        <div class="vehicle-hero">
-          <img
-            v-if="vehicle.vehiclePictureUrl"
-            :src="vehicle.vehiclePictureUrl"
-            alt="Vehicle Photo"
-            class="vehicle-hero-img"
-          />
-          <div v-else class="vehicle-hero-placeholder">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
-              <rect x="3" y="11" width="18" height="6" rx="2" />
-              <path d="M5 17h14" />
-              <circle cx="7" cy="17" r="2" />
-              <circle cx="17" cy="17" r="2" />
-              <path d="M6 11l1.5-4.5h9L18 11" />
-            </svg>
-            <span class="hero-placeholder-text">No photo uploaded</span>
-          </div>
-        </div>
+        <div class="docs-2col-grid">
+          
+          <!-- Column 1: Proof of Vehicle (Photo) -->
+          <div class="doc-panel">
+            <div class="panel-header-strip">
+              <div class="panel-header-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="6" rx="2" />
+                  <path d="M5 17h14" />
+                  <circle cx="7" cy="17" r="2" />
+                  <circle cx="17" cy="17" r="2" />
+                  <path d="M6 11l1.5-4.5h9L18 11" />
+                </svg>
+                <span>Proof of Vehicle (Photo)</span>
+              </div>
+              <a
+                v-if="vehicle.vehiclePictureUrl"
+                :href="vehicle.vehiclePictureUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="panel-link-btn"
+                title="Open original photo in new tab"
+              >
+                <span>Open Original</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+            </div>
 
-        <!-- Plate + Brand below hero -->
-        <div class="hero-info-row">
-          <div>
-            <div class="plate-label">Plate Number</div>
-            <div class="plate-number">{{ vehicle.plateNumber }}</div>
+            <!-- Vehicle Photo Frame -->
+            <div class="doc-display-frame">
+              <div
+                v-if="vehicle.vehiclePictureUrl"
+                class="doc-media-wrapper"
+                @click="openZoom(vehicle.vehiclePictureUrl, 'Proof of Vehicle Photo')"
+                title="Click to enlarge"
+              >
+                <img
+                  :src="vehicle.vehiclePictureUrl"
+                  alt="Proof of Vehicle"
+                  class="doc-preview-img"
+                />
+                <div class="doc-hover-overlay">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/>
+                    <line x1="8" y1="11" x2="14" y2="11"/>
+                  </svg>
+                  <span>Click to Zoom</span>
+                </div>
+              </div>
+              <div v-else class="doc-empty-box">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                  <rect x="3" y="11" width="18" height="6" rx="2" />
+                  <path d="M5 17h14" />
+                  <circle cx="7" cy="17" r="2" />
+                  <circle cx="17" cy="17" r="2" />
+                  <path d="M6 11l1.5-4.5h9L18 11" />
+                </svg>
+                <span>No vehicle photo uploaded</span>
+              </div>
+            </div>
+
+            <!-- Panel Metadata Strip -->
+            <div class="panel-meta-row">
+              <div>
+                <span class="meta-label">Plate Number</span>
+                <span class="meta-value font-mono font-bold">{{ vehicle.plateNumber }}</span>
+              </div>
+              <div>
+                <span class="meta-label">Brand &amp; Model</span>
+                <span class="meta-value">{{ vehicle.brand }}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <div class="plate-label">Brand &amp; Model</div>
-            <div class="brand-text">{{ vehicle.brand }}</div>
+
+          <!-- Column 2: OR/CR Document -->
+          <div class="doc-panel">
+            <div class="panel-header-strip">
+              <div class="panel-header-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                </svg>
+                <span>OR/CR Document (Registration)</span>
+              </div>
+              <a
+                v-if="vehicle.orcrDocumentUrl"
+                :href="vehicle.orcrDocumentUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="panel-link-btn"
+                title="Open original OR/CR document in new tab"
+              >
+                <span>Open Original</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              </a>
+            </div>
+
+            <!-- OR/CR Document Frame -->
+            <div class="doc-display-frame">
+              <div
+                v-if="vehicle.orcrDocumentUrl && !checkIsPdf(vehicle.orcrDocumentUrl)"
+                class="doc-media-wrapper"
+                @click="openZoom(vehicle.orcrDocumentUrl, 'OR/CR Registration Document')"
+                title="Click to enlarge"
+              >
+                <img
+                  :src="vehicle.orcrDocumentUrl"
+                  alt="OR/CR Document"
+                  class="doc-preview-img"
+                />
+                <div class="doc-hover-overlay">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    <line x1="11" y1="8" x2="11" y2="14"/>
+                    <line x1="8" y1="11" x2="14" y2="11"/>
+                  </svg>
+                  <span>Click to Zoom</span>
+                </div>
+              </div>
+              <iframe
+                v-else-if="vehicle.orcrDocumentUrl && checkIsPdf(vehicle.orcrDocumentUrl)"
+                :src="vehicle.orcrDocumentUrl"
+                class="doc-pdf-frame"
+                title="OR/CR PDF Document"
+              />
+              <div v-else class="doc-empty-box">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                <span>No OR/CR document uploaded</span>
+              </div>
+            </div>
+
+            <!-- Panel Metadata Strip -->
+            <div class="panel-meta-row">
+              <div>
+                <span class="meta-label">Document Type</span>
+                <span class="meta-value">Official Receipt / Certificate</span>
+              </div>
+              <div>
+                <span class="meta-label">Format</span>
+                <span class="meta-value">{{ checkIsPdf(vehicle.orcrDocumentUrl) ? 'PDF Document' : 'Digital Photo' }}</span>
+              </div>
+            </div>
           </div>
+
         </div>
       </div>
 
-      <!-- Card 2: Registration Properties -->
+      <!-- CARD 2: Registration Properties -->
       <div class="form-card">
         <div class="card-header">
           <div class="card-icon-badge card-icon-badge--purple">
@@ -230,23 +382,24 @@ function goBack() {
           <div class="detail-item">
             <span class="detail-label">Approval Status</span>
             <span
-              class="detail-value"
-              :style="{ color: getVerificationColor(vehicle.verificationStatus), fontWeight: '700' }"
+              class="detail-value font-bold"
+              :style="{ color: getVerificationColor(vehicle.verificationStatus) }"
             >
               {{ getVerificationLabel(vehicle.verificationStatus) }}
             </span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Primary Pass</span>
-            <span class="detail-value">{{ vehicle.isPrimary ? 'Yes' : 'No' }}</span>
+            <span class="detail-label">Primary Clearance Pass</span>
+            <span class="detail-value">{{ vehicle.isPrimary ? 'Yes (Primary Pass)' : 'No (Secondary Pass)' }}</span>
           </div>
           <div class="detail-item">
-            <!-- placeholder cell for grid alignment -->
+            <span class="detail-label">System Record ID</span>
+            <span class="detail-value font-mono text-xs text-slate-600">{{ vehicle.id }}</span>
           </div>
         </div>
       </div>
 
-      <!-- Card 3: Owner Information -->
+      <!-- CARD 3: Owner Information -->
       <div class="form-card">
         <div class="card-header">
           <div class="card-icon-badge card-icon-badge--orange">
@@ -257,7 +410,7 @@ function goBack() {
           </div>
           <div>
             <h3 class="card-title">Owner Information</h3>
-            <p class="card-subtitle">Registered owner and campus classification</p>
+            <p class="card-subtitle">Registered vehicle owner and campus classification</p>
           </div>
         </div>
 
@@ -267,97 +420,47 @@ function goBack() {
             <span class="detail-value">{{ vehicle.ownerName }}</span>
           </div>
           <div class="detail-item">
-            <span class="detail-label">Classification</span>
+            <span class="detail-label">Campus Classification</span>
             <span class="detail-value">{{ getRoleLabel(vehicle.ownerRole) }}</span>
           </div>
-        </div>
-      </div>
-
-      <!-- Card 4: Documents (only if at least one doc exists) -->
-      <div
-        v-if="vehicle.vehiclePictureUrl || vehicle.orcrDocumentUrl"
-        class="form-card"
-      >
-        <div class="card-header">
-          <div class="card-icon-badge card-icon-badge--green">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="card-title">Documents</h3>
-            <p class="card-subtitle">OR/CR and vehicle photo files</p>
-          </div>
-        </div>
-
-        <div class="doc-list">
-          <div class="doc-row">
-            <div class="doc-info">
-              <span class="doc-name">OR/CR Document</span>
-              <span class="doc-hint">Official Receipt / Certificate of Registration</span>
-            </div>
-            <a
-              v-if="vehicle.orcrDocumentUrl"
-              :href="vehicle.orcrDocumentUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="doc-btn"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-              View Document
-            </a>
-            <span v-else class="doc-empty">Not uploaded</span>
-          </div>
-
-          <div class="doc-row">
-            <div class="doc-info">
-              <span class="doc-name">Vehicle Photo</span>
-              <span class="doc-hint">Registration vehicle photo</span>
-            </div>
-            <a
-              v-if="vehicle.vehiclePictureUrl"
-              :href="vehicle.vehiclePictureUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="doc-btn"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-              View Photo
-            </a>
-            <span v-else class="doc-empty">Not uploaded</span>
+          <div class="detail-item" v-if="vehicle.ownerEmail">
+            <span class="detail-label">Email Address</span>
+            <span class="detail-value font-mono text-sm">{{ vehicle.ownerEmail }}</span>
           </div>
         </div>
       </div>
 
     </div>
+
+    <!-- Zoom Modal -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div v-if="isZoomed" class="zoom-modal-backdrop" @click="closeZoom">
+          <div class="zoom-modal-content" @click.stop>
+            <div class="zoom-header">
+              <span class="zoom-title">{{ zoomedTitle }}</span>
+              <button class="close-zoom-btn" @click="closeZoom">&times;</button>
+            </div>
+            <img :src="zoomedImage" alt="Zoomed Document" class="zoomed-image" />
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
 .vehicle-detail-page {
-  animation: fadeSlideUp 0.4s ease both;
-}
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 /* ── Header ── */
 .page-header {
-  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .back-btn {
@@ -366,39 +469,50 @@ function goBack() {
   gap: 6px;
   background: transparent;
   border: none;
-  color: var(--color-muted);
+  color: var(--color-muted, #64748b);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
   transition: color 150ms ease;
-  align-self: flex-start;
+  width: fit-content;
 }
-.back-btn:hover { color: #4f46e5; }
 
-.header-titles { display: flex; flex-direction: column; gap: 4px; }
+.back-btn:hover {
+  color: #4f46e5;
+}
+
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
 .page-title {
   font-size: 24px;
   font-weight: 800;
-  color: var(--color-text);
+  color: var(--color-text, #1e293b);
   margin: 0;
   letter-spacing: -0.3px;
 }
 
 .page-subtitle {
   font-size: 13px;
-  color: var(--color-muted);
+  color: var(--color-muted, #64748b);
   margin: 0;
 }
 
-/* ── Loading skeleton ── */
-.loading-container { display: flex; flex-direction: column; gap: 20px; }
+/* ── Loading Skeleton ── */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
 
 .skeleton-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 16px);
   padding: 24px;
 }
 
@@ -424,10 +538,10 @@ function goBack() {
   align-items: center;
   gap: 14px;
   padding: 48px 24px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  color: var(--color-muted);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 16px);
+  color: var(--color-muted, #64748b);
   text-align: center;
 }
 .not-found-card p { font-size: 15px; font-weight: 600; margin: 0; }
@@ -439,21 +553,22 @@ function goBack() {
   gap: 24px;
 }
 
-/* ── Card ── */
+/* ── Form Card ── */
 .form-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-card, 16px);
   padding: 24px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--color-border, #f1f5f9);
+  margin-bottom: 20px;
 }
 
 .card-icon-badge {
@@ -474,81 +589,165 @@ function goBack() {
 .card-title {
   font-size: 15px;
   font-weight: 700;
-  color: var(--color-text);
+  color: var(--color-text, #1e293b);
   margin: 0;
 }
 
 .card-subtitle {
   font-size: 12px;
-  color: var(--color-muted);
+  color: var(--color-muted, #64748b);
   margin: 2px 0 0 0;
 }
 
-/* ── Vehicle Hero ── */
-.vehicle-hero {
-  width: 100%;
-  border-radius: 10px;
+/* =====================================================================
+   2-COLUMN DOCUMENTS TOP VIEW
+   ===================================================================== */
+.docs-2col-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 860px) {
+  .docs-2col-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.doc-panel {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
   overflow: hidden;
-  background: #f1f5f9;
-  max-height: 320px;
+  background: #f8fafc;
+}
+
+.panel-header-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  gap: 10px;
+}
+
+.panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text, #1e293b);
+}
+
+.panel-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4f46e5;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 150ms ease;
+}
+
+.panel-link-btn:hover {
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.doc-display-frame {
+  height: 280px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f1f5f9;
+  overflow: hidden;
 }
 
-.vehicle-hero-img {
+.doc-media-wrapper {
   width: 100%;
-  max-height: 320px;
+  height: 100%;
+  cursor: pointer;
+  position: relative;
+}
+
+.doc-preview-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 200ms ease;
 }
 
-.vehicle-hero-placeholder {
+.doc-media-wrapper:hover .doc-preview-img {
+  transform: scale(1.02);
+}
+
+.doc-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.doc-media-wrapper:hover .doc-hover-overlay {
+  opacity: 1;
+}
+
+.doc-pdf-frame {
   width: 100%;
-  height: 200px;
+  height: 100%;
+  border: none;
+}
+
+.doc-empty-box {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  background: #f1f5f9;
-}
-
-.hero-placeholder-text {
-  font-size: 13px;
+  gap: 8px;
   color: #94a3b8;
+  font-size: 13px;
   font-weight: 500;
 }
 
-/* ── Plate + Brand row ── */
-.hero-info-row {
+.panel-meta-row {
   display: flex;
-  gap: 40px;
-  margin-top: 20px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-top: 1px solid var(--color-border, #e2e8f0);
 }
 
-.plate-label {
-  font-size: 11px;
+.meta-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-muted);
-  font-weight: 600;
-  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #64748b);
 }
 
-.plate-number {
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--color-text);
-  letter-spacing: 0.08em;
-}
-
-.brand-text {
-  font-size: 18px;
+.meta-value {
+  display: block;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-text, #1e293b);
+  margin-top: 1px;
 }
 
 /* ── Details Grid ── */
@@ -571,73 +770,70 @@ function goBack() {
 .detail-label {
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-muted);
+  letter-spacing: 0.05em;
+  color: var(--color-muted, #64748b);
   font-weight: 600;
 }
 
 .detail-value {
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
-  color: var(--color-text);
+  color: var(--color-text, #1e293b);
 }
 
-/* ── Documents ── */
-.doc-list {
+/* ── Zoom Modal ── */
+.zoom-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 20px;
+}
+
+.zoom-modal-content {
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  max-width: 820px;
+  width: 100%;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
-.doc-row {
+.zoom-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.doc-row:last-child { border-bottom: none; }
-
-.doc-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.zoom-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e293b;
 }
 
-.doc-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
+.close-zoom-btn {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0;
 }
 
-.doc-hint {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.doc-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  background: rgba(79, 70, 229, 0.08);
-  color: #4f46e5;
-  border: 1px solid rgba(79, 70, 229, 0.2);
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  transition: background 150ms ease;
-  white-space: nowrap;
-}
-
-.doc-btn:hover { background: rgba(79, 70, 229, 0.15); }
-
-.doc-empty {
-  font-size: 13px;
-  color: var(--color-muted);
-  font-style: italic;
+.zoomed-image {
+  width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  background: #0f172a;
+  display: block;
 }
 </style>
