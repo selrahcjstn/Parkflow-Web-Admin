@@ -7,7 +7,10 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import ParkingStats from '../components/ParkingStats.vue'
+import ParkingFilters from '../components/ParkingFilters.vue'
 import api from '@/api/axios'
 import { cachedActiveSessions, cachedHistorySessions } from '@/stores/appCache'
 
@@ -534,141 +537,43 @@ const getRoleLabel = (role: string) => {
         <p class="parking-subtitle">Monitor real-time gate occupancy, active check-ins, and logs.</p>
       </div>
       <div class="header-actions">
-        <button class="refresh-btn" @click="fetchParkingData" :disabled="isLoading" title="Refresh Data">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spin-animation': isLoading }">
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
+        <UiButton
+          variant="secondary"
+          size="md"
+          :loading="isLoading"
+          @click="fetchParkingData"
+          title="Refresh Data"
+        >
+          <template #icon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </template>
+          Refresh
+        </UiButton>
       </div>
     </div>
 
-    <!-- Stats Grid -->
-    <div class="stats-grid">
-      <template v-if="isLoading">
-        <SkeletonLoader v-for="i in 3" :key="'skel-stat-'+i" variant="rect" height="148px" style="width: 100%; border-radius: var(--radius-card);" />
-      </template>
-      <template v-else>
-        <!-- Card 1: Slot Occupancy Rate (Same Design as Dashboard) -->
-        <StatsCard
-          title="Slot Occupancy"
-          :value="`${occupancyCount} / ${TOTAL_CAPACITY}`"
-          :subtitle="`${TOTAL_CAPACITY - occupancyCount} slots available`"
-          :trend="`${occupancyRate}% full`"
-          :trend-up="occupancyRate < 85"
-          accent-color="#059669"
-          badge-bg="rgba(16, 185, 129, 0.12)"
-          :progress-percent="occupancyRate"
-        >
-          <template #icon>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="3" />
-              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-            </svg>
-          </template>
-        </StatsCard>
+    <!-- Stats Grid Component -->
+    <ParkingStats
+      :is-loading="isLoading"
+      :occupancy-count="occupancyCount"
+      :total-capacity="TOTAL_CAPACITY"
+      :occupancy-rate="occupancyRate"
+      :todays-entries-count="todaysEntriesCount"
+      :overstay-count="overstayCount"
+      @click-today="currentTab = 'active'"
+      @click-overstay="currentTab = 'active'; filterStatus = 'Overstay'"
+    />
 
-        <!-- Card 2: Today's Entries (Linked to active/history today's check-ins) -->
-        <StatsCard
-          title="Today's Entries"
-          :value="String(todaysEntriesCount)"
-          subtitle="Scanner check-ins"
-          trend="Today Logged"
-          :trend-up="true"
-          accent-color="#2563eb"
-          badge-bg="rgba(37, 99, 235, 0.12)"
-          @click="currentTab = 'active'"
-          class="clickable-stat-card"
-        >
-          <template #icon>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v20M17 5l-5-5-5 5M17 19l-5 5-5-5" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </template>
-        </StatsCard>
-
-        <!-- Card 3: Active Overstays (Schedule Time Exceeded) -->
-        <StatsCard
-          title="Active Overstays"
-          :value="String(overstayCount)"
-          subtitle="Exceeded scheduled access time"
-          :trend="overstayCount > 0 ? 'Exceeded Schedule' : 'Normal'"
-          :trend-up="overstayCount === 0"
-          accent-color="#d22730"
-          badge-bg="rgba(210, 39, 48, 0.12)"
-          @click="currentTab = 'active'; filterStatus = 'Overstay'"
-          class="clickable-stat-card"
-        >
-          <template #icon>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-          </template>
-        </StatsCard>
-      </template>
-    </div>
-
-    <!-- Filters Bar -->
-    <div class="filters-bar">
-      <!-- Search Input -->
-      <div class="search-wrapper">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <input v-model="searchQuery" type="text" placeholder="Search by plate, owner, brand..." class="search-input" />
-      </div>
-
-      <!-- Tabs and Filter Groups -->
-      <div class="toolbar-right">
-        <!-- Tab Toggle -->
-        <div class="tabs-switcher">
-          <button
-            class="tab-btn"
-            :class="{ active: currentTab === 'active' }"
-            @click="currentTab = 'active'"
-          >
-            Active
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: currentTab === 'history' }"
-            @click="currentTab = 'history'"
-          >
-            History
-          </button>
-        </div>
-
-        <div class="filters-group">
-          <!-- Vehicle Type Filter -->
-          <div class="select-wrapper">
-            <select v-model="filterVehicleType" class="filter-select">
-              <option value="all">All Vehicle Types</option>
-              <option value="Car">Car</option>
-              <option value="Motorcycle">Motorcycle</option>
-              <option value="ElectricBike">E-Bike</option>
-            </select>
-          </div>
-
-          <!-- Dynamic Status/Method Filter -->
-          <div v-if="currentTab === 'active'" class="select-wrapper">
-            <select v-model="filterStatus" class="filter-select">
-              <option value="all">All Statuses</option>
-              <option value="Parked">Parked</option>
-              <option value="Overstay">Overstay</option>
-            </select>
-          </div>
-
-          <div v-else class="select-wrapper">
-            <select v-model="filterMethod" class="filter-select">
-              <option value="all">All Entry Methods</option>
-              <option value="QrCode">QR Code</option>
-              <option value="Manual">Manual Entry</option>
-            </select>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Filters Bar Component -->
+    <ParkingFilters
+      v-model:search-query="searchQuery"
+      v-model:current-tab="currentTab"
+      v-model:filter-vehicle-type="filterVehicleType"
+      v-model:filter-status="filterStatus"
+      v-model:filter-method="filterMethod"
+    />
 
     <!-- Tables -->
     <div class="table-card p-0 overflow-hidden">

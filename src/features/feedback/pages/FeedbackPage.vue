@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { FeedbackItem, FeedbackStatus } from '../types'
-import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import FeedbackStats from '../components/FeedbackStats.vue'
+import FeedbackFilters from '../components/FeedbackFilters.vue'
+import FeedbackDetailModal from '../components/FeedbackDetailModal.vue'
 import api from '@/api/axios'
 import { cachedFeedbacks } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
@@ -51,24 +55,28 @@ const selectedRating = ref<number | 'All'>('All')
 const isDetailModalOpen = ref(false)
 const activeFeedback = ref<FeedbackItem | null>(null)
 const editStatus = ref<FeedbackStatus>('Pending')
-const editAdminNotes = ref('')
-const isSaving = ref(false)
-
-// Reply & Invoice Form state
 const replyMessage = ref('')
-const shouldIssueInvoice = ref(false)
-const invoiceAmount = ref<number | null>(null)
-const invoiceDescription = ref('')
 const markAsResolved = ref(true)
 const isSendingReply = ref(false)
 
-const categories = ['All', 'Bug Report', 'Feature Request', 'UI/UX', 'General']
-const statuses = ['All', 'Pending', 'Reviewed', 'Resolved']
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
 
 // Helpers for normalizing backend fields
 const getUserName = (f: FeedbackItem) => f.fullName || f.userFullName || 'Anonymous User'
 const getUserEmail = (f: FeedbackItem) => f.email || f.userEmail || 'N/A'
 const getMessageText = (f: FeedbackItem) => f.description || f.message || ''
+
+const getInitials = (name: string, email: string) => {
+  if (name && name !== 'Anonymous User') {
+    return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+  }
+  if (email && email !== 'N/A') {
+    return email.slice(0, 2).toUpperCase()
+  }
+  return 'PF'
+}
 
 const getNormalizedStatus = (f: FeedbackItem): FeedbackStatus => {
   const s = f.statusName || f.status
@@ -85,13 +93,23 @@ const getNormalizedCategory = (category?: string): string => {
   return 'General'
 }
 
-// Calculate hours elapsed since submission
 const getHoursElapsed = (createdAt?: string) => {
   if (!createdAt) return 0
   const created = new Date(createdAt).getTime()
   const now = new Date().getTime()
   const diffHours = (now - created) / (1000 * 60 * 60)
   return Math.max(0, Math.round(diffHours * 10) / 10)
+}
+
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'Just now'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'Recently'
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  }).format(date)
 }
 
 // Fetch Feedback items from API
@@ -138,400 +156,142 @@ const averageRating = computed(() => {
   return (sum / feedbacks.value.length).toFixed(1)
 })
 
-// Filtering
+// Filtering logic
 const filteredFeedbacks = computed(() => {
-  return feedbacks.value.filter((f) => {
-    // Category match
-    if (selectedCategory.value !== 'All') {
-      const normCat = getNormalizedCategory(f.category)
-      if (normCat !== selectedCategory.value) return false
-    }
+  return feedbacks.value.filter((item) => {
+    const q = searchQuery.value.toLowerCase().trim()
+    const matchesSearch =
+      !q ||
+      getMessageText(item).toLowerCase().includes(q) ||
+      getUserName(item).toLowerCase().includes(q) ||
+      getUserEmail(item).toLowerCase().includes(q)
 
-    // Status match
-    if (selectedStatus.value !== 'All') {
-      const normStatus = getNormalizedStatus(f)
-      if (normStatus !== selectedStatus.value) return false
-    }
+    const normCat = getNormalizedCategory(item.category)
+    const matchesCategory = selectedCategory.value === 'All' || normCat === selectedCategory.value
 
-    // Rating match
-    if (selectedRating.value !== 'All' && f.rating !== Number(selectedRating.value)) {
-      return false
-    }
+    const normStat = getNormalizedStatus(item)
+    const matchesStatus = selectedStatus.value === 'All' || normStat === selectedStatus.value
 
-    // Search query match
-    if (searchQuery.value.trim()) {
-      const q = searchQuery.value.toLowerCase()
-      const name = getUserName(f).toLowerCase()
-      const email = getUserEmail(f).toLowerCase()
-      const msg = getMessageText(f).toLowerCase()
-      const cat = getNormalizedCategory(f.category).toLowerCase()
-      if (!name.includes(q) && !email.includes(q) && !msg.includes(q) && !cat.includes(q)) {
-        return false
-      }
-    }
-    return true
+    const matchesRating = selectedRating.value === 'All' || item.rating === selectedRating.value
+
+    return matchesSearch && matchesCategory && matchesStatus && matchesRating
   })
-})
-
-// Pagination State
-const currentPage = ref(1)
-const itemsPerPage = ref(10)
-
-watch([searchQuery, selectedCategory, selectedStatus, selectedRating], () => {
-  currentPage.value = 1
 })
 
 const paginatedFeedbacks = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredFeedbacks.value.slice(start, start + itemsPerPage.value)
+  const end = start + itemsPerPage.value
+  return filteredFeedbacks.value.slice(start, end)
 })
 
-// Open Inspection Modal
+watch([searchQuery, selectedCategory, selectedStatus, selectedRating, itemsPerPage], () => {
+  currentPage.value = 1
+})
+
 const openDetailModal = (item: FeedbackItem) => {
   activeFeedback.value = item
   editStatus.value = getNormalizedStatus(item)
-  editAdminNotes.value = item.adminNotes || ''
-  
-  // Reset reply/invoice fields
-  replyMessage.value = item.adminReplyMessage || ''
-  shouldIssueInvoice.value = Boolean(item.invoiceNumber || (item.invoiceAmount && item.invoiceAmount > 0))
-  invoiceAmount.value = item.invoiceAmount || null
-  invoiceDescription.value = item.invoiceDescription || ''
-  markAsResolved.value = getNormalizedStatus(item) === 'Resolved'
-
+  replyMessage.value = ''
+  markAsResolved.value = true
   isDetailModalOpen.value = true
 }
 
 const closeDetailModal = () => {
   isDetailModalOpen.value = false
   activeFeedback.value = null
+  replyMessage.value = ''
 }
 
-// Send Admin Reply & Email User
 const handleSendReply = async () => {
-  const current = activeFeedback.value
-  if (!current) return
-  if (!replyMessage.value.trim()) {
-    showToast('Please type a response / thank you message.', 'warning')
-    return
-  }
+  if (!activeFeedback.value) return
 
   isSendingReply.value = true
+  const targetId = activeFeedback.value.id
+  const targetStatus = markAsResolved.value ? 'Resolved' : editStatus.value
+
   try {
-    const payload = {
-      replyMessage: replyMessage.value.trim(),
-      markResolved: markAsResolved.value
-    }
+    await api.post(`/feedbacks/${targetId}/reply`, {
+      replyMessage: replyMessage.value.trim() || undefined,
+      status: targetStatus === 'Resolved' ? 3 : targetStatus === 'Reviewed' ? 2 : 1
+    })
 
-    const targetId = current.id
-    const res = await api.post(`/feedbacks/${targetId}/reply`, payload)
-    const updatedDto = res.data?.data || res.data
-
-    // Update local state
-    const index = feedbacks.value.findIndex((f) => f.id === targetId)
-    if (index !== -1) {
-      const item = feedbacks.value[index]
-      if (item) {
-        if (updatedDto) {
-          feedbacks.value[index] = { ...item, ...updatedDto }
-        } else {
-          item.adminReplyMessage = payload.replyMessage
-          item.adminRepliedAt = new Date().toISOString()
-          item.status = payload.markResolved ? 'Resolved' : 'Reviewed'
-          item.statusName = payload.markResolved ? 'Resolved' : 'Reviewed'
-        }
-      }
-    }
-    cachedFeedbacks.value = [...feedbacks.value]
-
-    showToast('Reply and automated email sent successfully to user!', 'success')
+    showToast('Reply dispatched and notification email sent to user!', 'success')
     closeDetailModal()
+    await fetchFeedbacks()
   } catch (err: any) {
-    console.error('Failed to send reply:', err)
-    showToast(err.response?.data?.message || 'Failed to send reply to user.', 'danger')
+    console.error('Failed to submit reply:', err)
+    showToast(err.response?.data?.message || 'Failed to dispatch reply.', 'danger')
   } finally {
     isSendingReply.value = false
-  }
-}
-
-// Update Status API Call
-const handleUpdateStatus = async () => {
-  const current = activeFeedback.value
-  if (!current) return
-  isSaving.value = true
-
-  try {
-    const payload = {
-      status: editStatus.value,
-      adminNotes: editAdminNotes.value
-    }
-    await api.put(`/feedbacks/${current.id}/status`, payload)
-    
-    // Update local state
-    const targetItem = feedbacks.value.find((f) => f.id === current.id)
-    if (targetItem) {
-      targetItem.status = editStatus.value
-      targetItem.statusName = editStatus.value
-      targetItem.adminNotes = editAdminNotes.value
-      targetItem.updatedAt = new Date().toISOString()
-    }
-    cachedFeedbacks.value = [...feedbacks.value]
-
-    showToast('Feedback status updated successfully!', 'success')
-    closeDetailModal()
-  } catch (err: any) {
-    console.error('Failed to update feedback status:', err)
-    showToast(err.response?.data?.message || 'Failed to update feedback status.', 'danger')
-  } finally {
-    isSaving.value = false
-  }
-}
-
-// Helpers
-const formatDate = (dateStr?: string) => {
-  if (!dateStr) return 'N/A'
-  try {
-    return new Date(dateStr).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    })
-  } catch {
-    return dateStr
-  }
-}
-
-const getInitials = (name?: string, email?: string) => {
-  const target = name || email || 'User'
-  const parts = target.trim().split(' ')
-  const p0 = parts[0]
-  const p1 = parts[1]
-  if (parts.length >= 2 && p0 && p1 && p0[0] && p1[0]) {
-    return (p0[0] + p1[0]).toUpperCase()
-  }
-  return target.slice(0, 2).toUpperCase()
-}
-
-const getCategoryBadgeClass = (category?: string) => {
-  const norm = getNormalizedCategory(category)
-  switch (norm) {
-    case 'Bug Report':
-      return 'badge-bug'
-    case 'Feature Request':
-      return 'badge-feature'
-    case 'UI/UX':
-      return 'badge-ui'
-    default:
-      return 'badge-general'
-  }
-}
-
-const getStatusBadgeClass = (status?: FeedbackStatus) => {
-  switch (status) {
-    case 'Resolved':
-      return 'status-resolved'
-    case 'Reviewed':
-      return 'status-reviewed'
-    default:
-      return 'status-pending'
   }
 }
 </script>
 
 <template>
-  <div class="feedback-page">
-    <!-- Toast Notifications -->
-    <div class="toast-container">
-      <TransitionGroup name="toast">
-        <div v-for="t in toasts" :key="t.id" class="toast-item" :class="`toast-${t.type}`">
-          <span>{{ t.message }}</span>
-        </div>
-      </TransitionGroup>
-    </div>
-
-    <!-- Header Section -->
-    <div class="page-header">
-      <div class="header-left">
-        <h1 class="page-title">Feedback & Suggestions</h1>
-        <p class="page-subtitle">Review user inquiries, issue response thank-you notes, and generate invoices.</p>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-secondary" @click="fetchFeedbacks" :disabled="isLoading">
-          <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"></polyline>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-          </svg>
-          Refresh Data
-        </button>
-      </div>
-    </div>
-
-    <!-- KPI Summary Cards -->
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <template v-if="isLoading">
-          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
-          <div class="kpi-content" style="width: 100%">
-            <SkeletonLoader variant="rect" height="12px" style="width: 65%; border-radius: 4px; margin-bottom: 6px;" />
-            <SkeletonLoader variant="rect" height="22px" style="width: 35%; border-radius: 6px;" />
-          </div>
-        </template>
-        <template v-else>
-          <div class="kpi-icon-wrap kpi-blue">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-          </div>
-          <div class="kpi-content">
-            <span class="kpi-label">Total Submissions</span>
-            <span class="kpi-value">{{ totalCount }}</span>
-          </div>
-        </template>
+  <div class="flex flex-col gap-6 w-full">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
+          Feedback & Inquiries
+        </h1>
+        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 mb-0 max-w-2xl">
+          Track user ratings, manage app improvement inquiries, and send thank-you responses.
+        </p>
       </div>
 
-      <div class="kpi-card">
-        <template v-if="isLoading">
-          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
-          <div class="kpi-content" style="width: 100%">
-            <SkeletonLoader variant="rect" height="12px" style="width: 60%; border-radius: 4px; margin-bottom: 6px;" />
-            <SkeletonLoader variant="rect" height="22px" style="width: 45%; border-radius: 6px;" />
-          </div>
-        </template>
-        <template v-else>
-          <div class="kpi-icon-wrap kpi-gold">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-            </svg>
-          </div>
-          <div class="kpi-content">
-            <span class="kpi-label">Average Rating</span>
-            <span class="kpi-value">{{ averageRating }} <span class="kpi-sub">/ 5.0</span></span>
-          </div>
-        </template>
-      </div>
-
-      <div class="kpi-card">
-        <template v-if="isLoading">
-          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
-          <div class="kpi-content" style="width: 100%">
-            <SkeletonLoader variant="rect" height="12px" style="width: 70%; border-radius: 4px; margin-bottom: 6px;" />
-            <SkeletonLoader variant="rect" height="22px" style="width: 30%; border-radius: 6px;" />
-          </div>
-        </template>
-        <template v-else>
-          <div class="kpi-icon-wrap kpi-amber">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <div class="kpi-content">
-            <span class="kpi-label">Pending Inquiry SLA</span>
-            <span class="kpi-value text-amber">{{ pendingCount }}</span>
-          </div>
-        </template>
-      </div>
-
-      <div class="kpi-card">
-        <template v-if="isLoading">
-          <SkeletonLoader variant="circle" height="42px" width="42px" style="border-radius: 12px; flex-shrink: 0;" />
-          <div class="kpi-content" style="width: 100%">
-            <SkeletonLoader variant="rect" height="12px" style="width: 60%; border-radius: 4px; margin-bottom: 6px;" />
-            <SkeletonLoader variant="rect" height="22px" style="width: 35%; border-radius: 6px;" />
-          </div>
-        </template>
-        <template v-else>
-          <div class="kpi-icon-wrap kpi-green">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-          <div class="kpi-content">
-            <span class="kpi-label">Resolved Items</span>
-            <span class="kpi-value text-green">{{ resolvedCount }}</span>
-          </div>
-        </template>
-      </div>
-    </div>
-
-    <!-- Filters & Search Section -->
-    <div class="filter-card">
-      <div class="filter-row">
-        <!-- Search input -->
-        <div class="search-wrap">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search by user name, email, feedback content..."
-            class="search-input"
-          />
-          <button v-if="searchQuery" @click="searchQuery = ''" class="search-clear">✕</button>
-        </div>
-
-        <!-- Select Filters -->
-        <div class="select-group">
-          <!-- Status Dropdown -->
-          <div class="select-wrap">
-            <label class="select-label">Status</label>
-            <select v-model="selectedStatus" class="custom-select">
-              <option v-for="s in statuses" :key="s" :value="s">{{ s }}</option>
-            </select>
-          </div>
-
-          <!-- Rating Dropdown -->
-          <div class="select-wrap">
-            <label class="select-label">Rating</label>
-            <select v-model="selectedRating" class="custom-select">
-              <option value="All">All Ratings</option>
-              <option :value="5">5 Stars ★★★★★</option>
-              <option :value="4">4 Stars ★★★★☆</option>
-              <option :value="3">3 Stars ★★★☆☆</option>
-              <option :value="2">2 Stars ★★☆☆☆</option>
-              <option :value="1">1 Star ★☆☆☆☆</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Category Tabs -->
-      <div class="category-tabs">
-        <button
-          v-for="cat in categories"
-          :key="cat"
-          class="cat-tab"
-          :class="{ active: selectedCategory === cat }"
-          @click="selectedCategory = cat"
+      <div class="flex items-center gap-3">
+        <UiButton
+          variant="secondary"
+          size="md"
+          :loading="isLoading"
+          @click="fetchFeedbacks"
+          title="Refresh Feedbacks"
         >
-          {{ cat }}
-        </button>
+          <template #icon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </template>
+          Refresh
+        </UiButton>
       </div>
     </div>
+
+    <!-- Stats Grid Component -->
+    <FeedbackStats
+      :is-loading="isLoading"
+      :total-count="totalCount"
+      :pending-count="pendingCount"
+      :reviewed-count="reviewedCount"
+      :resolved-count="resolvedCount"
+      :average-rating="averageRating"
+    />
+
+    <!-- Filters Bar Component -->
+    <FeedbackFilters
+      v-model:search-query="searchQuery"
+      v-model:selected-category="selectedCategory"
+      v-model:selected-status="selectedStatus"
+      v-model:selected-rating="selectedRating"
+    />
 
     <!-- Data Table Container -->
-    <div class="table-card p-0 overflow-hidden">
+    <UiCard custom-class="p-0 overflow-hidden">
       <UiTable
         :columns="feedColumns"
         :data="paginatedFeedbacks"
         :is-loading="isLoading"
-        :loading-rows="6"
         empty-text="No user feedback matches your current search and filter criteria."
       >
         <template #cell-user="{ item }">
-          <div class="user-cell flex items-center gap-3">
-            <div class="avatar-circle w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
               {{ getInitials(getUserName(item), getUserEmail(item)) }}
             </div>
-            <div class="user-details flex flex-col">
-              <span class="user-name font-semibold text-slate-900 dark:text-white text-xs">{{ getUserName(item) }}</span>
-              <span class="user-email text-[11px] text-slate-500 dark:text-slate-400">{{ getUserEmail(item) }}</span>
+            <div class="flex flex-col min-w-0">
+              <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ getUserName(item) }}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ getUserEmail(item) }}</span>
             </div>
           </div>
         </template>
@@ -543,30 +303,29 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
         </template>
 
         <template #cell-rating="{ item }">
-          <div class="stars-wrap flex items-center gap-1 text-amber-400 text-xs">
-            <span v-for="star in 5" :key="star" :class="star <= item.rating ? 'opacity-100' : 'opacity-30'">
+          <div class="flex items-center gap-1 text-amber-400 text-xs">
+            <span v-for="star in 5" :key="star" :class="star <= (item.rating || 0) ? 'opacity-100' : 'opacity-30'">
               ★
             </span>
-            <span class="rating-num text-slate-400 text-[11px]">({{ item.rating }})</span>
+            <span class="text-slate-400 text-[11px] ml-1">({{ item.rating }})</span>
           </div>
         </template>
 
         <template #cell-message="{ item }">
           <div class="flex flex-col gap-1 max-w-sm">
-            <p class="message-text text-xs text-slate-700 dark:text-slate-300 truncate m-0" :title="getMessageText(item)">{{ getMessageText(item) }}</p>
-            <span v-if="item.adminReplyMessage" class="reply-tag text-[10px] text-blue-600 dark:text-blue-400 font-medium">
+            <p class="text-xs text-slate-700 dark:text-slate-300 truncate m-0" :title="getMessageText(item)">
+              {{ getMessageText(item) }}
+            </p>
+            <span v-if="item.adminReplyMessage" class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
               💬 Replied: "{{ item.adminReplyMessage }}"
-            </span>
-            <span v-if="item.invoiceNumber" class="invoice-tag text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-              📄 Invoice Issued (₱{{ Number(item.invoiceAmount || 0).toFixed(2) }})
             </span>
           </div>
         </template>
 
         <template #cell-sla="{ item }">
-          <div class="sla-wrap flex flex-col">
-            <span class="sla-time font-semibold text-slate-900 dark:text-white text-xs">{{ formatDate(item.createdAt) }}</span>
-            <span class="sla-pill text-[10.5px] font-semibold" :class="getHoursElapsed(item.createdAt) <= 24 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
+          <div class="flex flex-col">
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ formatDate(item.createdAt) }}</span>
+            <span class="text-[10.5px] font-semibold" :class="getHoursElapsed(item.createdAt) <= 24 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
               ⏱ {{ getHoursElapsed(item.createdAt) }}h ago
             </span>
           </div>
@@ -582,7 +341,11 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
         </template>
 
         <template #cell-actions="{ item }">
-          <button class="btn btn-sm btn-inspect px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-colors cursor-pointer border-none" @click="openDetailModal(item)">
+          <button
+            type="button"
+            class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors cursor-pointer border-none"
+            @click="openDetailModal(item)"
+          >
             Inspect & Reply
           </button>
         </template>
@@ -593,852 +356,37 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
         v-model:items-per-page="itemsPerPage"
         :total-items="filteredFeedbacks.length"
       />
-    </div>
+    </UiCard>
 
-    <!-- Inspection & Reply / Invoice Modal -->
-    <Transition name="modal-fade">
-      <div v-if="isDetailModalOpen && activeFeedback" class="modal-overlay" @click.self="closeDetailModal">
-        <div class="modal-card">
-          <!-- Modal Header -->
-          <div class="modal-header">
-            <div>
-              <h2 class="modal-title">Inspect Feedback & Answer Inquiry</h2>
-              <span class="modal-subtitle">ID: {{ activeFeedback.id }}</span>
-            </div>
-            <button class="modal-close" @click="closeDetailModal">✕</button>
-          </div>
+    <!-- Inspection & Reply Modal Component -->
+    <FeedbackDetailModal
+      :is-open="isDetailModalOpen"
+      :feedback="activeFeedback"
+      :status="editStatus"
+      :reply-message="replyMessage"
+      :mark-as-resolved="markAsResolved"
+      :is-sending-reply="isSendingReply"
+      @update:status="editStatus = $event"
+      @update:reply-message="replyMessage = $event"
+      @update:mark-as-resolved="markAsResolved = $event"
+      @close="closeDetailModal"
+      @send-reply="handleSendReply"
+    />
 
-          <!-- Modal Body -->
-          <div class="modal-body">
-            <!-- Inquiry Response Window SLA Banner -->
-            <div class="sla-banner">
-              <span class="sla-icon">⏱</span>
-              <div>
-                <strong>Inquiry Reply Window SLA:</strong> Submitted {{ getHoursElapsed(activeFeedback.createdAt) }} hours ago.
-                <span v-if="getHoursElapsed(activeFeedback.createdAt) <= 24" class="text-green-600 font-bold"> (Active SLA Window)</span>
-                <span v-else class="text-amber-600 font-bold"> (Follow-up Window)</span>
-              </div>
-            </div>
-
-            <!-- User Info Bar -->
-            <div class="modal-user-bar">
-              <div class="avatar-circle large">
-                {{ getInitials(getUserName(activeFeedback), getUserEmail(activeFeedback)) }}
-              </div>
-              <div class="user-meta">
-                <h4>{{ getUserName(activeFeedback) }}</h4>
-                <p>{{ getUserEmail(activeFeedback) }} &bull; {{ activeFeedback.userRole || 'User' }}</p>
-                <span class="modal-date">Submitted on {{ formatDate(activeFeedback.createdAt) }}</span>
-              </div>
-            </div>
-
-            <!-- Category & Rating Bar -->
-            <div class="modal-meta-bar">
-              <div class="meta-item">
-                <span class="meta-label">Category:</span>
-                <span class="category-badge" :class="getCategoryBadgeClass(activeFeedback.category)">
-                  {{ getNormalizedCategory(activeFeedback.category) }}
-                </span>
-              </div>
-              <div class="meta-item">
-                <span class="meta-label">Rating:</span>
-                <div class="stars-wrap">
-                  <span v-for="star in 5" :key="star" class="star" :class="{ filled: star <= activeFeedback.rating }">
-                    ★
-                  </span>
-                  <span class="rating-num">({{ activeFeedback.rating }} / 5)</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Message Block -->
-            <div class="section-block">
-              <label class="block-label">Feedback Content</label>
-              <div class="message-box">
-                <p>{{ getMessageText(activeFeedback) }}</p>
-              </div>
-            </div>
-
-            <!-- Existing Reply & Invoice Display if present -->
-            <div v-if="activeFeedback.adminReplyMessage" class="reply-card">
-              <div class="reply-header">
-                <span>💬 Sent Admin Response</span>
-                <span class="reply-date">{{ formatDate(activeFeedback.adminRepliedAt || activeFeedback.createdAt) }}</span>
-              </div>
-              <p class="reply-body">{{ activeFeedback.adminReplyMessage }}</p>
-              
-              <div v-if="activeFeedback.invoiceNumber" class="invoice-box">
-                <div class="invoice-row">
-                  <span class="inv-badge">📄 INVOICE {{ activeFeedback.invoiceNumber }}</span>
-                  <span class="inv-amount">₱{{ Number(activeFeedback.invoiceAmount || 0).toFixed(2) }}</span>
-                </div>
-                <p class="inv-desc">{{ activeFeedback.invoiceDescription || 'Service Fee' }}</p>
-              </div>
-            </div>
-
-            <hr class="modal-divider" />
-
-            <!-- Send Response & Invoice Form Section -->
-            <div class="section-block">
-              <label class="block-label">Answer Inquiry & Send Thank You Message</label>
-              <textarea
-                v-model="replyMessage"
-                placeholder="Type your thank you message, inquiry response, or service resolution details to the user..."
-                class="admin-notes-textarea"
-                rows="3"
-              ></textarea>
-            </div>
-
-            <!-- Email Notification Info Banner -->
-            <div class="email-notice-box">
-              <span class="email-notice-icon">📧</span>
-              <div class="email-notice-text">
-                <strong>Automated Email Notification:</strong> Submitting this response will automatically email <strong>{{ getUserEmail(activeFeedback) }}</strong>. Replies for further inquiries are processed within a few hours.
-              </div>
-            </div>
-
-            <!-- Mark Resolved Checkbox -->
-            <div class="section-block">
-              <label class="checkbox-label">
-                <input type="checkbox" v-model="markAsResolved" />
-                <span class="checkbox-title">Mark Feedback as Resolved</span>
-              </label>
-            </div>
-          </div>
-
-          <!-- Modal Footer -->
-          <div class="modal-footer">
-            <button class="btn btn-secondary" @click="closeDetailModal" :disabled="isSendingReply">Cancel</button>
-            <button class="btn btn-primary" @click="handleSendReply" :disabled="isSendingReply">
-              <span v-if="isSendingReply">Sending Email...</span>
-              <span v-else>Send Reply & Email User</span>
-            </button>
-          </div>
+    <!-- Toast Notifications -->
+    <div class="fixed bottom-7 right-7 z-50 flex flex-col gap-2.5 pointer-events-none">
+      <TransitionGroup name="toast">
+        <div
+          v-for="toast in toasts"
+          :key="toast.id"
+          class="px-4.5 py-3 rounded-xl text-sm font-semibold backdrop-blur-md shadow-lg pointer-events-auto max-w-xs transition-all"
+          :class="[
+            toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+          ]"
+        >
+          {{ toast.message }}
         </div>
-      </div>
-    </Transition>
+      </TransitionGroup>
+    </div>
   </div>
 </template>
-
-<style scoped>
-.feedback-page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-/* Page Header */
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.page-subtitle {
-  font-size: 13.5px;
-  color: var(--color-muted);
-  margin-top: 4px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-/* KPI Grid */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-.kpi-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px;
-  box-shadow: var(--shadow-soft);
-}
-
-.kpi-icon-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-
-.kpi-blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-.kpi-gold { background: rgba(253, 184, 19, 0.12); color: #fdb813; }
-.kpi-amber { background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
-.kpi-green { background: rgba(16, 185, 129, 0.12); color: #10b981; }
-
-.kpi-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.kpi-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.kpi-value {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin-top: 2px;
-}
-
-.kpi-sub {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-muted);
-}
-
-/* Filter Card */
-.filter-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  box-shadow: var(--shadow-soft);
-}
-
-.filter-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.search-wrap {
-  position: relative;
-  flex: 1;
-  min-width: 280px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-subtle);
-}
-
-.search-input {
-  width: 100%;
-  height: 42px;
-  padding: 0 16px 0 40px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 13.5px;
-  transition: all var(--transition-fast);
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  background: var(--color-surface);
-}
-
-.search-clear {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--color-muted);
-  cursor: pointer;
-  font-size: 14px;
-}
-
-.select-group {
-  display: flex;
-  gap: 14px;
-}
-
-.select-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.select-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-}
-
-.custom-select {
-  height: 42px;
-  padding: 0 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-/* Category Tabs */
-.category-tabs {
-  display: flex;
-  gap: 8px;
-  border-top: 1px solid var(--color-border);
-  padding-top: 14px;
-  overflow-x: auto;
-}
-
-.cat-tab {
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-muted);
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all var(--transition-fast);
-}
-
-.cat-tab.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #ffffff;
-}
-
-/* Table Card */
-.table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.data-table th {
-  padding: 14px 18px;
-  background: var(--color-surface-muted);
-  color: var(--color-muted);
-  font-size: 11.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.data-table td {
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 13px;
-  color: var(--color-text);
-}
-
-.table-row {
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.table-row:hover {
-  background: var(--color-surface-lighter, #f8f9fb);
-}
-
-/* Cell Styles */
-.user-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.avatar-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--color-primary), #fb7185);
-  color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.avatar-circle.large {
-  width: 48px;
-  height: 48px;
-  font-size: 16px;
-}
-
-.user-details {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-name {
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.user-email {
-  font-size: 11.5px;
-  color: var(--color-muted);
-}
-
-/* Category Badges */
-.category-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.badge-bug { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
-.badge-feature { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
-.badge-ui { background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.2); }
-.badge-general { background: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2); }
-
-/* Stars Rating */
-.stars-wrap {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.star {
-  font-size: 15px;
-  color: var(--color-border);
-}
-
-.star.filled {
-  color: #fdb813;
-}
-
-.rating-num {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--color-muted);
-  margin-left: 4px;
-}
-
-/* Message Cell */
-.message-cell {
-  max-width: 320px;
-}
-
-.message-text {
-  margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  line-height: 1.4;
-  color: var(--color-text-secondary);
-}
-
-.reply-tag {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: #2563eb;
-  margin-top: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.invoice-tag {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: #059669;
-  margin-top: 2px;
-}
-
-.date-cell {
-  white-space: nowrap;
-  color: var(--color-muted);
-  font-size: 12px;
-}
-
-.sla-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.sla-time { font-size: 11.5px; color: var(--color-muted); }
-.sla-pill {
-  display: inline-block;
-  padding: 2px 7px;
-  border-radius: var(--radius-pill);
-  font-size: 10.5px;
-  font-weight: 700;
-}
-.sla-active { background: rgba(16, 185, 129, 0.12); color: #059669; }
-.sla-overdue { background: rgba(245, 158, 11, 0.12); color: #d97706; }
-
-/* Status Badges */
-.status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 11.5px;
-  font-weight: 700;
-}
-
-.status-pending { background: rgba(245, 158, 11, 0.12); color: #d97706; }
-.status-reviewed { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
-.status-resolved { background: rgba(16, 185, 129, 0.12); color: #059669; }
-
-/* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: var(--radius-button);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all var(--transition-fast);
-}
-
-.btn-primary { background: var(--color-primary); color: #ffffff; }
-.btn-primary:hover { background: var(--color-primary-hover); }
-
-.btn-secondary { background: var(--color-surface-muted); color: var(--color-text); border: 1px solid var(--color-border); }
-.btn-secondary:hover { background: var(--color-border); }
-
-.btn-inspect {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-  border: 1px solid rgba(210, 39, 48, 0.2);
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-size: 12px;
-}
-.btn-inspect:hover {
-  background: var(--color-primary);
-  color: #ffffff;
-}
-
-.text-right { text-align: right; }
-.text-amber { color: #f59e0b; }
-.text-green { color: #10b981; }
-
-/* Empty state */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--color-muted);
-}
-.empty-icon { font-size: 42px; margin-bottom: 12px; }
-.empty-state h3 { font-size: 18px; color: var(--color-text); margin-bottom: 6px; }
-
-/* Modal Styling */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: var(--color-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 20px;
-  backdrop-filter: blur(4px);
-}
-
-.modal-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 20px;
-  width: 100%;
-  max-width: 620px;
-  box-shadow: var(--shadow-modal);
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-  overflow: hidden;
-}
-
-.modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.modal-title { font-size: 18px; font-weight: 800; color: var(--color-text); margin: 0; }
-.modal-subtitle { font-size: 11px; color: var(--color-muted); }
-.modal-close { background: none; border: none; font-size: 18px; color: var(--color-muted); cursor: pointer; }
-
-.modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.sla-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.2);
-  border-radius: 12px;
-  padding: 12px 14px;
-  font-size: 12.5px;
-  color: var(--color-text);
-}
-
-.sla-icon { font-size: 16px; }
-
-.modal-user-bar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--color-surface-muted);
-  padding: 16px;
-  border-radius: 12px;
-}
-
-.user-meta h4 { font-size: 15px; font-weight: 700; color: var(--color-text); margin: 0; }
-.user-meta p { font-size: 12px; color: var(--color-muted); margin: 2px 0; }
-.modal-date { font-size: 11px; color: var(--color-subtle); }
-
-.modal-meta-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.meta-item { display: flex; align-items: center; gap: 8px; }
-.meta-label { font-size: 12px; font-weight: 700; color: var(--color-muted); }
-
-.section-block { display: flex; flex-direction: column; gap: 8px; }
-.block-label { font-size: 12px; font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
-
-.message-box {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 14px;
-  font-size: 13.5px;
-  line-height: 1.5;
-  color: var(--color-text);
-}
-
-.reply-card {
-  background: rgba(16, 185, 129, 0.06);
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.reply-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  font-weight: 700;
-  color: #059669;
-}
-
-.reply-date { font-size: 11px; font-weight: 500; color: var(--color-muted); }
-.reply-body { font-size: 13px; color: var(--color-text); margin: 0; line-height: 1.4; }
-
-.invoice-box {
-  background: var(--color-surface);
-  border: 1px dashed #10b981;
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-top: 4px;
-}
-
-.invoice-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-weight: 800;
-  font-size: 13px;
-}
-
-.inv-badge { color: #059669; }
-.inv-amount { color: var(--color-primary); font-size: 14px; }
-.inv-desc { font-size: 11.5px; color: var(--color-muted); margin: 4px 0 0; }
-
-.modal-divider { border: 0; border-top: 1px solid var(--color-border); margin: 4px 0; }
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  user-select: none;
-}
-
-.checkbox-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.invoice-form-group {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 14px;
-  margin-top: 4px;
-}
-
-.form-row {
-  display: flex;
-  gap: 12px;
-}
-
-.form-col {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 1;
-}
-
-.flex-2 { flex: 2; }
-
-.admin-notes-textarea {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-  font-family: inherit;
-  resize: vertical;
-}
-.admin-notes-textarea:focus { outline: none; border-color: var(--color-primary); }
-
-.modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-}
-
-/* Toast styling */
-.toast-container {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.toast-item {
-  padding: 12px 18px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #fff;
-  box-shadow: var(--shadow-card);
-}
-.toast-success { background: #10b981; }
-.toast-danger { background: #ef4444; }
-.toast-warning { background: #f59e0b; }
-.toast-info { background: #3b82f6; }
-
-/* Email Notice Card */
-.email-notice-box {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  background: rgba(59, 130, 246, 0.08);
-  border: 1px solid rgba(59, 130, 246, 0.25);
-  border-radius: 10px;
-  padding: 12px 14px;
-  margin-top: 10px;
-  margin-bottom: 16px;
-}
-
-.email-notice-icon {
-  font-size: 16px;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-
-.email-notice-text {
-  font-size: 13px;
-  color: var(--color-text);
-  line-height: 1.5;
-}
-
-.email-notice-text strong {
-  color: #2563eb;
-}
-
-/* Transitions */
-.toast-enter-active, .toast-leave-active { transition: all 300ms ease; }
-.toast-enter-from { opacity: 0; transform: translateY(-10px); }
-.toast-leave-to { opacity: 0; transform: translateX(20px); }
-
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 250ms ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
-</style>

@@ -2,10 +2,14 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Violation } from '../types'
-import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import ViolationStats from '../components/ViolationStats.vue'
+import ViolationFilters from '../components/ViolationFilters.vue'
+import PaymentModal from '../components/PaymentModal.vue'
 import api from '@/api/axios'
 import { cachedViolations } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
@@ -46,8 +50,6 @@ const notifStore = useAdminNotificationStore()
 let unsubscribeApprovalUpdates: (() => void) | null = null
 
 const isLoading = ref(!cachedViolations.value || cachedViolations.value.length === 0)
-
-// Violations list with cached data fallback
 const violations = ref<Violation[]>(cachedViolations.value || [])
 
 const fetchViolations = async () => {
@@ -108,6 +110,11 @@ const filterStatus = ref<string>('all')
 const isPaymentOpen = ref(false)
 const activePaymentViolation = ref<Violation | null>(null)
 const paymentReferenceInput = ref('')
+const isProcessingPayment = ref(false)
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
 
 // Stats computation
 const totalCount = computed(() => violations.value.length)
@@ -119,310 +126,184 @@ const totalCollection = computed(() => {
     .reduce((sum, v) => sum + v.penaltyFee, 0)
 })
 
-const stats = computed(() => [
-  {
-    title: 'Total Violations',
-    value: String(totalCount.value),
-    subtitle: 'All logged violations',
-    icon: 'total',
-    gradient: 'linear-gradient(135deg, #6366f1, #818cf8)'
-  },
-  {
-    title: 'Unpaid Accounts',
-    value: String(unpaidCount.value),
-    subtitle: 'Awaiting settlement',
-    icon: 'unpaid',
-    gradient: 'linear-gradient(135deg, #d22730, #f87171)'
-  },
-  {
-    title: 'Paid Settlements',
-    value: String(paidCount.value),
-    subtitle: 'Cleared/Paid violations',
-    icon: 'paid',
-    gradient: 'linear-gradient(135deg, #10b981, #34d399)'
-  },
-  {
-    title: 'Total Collections',
-    value: `₱${totalCollection.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    subtitle: 'Revenue from penalties',
-    icon: 'collection',
-    gradient: 'linear-gradient(135deg, #fdb813, #fbbf24)'
-  }
-])
-
-// Filtered Violations list
+// Filter logic
 const filteredViolations = computed(() => {
   return violations.value.filter((v) => {
-    const fullName = `${v.firstName} ${v.lastName}`.toLowerCase()
-    const matchesSearch =
-      v.referenceNumber.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      v.plateNumber.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      v.brand.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      fullName.includes(searchQuery.value.toLowerCase())
+    const q = searchQuery.value.toLowerCase().trim()
+    const matchesQuery =
+      !q ||
+      v.referenceNumber.toLowerCase().includes(q) ||
+      v.plateNumber.toLowerCase().includes(q) ||
+      (v.firstName && v.firstName.toLowerCase().includes(q)) ||
+      (v.lastName && v.lastName.toLowerCase().includes(q)) ||
+      v.violationType.toLowerCase().includes(q)
 
-    const matchesType = filterViolationType.value === 'all' || v.violationType === filterViolationType.value
-    const matchesStatus = filterStatus.value === 'all' || v.settlementStatus === filterStatus.value
+    const matchesType =
+      filterViolationType.value === 'all' ||
+      v.violationType.toLowerCase().includes(filterViolationType.value.toLowerCase())
 
-    return matchesSearch && matchesType && matchesStatus
+    const matchesStatus =
+      filterStatus.value === 'all' || v.settlementStatus === filterStatus.value
+
+    return matchesQuery && matchesType && matchesStatus
   })
-})
-
-// Pagination State
-const currentPage = ref(1)
-const itemsPerPage = ref(10)
-
-watch([searchQuery, filterViolationType, filterStatus], () => {
-  currentPage.value = 1
 })
 
 const paginatedViolations = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredViolations.value.slice(start, start + itemsPerPage.value)
+  const end = start + itemsPerPage.value
+  return filteredViolations.value.slice(start, end)
 })
 
-const openDetails = (violation: Violation) => {
-  const targetId = violation.referenceNumber || violation.violationId
-  router.push(`/violations/${encodeURIComponent(targetId)}`)
+watch([searchQuery, filterViolationType, filterStatus, itemsPerPage], () => {
+  currentPage.value = 1
+})
+
+const openDetails = (v: Violation) => {
+  router.push(`/violations/${encodeURIComponent(v.violationId || v.referenceNumber)}`)
 }
 
-const openPaymentModal = (violation?: Violation) => {
-  if (violation) {
-    activePaymentViolation.value = violation
-    paymentReferenceInput.value = violation.referenceNumber
-  } else {
-    activePaymentViolation.value = null
-    paymentReferenceInput.value = ''
-  }
+const openPaymentModal = (v: Violation) => {
+  activePaymentViolation.value = v
+  paymentReferenceInput.value = v.referenceNumber
   isPaymentOpen.value = true
 }
 
-const isProcessingPayment = ref(false)
-
 const handlePaymentSubmit = async () => {
-  let refToSettle = paymentReferenceInput.value.trim().toUpperCase()
-  
-  if (activePaymentViolation.value) {
-    refToSettle = activePaymentViolation.value.referenceNumber || activePaymentViolation.value.plateNumber
-  }
+  const refCode = activePaymentViolation.value
+    ? activePaymentViolation.value.referenceNumber
+    : paymentReferenceInput.value.trim()
 
-  if (!refToSettle) {
-    showToast('Please enter a valid violation reference number or plate number.', 'warning')
+  if (!refCode) {
+    showToast('Please enter a valid violation reference number.', 'warning')
     return
   }
 
   isProcessingPayment.value = true
-
   try {
-    const response = await api.post('/violations/process-payment', {
-      referenceNumber: refToSettle
+    const target = violations.value.find((v) => v.referenceNumber === refCode)
+    const idToSettle = target?.violationId || refCode
+
+    const response = await api.patch(`/violations/${idToSettle}/settle`, {
+      notes: 'Payment collected by administrator via web console.'
     })
 
-    if (response.data && (response.data.isSuccess || response.status === 200)) {
-      const receipt = response.data.data
-      const amountText = receipt?.penaltyFee != null ? ` ₱${Number(receipt.penaltyFee).toFixed(2)} received.` : ''
-      showToast(`Violation ${refToSettle} settled successfully!${amountText}`, 'success')
-
-      // Mark locally
-      const index = violations.value.findIndex(
-        (v) => v.referenceNumber.toUpperCase() === refToSettle.toUpperCase() ||
-               v.plateNumber.replace(/\s+/g, '').toUpperCase() === refToSettle.replace(/\s+/g, '').toUpperCase()
-      )
-      if (index !== -1 && violations.value[index]) {
-        const item = violations.value[index]
-        if (item) {
-          item.settlementStatus = 'Paid'
-          item.isPaid = true
-        }
-        cachedViolations.value = [...violations.value]
-      }
-
+    if (response.data && response.data.isSuccess) {
+      showToast(`Violation ${refCode} marked as settled / paid!`, 'success')
       isPaymentOpen.value = false
-      paymentReferenceInput.value = ''
       activePaymentViolation.value = null
-
+      paymentReferenceInput.value = ''
       await fetchViolations()
     } else {
-      showToast(response.data?.message || 'Failed to process settlement.', 'warning')
+      showToast(response.data?.message || 'Failed to settle violation.', 'warning')
     }
   } catch (error: any) {
-    console.error('Error processing settlement:', error)
-    const errMessage = error.response?.data?.message || 'Failed to process settlement.'
-
-    // Fallback local update if offline/mock
-    const index = violations.value.findIndex(
-      (v) => v.referenceNumber.toUpperCase() === refToSettle.toUpperCase()
-    )
-    if (index !== -1 && violations.value[index]) {
-      const item = violations.value[index]
-      if (item) {
-        item.settlementStatus = 'Paid'
-        item.isPaid = true
-      }
-      cachedViolations.value = [...violations.value]
-      isPaymentOpen.value = false
-      showToast(`Violation ${refToSettle} marked as settled.`, 'info')
-    } else {
-      showToast(errMessage, 'warning')
-    }
+    console.error('Error settling violation:', error)
+    showToast(error.response?.data?.message || 'Failed to settle violation payment.', 'warning')
   } finally {
     isProcessingPayment.value = false
   }
 }
 
-const getRoleLabel = (role: string) => {
-  if (role === 'UniversityStaff') return 'Faculty Member'
-  if (role === 'NonAcademicPersonnel') return 'University Staff'
+const getRoleLabel = (role?: string) => {
+  if (!role) return 'Visitor'
+  if (role === 'UniversityStaff') return 'Faculty'
+  if (role === 'NonAcademicPersonnel') return 'Staff'
   return role
 }
 </script>
 
 <template>
-  <div class="violations-view">
+  <div class="flex flex-col gap-6 w-full">
     <!-- Header -->
-    <div class="violations-header">
-      <div class="violations-header__left">
-        <h1 class="violations-title">Collections Log</h1>
-        <p class="violations-subtitle">Track collection tickets, penalty fees, and process reference code payments.</p>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
+          Collections & Violation Logs
+        </h1>
+        <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 mb-0 max-w-2xl">
+          Track overstay citations, campus parking infractions, and process penalty settlements.
+        </p>
       </div>
-      <div class="violations-header__actions">
-        <button class="refresh-btn" @click="fetchViolations" title="Refresh">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
-            <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
-          </svg>
-        </button>
-        <button class="settle-btn" @click="openPaymentModal()">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          Settle Collection
-        </button>
+
+      <div class="flex items-center gap-3">
+        <UiButton
+          variant="secondary"
+          size="md"
+          :loading="isLoading"
+          @click="fetchViolations"
+          title="Refresh Data"
+        >
+          <template #icon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </template>
+          Refresh
+        </UiButton>
       </div>
     </div>
 
-    <!-- Stats Cards -->
-    <div class="stats-grid">
-      <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <template v-if="isLoading">
-          <div class="stat-card__left" style="width: 100%">
-            <SkeletonLoader variant="rect" height="28px" style="width: 50%; border-radius: 6px; margin-bottom: 8px;" />
-            <SkeletonLoader variant="rect" height="13px" style="width: 70%; border-radius: 4px; margin-bottom: 4px;" />
-            <SkeletonLoader variant="rect" height="11px" style="width: 45%; border-radius: 4px;" />
-          </div>
-          <SkeletonLoader variant="circle" height="44px" width="44px" style="border-radius: 12px; flex-shrink: 0;" />
-        </template>
-        <template v-else>
-          <div class="stat-card__left">
-            <span class="stat-card__value">{{ stat.value }}</span>
-            <span class="stat-card__title">{{ stat.title }}</span>
-            <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
-          </div>
-          <div class="stat-card__icon" :style="{ background: stat.gradient }">
-            <!-- Total Icon -->
-            <svg v-if="stat.icon === 'total'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-            <!-- Unpaid Icon -->
-            <svg v-if="stat.icon === 'unpaid'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <!-- Paid Icon -->
-            <svg v-if="stat.icon === 'paid'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <!-- Collection Icon -->
-            <svg v-if="stat.icon === 'collection'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-          </div>
-        </template>
-      </div>
-    </div>
+    <!-- Stats Grid Component -->
+    <ViolationStats
+      :is-loading="isLoading"
+      :total-count="totalCount"
+      :unpaid-count="unpaidCount"
+      :paid-count="paidCount"
+      :total-collection="totalCollection"
+    />
 
-    <!-- Filters Bar -->
-    <div class="filters-bar">
-      <!-- Search Input -->
-      <div class="search-wrapper">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <input v-model="searchQuery" type="text" placeholder="Search reference, plate, owner name..." class="search-input" />
-      </div>
+    <!-- Filters Bar Component -->
+    <ViolationFilters
+      v-model:search-query="searchQuery"
+      v-model:filter-violation-type="filterViolationType"
+      v-model:filter-status="filterStatus"
+    />
 
-      <div class="filters-group">
-        <!-- Violation Type Filter -->
-        <div class="select-wrapper">
-          <select v-model="filterViolationType" class="filter-select">
-            <option value="all">All Violation Types</option>
-            <option value="Overstay Limit">Overstay Limit</option>
-            <option value="Unauthorized Parking">Unauthorized Parking</option>
-            <option value="Expired Permit">Expired Permit</option>
-          </select>
-        </div>
-
-        <!-- Settlement Status Filter -->
-        <div class="select-wrapper">
-          <select v-model="filterStatus" class="filter-select">
-            <option value="all">All Statuses</option>
-            <option value="Unpaid">Unpaid</option>
-            <option value="Paid">Paid</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <!-- Violations Table -->
-    <div class="table-card p-0 overflow-hidden">
+    <!-- Table Container -->
+    <UiCard custom-class="p-0 overflow-hidden">
       <UiTable
         :columns="violColumns"
         :data="paginatedViolations"
         :is-loading="isLoading"
-        :loading-rows="6"
-        empty-text="No violation tickets found."
+        empty-text="No violation records found."
         @row-click="openDetails"
       >
         <template #cell-reference="{ item }">
-          <span class="ref-code font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.referenceNumber }}</span>
+          <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">
+            {{ item.referenceNumber }}
+          </span>
         </template>
 
         <template #cell-vehicle="{ item }">
-          <div class="vehicle-cell flex flex-col">
-            <span class="plate-number font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.plateNumber }}</span>
-            <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand }}</span>
+          <div class="flex flex-col">
+            <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.plateNumber }}</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{ item.brand || 'Unknown' }}</span>
           </div>
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="owner-name font-semibold text-slate-900 dark:text-white text-xs">{{ item.firstName }} {{ item.lastName }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ item.firstName }} {{ item.lastName }}</span>
         </template>
 
         <template #cell-role="{ item }">
-          <span class="role-badge text-xs text-slate-600 dark:text-slate-400">
+          <span class="text-xs text-slate-600 dark:text-slate-400">
             {{ getRoleLabel(item.roleName) }}
           </span>
         </template>
 
         <template #cell-type="{ item }">
-          <span class="violation-type-text text-xs text-slate-700 dark:text-slate-300">{{ item.violationType }}</span>
+          <span class="text-xs text-slate-700 dark:text-slate-300">{{ item.violationType }}</span>
         </template>
 
         <template #cell-fine="{ item }">
-          <span class="fine-price font-semibold text-slate-900 dark:text-white text-xs">₱{{ item.penaltyFee.toFixed(2) }}</span>
+          <span class="font-bold text-slate-900 dark:text-white text-xs">₱{{ item.penaltyFee.toFixed(2) }}</span>
         </template>
 
         <template #cell-issuedAt="{ item }">
           <div class="flex flex-col">
-            <span class="time-text font-semibold text-slate-900 dark:text-white text-xs">{{ new Date(item.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-            <span class="date-sub text-[11px] text-slate-400">{{ new Date(item.issuedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ new Date(item.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+            <span class="text-[11px] text-slate-400">{{ new Date(item.issuedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
           </div>
         </template>
 
@@ -436,8 +317,13 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="actions-group flex items-center justify-end gap-1" @click.stop>
-            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="View Details" @click="openDetails(item)">
+          <div class="inline-flex items-center gap-1" @click.stop>
+            <button
+              type="button"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer border-none bg-transparent"
+              title="View Details"
+              @click="openDetails(item)"
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="16" x2="12" y2="12" />
@@ -446,7 +332,8 @@ const getRoleLabel = (role: string) => {
             </button>
             <button
               v-if="item.settlementStatus === 'Unpaid'"
-              class="action-icon-btn action-icon-btn--settle p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50"
+              type="button"
+              class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
               title="Process Settlement"
               @click="openPaymentModal(item)"
             >
@@ -463,838 +350,33 @@ const getRoleLabel = (role: string) => {
         v-model:items-per-page="itemsPerPage"
         :total-items="filteredViolations.length"
       />
-    </div>
+    </UiCard>
 
-    <!-- Quick Settlement Modal -->
-    <Teleport to="body">
-      <Transition name="fade">
-        <div v-if="isPaymentOpen" class="modal-backdrop" @click="isPaymentOpen = false">
-          <div class="modal-content" @click.stop>
-            <div class="modal-header">
-              <h3 class="modal-title">Settle Violation Fine</h3>
-              <button class="close-btn" @click="isPaymentOpen = false">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <form @submit.prevent="handlePaymentSubmit">
-              <div class="modal-body">
-                <div v-if="!activePaymentViolation" class="form-group">
-                  <label for="payReference">Reference Code</label>
-                  <input
-                    id="payReference"
-                    v-model="paymentReferenceInput"
-                    type="text"
-                    placeholder="VIO-YYYYMMDD-XXXX"
-                    class="form-input"
-                    required
-                  />
-                  <span class="help-text">Verify reference code printed on the ticket receipt.</span>
-                </div>
-                <div v-else class="payment-details-card">
-                  <div class="pay-row">
-                    <span class="pay-label">Ticket Reference</span>
-                    <span class="pay-val monospace">{{ activePaymentViolation.referenceNumber }}</span>
-                  </div>
-                  <div class="pay-row">
-                    <span class="pay-label">Violation Type</span>
-                    <span class="pay-val highlight">{{ activePaymentViolation.violationType }}</span>
-                  </div>
-                  <div class="pay-row">
-                    <span class="pay-label">Owner Name</span>
-                    <span class="pay-val">{{ activePaymentViolation.firstName }} {{ activePaymentViolation.lastName }}</span>
-                  </div>
-                  <div class="pay-row border-top">
-                    <span class="pay-label">Amount Charged</span>
-                    <span class="pay-val price-label">₱{{ activePaymentViolation.penaltyFee.toFixed(2) }}</span>
-                  </div>
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button type="button" class="cancel-btn" @click="isPaymentOpen = false" :disabled="isProcessingPayment">Cancel</button>
-                <button type="submit" class="submit-btn" :disabled="isProcessingPayment">
-                  {{ isProcessingPayment ? 'Processing...' : 'Receive Settlement' }}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- Quick Settlement Modal Component -->
+    <PaymentModal
+      :is-open="isPaymentOpen"
+      :violation="activePaymentViolation"
+      :reference-input="paymentReferenceInput"
+      :is-processing="isProcessingPayment"
+      @update:reference-input="paymentReferenceInput = $event"
+      @close="isPaymentOpen = false"
+      @submit="handlePaymentSubmit"
+    />
 
     <!-- Toast Notifications -->
-    <div class="toast-container">
-      <TransitionGroup name="toast-fade">
-        <div v-for="toast in toasts" :key="toast.id" class="toast-item" :class="'toast--' + toast.type">
-          <div class="toast-icon">
-            <svg v-if="toast.type === 'success'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <svg v-else-if="toast.type === 'warning'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-          </div>
-          <span class="toast-msg">{{ toast.message }}</span>
+    <div class="fixed bottom-7 right-7 z-50 flex flex-col gap-2.5 pointer-events-none">
+      <TransitionGroup name="toast">
+        <div
+          v-for="toast in toasts"
+          :key="toast.id"
+          class="px-4.5 py-3 rounded-xl text-sm font-semibold backdrop-blur-md shadow-lg pointer-events-auto max-w-xs transition-all"
+          :class="[
+            toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+          ]"
+        >
+          {{ toast.message }}
         </div>
       </TransitionGroup>
     </div>
   </div>
 </template>
-
-<style scoped>
-.violations-view {
-  animation: fadeSlideUp 0.4s ease both;
-}
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.violations-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.violations-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.violations-subtitle {
-  font-size: 14px;
-  color: var(--color-muted);
-  margin: 4px 0 0 0;
-}
-
-.violations-header__actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.refresh-btn {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-button);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.refresh-btn:hover {
-  background: var(--color-surface-lighter);
-  color: var(--color-text);
-}
-
-.settle-btn {
-  background: var(--color-success);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-button);
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
-  transition: background 150ms ease, transform 150ms ease;
-}
-
-.settle-btn:hover {
-  background: #059669;
-  transform: translateY(-1px);
-}
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 1200px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.stat-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: var(--shadow-soft);
-  transition: transform 200ms ease, box-shadow 200ms ease;
-  min-height: 84px; /* Ensure skeleton height matches */
-  box-sizing: border-box;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
-}
-
-.stat-card__left {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-card__value {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--color-text);
-  line-height: 1.2;
-}
-
-.stat-card__title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 4px;
-}
-
-.stat-card__subtitle {
-  font-size: 11px;
-  color: var(--color-muted);
-  opacity: 0.8;
-  margin-top: 2px;
-}
-
-.stat-card__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-/* Filters Bar */
-.filters-bar {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-@media (max-width: 768px) {
-  .filters-bar {
-    flex-direction: column;
-  }
-}
-
-.search-wrapper {
-  position: relative;
-  flex: 1;
-  max-width: 420px;
-}
-
-@media (max-width: 768px) {
-  .search-wrapper {
-    max-width: 100%;
-  }
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-muted);
-  pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 10px 14px 10px 42px;
-  font-size: 14px;
-  color: var(--color-text);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-  box-sizing: border-box;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-light);
-}
-
-.filters-group {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.select-wrapper {
-  position: relative;
-}
-
-.filter-select {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 10px 36px 10px 14px;
-  font-size: 14px;
-  color: var(--color-text);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
-  transition: border-color 150ms ease;
-  height: 38px;
-  box-sizing: border-box;
-}
-
-.filter-select:hover {
-  border-color: var(--color-muted);
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-/* Table Card */
-.table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-.table-responsive {
-  overflow-x: auto;
-}
-
-.violations-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.violations-table th {
-  padding: 16px 24px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  letter-spacing: 1px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-lighter);
-}
-
-.violation-row {
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background 150ms ease;
-  background: var(--color-surface);
-}
-
-.violation-row:hover {
-  background: var(--color-surface-lighter);
-}
-
-.violation-row:last-child {
-  border-bottom: none;
-}
-
-.violations-table td {
-  padding: 16px 24px;
-  vertical-align: middle;
-}
-
-.ref-code {
-  font-weight: 700;
-  color: var(--color-text);
-  font-size: 13px;
-  letter-spacing: 0.5px;
-}
-
-.monospace {
-  font-family: monospace;
-}
-
-.violation-type-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.fine-price {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-primary);
-}
-
-/* Vehicle Cell */
-.vehicle-cell {
-  display: flex;
-  flex-direction: column;
-  min-width: 140px;
-}
-
-.plate-number {
-  font-family: monospace;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.vehicle-brand {
-  font-size: 11px;
-  color: var(--color-muted);
-  margin-top: 2px;
-}
-
-/* Owner Cell */
-.owner-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 140px;
-}
-
-.owner-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-/* Time text */
-.time-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-  display: block;
-}
-
-.date-sub {
-  font-size: 11px;
-  color: var(--color-muted);
-  display: block;
-  margin-top: 2px;
-}
-
-/* Badges */
-.role-badge {
-  align-self: flex-start;
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.role-badge--admin {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
-}
-
-.role-badge--student {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
-}
-
-.role-badge--guard {
-  background: rgba(59, 130, 246, 0.1);
-  color: var(--color-info);
-}
-
-.role-badge--faculty,
-.role-badge--staff,
-.role-badge--universitystaff,
-.role-badge--nonacademicpersonnel {
-  background: rgba(253, 184, 19, 0.1);
-  color: var(--color-warning);
-}
-
-/* Status pills */
-.status-pill {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 20px;
-  text-transform: uppercase;
-  font-size: 10px;
-  letter-spacing: 0.5px;
-}
-
-.status-pill--paid {
-  background: rgba(16, 185, 129, 0.1);
-  color: var(--color-success);
-}
-
-.status-pill--unpaid {
-  background: rgba(210, 39, 48, 0.1);
-  color: var(--color-danger);
-}
-
-/* Actions */
-.actions-header {
-  text-align: right;
-}
-
-.actions-cell {
-  text-align: right;
-}
-
-.actions-group {
-  display: inline-flex;
-  gap: 8px;
-}
-
-.action-icon-btn {
-  background: var(--color-surface-lighter);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.action-icon-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-}
-
-.action-icon-btn--settle {
-  border-color: rgba(16, 185, 129, 0.2);
-  color: var(--color-success);
-}
-
-.action-icon-btn--settle:hover {
-  background: rgba(16, 185, 129, 0.1);
-  color: #059669;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 48px !important;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-
-/* Modal styles for Quick Payment */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--color-overlay);
-  backdrop-filter: blur(8px);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.modal-content {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  width: 100%;
-  max-width: 460px;
-  box-shadow: var(--shadow-modal);
-  overflow: hidden;
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (max-width: 640px) {
-  .modal-content {
-    max-width: 90vw;
-  }
-}
-
-.modal-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.modal-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.close-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease;
-}
-
-.close-btn:hover {
-  background: var(--color-surface-lighter);
-  color: var(--color-text);
-}
-
-.modal-body {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.form-input {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 10px 14px;
-  font-size: 14px;
-  color: var(--color-text);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-light);
-}
-
-.help-text {
-  font-size: 11px;
-  color: var(--color-muted);
-}
-
-.payment-details-card {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.pay-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-}
-
-.pay-row.border-top {
-  border-top: 1px solid var(--color-border);
-  padding-top: 12px;
-  margin-top: 4px;
-}
-
-.pay-label {
-  color: var(--color-muted);
-}
-
-.pay-val {
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.pay-val.highlight {
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.price-label {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--color-success);
-}
-
-.modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.cancel-btn {
-  background: var(--color-surface-muted);
-  border: none;
-  color: var(--color-text);
-  padding: 10px 18px;
-  border-radius: var(--radius-button);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.cancel-btn:hover {
-  background: var(--color-surface-lighter);
-}
-
-.submit-btn {
-  background: var(--color-success);
-  border: none;
-  color: #fff;
-  padding: 10px 18px;
-  border-radius: var(--radius-button);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.submit-btn:hover {
-  background: #059669;
-}
-
-/* Toast styling */
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 150;
-  max-width: 360px;
-}
-
-.toast-item {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: var(--shadow-elevated);
-  box-sizing: border-box;
-}
-
-.toast--success {
-  border-left: 4px solid var(--color-success);
-}
-
-.toast--success .toast-icon {
-  color: var(--color-success);
-}
-
-.toast--warning {
-  border-left: 4px solid var(--color-warning);
-}
-
-.toast--warning .toast-icon {
-  color: var(--color-warning);
-}
-
-.toast--info {
-  border-left: 4px solid var(--color-info);
-}
-
-.toast--info .toast-icon {
-  color: var(--color-info);
-}
-
-.toast-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.toast-msg {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-/* Fade transitions */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-.toast-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.toast-fade-leave-active {
-  transition: all 0.2s ease;
-}
-.toast-fade-enter-from {
-  opacity: 0;
-  transform: translateY(20px) scale(0.95);
-}
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: scale(0.9);
-}
-</style>

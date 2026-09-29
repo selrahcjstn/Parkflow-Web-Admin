@@ -1,0 +1,151 @@
+<script setup lang="ts">
+import type { FeedbackItem, FeedbackStatus } from '../types'
+import UiModal from '@/components/ui/UiModal.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiTextarea from '@/components/ui/UiTextarea.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
+
+const props = defineProps<{
+  isOpen: boolean
+  feedback: FeedbackItem | null
+  status: FeedbackStatus
+  replyMessage: string
+  markAsResolved: boolean
+  isSendingReply: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'update:status', val: FeedbackStatus): void
+  (e: 'update:replyMessage', val: string): void
+  (e: 'update:markAsResolved', val: boolean): void
+  (e: 'sendReply'): void
+}>()
+
+const statusOptions = [
+  { label: 'Pending Review', value: 'Pending' },
+  { label: 'Reviewed', value: 'Reviewed' },
+  { label: 'Resolved', value: 'Resolved' }
+]
+
+const getUserName = (f: FeedbackItem) => f.fullName || f.userFullName || 'Anonymous User'
+const getUserEmail = (f: FeedbackItem) => f.email || f.userEmail || 'N/A'
+const getMessageText = (f: FeedbackItem) => f.description || f.message || ''
+
+const formatDate = (dateString?: string) => {
+  if (!dateString) return 'Just now'
+  const date = new Date(dateString)
+  if (isNaN(date.getTime())) return 'Recently'
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  }).format(date)
+}
+</script>
+
+<template>
+  <UiModal
+    :is-open="isOpen && !!feedback"
+    title="Feedback & Inquiry Details"
+    size="md"
+    @close="emit('close')"
+  >
+    <div v-if="feedback" class="space-y-4">
+      <!-- User profile & rating card -->
+      <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs">
+            {{ getUserName(feedback).split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() }}
+          </div>
+          <div>
+            <h4 class="font-bold text-slate-900 dark:text-white text-sm m-0">{{ getUserName(feedback) }}</h4>
+            <p class="text-xs text-slate-500 dark:text-slate-400 m-0">{{ getUserEmail(feedback) }}</p>
+          </div>
+        </div>
+
+        <div class="flex flex-col items-end">
+          <div class="flex items-center gap-1 text-amber-400 text-sm">
+            <span v-for="star in 5" :key="star" :class="star <= (feedback.rating || 0) ? 'opacity-100' : 'opacity-30'">
+              ★
+            </span>
+          </div>
+          <span class="text-[11px] text-slate-400 mt-0.5">{{ formatDate(feedback.createdAt) }}</span>
+        </div>
+      </div>
+
+      <!-- Feedback Content Box -->
+      <div class="space-y-1.5 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">Feedback Content</span>
+        <p class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap m-0">
+          {{ getMessageText(feedback) }}
+        </p>
+      </div>
+
+      <!-- Change Status -->
+      <div class="w-48">
+        <UiSelect
+          :model-value="status"
+          label="Workflow Status"
+          :options="statusOptions"
+          size="sm"
+          @update:model-value="emit('update:status', $event)"
+        />
+      </div>
+
+      <!-- Reply Box -->
+      <div class="space-y-1.5">
+        <UiTextarea
+          :model-value="replyMessage"
+          label="Answer Inquiry & Send Thank You Message"
+          placeholder="Type your thank you message, inquiry response, or service resolution details to the user..."
+          :rows="3"
+          @update:model-value="emit('update:replyMessage', String($event))"
+        />
+      </div>
+
+      <!-- Email Notification Banner -->
+      <div class="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
+        <span class="text-base flex-shrink-0">📧</span>
+        <div>
+          <strong>Automated Email Notification:</strong> Submitting this response will automatically email <strong>{{ getUserEmail(feedback) }}</strong>.
+        </div>
+      </div>
+
+      <!-- Mark as Resolved Checkbox -->
+      <label class="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+        <input
+          type="checkbox"
+          :checked="markAsResolved"
+          class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+          @change="emit('update:markAsResolved', ($event.target as HTMLInputElement).checked)"
+        />
+        <span>Mark Feedback as Resolved</span>
+      </label>
+    </div>
+
+    <template #footer>
+      <UiButton
+        type="button"
+        variant="secondary"
+        size="md"
+        :disabled="isSendingReply"
+        @click="emit('close')"
+      >
+        Cancel
+      </UiButton>
+      <UiButton
+        type="button"
+        variant="primary"
+        size="md"
+        :loading="isSendingReply"
+        @click="emit('sendReply')"
+      >
+        Send Reply & Email User
+      </UiButton>
+    </template>
+  </UiModal>
+</template>

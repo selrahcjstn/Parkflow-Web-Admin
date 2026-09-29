@@ -2,13 +2,18 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
-import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
-import TablePagination from '@/components/ui/TablePagination.vue'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import ReservationStats from '../components/ReservationStats.vue'
+import ReservationFilters from '../components/ReservationFilters.vue'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
+
+const router = useRouter()
 
 const resColumns: TableColumn[] = [
   { key: 'reference', label: 'Reference #' },
@@ -27,9 +32,6 @@ const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'done' | 'rejecte
 const selectedDateFilter = ref<string>('')
 const notificationToast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
 let pollTimer: number | null = null
-const router = useRouter()
-
-
 
 function parseReservationEndDateTime(dateStr?: string, endTimeStr?: string): Date | null {
   if (!dateStr) return null
@@ -81,7 +83,6 @@ function isReservationDone(item: ParkingReservationItem): boolean {
   if (!item) return false
   const rawStatus = String(item.status ?? '').toLowerCase()
   if (rawStatus === 'done' || rawStatus === 'completed' || item.status === 4) return true
-  // Rejected and Cancelled are explicit termination states, not concluded/done
   if (rawStatus === 'rejected' || rawStatus === 'cancelled' || item.status === 2 || item.status === 3) return false
 
   const endDateTime = parseReservationEndDateTime(item.reservationDate, item.endTime)
@@ -128,12 +129,6 @@ function navigateToPass(item: ParkingReservationItem | null) {
   router.push(`/reservations/${item.id}/pass`)
 }
 
-function openQrPassModal(item: ParkingReservationItem) {
-  navigateToPass(item)
-}
-
-
-
 async function fetchReservations(silent = false) {
   if (!silent) {
     isLoading.value = true
@@ -155,7 +150,6 @@ async function fetchReservations(silent = false) {
     const msg = error.response?.data?.message || error.message || 'Unknown error'
     const errText = status ? `API Error ${status}: ${msg}` : `Network Error: ${msg}`
     console.error('Reservations fetch error:', errText, error)
-    // Always surface the error (even on silent poll) so it's never invisible
     fetchError.value = errText
     if (!silent) {
       reservations.value = []
@@ -216,6 +210,14 @@ const pendingCount = computed(() => reservations.value.filter(r => getStatusKey(
 const approvedCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'approved').length)
 const doneCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'done' || getStatusKey(r) === 'expired').length)
 const rejectedCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'rejected' || getStatusKey(r) === 'cancelled').length)
+
+const counts = computed(() => ({
+  total: totalCount.value,
+  pending: pendingCount.value,
+  approved: approvedCount.value,
+  done: doneCount.value,
+  rejected: rejectedCount.value,
+}))
 
 // Filtered list
 const filteredReservations = computed(() => {
@@ -325,12 +327,6 @@ function getNotifyEmailFromNotes(notes?: string | null): string | null {
   return (match && match[1]) ? match[1].trim() : null
 }
 
-function getDisplayEmail(item: ParkingReservationItem): string {
-  const notify = getNotifyEmailFromNotes(item.adminNotes)
-  if (notify) return notify
-  return item.userEmail || 'N/A'
-}
-
 // Approve Modal State
 const isApproveModalOpen = ref(false)
 const reservationToApprove = ref<ParkingReservationItem | null>(null)
@@ -370,27 +366,32 @@ async function handleReject(item: ParkingReservationItem) {
 </script>
 
 <template>
-  <div class="reservations-page">
+  <div class="space-y-6">
     <!-- API Error Banner -->
-    <div v-if="fetchError" class="error-banner">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div v-if="fetchError" class="flex items-center gap-3 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-sm">
+      <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="8" x2="12" y2="12" />
         <line x1="12" y1="16" x2="12.01" y2="16" />
       </svg>
-      <div>
-        <strong>Failed to load reservations</strong>
-        <span style="margin-left: 8px; opacity: 0.85;">{{ fetchError }}</span>
+      <div class="flex-1">
+        <strong class="font-semibold">Failed to load reservations:</strong>
+        <span class="ml-1 opacity-90">{{ fetchError }}</span>
       </div>
-      <button class="error-retry-btn" @click="fetchReservations()">Retry</button>
+      <UiButton size="xs" variant="secondary" @click="fetchReservations()">Retry</UiButton>
     </div>
+
     <!-- Notification Toast -->
-    <Transition name="toast">
-      <div v-if="notificationToast" class="toast-notification" :class="`toast--${notificationToast.type}`">
-        <svg v-if="notificationToast.type === 'success'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <Transition name="fade">
+      <div
+        v-if="notificationToast"
+        class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
+        :class="notificationToast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'"
+      >
+        <svg v-if="notificationToast.type === 'success'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="20 6 9 17 4 12" />
         </svg>
-        <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
           <line x1="12" y1="9" x2="12" y2="13" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -400,169 +401,53 @@ async function handleReject(item: ParkingReservationItem) {
     </Transition>
 
     <!-- Page Header -->
-    <div class="page-header">
-      <div class="page-header__left">
-        <h1 class="page-title">Parking Reservations & Schedule Management</h1>
-        <p class="page-subtitle">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+          Parking Reservations & Schedule Management
+        </h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
           Review user parking schedule requests, approve date passes, and reserve parking slots for campus events.
         </p>
       </div>
-      <div class="page-header__right">
-        <button class="btn-primary" @click="router.push('/reservations/create')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
-            <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+      <div class="flex items-center gap-3">
+        <UiButton
+          variant="primary"
+          @click="router.push('/reservations/create')"
+        >
+          <template #prefix>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" />
+              <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" />
+            </svg>
+          </template>
           Reserve Schedule
-        </button>
+        </UiButton>
       </div>
     </div>
 
     <!-- Stats Cards Grid -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value">{{ totalCount }}</span>
-          <span class="stat-card__title">Total Requests</span>
-        </div>
-        <div class="stat-card__icon" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-        </div>
-      </div>
+    <ReservationStats
+      :is-loading="isLoading"
+      :total-count="totalCount"
+      :pending-count="pendingCount"
+      :approved-count="approvedCount"
+      :done-count="doneCount"
+      :rejected-count="rejectedCount"
+    />
 
-      <div class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value text-amber">{{ pendingCount }}</span>
-          <span class="stat-card__title">Pending Review</span>
-        </div>
-        <div class="stat-card__icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value text-emerald">{{ approvedCount }}</span>
-          <span class="stat-card__title">Active Passes</span>
-        </div>
-        <div class="stat-card__icon" style="background: linear-gradient(135deg, #10b981, #059669);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value text-slate-500 dark:text-slate-300">{{ doneCount }}</span>
-          <span class="stat-card__title">Done / Concluded</span>
-        </div>
-        <div class="stat-card__icon" style="background: linear-gradient(135deg, #64748b, #475569);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <polyline points="12 6 12 12 16 14" />
-          </svg>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="stat-card__left">
-          <span class="stat-card__value text-rose">{{ rejectedCount }}</span>
-          <span class="stat-card__title">Declined / Cancelled</span>
-        </div>
-        <div class="stat-card__icon" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="15" y1="9" x2="9" y2="15" />
-            <line x1="9" y1="9" x2="15" y2="15" />
-          </svg>
-        </div>
-      </div>
-    </div>
-
-    <!-- Controls Bar: Filter Tabs + Search + Date Filter -->
-    <div class="controls-card">
-      <!-- Status Filter Tabs -->
-      <div class="filter-tabs">
-        <button
-          class="tab-btn"
-          :class="{ 'tab-btn--active': selectedStatusTab === 'all' }"
-          @click="selectedStatusTab = 'all'"
-        >
-          All Requests ({{ totalCount }})
-        </button>
-        <button
-          class="tab-btn"
-          :class="{ 'tab-btn--active': selectedStatusTab === 'pending' }"
-          @click="selectedStatusTab = 'pending'"
-        >
-          Pending ({{ pendingCount }})
-        </button>
-        <button
-          class="tab-btn"
-          :class="{ 'tab-btn--active': selectedStatusTab === 'approved' }"
-          @click="selectedStatusTab = 'approved'"
-        >
-          Active Passes ({{ approvedCount }})
-        </button>
-        <button
-          class="tab-btn"
-          :class="{ 'tab-btn--active': selectedStatusTab === 'done' }"
-          @click="selectedStatusTab = 'done'"
-        >
-          Done ({{ doneCount }})
-        </button>
-        <button
-          class="tab-btn"
-          :class="{ 'tab-btn--active': selectedStatusTab === 'rejected' }"
-          @click="selectedStatusTab = 'rejected'"
-        >
-          Declined / Cancelled ({{ rejectedCount }})
-        </button>
-      </div>
-
-      <!-- Right Inputs -->
-      <div class="filter-inputs">
-        <!-- Date Picker Filter -->
-        <div class="date-filter-wrap">
-          <input
-            type="date"
-            v-model="selectedDateFilter"
-            class="input-date"
-            title="Filter by reservation date"
-          />
-          <button v-if="selectedDateFilter" class="clear-date-btn" @click="selectedDateFilter = ''" title="Clear date filter">
-            &times;
-          </button>
-        </div>
-
-        <!-- Search input -->
-        <div class="search-wrap">
-          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search ref #, applicant, email..."
-            class="input-search"
-          />
-        </div>
-      </div>
-    </div>
+    <!-- Controls Bar -->
+    <UiCard custom-class="p-4">
+      <ReservationFilters
+        v-model:search-query="searchQuery"
+        v-model:selected-status-tab="selectedStatusTab"
+        v-model:selected-date-filter="selectedDateFilter"
+        :counts="counts"
+      />
+    </UiCard>
 
     <!-- Table Container -->
-    <div class="table-container p-0 overflow-hidden">
+    <UiCard custom-class="p-0 overflow-hidden">
       <UiTable
         :columns="resColumns"
         :data="paginatedReservations"
@@ -571,18 +456,30 @@ async function handleReject(item: ParkingReservationItem) {
         empty-text="No schedule reservations found matching your criteria."
       >
         <template #cell-reference="{ item }">
-          <span class="ref-badge monospace font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.referenceNumber }}</span>
+          <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">
+            {{ item.referenceNumber }}
+          </span>
         </template>
 
         <template #cell-creator="{ item, index }">
-          <div class="applicant-cell flex items-center gap-3">
-            <div class="avatar-circle w-8 h-8 rounded-full text-white font-bold flex items-center justify-center text-xs" :style="{ background: getAvatarGradient(index) }">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-8 h-8 rounded-full text-white font-bold flex items-center justify-center text-xs flex-shrink-0"
+              :style="{ background: getAvatarGradient(index) }"
+            >
               {{ getInitials(item.userFullName) }}
             </div>
-            <div class="applicant-meta flex flex-col">
-              <span class="applicant-name font-semibold text-slate-900 dark:text-white text-xs">{{ item.userFullName || 'Campus User' }}</span>
-              <span class="applicant-email text-[11px] text-slate-500 dark:text-slate-400">{{ item.userEmail || 'N/A' }}</span>
-              <span class="applicant-receiver-badge text-[10px] text-blue-600 dark:text-blue-400 font-medium" v-if="getNotifyEmailFromNotes(item.adminNotes)">
+            <div class="flex flex-col min-w-0">
+              <span class="font-semibold text-slate-900 dark:text-white text-xs truncate">
+                {{ item.userFullName || 'Campus User' }}
+              </span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                {{ item.userEmail || 'N/A' }}
+              </span>
+              <span
+                v-if="getNotifyEmailFromNotes(item.adminNotes)"
+                class="text-[10px] text-blue-600 dark:text-blue-400 font-medium truncate"
+              >
                 Recipient: {{ getNotifyEmailFromNotes(item.adminNotes) }}
               </span>
             </div>
@@ -590,18 +487,20 @@ async function handleReject(item: ParkingReservationItem) {
         </template>
 
         <template #cell-schedule="{ item }">
-          <div class="schedule-meta flex flex-col">
-            <span class="date-text font-semibold text-slate-900 dark:text-white text-xs">
+          <div class="flex flex-col">
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">
               {{ formatReservationDate(item.reservationDate) }}
             </span>
-            <span class="time-text text-[11px] text-slate-500 dark:text-slate-400">
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">
               {{ formatTimeSlot(item.startTime, item.endTime) }}
             </span>
           </div>
         </template>
 
         <template #cell-purpose="{ item }">
-          <span class="reason-text text-xs text-slate-700 dark:text-slate-300" :title="item.reason">{{ item.reason }}</span>
+          <span class="text-xs text-slate-700 dark:text-slate-300 line-clamp-2" :title="item.reason">
+            {{ item.reason }}
+          </span>
         </template>
 
         <template #cell-status="{ item }">
@@ -622,10 +521,10 @@ async function handleReject(item: ParkingReservationItem) {
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="action-buttons flex items-center justify-end gap-1.5" @click.stop>
+          <div class="flex items-center justify-end gap-1.5" @click.stop>
             <button
               v-if="getStatusKey(item) === 'pending'"
-              class="btn-action btn-approve px-2.5 py-1 rounded-md bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors cursor-pointer border-none"
+              class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors cursor-pointer border-none"
               @click="openApproveModal(item)"
               title="Approve Reservation"
             >
@@ -633,7 +532,7 @@ async function handleReject(item: ParkingReservationItem) {
             </button>
             <button
               v-if="getStatusKey(item) === 'pending'"
-              class="btn-action btn-reject px-2.5 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-xs hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80"
+              class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
               @click="handleReject(item)"
               title="Decline Reservation"
             >
@@ -641,7 +540,7 @@ async function handleReject(item: ParkingReservationItem) {
             </button>
             <button
               v-if="getStatusKey(item) === 'approved'"
-              class="btn-action btn-qr-pass px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold text-xs hover:bg-indigo-100 transition-colors cursor-pointer border border-indigo-200/80"
+              class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer border border-indigo-200 dark:border-indigo-800"
               @click="navigateToPass(item)"
               title="View Official QR Pass"
             >
@@ -649,7 +548,7 @@ async function handleReject(item: ParkingReservationItem) {
             </button>
             <span
               v-if="getStatusKey(item) === 'done'"
-              class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 mr-1 px-2 py-0.5 rounded bg-slate-100/80 dark:bg-slate-800/80"
+              class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800"
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <polyline points="20 6 9 17 4 12" />
@@ -658,12 +557,12 @@ async function handleReject(item: ParkingReservationItem) {
             </span>
             <span
               v-else-if="getStatusKey(item) === 'expired'"
-              class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 mr-1 px-2 py-0.5 rounded bg-slate-100/80 dark:bg-slate-800/80"
+              class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800"
             >
               Expired
             </span>
             <button
-              class="btn-action btn-review px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 transition-colors cursor-pointer border-none"
+              class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-semibold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer border-none"
               @click="router.push('/reservations/' + item.id)"
               title="Inspect Details"
             >
@@ -678,7 +577,7 @@ async function handleReject(item: ParkingReservationItem) {
         v-model:items-per-page="itemsPerPage"
         :total-items="filteredReservations.length"
       />
-    </div>
+    </UiCard>
 
     <!-- Approve Confirmation Modal -->
     <ConfirmModal
@@ -696,2198 +595,13 @@ async function handleReject(item: ParkingReservationItem) {
 </template>
 
 <style scoped>
-.reservations-page {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* Toast */
-.toast-notification {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 20px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-  backdrop-filter: blur(10px);
-}
-.toast--success {
-  background: rgba(16, 185, 129, 0.95);
-  color: #ffffff;
-}
-.toast--error {
-  background: rgba(239, 68, 68, 0.95);
-  color: #ffffff;
-}
-
-/* Error Banner */
-.error-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  border-radius: 10px;
-  color: #ef4444;
-  font-size: 13px;
-}
-.error-retry-btn {
-  margin-left: auto;
-  padding: 6px 14px;
-  border-radius: 6px;
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #ef4444;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.error-retry-btn:hover {
-  background: rgba(239, 68, 68, 0.25);
-}
-
-/* Header */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0 0 4px;
-}
-
-.page-subtitle {
-  font-size: 14px;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 8px;
-  background: var(--color-primary);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  transition: opacity 150ms ease;
-}
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-/* Stats */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.stat-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card, 12px);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.stat-card__value {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--color-text);
-  display: block;
-}
-.text-amber { color: #f59e0b; }
-.text-emerald { color: #10b981; }
-.text-rose { color: #ef4444; }
-
-.stat-card__title {
-  font-size: 13px;
-  color: var(--color-muted);
-  font-weight: 600;
-}
-
-.stat-card__icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-}
-
-/* Controls */
-.controls-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 14px 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.filter-tabs {
-  display: flex;
-  gap: 6px;
-}
-
-.tab-btn {
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-.tab-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-}
-.tab-btn--active {
-  background: rgba(220, 38, 38, 0.12);
-  color: var(--color-primary);
-  border-color: rgba(220, 38, 38, 0.3);
-}
-
-.filter-inputs {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.date-filter-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.input-date {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 12px;
-  outline: none;
-}
-.clear-date-btn {
-  position: absolute;
-  right: 6px;
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.search-icon {
-  position: absolute;
-  left: 12px;
-  color: var(--color-muted);
-}
-.input-search {
-  padding: 8px 12px 8px 34px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 13px;
-  width: 240px;
-  outline: none;
-}
-.input-search:focus {
-  border-color: var(--color-primary);
-}
-
-/* Table */
-.table-container {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  overflow: hidden;
-  width: 100%;
-}
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.data-table th {
-  padding: 12px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  background: var(--color-surface-muted);
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-}
-
-.data-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid var(--color-border);
-  font-size: 13px;
-  vertical-align: middle;
-}
-
-.data-table tbody tr {
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.data-table tbody tr:hover {
-  background: var(--color-surface-lighter, #f8f9fb);
-}
-
-.ref-badge {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid var(--color-border);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  color: var(--color-primary);
-  font-weight: 700;
-  white-space: nowrap;
-  display: inline-block;
-}
-
-.monospace {
-  font-family: monospace;
-}
-
-.applicant-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.avatar-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.applicant-meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.applicant-name {
-  font-weight: 700;
-  color: var(--color-text);
-  font-size: 13px;
-}
-.applicant-email {
-  font-size: 11px;
-  color: var(--color-muted);
-  word-break: break-all;
-}
-
-.schedule-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  white-space: nowrap;
-}
-.date-text {
-  font-weight: 700;
-  color: var(--color-text);
-  font-size: 12px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.time-text {
-  font-size: 11px;
-  color: var(--color-muted);
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.reason-text {
-  color: var(--color-text);
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: normal;
-  word-break: break-word;
-  display: block;
-}
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-.status-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: currentColor;
-}
-.status-badge--pending {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
-}
-.status-badge--approved {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-}
-.status-badge--rejected,
-.status-badge--cancelled {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 4px;
-  justify-content: flex-end;
-  align-items: center;
-  white-space: nowrap;
-}
-.btn-action {
-  padding: 5px 9px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  border: none;
-  transition: opacity 150ms ease;
-}
-.btn-approve {
-  background: #10b981;
-  color: #ffffff;
-}
-.btn-reject {
-  background: rgba(239, 68, 68, 0.15);
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  color: #ef4444;
-}
-.btn-review {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-}
-
-.empty-cell {
-  padding: 48px 24px;
-  text-align: center;
-}
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-.empty-icon-box {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-muted);
-  margin-bottom: 4px;
-}
-.empty-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-.empty-desc {
-  font-size: 13px;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-/* Modals */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--color-overlay);
-  backdrop-filter: blur(8px);
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.modal-card {
-  width: 100%;
-  max-width: 600px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 14px;
-  box-shadow: var(--shadow-modal);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.modal-header {
-  padding: 18px 24px;
-  background: var(--color-surface-muted);
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-tag {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.modal-title {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 2px 0 0;
-}
-
-.close-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  font-size: 24px;
-  cursor: pointer;
-}
-
-.modal-body {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.info-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.section-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 4px;
-}
-
-.meta-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-}
-.meta-key {
-  color: var(--color-muted);
-}
-.meta-val {
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.form-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-muted);
-}
-.form-input, .form-textarea {
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  font-size: 13px;
-  outline: none;
-}
-.form-input:focus, .form-textarea:focus {
-  border-color: var(--color-primary);
-}
-
-/* Email Notification Toggle */
-.notify-toggle-section {
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 14px 16px;
-  background: var(--color-surface-muted);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.notify-toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.notify-toggle-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.notify-toggle-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-.notify-toggle-desc {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-.toggle-switch {
-  width: 44px;
-  height: 24px;
-  border-radius: 999px;
-  background: var(--color-border);
-  border: none;
-  cursor: pointer;
-  position: relative;
-  flex-shrink: 0;
-  transition: background 200ms ease;
-  padding: 0;
-}
-.toggle-switch--on {
-  background: var(--color-primary);
-}
-.toggle-knob {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  transition: transform 200ms ease;
-  display: block;
-}
-.toggle-switch--on .toggle-knob {
-  transform: translateX(20px);
-}
-.notify-email-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.notify-hint {
-  font-size: 11px;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-/* slide-down transition */
-.slide-down-enter-active,
-.slide-down-leave-active {
-  transition: all 200ms ease;
-  overflow: hidden;
-}
-.slide-down-enter-from,
-.slide-down-leave-to {
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
-  max-height: 0;
-}
-.slide-down-enter-to,
-.slide-down-leave-from {
-  opacity: 1;
-  max-height: 120px;
-}
-
-.applicant-receiver-badge {
-  font-size: 11px;
-  color: #6366f1;
-  font-weight: 600;
-  display: block;
-  margin-top: 2px;
-}
-
-.modal-footer {
-  padding: 16px 24px;
-  background: var(--color-surface-muted);
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.footer-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.btn-secondary {
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-/* Polished Modal Action Buttons */
-.btn-modal-cancel {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
-  border-radius: 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.btn-modal-cancel:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-  border-color: var(--color-muted);
-}
-
-.btn-modal-qr {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 18px;
-  border-radius: 10px;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #6366f1;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.btn-modal-qr:hover {
-  background: #6366f1;
-  color: #ffffff;
-  border-color: #6366f1;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
-  transform: translateY(-1px);
-}
-
-.btn-modal-decline {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 18px;
-  border-radius: 10px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #ef4444;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.btn-modal-decline:hover:not(:disabled) {
-  background: #ef4444;
-  color: #ffffff;
-  border-color: #ef4444;
-  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
-  transform: translateY(-1px);
-}
-
-.btn-modal-decline:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-modal-approve {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 20px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: none;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.btn-modal-approve:hover:not(:disabled) {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
-  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.45);
-  transform: translateY(-1px);
-}
-
-.btn-modal-approve:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-modal-outline {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 18px;
-  border-radius: 10px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.btn-modal-outline:hover {
-  background: var(--color-surface-muted);
-  border-color: var(--color-muted);
-  transform: translateY(-1px);
-}
-
-.btn-modal-print {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 20px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-  border: none;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.btn-modal-print:hover {
-  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
-  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.45);
-  transform: translateY(-1px);
-}
-
-.btn-modal-submit {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 20px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--color-primary, #d22730) 0%, #b01e26 100%);
-  border: none;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(210, 39, 48, 0.35);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.btn-modal-submit:hover:not(:disabled) {
-  box-shadow: 0 6px 18px rgba(210, 39, 48, 0.45);
-  transform: translateY(-1px);
-}
-
-.btn-modal-submit:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.text-right {
-  text-align: right;
-}
-
-/* QR Pass Styling */
-.btn-qr-pass {
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #6366f1;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-.btn-qr-pass:hover {
-  background: #6366f1;
-  border-color: #6366f1;
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
-}
-
-/* Helper Typography & Text Utilities */
-.font-normal { font-weight: 400; }
-.font-500 { font-weight: 500; }
-.font-600 { font-weight: 600; }
-.font-700 { font-weight: 700; }
-.text-primary { color: var(--color-primary, #d22730); }
-.text-muted { color: var(--color-muted, #64748b); }
-.ellipsis {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.special-pass-chip {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  color: #10b981;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  padding: 2px 6px;
-  border-radius: 6px;
-  margin-top: 4px;
-  width: fit-content;
-}
-
-/* ==========================================================================
-   REVIEW / INSPECT MODAL (BulSU Red Accent & Dark Slate Modern Structure)
-   ========================================================================== */
-.inspect-modal-card {
-  max-width: 660px !important;
-  border-radius: 20px !important;
-  overflow: hidden;
-  box-shadow: 0 25px 65px -15px rgba(0, 0, 0, 0.45);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  position: relative;
-}
-
-.inspect-top-glow {
-  height: 4px;
-  width: 100%;
-  background: linear-gradient(90deg, #d22730 0%, #ef4444 50%, #f59e0b 100%);
-}
-
-.inspect-top-glow--done,
-.inspect-top-glow--expired {
-  background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%);
-}
-
-.inspect-top-glow--approved {
-  background: linear-gradient(90deg, #10b981 0%, #059669 100%);
-}
-
-.inspect-top-glow--pending {
-  background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
-}
-
-.inspect-top-glow--rejected,
-.inspect-top-glow--cancelled {
-  background: linear-gradient(90deg, #ef4444 0%, #b91c1c 100%);
-}
-
-.inspect-header {
-  padding: 18px 24px 14px;
-  background: var(--color-surface-muted);
-  border-bottom: 1px solid var(--color-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.inspect-header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.inspect-tag-cluster {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.inspect-type-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--color-muted);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  padding: 3px 10px;
-  border-radius: 20px;
-  width: fit-content;
-}
-
-.inspect-type-pill--special {
-  color: var(--color-primary, #d22730);
-  background: rgba(210, 39, 48, 0.08);
-  border-color: rgba(210, 39, 48, 0.25);
-}
-
-.inspect-done-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #64748b;
-  background: rgba(100, 116, 139, 0.12);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  padding: 3px 10px;
-  border-radius: 20px;
-}
-
-.inspect-ref-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 2px;
-}
-
-.inspect-title {
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0;
-  font-family: monospace;
-  letter-spacing: 0.5px;
-}
-
-.inspect-copy-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.inspect-copy-btn:hover {
-  color: var(--color-text);
-  border-color: var(--color-muted);
-  transform: translateY(-1px);
-}
-
-.inspect-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.status-badge--large {
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.status-badge--done,
-.status-badge--expired {
-  background: rgba(100, 116, 139, 0.15);
-  color: #64748b;
-}
-
-.inspect-close-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--color-muted);
-  font-size: 22px;
-  cursor: pointer;
-  transition: all 150ms ease;
-  line-height: 1;
-}
-
-.inspect-close-btn:hover {
-  background: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text);
-}
-
-/* Status Context Banner */
-.inspect-context-banner {
-  padding: 10px 24px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
-}
-
-.inspect-context-banner--done,
-.inspect-context-banner--expired {
-  background: rgba(100, 116, 139, 0.08);
-  border-bottom-color: rgba(100, 116, 139, 0.2);
-}
-.inspect-context-banner--done .inspect-context-icon,
-.inspect-context-banner--done .inspect-context-title,
-.inspect-context-banner--expired .inspect-context-icon,
-.inspect-context-banner--expired .inspect-context-title {
-  color: #64748b;
-}
-
-.inspect-context-banner--approved {
-  background: rgba(16, 185, 129, 0.08);
-  border-bottom-color: rgba(16, 185, 129, 0.2);
-}
-.inspect-context-banner--approved .inspect-context-icon,
-.inspect-context-banner--approved .inspect-context-title {
-  color: #10b981;
-}
-
-.inspect-context-banner--pending {
-  background: rgba(245, 158, 11, 0.08);
-  border-bottom-color: rgba(245, 158, 11, 0.2);
-}
-.inspect-context-banner--pending .inspect-context-icon,
-.inspect-context-banner--pending .inspect-context-title {
-  color: #f59e0b;
-}
-
-.inspect-context-banner--rejected,
-.inspect-context-banner--cancelled {
-  background: rgba(239, 68, 68, 0.08);
-  border-bottom-color: rgba(239, 68, 68, 0.2);
-}
-.inspect-context-banner--rejected .inspect-context-icon,
-.inspect-context-banner--rejected .inspect-context-title,
-.inspect-context-banner--cancelled .inspect-context-icon,
-.inspect-context-banner--cancelled .inspect-context-title {
-  color: #ef4444;
-}
-
-.inspect-context-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.inspect-context-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.inspect-context-title {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.inspect-context-desc {
-  font-size: 11.5px;
-  color: var(--color-muted);
-  line-height: 1.4;
-}
-
-.inspect-body {
-  padding: 20px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  max-height: calc(85vh - 160px);
-  overflow-y: auto;
-}
-
-.inspect-card {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.inspect-applicant-card {
-  position: relative;
-}
-
-.inspect-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--color-muted);
-}
-
-.inspect-user-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.inspect-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-}
-
-.inspect-user-details {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.inspect-user-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.inspect-role-pill {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-}
-
-.inspect-vehicle-chip {
-  margin-left: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-}
-
-.inspect-vehicle-chip-label {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--color-muted);
-  letter-spacing: 0.5px;
-}
-
-.inspect-vehicle-chip-plate {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--color-text);
-}
-
-.inspect-vehicle-chip-brand {
-  font-size: 11px;
-  color: var(--color-muted);
-  font-weight: 500;
-}
-
-.inspect-vehicle-chip--none {
-  opacity: 0.7;
-}
-
-.inspect-user-email {
-  font-size: 12px;
-  color: var(--color-muted);
-  margin: 2px 0 0;
-  word-break: break-all;
-}
-
-.inspect-notify-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: rgba(99, 102, 241, 0.08);
-  border: 1px solid rgba(99, 102, 241, 0.2);
-  border-radius: 8px;
-  margin-top: 4px;
-}
-
-.inspect-notify-icon {
-  color: #6366f1;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.inspect-notify-text {
-  display: flex;
-  flex-direction: column;
-  font-size: 11px;
-  min-width: 0;
-}
-
-.inspect-notify-label {
-  font-weight: 700;
-  color: #6366f1;
-  text-transform: uppercase;
-  font-size: 10px;
-  letter-spacing: 0.5px;
-}
-
-.inspect-notify-val {
-  font-weight: 600;
-  color: var(--color-text);
-  word-break: break-all;
-}
-
-.inspect-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.inspect-grid-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.inspect-grid-item--full {
-  grid-column: 1 / -1;
-}
-
-.inspect-grid-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-}
-
-.inspect-grid-val {
-  font-size: 13px;
-  color: var(--color-text);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.inspect-quote-icon {
-  color: var(--color-primary, #d22730);
-  opacity: 0.6;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.inspect-reason-box {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--color-text);
-  white-space: pre-wrap;
-  word-break: break-word;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-}
-
-.inspect-textarea {
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-  padding: 10px 12px;
-  resize: vertical;
-  outline: none;
-  transition: border-color 150ms ease;
-  font-family: inherit;
-}
-
-.inspect-textarea:focus {
-  border-color: var(--color-primary, #d22730);
-}
-
-.inspect-footer {
-  padding: 16px 24px;
-  background: var(--color-surface-muted);
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.inspect-footer-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-}
-
-.inspect-done-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border-radius: 8px;
-  background: rgba(100, 116, 139, 0.12);
-  border: 1px solid rgba(100, 116, 139, 0.25);
-  color: #64748b;
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.btn-inspect-close {
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.btn-inspect-close:hover {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-color: var(--color-muted);
-}
-
-.btn-inspect-qr {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid rgba(99, 102, 241, 0.3);
-  color: #6366f1;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.btn-inspect-qr:hover {
-  background: #6366f1;
-  color: #ffffff;
-  border-color: #6366f1;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-  transform: translateY(-1px);
-}
-
-.btn-inspect-decline {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.35);
-  color: #ef4444;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.btn-inspect-decline:hover:not(:disabled) {
-  background: #ef4444;
-  color: #ffffff;
-  border-color: #ef4444;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
-  transform: translateY(-1px);
-}
-
-.btn-inspect-decline:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-inspect-approve {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 18px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  border: none;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-  transition: all 150ms ease;
-}
-
-.btn-inspect-approve:hover:not(:disabled) {
-  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.45);
-  transform: translateY(-1px);
-}
-
-.btn-inspect-approve:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ==========================================================================
-   DIGITAL QR PARKING PASS TICKET MODAL (Boarding Pass / BulSU Crimson)
-   ========================================================================== */
-.qr-ticket-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  max-width: 480px;
-  perspective: 1000px;
-}
-
-.qr-ticket-card {
-  width: 100%;
-  background: #ffffff;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  color: #0f172a;
-}
-
-.qr-ticket-header {
-  background: linear-gradient(135deg, #d22730 0%, #8b131a 100%);
-  padding: 22px 24px 18px;
-  color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  position: relative;
-}
-
-.qr-ticket-header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.qr-brand-badge {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.qr-brand-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(8px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  flex-shrink: 0;
-}
-
-.qr-brand-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.qr-brand-org {
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.8px;
-  color: #ffffff;
-  text-transform: uppercase;
-  line-height: 1.2;
-}
-
-.qr-brand-sub {
-  font-size: 9.5px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.4px;
-}
-
-.qr-ticket-close-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.2);
-  border: none;
-  color: #ffffff;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 150ms ease;
-}
-
-.qr-ticket-close-btn:hover {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-.qr-ticket-header-mid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.qr-pass-title-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.qr-ticket-pass-name {
-  font-size: 18px;
-  font-weight: 800;
-  color: #ffffff;
-  margin: 0;
-  letter-spacing: -0.3px;
-}
-
-.qr-ticket-status-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.qr-ticket-status-pill--approved {
-  background: #10b981;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
-}
-
-.qr-ticket-status-pill--pending {
-  background: #f59e0b;
-  color: #ffffff;
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
-}
-
-.qr-ticket-status-pill--rejected,
-.qr-ticket-status-pill--cancelled {
-  background: #ef4444;
-  color: #ffffff;
-}
-
-.status-pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #ffffff;
-  display: inline-block;
-  animation: pulse-dot 1.8s infinite;
-}
-
-@keyframes pulse-dot {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.8; }
-}
-
-.qr-ticket-ref-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 8px;
-  padding: 7px 12px;
-}
-
-.qr-ticket-ref-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  color: rgba(255, 255, 255, 0.75);
-  text-transform: uppercase;
-}
-
-.qr-ticket-ref-code {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 800;
-  color: #ffffff;
-  letter-spacing: 1px;
-}
-
-.qr-ticket-copy-btn {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.85);
-  cursor: pointer;
-  padding: 2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 150ms ease;
-}
-
-.qr-ticket-copy-btn:hover {
-  color: #ffffff;
-}
-
-/* Perforated Notch Divider */
-.ticket-notch-divider {
-  position: relative;
-  height: 24px;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.ticket-notch {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-overlay, #0b0f19);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 2;
-}
-
-.ticket-notch--left {
-  left: -12px;
-}
-
-.ticket-notch--right {
-  right: -12px;
-}
-
-.ticket-dashed-line {
-  width: calc(100% - 36px);
-  border-bottom: 2px dashed #e2e8f0;
-  height: 1px;
-}
-
-/* Ticket Body */
-.qr-ticket-body {
-  padding: 14px 24px 20px;
-  background: #ffffff;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.qr-code-showcase {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.qr-box-wrapper {
-  position: relative;
-  padding: 14px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.qr-box-wrapper:hover {
-  transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  border-color: #cbd5e1;
-}
-
-/* Viewfinder corner accents */
-.qr-corner {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border-color: #d22730;
-  border-style: solid;
-  pointer-events: none;
-}
-
-.qr-corner--tl {
-  top: 6px;
-  left: 6px;
-  border-width: 3px 0 0 3px;
-  border-top-left-radius: 6px;
-}
-
-.qr-corner--tr {
-  top: 6px;
-  right: 6px;
-  border-width: 3px 3px 0 0;
-  border-top-right-radius: 6px;
-}
-
-.qr-corner--bl {
-  bottom: 6px;
-  left: 6px;
-  border-width: 0 0 3px 3px;
-  border-bottom-left-radius: 6px;
-}
-
-.qr-corner--br {
-  bottom: 6px;
-  right: 6px;
-  border-width: 0 3px 3px 0;
-  border-bottom-right-radius: 6px;
-}
-
-.qr-code-matrix {
-  width: 190px;
-  height: 190px;
-  display: block;
-  border-radius: 8px;
-  background: #ffffff;
-}
-
-.qr-zoom-badge {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(4px);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  pointer-events: none;
-}
-
-.qr-instructions {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  text-align: center;
-}
-
-.qr-gate-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(210, 39, 48, 0.08);
-  color: #d22730;
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.qr-subtext {
-  font-size: 11px;
-  color: #64748b;
-  margin: 0;
-}
-
-/* 2x2 Specs Grid */
-.qr-specs-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.qr-spec-card {
-  background: #f8fafc;
-  border: 1px solid #f1f5f9;
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.qr-spec-label {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.6px;
-  color: #94a3b8;
-  text-transform: uppercase;
-}
-
-.qr-spec-val {
-  font-size: 12px;
-  color: #0f172a;
-  line-height: 1.3;
-}
-
-.qr-spec-sub {
-  font-size: 10.5px;
-  color: #64748b;
-  margin-top: 1px;
-}
-
-/* Barcode strip simulation */
-.qr-barcode-strip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 0 2px;
-  border-top: 1px dashed #e2e8f0;
-}
-
-.barcode-lines {
-  height: 24px;
-  width: 80%;
-  background: repeating-linear-gradient(
-    90deg,
-    #0f172a,
-    #0f172a 2px,
-    transparent 2px,
-    transparent 4px,
-    #0f172a 4px,
-    #0f172a 7px,
-    transparent 7px,
-    transparent 9px,
-    #0f172a 9px,
-    #0f172a 10px,
-    transparent 10px,
-    transparent 13px
-  );
-  opacity: 0.7;
-}
-
-.barcode-digits {
-  font-size: 11px;
-  letter-spacing: 3px;
-  color: #64748b;
-  font-weight: 700;
-}
-
-/* Ticket Footer */
-.qr-ticket-footer {
-  padding: 14px 24px;
-  background: #f8fafc;
-  border-top: 1px solid #f1f5f9;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-
-.btn-ticket-close {
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.btn-ticket-close:hover {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: #94a3b8;
-}
-
-.ticket-action-group {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.btn-ticket-download {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #0f172a;
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.btn-ticket-download:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  transform: translateY(-1px);
-}
-
-.btn-ticket-print {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #d22730 0%, #b01e26 100%);
-  border: none;
-  color: #ffffff;
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.3);
-  transition: all 150ms ease;
-}
-
-.btn-ticket-print:hover {
-  box-shadow: 0 6px 16px rgba(210, 39, 48, 0.45);
-  transform: translateY(-1px);
-}
-
-/* ==========================================================================
-   PRINT STYLES FOR OFFICIAL PASS
-   ========================================================================== */
-@media print {
-  body * {
-    visibility: hidden;
-  }
-  .qr-ticket-card,
-  .qr-ticket-card * {
-    visibility: visible;
-  }
-  .qr-ticket-card {
-    position: absolute;
-    left: 50%;
-    top: 20px;
-    transform: translateX(-50%);
-    width: 440px;
-    max-width: 440px;
-    box-shadow: none !important;
-    border: 1px solid #cbd5e1 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  .qr-ticket-footer,
-  .qr-ticket-close-btn,
-  .qr-zoom-badge {
-    display: none !important;
-  }
-}
-
-/* QR Code Zoom Modal with Backdrop Blur */
-.qr-code-frame {
-  position: relative;
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.qr-code-frame:hover {
-  transform: scale(1.02);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-
-.qr-zoom-indicator {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  pointer-events: none;
-  opacity: 0.9;
-}
-
-.qr-fullscreen-zoom-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.qr-zoom-modal-card {
-  position: relative;
-  background: #ffffff;
-  padding: 32px;
-  border-radius: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-width: 380px;
-  width: 100%;
-  animation: qrZoomPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes qrZoomPop {
-  from { opacity: 0; transform: scale(0.92); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.qr-zoom-close-btn {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  background: rgba(0, 0, 0, 0.06);
-  border: none;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  font-size: 22px;
-  line-height: 1;
-  color: #475569;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-
-.qr-zoom-close-btn:hover {
-  background: rgba(0, 0, 0, 0.12);
-  color: #0f172a;
-}
-
-.qr-zoom-img-wrapper {
-  padding: 16px;
-  background: #ffffff;
-  border-radius: 16px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.qr-zoomed-img {
-  width: 260px;
-  height: 260px;
-  display: block;
-}
-
-.qr-zoom-ref-text {
-  font-family: monospace;
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 16px 0 2px;
-  letter-spacing: 0.5px;
-}
-
-.qr-zoom-hint-text {
-  font-size: 12px;
-  color: #64748b;
-  margin: 0;
+  transform: translateY(-8px);
 }
 </style>
