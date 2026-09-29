@@ -311,33 +311,40 @@ const getActiveSessionFee = (session: ActiveSession) => {
   return '₱0.00'
 }
 
-function formatMustExitDateTime(date: Date): string {
-  if (isNaN(date.getTime())) return '—'
-  const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-  return `${dateStr}, ${timeStr}`
-}
-
-const getMustExitByTime = (item: ActiveSession): string => {
+const getMustExitByParts = (item: ActiveSession): { time: string; date: string } => {
   if (item.maximumExitTime && !item.maximumExitTime.startsWith('0001')) {
     const d = new Date(item.maximumExitTime)
     if (!isNaN(d.getTime())) {
-      return formatMustExitDateTime(d)
+      return {
+        time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      }
     }
   }
   if (item.scheduledEndTime) {
     const checkIn = new Date(item.checkInTime)
-    if (!isNaN(checkIn.getTime())) {
-      const dateStr = checkIn.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-      return `${dateStr}, ${item.scheduledEndTime}`
+    const dateStr = !isNaN(checkIn.getTime()) ? checkIn.toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''
+    return {
+      time: item.scheduledEndTime,
+      date: dateStr
     }
-    return item.scheduledEndTime
   }
   const checkIn = new Date(item.checkInTime)
-  if (isNaN(checkIn.getTime())) return '—'
+  if (isNaN(checkIn.getTime())) return { time: '—', date: '' }
   const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' || item.role === 'NonAcademicPersonnel' ? 8 : 4)
   const mustExitDate = new Date(checkIn.getTime() + maxAllowed * 3600 * 1000)
-  return formatMustExitDateTime(mustExitDate)
+  return {
+    time: mustExitDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    date: mustExitDate.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  }
+}
+
+function getStatusVariant(status: string): 'success' | 'danger' | 'warning' | 'neutral' {
+  const s = (status || '').toLowerCase()
+  if (s === 'parked' || s === 'active') return 'success'
+  if (s === 'overstay' || s === 'overdue') return 'danger'
+  if (s === 'exited' || s === 'completed') return 'neutral'
+  return 'warning'
 }
 
 // View state
@@ -708,12 +715,20 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-mustExitBy="{ item }">
-          <span
-            class="font-semibold text-xs"
-            :class="item.status === 'Overstay' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-700 dark:text-slate-300'"
-          >
-            {{ getMustExitByTime(item) }}
-          </span>
+          <div class="flex flex-col">
+            <span
+              class="time-text font-semibold"
+              :class="item.status === 'Overstay' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'"
+            >
+              {{ getMustExitByParts(item).time }}
+            </span>
+            <span
+              class="date-sub text-[11px]"
+              :class="item.status === 'Overstay' ? 'text-rose-400 dark:text-rose-500 font-medium' : 'text-slate-400'"
+            >
+              {{ getMustExitByParts(item).date }}
+            </span>
+          </div>
         </template>
 
         <template #cell-duration="{ item }">
@@ -727,7 +742,7 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-status="{ item }">
-          <UiStatusText :variant="item.status === 'Active' ? 'success' : item.status === 'Overdue' ? 'danger' : 'warning'" size="xs">
+          <UiStatusText :variant="getStatusVariant(item.status)" size="xs">
             {{ item.status }}
           </UiStatusText>
         </template>
@@ -821,7 +836,7 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-status="{ item }">
-          <UiStatusText variant="neutral" size="xs">
+          <UiStatusText :variant="getStatusVariant(item.status)" size="xs">
             {{ item.status }}
           </UiStatusText>
         </template>
