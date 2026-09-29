@@ -3,7 +3,14 @@ import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserRole } from '../types'
 import api from '@/api/axios'
-import UiCard from '@/components/ui/UiCard.vue'
+import RoleSelectorCard from '../components/RoleSelectorCard.vue'
+import ClientPersonalInfoCard from '../components/ClientPersonalInfoCard.vue'
+import StudentDetailsCard from '../components/StudentDetailsCard.vue'
+import PersonnelDetailsCard from '../components/PersonnelDetailsCard.vue'
+import EmailOtpModal from '../components/EmailOtpModal.vue'
+import RegisterConfirmModal from '../components/RegisterConfirmModal.vue'
+import RegisterSuccessModal from '../components/RegisterSuccessModal.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 
 const router = useRouter()
 
@@ -45,7 +52,6 @@ const verifiedEmail = ref('')
 const isSendingOtp = ref(false)
 const isVerifyingOtp = ref(false)
 const otpModalVisible = ref(false)
-const otpCode = ref('')
 const otpError = ref<string | null>(null)
 const resendCountdown = ref(0)
 let resendTimer: any = null
@@ -54,137 +60,16 @@ const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
 // Year level classifications
 const isJuniorHigh = computed(() => form.value.yearLevel >= 7 && form.value.yearLevel <= 10)
-const isCollege = computed(() => !isJuniorHigh.value)
-
-// College Degree Programs organized by college/discipline
-const collegeCourseGroups = [
-  {
-    college: 'College of Computer Studies & Information Technology',
-    courses: [
-      'BS Computer Science (BSCS)',
-      'BS Information Technology (BSIT)',
-      'BS Information Systems (BSIS)',
-      'BS Data Science and Analytics (BSDSA)',
-      'Associate in Computer Technology (ACT)'
-    ]
-  },
-  {
-    college: 'College of Engineering',
-    courses: [
-      'BS Civil Engineering (BSCE)',
-      'BS Computer Engineering (BSCpE)',
-      'BS Electrical Engineering (BSEE)',
-      'BS Electronics Engineering (BSECE)',
-      'BS Mechanical Engineering (BSME)',
-      'BS Industrial Engineering (BSIE)',
-      'BS Chemical Engineering (BSChE)',
-      'BS Environmental and Sanitary Engineering (BSESE)',
-      'BS Geodetic Engineering (BSGE)'
-    ]
-  },
-  {
-    college: 'College of Business, Accountancy & Management',
-    courses: [
-      'BS Accountancy (BSA)',
-      'BS Management Accounting (BSMA)',
-      'BS Accounting Information Systems (BSAIS)',
-      'BSBA - Major in Marketing Management (BSBA-MM)',
-      'BSBA - Major in Financial Management (BSBA-FM)',
-      'BSBA - Major in Human Resource Management (BSBA-HRM)',
-      'BSBA - Major in Operations Management (BSBA-OM)',
-      'BS Entrepreneurship (BSEntrep)',
-      'BS Hospitality Management (BSHM)',
-      'BS Tourism Management (BSTM)',
-      'BS Customs Administration (BSCA)',
-      'BS Real Estate Management (BSREM)'
-    ]
-  },
-  {
-    college: 'College of Arts, Sciences & Humanities',
-    courses: [
-      'BS Psychology (BSPsych)',
-      'BA Psychology (ABPsych)',
-      'BA Communication (BAComm)',
-      'BA Journalism (BAJourn)',
-      'BA Political Science (BAPolSci)',
-      'BA English Language Studies (BAELS)',
-      'BS Biology (BSBio)',
-      'BS Applied Mathematics (BSAM)',
-      'BS Chemistry (BSChem)',
-      'BS Social Work (BSSW)'
-    ]
-  },
-  {
-    college: 'College of Education',
-    courses: [
-      'Bachelor of Elementary Education (BEEd)',
-      'Bachelor of Secondary Education - Major in English (BSEd-Eng)',
-      'Bachelor of Secondary Education - Major in Mathematics (BSEd-Math)',
-      'Bachelor of Secondary Education - Major in Science (BSEd-Sci)',
-      'Bachelor of Secondary Education - Major in Social Studies (BSEd-SS)',
-      'Bachelor of Secondary Education - Major in Filipino (BSEd-Fil)',
-      'Bachelor of Physical Education (BPEd)',
-      'Bachelor of Special Needs Education (BSNEd)',
-      'Bachelor of Early Childhood Education (BECEd)'
-    ]
-  },
-  {
-    college: 'College of Nursing & Health Sciences',
-    courses: [
-      'BS Nursing (BSN)',
-      'BS Medical Laboratory Science / Medical Technology (BSMLS)',
-      'BS Pharmacy (BSPharm)',
-      'BS Physical Therapy (BSPT)',
-      'BS Radiologic Technology (BSRT)',
-      'BS Nutrition and Dietetics (BSND)',
-      'BS Respiratory Therapy (BSRTh)'
-    ]
-  },
-  {
-    college: 'College of Architecture & Fine Arts',
-    courses: [
-      'BS Architecture (BSArch)',
-      'Bachelor of Fine Arts (BFA)',
-      'BS Interior Design (BSID)'
-    ]
-  },
-  {
-    college: 'College of Criminology & Security',
-    courses: [
-      'BS Criminology (BSCrim)',
-      'BS Industrial Security Management (BSISM)'
-    ]
-  }
-]
 
 watch(
   () => form.value.yearLevel,
   (newLevel) => {
     if (newLevel >= 7 && newLevel <= 10) {
-      // Junior high school has no course or program
       form.value.course = ''
       courseFieldError.value = null
     }
   }
 )
-
-const onPhoneInput = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  form.value.phoneNumber = target.value.replace(/\D/g, '').slice(0, 11)
-  phoneFieldError.value = null
-}
-
-const onClientIdInput = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  form.value.studentNumber = target.value.replace(/\D/g, '').slice(0, 10)
-  clientIdFieldError.value = null
-}
-
-const onSectionInput = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  form.value.section = target.value.replace(/[^a-zA-Z0-9-]/g, '').toUpperCase().slice(0, 10)
-  sectionFieldError.value = null
-}
 
 const onEmailInput = () => {
   emailFieldError.value = null
@@ -246,13 +131,6 @@ const handleSendOtp = async (isResend = false) => {
       return
     }
 
-    otpCode.value = ''
-    if (otpRes.data?.message && otpRes.data.message.includes('Verification code generated:')) {
-      const match = otpRes.data.message.match(/\d{6}/)
-      if (match) {
-        otpCode.value = match[0]
-      }
-    }
     otpModalVisible.value = true
     startResendTimer()
   } catch (err: any) {
@@ -267,10 +145,9 @@ const handleSendOtp = async (isResend = false) => {
   }
 }
 
-const handleVerifyOtp = async () => {
+const handleVerifyOtp = async (code: string) => {
   otpError.value = null
   const email = form.value.email.trim()
-  const code = otpCode.value.trim()
 
   if (code.length < 6) {
     otpError.value = 'Please enter the complete 6-digit verification code.'
@@ -322,7 +199,6 @@ const resetFormAndContinue = () => {
   }
   isEmailVerified.value = false
   verifiedEmail.value = ''
-  otpCode.value = ''
   otpError.value = null
   confirmModalVisible.value = false
   successModalVisible.value = false
@@ -478,12 +354,12 @@ const executeRegistration = async () => {
 </script>
 
 <template>
-  <div class="space-y-6 w-full">
+  <div class="space-y-6 w-full max-w-5xl mx-auto">
     <!-- Header Title -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Register Client Account</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Provision a new student, faculty, staff, or guard client profile for campus parking access.</p>
+        <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">Register Client Account</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-0">Provision a new student, faculty, staff, or guard client profile for campus parking access.</p>
       </div>
     </div>
 
@@ -497,582 +373,101 @@ const executeRegistration = async () => {
         <span>{{ errorMessage }}</span>
       </div>
 
-      <!-- Card 1: Account Classification & Role -->
-      <UiCard class="p-6 space-y-6">
-        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-slate-900 dark:text-white">1. Account Classification & Role</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Select client classification to apply automatic permissions</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div
-            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-            :class="form.role === 'Student' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
-            @click="form.role = 'Student'"
-          >
-            <div class="flex items-center justify-between">
-              <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
-                  <path d="M6 12.5v5c3 3 9 3 12 0v-5"/>
-                </svg>
-              </div>
-              <div
-                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-                :class="form.role === 'Student' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
-              >
-                <div v-if="form.role === 'Student'" class="w-2 h-2 rounded-full bg-white"></div>
-              </div>
-            </div>
-            <div>
-              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">Student</h4>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Enrolled student account with schedule parking privileges</p>
-            </div>
-          </div>
-
-          <div
-            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-            :class="form.role === 'UniversityStaff' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
-            @click="form.role = 'UniversityStaff'"
-          >
-            <div class="flex items-center justify-between">
-              <div class="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>
-                </svg>
-              </div>
-              <div
-                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-                :class="form.role === 'UniversityStaff' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
-              >
-                <div v-if="form.role === 'UniversityStaff'" class="w-2 h-2 rounded-full bg-white"></div>
-              </div>
-            </div>
-            <div>
-              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">Faculty Member</h4>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Academic teaching faculty with reserved area access</p>
-            </div>
-          </div>
-
-          <div
-            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-            :class="form.role === 'NonAcademicPersonnel' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
-            @click="form.role = 'NonAcademicPersonnel'"
-          >
-            <div class="flex items-center justify-between">
-              <div class="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-                </svg>
-              </div>
-              <div
-                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-                :class="form.role === 'NonAcademicPersonnel' ? 'border-emerald-600 bg-emerald-600 dark:border-emerald-500 dark:bg-emerald-500' : 'border-slate-300 dark:border-slate-600'"
-              >
-                <div v-if="form.role === 'NonAcademicPersonnel'" class="w-2 h-2 rounded-full bg-white"></div>
-              </div>
-            </div>
-            <div>
-              <h4 class="font-semibold text-slate-900 dark:text-white text-sm">University Staff</h4>
-              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Administrative & non-academic staff personnel</p>
-            </div>
-          </div>
-        </div>
-      </UiCard>
+      <!-- Card 1: Role Selection -->
+      <RoleSelectorCard v-model="form.role" />
 
       <!-- Card 2: Personal Information -->
-      <UiCard class="p-6 space-y-6">
-        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-slate-900 dark:text-white">2. Personal & Contact Information</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Primary account identity details and credentials</p>
-          </div>
-        </div>
+      <ClientPersonalInfoCard
+        v-model:first-name="form.firstName"
+        v-model:middle-name="form.middleName"
+        v-model:last-name="form.lastName"
+        v-model:email="form.email"
+        v-model:phone-number="form.phoneNumber"
+        :is-email-verified="isEmailVerified"
+        :is-sending-otp="isSendingOtp"
+        :email-error="emailFieldError"
+        :phone-error="phoneFieldError"
+        @send-otp="handleSendOtp(false)"
+        @email-input="onEmailInput"
+      />
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">First Name <span class="text-red-500">*</span></label>
-            <input
-              v-model="form.firstName"
-              type="text"
-              placeholder="e.g. Juan"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-              required
-            />
-          </div>
+      <!-- Card 3: Role Specific Institutional Details -->
+      <!-- Student -->
+      <StudentDetailsCard
+        v-if="form.role === 'Student'"
+        v-model:student-number="form.studentNumber"
+        v-model:year-level="form.yearLevel"
+        v-model:course="form.course"
+        v-model:section="form.section"
+        :client-id-error="clientIdFieldError"
+        :course-error="courseFieldError"
+        :section-error="sectionFieldError"
+      />
 
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Last Name <span class="text-red-500">*</span></label>
-            <input
-              v-model="form.lastName"
-              type="text"
-              placeholder="e.g. Dela Cruz"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-              required
-            />
-          </div>
+      <!-- Faculty / University Staff -->
+      <PersonnelDetailsCard
+        v-else-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'"
+        v-model:id-card-number="form.idCardNumber"
+        v-model:department="form.department"
+        :role-label="form.role === 'UniversityStaff' ? 'Faculty Member' : 'University Staff'"
+      />
 
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Middle Name (Optional)</label>
-            <input
-              v-model="form.middleName"
-              type="text"
-              placeholder="e.g. Santos"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-            />
-          </div>
-
-          <!-- Email with Verification Flow -->
-          <div class="space-y-1.5">
-            <div class="flex items-center justify-between">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Email Address <span class="text-red-500">*</span>
-              </label>
-              <span v-if="isEmailVerified" class="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Verified
-              </span>
-              <span v-else class="text-[11px] font-medium text-amber-600 dark:text-amber-400">
-                Verification Required
-              </span>
-            </div>
-            <div class="flex gap-2">
-              <input
-                v-model="form.email"
-                type="email"
-                placeholder="e.g. juan@university.edu.ph"
-                class="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-                @input="onEmailInput"
-                required
-              />
-              <button
-                v-if="!isEmailVerified"
-                type="button"
-                class="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50 cursor-pointer whitespace-nowrap flex items-center gap-1.5"
-                :disabled="isSendingOtp || !form.email"
-                @click="handleSendOtp(false)"
-              >
-                <span v-if="isSendingOtp" class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                <span>{{ isSendingOtp ? 'Sending...' : 'Verify Email' }}</span>
-              </button>
-            </div>
-            <p v-if="emailFieldError" class="text-xs text-red-500 mt-1">{{ emailFieldError }}</p>
-          </div>
-
-          <!-- Phone Number with Numerical and Length Validation -->
-          <div class="space-y-1.5">
-            <div class="flex items-center justify-between">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Phone Number <span class="text-red-500">*</span>
-              </label>
-              <span class="text-[10px] text-slate-400">11 digits (09XXXXXXXXX)</span>
-            </div>
-            <input
-              v-model="form.phoneNumber"
-              type="tel"
-              inputmode="numeric"
-              maxlength="11"
-              placeholder="09171234567"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-              @input="onPhoneInput"
-              required
-            />
-            <p v-if="phoneFieldError" class="text-xs text-red-500 mt-1">{{ phoneFieldError }}</p>
-          </div>
-        </div>
-      </UiCard>
-
-      <!-- Card 3: User Information (Formerly PROFILE SPECIFICS) -->
-      <UiCard class="p-6 space-y-6">
-        <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-          <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-base font-semibold text-slate-900 dark:text-white">3. User Information</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400">Role-dependent metadata details</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <!-- Student Specifics -->
-          <template v-if="form.role === 'Student'">
-            <!-- Year Level -->
-            <div class="space-y-1.5">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Year Level <span class="text-red-500">*</span>
-              </label>
-              <select
-                v-model.number="form.yearLevel"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
-              >
-                <optgroup label="Laboratory High School (Junior High)">
-                  <option :value="7">Grade 7</option>
-                  <option :value="8">Grade 8</option>
-                  <option :value="9">Grade 9</option>
-                  <option :value="10">Grade 10</option>
-                </optgroup>
-                <optgroup label="College">
-                  <option :value="1">1st Year</option>
-                  <option :value="2">2nd Year</option>
-                  <option :value="3">3rd Year</option>
-                  <option :value="4">4th Year</option>
-                  <option :value="5">5th Year+</option>
-                </optgroup>
-              </select>
-            </div>
-
-            <!-- Client ID (Digits only, 7-10 digits) -->
-            <div class="space-y-1.5">
-              <div class="flex items-center justify-between">
-                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Client ID <span class="text-red-500">*</span>
-                </label>
-                <span class="text-[10px] text-slate-400">Digits only (7-10 digits)</span>
-              </div>
-              <input
-                v-model="form.studentNumber"
-                type="text"
-                inputmode="numeric"
-                maxlength="10"
-                placeholder="202600123"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-                @input="onClientIdInput"
-                required
-              />
-              <p v-if="clientIdFieldError" class="text-xs text-red-500 mt-1">{{ clientIdFieldError }}</p>
-            </div>
-
-            <!-- Section (Format: 1A-G1) -->
-            <div class="space-y-1.5">
-              <div class="flex items-center justify-between">
-                <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Section <span class="text-red-500">*</span>
-                </label>
-                <span class="text-[10px] text-slate-400">Format: 1A-G1</span>
-              </div>
-              <input
-                v-model="form.section"
-                type="text"
-                placeholder="1A-G1"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-                @input="onSectionInput"
-                required
-              />
-              <p v-if="sectionFieldError" class="text-xs text-red-500 mt-1">{{ sectionFieldError }}</p>
-            </div>
-
-            <!-- College Course / Program (Hidden for High School Grades 7-10) -->
-            <div v-if="!isJuniorHigh" class="space-y-1.5">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Course / Program <span class="text-red-500">*</span>
-              </label>
-              <select
-                v-model="form.course"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition cursor-pointer"
-                required
-              >
-                <option value="">-- Select Course / Program --</option>
-                <optgroup v-for="group in collegeCourseGroups" :key="group.college" :label="group.college">
-                  <option v-for="course in group.courses" :key="course" :value="course">
-                    {{ course }}
-                  </option>
-                </optgroup>
-              </select>
-              <p v-if="courseFieldError" class="text-xs text-red-500 mt-1">{{ courseFieldError }}</p>
-            </div>
-            <!-- If High School (Grades 7-10), course selector is hidden completely -->
-          </template>
-
-          <!-- Personnel Specifics -->
-          <template v-else-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'">
-            <div class="space-y-1.5">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Client ID</label>
-              <input
-                v-model="form.idCardNumber"
-                type="text"
-                placeholder="EMP-9082"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-              />
-            </div>
-            <div class="space-y-1.5">
-              <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Department / College</label>
-              <input
-                v-model="form.department"
-                type="text"
-                placeholder="College of Engineering"
-                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-              />
-            </div>
-          </template>
-        </div>
-      </UiCard>
-
-      <!-- Action Footer Toolbar -->
+      <!-- Action Toolbar -->
       <div class="flex items-center justify-end gap-3 pt-2">
-        <router-link
-          to="/users"
-          class="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition"
+        <UiButton
+          type="button"
+          variant="secondary"
+          size="md"
+          @click="router.push('/users')"
         >
           Cancel
-        </router-link>
-        <button
+        </UiButton>
+        <UiButton
           type="submit"
-          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          :disabled="isSubmitting"
+          variant="primary"
+          size="md"
+          :loading="isSubmitting"
         >
-          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <line x1="19" y1="8" x2="19" y2="14" />
-            <line x1="22" y1="11" x2="16" y2="11" />
-          </svg>
+          <template #icon>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <polyline points="16 11 18 13 22 9" />
+            </svg>
+          </template>
           <span>Register Client Account</span>
-        </button>
+        </UiButton>
       </div>
     </form>
 
     <!-- Email OTP Verification Modal -->
-    <Teleport to="body">
-      <div v-if="otpModalVisible" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 space-y-4 shadow-2xl">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                  <polyline points="22,6 12,13 2,6" />
-                </svg>
-              </div>
-              <div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Verify Client Email</h3>
-                <p class="text-xs text-slate-500 dark:text-slate-400">One-Time Password (OTP) Verification</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
-              @click="otpModalVisible = false"
-            >
-              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          <p class="text-xs text-slate-600 dark:text-slate-300">
-            A 6-digit verification code has been dispatched to <strong class="text-slate-900 dark:text-white">{{ form.email }}</strong>. Please obtain the code from the client to confirm email ownership and deliverability.
-          </p>
-
-          <div v-if="otpError" class="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
-            <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            <span>{{ otpError }}</span>
-          </div>
-
-          <div class="space-y-1.5">
-            <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">6-Digit Verification Code</label>
-            <input
-              v-model="otpCode"
-              type="text"
-              inputmode="numeric"
-              maxlength="6"
-              placeholder="123456"
-              class="w-full text-center text-2xl tracking-widest font-mono py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-              @input="otpCode = otpCode.replace(/\D/g, '').slice(0, 6)"
-              @keydown.enter.prevent="handleVerifyOtp"
-            />
-          </div>
-
-          <div class="flex items-center justify-between text-xs pt-1">
-            <span class="text-slate-500 dark:text-slate-400">Didn't receive the code?</span>
-            <button
-              type="button"
-              class="font-semibold text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer"
-              :disabled="resendCountdown > 0 || isSendingOtp"
-              @click="handleSendOtp(true)"
-            >
-              <span v-if="resendCountdown > 0">Resend code in {{ resendCountdown }}s</span>
-              <span v-else-if="isSendingOtp">Sending...</span>
-              <span v-else>Resend Code</span>
-            </button>
-          </div>
-
-          <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold transition cursor-pointer"
-              @click="otpModalVisible = false"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50 cursor-pointer"
-              :disabled="otpCode.length < 6 || isVerifyingOtp"
-              @click="handleVerifyOtp"
-            >
-              <span v-if="isVerifyingOtp" class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>{{ isVerifyingOtp ? 'Verifying...' : 'Verify Code' }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <EmailOtpModal
+      :is-open="otpModalVisible"
+      :email="form.email"
+      :is-verifying="isVerifyingOtp"
+      :is-sending-otp="isSendingOtp"
+      :resend-countdown="resendCountdown"
+      :error="otpError"
+      @close="otpModalVisible = false"
+      @verify="handleVerifyOtp"
+      @resend="handleSendOtp(true)"
+    />
 
     <!-- Registration Confirmation Modal -->
-    <Teleport to="body">
-      <div v-if="confirmModalVisible" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-lg w-full p-6 space-y-5 shadow-2xl">
-          <div class="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div class="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
-              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <polyline points="16 11 18 13 22 9" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-lg font-bold text-slate-900 dark:text-white">Confirm Client Registration</h3>
-              <p class="text-xs text-slate-500 dark:text-slate-400">Please review the details below before creating this client account.</p>
-            </div>
-          </div>
-
-          <!-- Summary details -->
-          <div class="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4 space-y-2.5 text-xs border border-slate-200/60 dark:border-slate-700/60">
-            <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-              <span class="text-slate-500 dark:text-slate-400 font-medium">Full Name</span>
-              <span class="font-bold text-slate-900 dark:text-white">{{ form.firstName }} {{ form.middleName ? form.middleName + ' ' : '' }}{{ form.lastName }}</span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-              <span class="text-slate-500 dark:text-slate-400 font-medium">Role</span>
-              <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ form.role }}</span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-              <span class="text-slate-500 dark:text-slate-400 font-medium">Email Address</span>
-              <span class="font-medium text-slate-900 dark:text-white flex items-center gap-1.5">
-                {{ form.email }}
-                <span class="inline-flex items-center text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-500/20">Verified</span>
-              </span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-              <span class="text-slate-500 dark:text-slate-400 font-medium">Phone Number</span>
-              <span class="font-medium text-slate-900 dark:text-white">{{ form.phoneNumber }}</span>
-            </div>
-
-            <!-- Role specifics -->
-            <template v-if="form.role === 'Student'">
-              <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-                <span class="text-slate-500 dark:text-slate-400 font-medium">Client ID</span>
-                <span class="font-bold text-slate-900 dark:text-white">{{ form.studentNumber }}</span>
-              </div>
-              <div v-if="!isJuniorHigh" class="flex justify-between items-start gap-4 py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-                <span class="text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Course / Program</span>
-                <span class="font-semibold text-slate-900 dark:text-white text-right leading-snug">{{ form.course }}</span>
-              </div>
-              <div class="flex justify-between items-center py-1">
-                <span class="text-slate-500 dark:text-slate-400 font-medium">Year & Section</span>
-                <span class="font-semibold text-slate-900 dark:text-white">
-                  {{ isJuniorHigh ? `Grade ${form.yearLevel}` : `Year ${form.yearLevel}` }} - {{ form.section }}
-                </span>
-              </div>
-            </template>
-            <template v-else-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'">
-              <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-                <span class="text-slate-500 dark:text-slate-400 font-medium">Employee ID</span>
-                <span class="font-bold text-slate-900 dark:text-white">{{ form.idCardNumber }}</span>
-              </div>
-              <div class="flex justify-between items-center py-1">
-                <span class="text-slate-500 dark:text-slate-400 font-medium">Department</span>
-                <span class="font-semibold text-slate-900 dark:text-white">{{ form.department }}</span>
-              </div>
-            </template>
-          </div>
-
-          <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            By confirming, this client account will be provisioned in the system. An email containing their initial credentials will be sent to their verified address.
-          </p>
-
-          <div class="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              class="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition cursor-pointer"
-              :disabled="isSubmitting"
-              @click="confirmModalVisible = false"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition disabled:opacity-50 cursor-pointer"
-              :disabled="isSubmitting"
-              @click="executeRegistration"
-            >
-              <span v-if="isSubmitting" class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-              <span>{{ isSubmitting ? 'Registering...' : 'Confirm & Register' }}</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <RegisterConfirmModal
+      :is-open="confirmModalVisible"
+      :is-submitting="isSubmitting"
+      :form="form"
+      @close="confirmModalVisible = false"
+      @confirm="executeRegistration"
+    />
 
     <!-- Success Registration Confirmation Modal -->
-    <Teleport to="body">
-      <div v-if="successModalVisible" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 max-w-md w-full p-6 text-center space-y-4 shadow-xl">
-          <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
-            <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-              <polyline points="22 4 12 14.01 9 11.01" />
-            </svg>
-          </div>
-          <h3 class="text-xl font-bold text-slate-900 dark:text-white">Client Account Provisioned!</h3>
-          <p class="text-sm text-slate-600 dark:text-slate-400">
-            The client account for <strong class="text-slate-900 dark:text-white font-semibold">{{ registeredUserEmail }}</strong> was successfully created. An email containing their initial password credentials has been dispatched to their inbox.
-          </p>
-          <div class="flex items-center justify-center gap-3 pt-2">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-semibold transition cursor-pointer"
-              @click="resetFormAndContinue"
-            >
-              Provision Another Account
-            </button>
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold shadow-sm transition cursor-pointer"
-              @click="goToAccountsList"
-            >
-              Go to Accounts List
-            </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <RegisterSuccessModal
+      :is-open="successModalVisible"
+      :registered-email="registeredUserEmail"
+      @provision-another="resetFormAndContinue"
+      @go-to-list="goToAccountsList"
+    />
   </div>
 </template>

@@ -1,0 +1,154 @@
+<script setup lang="ts">
+import type { ApprovalItem } from '../pages/RegistrationsPage.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiBadge from '@/components/ui/UiBadge.vue'
+import { isPdfDoc } from '@/utils/documentUrl'
+
+const props = defineProps<{
+  item: ApprovalItem
+  index: number
+}>()
+
+const emit = defineEmits<{
+  (e: 'inspect', item: ApprovalItem): void
+  (e: 'approve', item: ApprovalItem): void
+  (e: 'reject', item: ApprovalItem): void
+  (e: 'zoomImage', url: string): void
+}>()
+
+const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
+const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
+
+function getScheduleSummary(schedules?: any[]): string {
+  if (!schedules || schedules.length === 0) return 'No schedule set'
+  const dayAbbrs: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' }
+  const activeDays = schedules.map(s => dayAbbrs[s.dayOfWeek] || '').filter(Boolean).join(', ')
+  const firstTime = schedules[0]
+  const formatTime = (t: string) => t ? t.slice(0, 5) : ''
+  const timeStr = firstTime ? `${formatTime(firstTime.startTime)} - ${formatTime(firstTime.endTime)}` : ''
+  return activeDays ? `${activeDays}${timeStr ? ' • ' + timeStr : ''}` : 'No active days'
+}
+
+function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (status === 'approved') return 'success'
+  if (status === 'rejected') return 'danger'
+  return 'warning'
+}
+
+function handleImageError(event: Event, fallback: string) {
+  const target = event.target as HTMLImageElement
+  if (target && target.src !== fallback) {
+    target.src = fallback
+  }
+}
+</script>
+
+<template>
+  <UiCard
+    hover
+    custom-class="p-5 flex flex-col justify-between space-y-4 cursor-pointer hover:border-blue-500/40"
+    @click="emit('inspect', item)"
+  >
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center text-xs flex-shrink-0">
+          {{ item.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() }}
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-2">
+            <h4 class="font-bold text-slate-900 dark:text-white text-sm truncate leading-snug m-0">
+              {{ item.fullName }}
+            </h4>
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-bold"
+              :class="item.category === 'Schedule' ? 'bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'"
+            >
+              {{ item.category }}
+            </span>
+          </div>
+          <span class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+            {{ item.role }} • Applied {{ item.dateApplied }}
+          </span>
+        </div>
+      </div>
+
+      <UiBadge :variant="getStatusBadgeVariant(item.status)" size="xs" class="flex-shrink-0">
+        {{ item.status.charAt(0).toUpperCase() + item.status.slice(1) }}
+      </UiBadge>
+    </div>
+
+    <!-- Vehicle Badge Bar (Vehicle category) -->
+    <div v-if="item.category === 'Vehicle'" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
+      <div class="flex items-center gap-2">
+        <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
+        <span class="text-slate-500 dark:text-slate-400">• {{ item.brand }}</span>
+      </div>
+      <span class="font-semibold text-slate-700 dark:text-slate-300">{{ item.vehicleType }}</span>
+    </div>
+
+    <!-- Schedule summary bar (Schedule category) -->
+    <div v-else-if="item.category === 'Schedule'" class="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
+      <span class="text-slate-500 dark:text-slate-400 block text-[10.5px] uppercase font-bold tracking-wider mb-0.5">Campus Hours</span>
+      <span class="font-semibold text-slate-900 dark:text-white">{{ getScheduleSummary(item.schedules) }}</span>
+    </div>
+
+    <!-- Quick Document Thumbnails -->
+    <div class="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+      <div
+        v-if="item.corUrl"
+        class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+      >
+        📄 COR Proof
+      </div>
+      <div
+        v-if="item.orcrUrl"
+        class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+      >
+        📋 OR/CR Proof
+      </div>
+      <div
+        v-if="item.schedules"
+        class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+      >
+        ⏱ Schedule
+      </div>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800" @click.stop>
+      <button
+        type="button"
+        class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline border-none bg-transparent cursor-pointer p-0"
+        @click="emit('inspect', item)"
+      >
+        Inspect & Verify
+      </button>
+
+      <div class="flex items-center gap-1.5">
+        <template v-if="item.status === 'pending'">
+          <button
+            type="button"
+            title="Approve Submission"
+            @click="emit('approve', item)"
+            class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold text-[11px] hover:bg-emerald-700 transition-colors cursor-pointer border-none"
+          >
+            Approve
+          </button>
+          <button
+            type="button"
+            title="Reject Submission"
+            @click="emit('reject', item)"
+            class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-[11px] hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80"
+          >
+            Reject
+          </button>
+        </template>
+        <span v-else class="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+          Reviewed
+        </span>
+      </div>
+    </div>
+  </UiCard>
+</template>

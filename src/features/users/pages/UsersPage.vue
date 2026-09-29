@@ -4,15 +4,17 @@ import { useRoute, useRouter } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
+import UserCard from '../components/UserCard.vue'
+import UserFilters from '../components/UserFilters.vue'
+import UserStatusModal from '../components/UserStatusModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
-import UiBadge from '@/components/ui/UiBadge.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
-
+import UiButton from '@/components/ui/UiButton.vue'
 import api from '@/api/axios'
 import { cachedUsers } from '@/stores/appCache'
 
@@ -90,77 +92,27 @@ const staffCount = computed(() => users.value.filter((u) => u.role === 'NonAcade
 const guardCount = computed(() => users.value.filter((u) => u.role === 'Guard').length)
 const adminCount = computed(() => users.value.filter((u) => u.role === 'Admin' || (u.role as string) === 'SuperAdmin').length)
 
-function setRoleFilter(role: string) {
-  selectedRole.value = role
-  const query = { ...route.query }
-  if (role === 'all') {
-    delete query.role
-  } else {
-    query.role = role
-  }
-  router.replace({ query })
-}
+// Dynamic Header Properties
+const headerTitle = computed(() => {
+  if (selectedRole.value === 'Student') return 'Student Client Directory'
+  if (selectedRole.value === 'UniversityStaff') return 'Faculty Member Directory'
+  if (selectedRole.value === 'NonAcademicPersonnel') return 'University Staff Directory'
+  if (selectedRole.value === 'Guard') return 'Security Guards Directory'
+  if (selectedRole.value === 'Admin') return 'System Administrators Directory'
+  return 'Client & User Account Directory'
+})
 
-const applyRouteQueries = () => {
-  if (route.query.status) {
-    selectedStatus.value = String(route.query.status)
-  } else {
-    selectedStatus.value = 'all'
-  }
-  if (route.query.vehicle) {
-    selectedVehicleFilter.value = String(route.query.vehicle)
-  } else {
-    selectedVehicleFilter.value = 'all'
-  }
-  if (route.query.role) {
-    const roleVal = String(route.query.role)
-    if ((roleVal === 'AdminStaff' || roleVal === 'Guard' || roleVal === 'Admin') && !isSuperAdmin.value) {
-      selectedRole.value = 'all'
-    } else {
-      selectedRole.value = roleVal
-    }
-  } else {
-    selectedRole.value = 'all'
-  }
-}
+const headerSubtitle = computed(() => {
+  if (selectedRole.value === 'Student') return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
+  if (selectedRole.value === 'UniversityStaff') return 'Manage faculty member accounts, department assignments, and vehicle clearance.'
+  if (selectedRole.value === 'NonAcademicPersonnel') return 'Manage university staff accounts, administrative departments, and vehicle clearance.'
+  if (selectedRole.value === 'Guard') return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
+  if (selectedRole.value === 'Admin') return 'Manage system administrators and elevated system privileges.'
+  return 'Manage registered client accounts, pending COR registrations, and system privileges.'
+})
 
-watch(
-  () => route.query,
-  () => {
-    applyRouteQueries()
-  },
-  { immediate: true }
-)
+const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff' || selectedRole.value === 'Guard' || selectedRole.value === 'Admin')
 
-// Detail Modal
-const selectedUser = ref<UserWithDetails | null>(null)
-const isDetailOpen = ref(false)
-
-// Form Modal
-const isFormOpen = ref(false)
-const userToEdit = ref<UserWithDetails | null>(null)
-
-// Delete Confirmation
-const userToDelete = ref<UserWithDetails | null>(null)
-const isDeleteConfirmOpen = ref(false)
-
-// Toast
-interface Toast {
-  id: number
-  message: string
-  type: 'success' | 'error'
-}
-const toasts = ref<Toast[]>([])
-const nextToastId = ref(1)
-const showToast = (message: string, type: 'success' | 'error' = 'success') => {
-  const id = nextToastId.value++
-  toasts.value.push({ id, message, type })
-  setTimeout(() => {
-    toasts.value = toasts.value.filter(t => t.id !== id)
-  }, 4000)
-}
-
-// Stats Computations
 const stats = computed(() => {
   const total = users.value.length
   const students = studentCount.value
@@ -169,14 +121,14 @@ const stats = computed(() => {
   const guards = guardCount.value
 
   const list = [
-    { title: 'Total Registered', value: total, icon: 'people', gradient: 'linear-gradient(135deg, #6366f1, #818cf8)' },
-    { title: 'Students', value: students, icon: 'student', gradient: 'linear-gradient(135deg, #10b981, #34d399)' },
-    { title: 'Faculty', value: faculty, icon: 'briefcase', gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)' },
-    { title: 'Staff (Non-Academic)', value: staff, icon: 'briefcase', gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)' }
+    { title: 'Total Registered', value: total, icon: 'people' },
+    { title: 'Students', value: students, icon: 'student' },
+    { title: 'Faculty', value: faculty, icon: 'briefcase' },
+    { title: 'Staff (Non-Academic)', value: staff, icon: 'briefcase' }
   ]
 
   if (isSuperAdmin.value) {
-    list.push({ title: 'Security Guards', value: guards, icon: 'shield', gradient: 'linear-gradient(135deg, #ef4444, #f87171)' })
+    list.push({ title: 'Security Guards', value: guards, icon: 'shield' })
   }
 
   return list
@@ -192,35 +144,41 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
   if (status === 'Verified' || status === 'Active') return 'success'
   if (status === 'Pending' || status === 'PendingVerification') return 'warning'
   if (status === 'Suspended' || status === 'Rejected') return 'danger'
-  if (status === 'NotSubmitted' || status === 'Unverified') return 'neutral'
   return 'neutral'
 }
 
-// Dynamic Header Properties
-const headerTitle = computed(() => {
-  if (selectedRole.value === 'Student') return 'Student Client Directory'
-  if (selectedRole.value === 'UniversityStaff') return 'Faculty Member Directory'
-  if (selectedRole.value === 'NonAcademicPersonnel') return 'University Staff Directory'
-  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Staff & Faculty Directory'
-  if (selectedRole.value === 'AdminStaff') return 'Staff & Admin Directory'
-  if (selectedRole.value === 'Guard') return 'Security Guards Directory'
-  if (selectedRole.value === 'Admin') return 'System Administrators Directory'
-  return 'Client & User Account Directory'
-})
+function formatStatusText(status: string): string {
+  if (status === 'Verified') return 'Clearance Active'
+  if (status === 'Pending') return 'Pending COR'
+  if (status === 'NotSubmitted') return 'No COR Upload'
+  if (status === 'Rejected') return 'COR Rejected'
+  if (status === 'Suspended') return 'Suspended'
+  return status
+}
 
-const headerSubtitle = computed(() => {
-  if (selectedRole.value === 'Student') return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
-  if (selectedRole.value === 'UniversityStaff') return 'Manage faculty member accounts, department assignments, and vehicle clearance.'
-  if (selectedRole.value === 'NonAcademicPersonnel') return 'Manage university staff accounts, administrative departments, and vehicle clearance.'
-  if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Manage staff and faculty accounts, department assignments, and vehicle clearance.'
-  if (selectedRole.value === 'AdminStaff') return 'Manage registered campus security guards and system administrator accounts.'
-  if (selectedRole.value === 'Guard') return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
-  if (selectedRole.value === 'Admin') return 'Manage system administrators and elevated system privileges.'
-  return 'Manage registered client accounts, pending COR registrations, and system privileges.'
-})
+const getIdentifier = (user: UserWithDetails) => {
+  if (user.student?.studentNumber) return user.student.studentNumber
+  if (user.personnel?.idCardNumber) return user.personnel.idCardNumber
+  if (user.guard?.assignedGate) return `Gate ${user.guard.assignedGate}`
+  return user.id || 'N/A'
+}
 
-// Filtered Users list
-const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff' || selectedRole.value === 'Guard' || selectedRole.value === 'Admin')
+const getRoleLabel = (role: UserRole) => {
+  switch (role) {
+    case 'Student':
+      return 'Student'
+    case 'UniversityStaff':
+      return 'Faculty Member'
+    case 'NonAcademicPersonnel':
+      return 'University Staff'
+    case 'Guard':
+      return 'Security Guard'
+    case 'Admin':
+      return 'Admin'
+    default:
+      return role
+  }
+}
 
 const userColumns = computed<TableColumn[]>(() => {
   const cols: TableColumn[] = [
@@ -253,9 +211,7 @@ const filteredUsers = computed(() => {
 
     const matchesRole =
       selectedRole.value === 'all' ||
-      user.role === selectedRole.value ||
-      ((selectedRole.value === 'staff' || selectedRole.value === 'NAPA') && (user.role === 'UniversityStaff' || user.role === 'NonAcademicPersonnel')) ||
-      (selectedRole.value === 'AdminStaff' && isSuperAdmin.value && (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin'))
+      user.role === selectedRole.value
 
     const matchesStatus =
       selectedStatus.value === 'all' ||
@@ -271,7 +227,7 @@ const filteredUsers = computed(() => {
   })
 })
 
-// Pagination State
+// Pagination
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
 
@@ -285,65 +241,63 @@ watch([searchQuery, selectedRole, selectedStatus, selectedVehicleFilter, itemsPe
   currentPage.value = 1
 })
 
-const getIdentifier = (user: UserWithDetails) => {
-  if (user.student?.studentNumber) return user.student.studentNumber
-  if (user.personnel?.idCardNumber) return user.personnel.idCardNumber
-  if (user.guard?.assignedGate) return `Gate ${user.guard.assignedGate}`
-  return 'System Admin'
+// Modal states
+const selectedUser = ref<UserWithDetails | null>(null)
+const isDetailOpen = ref(false)
+const userToEdit = ref<UserWithDetails | null>(null)
+const isFormOpen = ref(false)
+const isDeleteConfirmOpen = ref(false)
+const userToDelete = ref<UserWithDetails | null>(null)
+const isStatusConfirmOpen = ref(false)
+const userToChangeStatus = ref<UserWithDetails | null>(null)
+const targetStatusToApply = ref<AccountStatus>('Active')
+const isUpdatingStatus = ref(false)
+
+interface Toast {
+  id: number
+  message: string
+  type: 'success' | 'error'
+}
+const toasts = ref<Toast[]>([])
+const nextToastId = ref(1)
+const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+  const id = nextToastId.value++
+  toasts.value.push({ id, message, type })
+  setTimeout(() => {
+    toasts.value = toasts.value.filter(t => t.id !== id)
+  }, 4000)
 }
 
-const getRoleLabel = (role: UserRole) => {
-  switch (role) {
-    case 'Student':
-      return 'Student'
-    case 'UniversityStaff':
-      return 'Faculty Member'
-    case 'NonAcademicPersonnel':
-      return 'University Staff'
-    case 'Guard':
-      return 'Security Guard'
-    case 'Admin':
-      return 'Administrator'
-    default:
-      return role
-  }
-}
-
-const formatStatusText = (status: string) => {
-  if (status === 'NotSubmitted') return 'Not Submitted'
-  if (status === 'Unverified') return 'Not Submitted'
-  if (status === 'PendingVerification') return 'Pending'
-  return status
-}
-
-// Actions
-const openDetails = (user: UserWithDetails) => {
+function openDetails(user: UserWithDetails) {
   selectedUser.value = user
   isDetailOpen.value = true
 }
 
-const openEditUser = (user: UserWithDetails) => {
-  router.push({
-    path: `/users/${user.id}/edit`,
-    state: { user: JSON.parse(JSON.stringify(user)) }
-  })
+function openEditUser(user: UserWithDetails) {
+  router.push(`/users/${user.id}/edit`)
 }
 
-const openDeleteConfirm = (user: UserWithDetails) => {
+function openDeleteConfirm(user: UserWithDetails) {
   userToDelete.value = user
   isDeleteConfirmOpen.value = true
 }
 
-// Status Change (Suspend / Unsuspend) Confirmation State
-const userToChangeStatus = ref<UserWithDetails | null>(null)
-const targetStatusToApply = ref<AccountStatus>('Suspended')
-const isStatusConfirmOpen = ref(false)
-const isUpdatingStatus = ref(false)
-
-const openStatusConfirm = (user: UserWithDetails, targetStatus: AccountStatus) => {
+function openStatusConfirm(user: UserWithDetails, newStatus: AccountStatus) {
   userToChangeStatus.value = user
-  targetStatusToApply.value = targetStatus
+  targetStatusToApply.value = newStatus
   isStatusConfirmOpen.value = true
+}
+
+function handleChangePassword(user: UserWithDetails) {
+  router.push({
+    path: '/users/change-password',
+    query: {
+      id: user.id,
+      name: user.fullName,
+      email: user.email,
+      role: getRoleLabel(user.role)
+    }
+  })
 }
 
 const confirmUpdateUserStatus = async () => {
@@ -433,93 +387,6 @@ const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
 }
 
 const handleFormSubmit = async (formData: any) => {
-  if (formData.id) {
-    try {
-      await api.put(`/users/${formData.id}`, {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        middleName: formData.middleName || null,
-        email: formData.email,
-        phoneNumber: formData.phoneNumber,
-        role: formData.role,
-        status: formData.status,
-        student: formData.role === 'Student' ? {
-          studentNumber: formData.studentNumber,
-          course: formData.course,
-          section: formData.section,
-          yearLevel: formData.yearLevel
-        } : null,
-        personnel: (formData.role === 'UniversityStaff' || formData.role === 'NonAcademicPersonnel') ? {
-          idCardNumber: formData.idCardNumber,
-          department: formData.department
-        } : null,
-        guard: formData.role === 'Guard' ? {
-          assignedGate: formData.assignedGate
-        } : null
-      })
-    } catch (error) {
-      console.warn('Edit API error, applying locally:', error)
-    }
-    const index = users.value.findIndex((u) => u.id === formData.id)
-    if (index !== -1 && users.value[index]) {
-      const updatedUser: UserWithDetails = {
-        ...users.value[index],
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        fullName: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-        phoneNumber: formData.phoneNumber,
-        role: formData.role,
-        status: formData.status,
-        student: formData.role === 'Student' ? {
-          studentNumber: formData.studentNumber,
-          course: formData.course,
-          section: formData.section,
-          yearLevel: formData.yearLevel
-        } : undefined,
-        personnel: (formData.role === 'UniversityStaff' || formData.role === 'NonAcademicPersonnel') ? {
-          idCardNumber: formData.idCardNumber,
-          department: formData.department
-        } : undefined,
-        guard: formData.role === 'Guard' ? {
-          assignedGate: formData.assignedGate
-        } : undefined
-      }
-      users.value[index] = updatedUser
-    }
-    isFormOpen.value = false
-    showToast('Client account updated successfully.', 'success')
-    return
-  } else {
-    const newUser: UserWithDetails = {
-      id: String(users.value.length + 1),
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-      fullName: `${formData.firstName} ${formData.lastName}`,
-      email: formData.email,
-      phoneNumber: formData.phoneNumber,
-      role: formData.role,
-      status: formData.status,
-      corVerificationStatus: 'Verified',
-      authProvider: 'Manual',
-      createdAt: new Date().toISOString(),
-      student: formData.role === 'Student' ? {
-        studentNumber: formData.studentNumber,
-        course: formData.course,
-        section: formData.section,
-        yearLevel: formData.yearLevel
-      } : undefined,
-      personnel: (formData.role === 'UniversityStaff' || formData.role === 'NonAcademicPersonnel') ? {
-        idCardNumber: formData.idCardNumber,
-        department: formData.department
-      } : undefined,
-      guard: formData.role === 'Guard' ? {
-        assignedGate: formData.assignedGate
-      } : undefined,
-      vehicles: []
-    }
-    users.value.push(newUser)
-  }
   isFormOpen.value = false
 }
 </script>
@@ -552,12 +419,12 @@ const handleFormSubmit = async (formData: any) => {
       </div>
 
       <div class="flex items-center gap-3 flex-wrap">
-        <!-- View Mode Switcher (Cards Grid vs Table List) -->
-        <div class="flex items-center p-1 bg-[#e2e8f0] dark:bg-slate-800/90 border border-[#cbd5e1] dark:border-slate-700 rounded-[10px] gap-1 flex-shrink-0">
+        <!-- View Mode Switcher -->
+        <div class="flex items-center p-1 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl gap-1 flex-shrink-0">
           <button
             type="button"
-            class="flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'grid' ? 'bg-[#4f46e5] text-white shadow-md shadow-indigo-500/30 font-bold' : 'text-[#475569] dark:text-slate-300 hover:text-[#1e293b] dark:hover:text-white bg-transparent'"
+            class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
+            :class="viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
             @click="viewMode = 'grid'"
             title="Cards Grid Mode"
           >
@@ -571,8 +438,8 @@ const handleFormSubmit = async (formData: any) => {
           </button>
           <button
             type="button"
-            class="flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'table' ? 'bg-[#4f46e5] text-white shadow-md shadow-indigo-500/30 font-bold' : 'text-[#475569] dark:text-slate-300 hover:text-[#1e293b] dark:hover:text-white bg-transparent'"
+            class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
+            :class="viewMode === 'table' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
             @click="viewMode = 'table'"
             title="Table List Mode"
           >
@@ -585,17 +452,20 @@ const handleFormSubmit = async (formData: any) => {
           </button>
         </div>
 
-        <router-link
+        <UiButton
           v-if="!isAdminStaffView || isSuperAdmin"
-          :to="isAdminStaffView ? '/users/create-staff' : '/users/create'"
-          class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-xs hover:shadow-md transition-all no-underline flex-shrink-0"
+          variant="primary"
+          size="md"
+          @click="router.push(isAdminStaffView ? '/users/create-staff' : '/users/create')"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
-            <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
+          <template #icon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
+              <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </template>
           <span>{{ isAdminStaffView ? 'Register Staff / Admin' : 'Register Client Account' }}</span>
-        </router-link>
+        </UiButton>
       </div>
     </div>
 
@@ -610,14 +480,11 @@ const handleFormSubmit = async (formData: any) => {
             <span class="text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
               {{ stat.value }}
             </span>
-            <span class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">
               {{ stat.title }}
             </span>
           </div>
-          <div
-            class="w-11 h-11 rounded-xl flex items-center justify-center text-white shadow-xs flex-shrink-0"
-            :style="{ background: stat.gradient }"
-          >
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50">
             <svg v-if="stat.icon === 'people'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round" />
               <circle cx="9" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round" />
@@ -640,113 +507,21 @@ const handleFormSubmit = async (formData: any) => {
       </template>
     </div>
 
-    <!-- Account Type Category Filter Tabs -->
-    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-wrap">
-      <button
-        type="button"
-        @click="setRoleFilter('all')"
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'all' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
-      >
-        All Accounts ({{ users.length }})
-      </button>
-
-      <button
-        type="button"
-        @click="setRoleFilter('Student')"
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'Student' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
-      >
-        Students ({{ studentCount }})
-      </button>
-
-      <button
-        type="button"
-        @click="setRoleFilter('UniversityStaff')"
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'UniversityStaff' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
-      >
-        Faculty Member ({{ facultyCount }})
-      </button>
-
-      <button
-        type="button"
-        @click="setRoleFilter('NonAcademicPersonnel')"
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'NonAcademicPersonnel' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
-      >
-        University Staff ({{ staffCount }})
-      </button>
-
-      <button
-        v-if="isSuperAdmin"
-        type="button"
-        @click="setRoleFilter('Guard')"
-        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'Guard' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
-      >
-        Security Guards ({{ guardCount }})
-      </button>
-    </div>
-
-    <!-- Filters Bar (Search & Filter Dropdowns) -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <!-- Search Input -->
-      <div class="relative flex-1 max-w-md">
-        <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Search by name, email, ID number..."
-          class="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 transition-all"
-        />
-      </div>
-
-      <!-- Filter Dropdowns (Account Type, Status & Vehicle Filter) -->
-      <div class="flex items-center gap-3 sm:ml-auto flex-wrap">
-        <!-- Account Type Filter -->
-        <select
-          v-model="selectedRole"
-          @change="router.replace({ query: { ...route.query, role: selectedRole === 'all' ? undefined : selectedRole } })"
-          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
-        >
-          <option value="all">All Account Types ({{ users.length }})</option>
-          <option value="Student">Student ({{ studentCount }})</option>
-          <option value="UniversityStaff">Faculty Member ({{ facultyCount }})</option>
-          <option value="NonAcademicPersonnel">University Staff ({{ staffCount }})</option>
-          <option v-if="isSuperAdmin" value="Guard">Security Guards ({{ guardCount }})</option>
-          <option v-if="isSuperAdmin" value="Admin">Administrators ({{ adminCount }})</option>
-        </select>
-
-        <!-- Status Filter -->
-        <select
-          v-model="selectedStatus"
-          @change="router.replace({ query: { ...route.query, status: selectedStatus === 'all' ? undefined : selectedStatus } })"
-          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
-        >
-          <option value="all">All Statuses</option>
-          <option value="Pending">Pending Verification</option>
-          <option value="Verified">Approved / Verified</option>
-          <option value="NotSubmitted">Not Submitted</option>
-          <option value="Rejected">Rejected</option>
-          <option value="Suspended">Suspended</option>
-        </select>
-
-        <!-- New Vehicle Clearance Filter -->
-        <select
-          v-model="selectedVehicleFilter"
-          @change="router.replace({ query: { ...route.query, vehicle: selectedVehicleFilter === 'all' ? undefined : selectedVehicleFilter } })"
-          class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
-        >
-          <option value="all">All Vehicles</option>
-          <option value="with-vehicle">With Registered Vehicle</option>
-          <option value="no-vehicle">No Vehicle Registered</option>
-        </select>
-      </div>
-    </div>
+    <!-- Filters Bar (Search & Filter Dropdowns & Role Tabs) -->
+    <UserFilters
+      v-model:search-query="searchQuery"
+      v-model:selected-role="selectedRole"
+      v-model:selected-status="selectedStatus"
+      v-model:selected-vehicle-filter="selectedVehicleFilter"
+      :view-mode="viewMode"
+      :total-count="users.length"
+      :student-count="studentCount"
+      :faculty-count="facultyCount"
+      :staff-count="staffCount"
+      :guard-count="guardCount"
+      :admin-count="adminCount"
+      :is-super-admin="isSuperAdmin"
+    />
 
     <!-- Grid View Mode -->
     <template v-if="viewMode === 'grid'">
@@ -757,128 +532,18 @@ const handleFormSubmit = async (formData: any) => {
         No records match your criteria.
       </div>
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <UiCard
+        <UserCard
           v-for="user in paginatedUsers"
           :key="'card-'+user.id"
-          hover
-          custom-class="p-5 flex flex-col justify-between space-y-4 cursor-pointer hover:border-blue-500/40"
-          @click="openDetails(user)"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-3 min-w-0">
-              <UiAvatar :name="user.fullName" :src="user.profilePictureUrl" size="lg" />
-              <div class="flex flex-col min-w-0">
-                <h4 class="font-bold text-slate-900 dark:text-white text-sm truncate leading-snug">
-                  {{ user.fullName }}
-                </h4>
-                <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
-                  {{ user.email }}
-                </span>
-                <span class="text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                  ID: {{ getIdentifier(user) }}
-                </span>
-              </div>
-            </div>
-            <UiBadge :variant="getStatusBadgeVariant(displayStatus(user))" size="xs" class="flex-shrink-0">
-              {{ formatStatusText(displayStatus(user)) }}
-            </UiBadge>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
-            <div>
-              <span class="text-slate-400 dark:text-slate-500 text-[10.5px] uppercase font-bold tracking-wider block">Role</span>
-              <span class="font-medium text-slate-700 dark:text-slate-300">{{ getRoleLabel(user.role) }}</span>
-            </div>
-            <div>
-              <span class="text-slate-400 dark:text-slate-500 text-[10.5px] uppercase font-bold tracking-wider block">Vehicles</span>
-              <span class="font-medium text-slate-700 dark:text-slate-300">
-                {{ (user.vehicles || []).length === 0 ? 'None' : `${user.vehicles.length} Registered` }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Footer Actions -->
-          <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800" @click.stop>
-            <button
-              type="button"
-              class="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline border-none bg-transparent cursor-pointer p-0"
-              @click="openDetails(user)"
-            >
-              View Profile
-            </button>
-
-            <div class="flex items-center gap-1">
-              <!-- Quick Approve / Reject for Student Pending -->
-              <template v-if="user.role === 'Student' && displayStatus(user) === 'Pending'">
-                <button
-                  type="button"
-                  title="Approve Registration"
-                  @click="handleApproveUser(user)"
-                  class="px-2 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px] hover:bg-emerald-700 transition-colors cursor-pointer border-none mr-1"
-                >
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  title="Reject Registration"
-                  @click="handleRejectUser(user)"
-                  class="px-2 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-[11px] hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80 mr-1"
-                >
-                  Reject
-                </button>
-              </template>
-
-              <button
-                type="button"
-                title="Edit Account"
-                @click="openEditUser(user)"
-                class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition-colors cursor-pointer border-none bg-transparent"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
-
-              <button
-                v-if="user.status !== 'Suspended'"
-                type="button"
-                title="Suspend Account"
-                @click="openStatusConfirm(user, 'Suspended')"
-                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
-                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
-              <button
-                v-else
-                type="button"
-                title="Verify / Unsuspend Account"
-                @click="openStatusConfirm(user, 'Active')"
-                class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
-
-              <button
-                type="button"
-                title="Delete Account"
-                @click="openDeleteConfirm(user)"
-                class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </UiCard>
+          :user="user"
+          @view-profile="openDetails"
+          @edit="openEditUser"
+          @approve="handleApproveUser"
+          @reject="handleRejectUser"
+          @toggle-status="openStatusConfirm"
+          @change-password="handleChangePassword"
+          @delete="openDeleteConfirm"
+        />
       </div>
 
       <!-- Pagination Footer for Grid Mode -->
@@ -1050,15 +715,12 @@ const handleFormSubmit = async (formData: any) => {
       @close="isDeleteConfirmOpen = false"
     />
 
-    <!-- Status Change (Suspend / Unsuspend) Confirmation Modal -->
-    <ConfirmModal
+    <!-- Status Change (Suspend / Unsuspend) Modal -->
+    <UserStatusModal
       :is-open="isStatusConfirmOpen"
-      :title="targetStatusToApply === 'Suspended' ? 'Suspend Client Account' : 'Unsuspend / Reactivate Account'"
-      :message="targetStatusToApply === 'Suspended' ? `Are you sure you want to suspend account clearance for <strong>${userToChangeStatus?.fullName || 'this user'}</strong>? They will be unable to access campus parking until unsuspended.` : `Are you sure you want to reactivate clearance for <strong>${userToChangeStatus?.fullName || 'this user'}</strong>? This will restore campus parking access.`"
-      :confirm-text="targetStatusToApply === 'Suspended' ? 'Suspend Account' : 'Unsuspend Account'"
-      cancel-text="Cancel"
-      :variant="targetStatusToApply === 'Suspended' ? 'warning' : 'success'"
-      :is-submitting="isUpdatingStatus"
+      :user="userToChangeStatus"
+      :target-status="targetStatusToApply"
+      :is-updating="isUpdatingStatus"
       @confirm="confirmUpdateUserStatus"
       @close="isStatusConfirmOpen = false"
     />
