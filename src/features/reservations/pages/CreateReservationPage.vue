@@ -2,6 +2,10 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiInput from '@/components/ui/UiInput.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
+import UiTextarea from '@/components/ui/UiTextarea.vue'
 
 const router = useRouter()
 
@@ -20,6 +24,11 @@ const form = ref({
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
+
+const reservationTypeOptions = [
+  { label: 'Special Schedule / Event Pass (Full Day Authorization)', value: 1 },
+  { label: 'Standard Schedule Reservation', value: 0 }
+]
 
 function goBack() {
   router.push('/reservations')
@@ -92,13 +101,15 @@ async function handleSubmit() {
   <div class="create-reservation-page">
     <!-- Header -->
     <div class="page-header">
-      <button class="back-btn" type="button" @click="goBack">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="19" y1="12" x2="5" y2="12" />
-          <polyline points="12 19 5 12 12 5" />
-        </svg>
+      <UiButton variant="ghost" size="sm" @click="goBack" class="back-btn">
+        <template #icon>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </template>
         Back to Reservations
-      </button>
+      </UiButton>
 
       <div class="header-titles">
         <h1 class="page-title">Reserve Schedule</h1>
@@ -144,54 +155,51 @@ async function handleSubmit() {
         </div>
 
         <div class="form-grid">
-          <div class="form-group full-width">
-            <label class="form-label">Reservation Classification <span class="required">*</span></label>
-            <select v-model="form.type" class="form-input">
-              <option :value="1">Special Schedule / Event Pass (Full Day Authorization)</option>
-              <option :value="0">Standard Schedule Reservation</option>
-            </select>
+          <div class="full-width">
+            <UiSelect
+              v-model="form.type"
+              label="Reservation Classification"
+              :options="reservationTypeOptions"
+              required
+            />
           </div>
 
-          <div class="form-group full-width">
-            <label class="form-label">Reservation Date <span class="required">*</span></label>
-            <input
+          <div class="full-width">
+            <UiInput
               v-model="form.reservationDate"
               type="date"
-              class="form-input"
+              label="Reservation Date"
               :min="today"
               required
             />
           </div>
 
-          <div class="form-group">
-            <label class="form-label">Start Time <span class="required">*</span></label>
-            <input
+          <div>
+            <UiInput
               v-model="form.startTime"
               type="time"
-              class="form-input"
+              label="Start Time"
               required
             />
           </div>
 
-          <div class="form-group">
-            <label class="form-label">End Time <span class="required">*</span></label>
-            <input
+          <div>
+            <UiInput
               v-model="form.endTime"
               type="time"
-              class="form-input"
+              label="End Time"
               required
             />
           </div>
 
-          <div class="form-group full-width">
-            <label class="form-label">Purpose / Stated Reason <span class="required">*</span></label>
-            <textarea
+          <div class="full-width">
+            <UiTextarea
               v-model="form.reason"
-              rows="3"
-              class="form-textarea"
+              label="Purpose / Stated Reason"
               placeholder="State the justification, event name, or campus department reason for this reservation..."
+              :rows="3"
               required
-            ></textarea>
+            />
           </div>
         </div>
       </div>
@@ -225,12 +233,11 @@ async function handleSubmit() {
           </label>
 
           <Transition name="fade">
-            <div v-if="form.sendEmail" class="form-group full-width mt-4">
-              <label class="form-label">Recipient Email Address <span class="required">*</span></label>
-              <input
+            <div v-if="form.sendEmail" class="full-width mt-4">
+              <UiInput
                 v-model="form.notifyEmail"
                 type="email"
-                class="form-input"
+                label="Recipient Email Address"
                 placeholder="e.g. guest@university.edu.ph"
                 required
               />
@@ -241,13 +248,12 @@ async function handleSubmit() {
 
       <!-- Action Footer -->
       <div class="form-actions">
-        <button type="button" class="btn-cancel" @click="goBack">Cancel</button>
-        <button type="submit" class="btn-submit" :disabled="isSubmitting">
-          <svg v-if="!isSubmitting" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          <span>{{ isSubmitting ? 'Reserving Schedule...' : 'Confirm & Reserve Schedule' }}</span>
-        </button>
+        <UiButton type="button" variant="secondary" @click="goBack" :disabled="isSubmitting">
+          Cancel
+        </UiButton>
+        <UiButton type="submit" variant="primary" :loading="isSubmitting">
+          Confirm & Reserve Schedule
+        </UiButton>
       </div>
     </form>
   </div>
@@ -255,40 +261,22 @@ async function handleSubmit() {
 
 <style scoped>
 .create-reservation-page {
-  animation: fadeSlideUp 0.35s ease both;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 820px;
+  margin: 0 auto;
   width: 100%;
 }
 
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* Header */
 .page-header {
-  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  color: var(--color-muted, #64748b);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
-  transition: color 150ms ease;
   align-self: flex-start;
-}
-
-.back-btn:hover {
-  color: #4f46e5;
 }
 
 .header-titles {
@@ -298,29 +286,28 @@ async function handleSubmit() {
 }
 
 .page-title {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--color-text, #0f172a);
+  letter-spacing: -0.5px;
   margin: 0;
-  letter-spacing: -0.3px;
 }
 
 .page-subtitle {
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--color-muted, #64748b);
   margin: 0;
 }
 
-/* Alerts */
+/* ── Alerts ── */
 .alert-banner {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 20px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 500;
 }
 
 .alert-banner--error {
@@ -335,33 +322,34 @@ async function handleSubmit() {
   color: #059669;
 }
 
-/* Form Container */
+/* ── Form Layout ── */
 .form-container {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-/* Form Card */
 .form-card {
   background: var(--color-surface, #ffffff);
   border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: var(--radius-card, 12px);
+  border-radius: var(--radius-card, 16px);
   padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
+  gap: 12px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--color-border, #e2e8f0);
 }
 
 .card-icon-badge {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -383,7 +371,7 @@ async function handleSubmit() {
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text, #0f172a);
-  margin: 0 0 2px 0;
+  margin: 0;
 }
 
 .card-subtitle {
@@ -392,75 +380,38 @@ async function handleSubmit() {
   margin: 0;
 }
 
-/* Grid & Inputs */
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
 .full-width {
   grid-column: 1 / -1;
 }
 
-.form-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text, #334155);
-}
-
-.required {
-  color: #dc2626;
-}
-
-.form-input,
-.form-textarea {
-  width: 100%;
-  padding: 10px 14px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #cbd5e1);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--color-text, #0f172a);
-  outline: none;
-  transition: all 150ms ease;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.form-input:focus,
-.form-textarea:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-/* Checkbox section */
+/* ── Notification Box ── */
 .notification-box {
-  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .checkbox-container {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  padding: 14px 16px;
+  background: var(--color-surface-lighter, #f8fafc);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 12px;
   cursor: pointer;
-  user-select: none;
 }
 
 .custom-checkbox {
   width: 18px;
   height: 18px;
+  border-radius: 4px;
   margin-top: 2px;
   cursor: pointer;
   accent-color: #4f46e5;
@@ -473,7 +424,7 @@ async function handleSubmit() {
 }
 
 .checkbox-title {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--color-text, #0f172a);
 }
@@ -483,64 +434,22 @@ async function handleSubmit() {
   color: var(--color-muted, #64748b);
 }
 
-.mt-4 {
-  margin-top: 16px;
-}
-
-/* Actions */
+/* ── Actions ── */
 .form-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 12px;
-  padding: 16px 0;
+  padding-top: 12px;
 }
 
-.btn-cancel {
-  padding: 10px 20px;
-  background: transparent;
-  border: 1px solid var(--color-border, #cbd5e1);
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-muted, #64748b);
-  cursor: pointer;
-  transition: all 150ms ease;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 150ms ease, transform 150ms ease;
 }
-
-.btn-cancel:hover {
-  background: #f1f5f9;
-  color: var(--color-text, #0f172a);
-}
-
-.btn-submit {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 24px;
-  background: #4f46e5;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.3);
-}
-
-.btn-submit:hover:not(:disabled) {
-  background: #4338ca;
-}
-
-.btn-submit:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-@media (max-width: 640px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>
