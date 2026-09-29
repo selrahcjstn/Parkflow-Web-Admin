@@ -329,7 +329,7 @@ const getRoleLabel = (role: string) => {
     </div>
 
     <!-- Vehicles Table Card -->
-    <div class="table-card p-0 overflow-hidden">
+    <div class="table-card p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
       <UiTable
         :columns="vehicleColumns"
         :data="paginatedVehicles"
@@ -592,6 +592,14 @@ const getRoleLabel = (role: string) => {
   font-size: 13px;
   outline: none;
   cursor: pointer;
+}
+
+.table-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 
 .toast-container {
