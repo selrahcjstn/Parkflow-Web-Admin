@@ -78,7 +78,9 @@ const fetchVehicles = async () => {
           isPrimary: Boolean(v.isPrimary),
           ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned'),
           ownerRole: v.ownerRole || 'Student',
-          verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : 1
+          verificationStatus: typeof v.verificationStatus === 'number'
+            ? v.verificationStatus
+            : (v.verificationStatus === 'Approved' || v.verificationStatus === 'Verified' ? 2 : v.verificationStatus === 'Rejected' ? 3 : 1)
         }
       })
       vehicles.value = mapped

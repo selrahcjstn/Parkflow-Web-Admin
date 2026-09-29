@@ -5,6 +5,7 @@ const props = defineProps<{
   variant?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral'
   size?: 'xs' | 'sm' | 'md'
   dot?: boolean
+  label?: string
 }>()
 
 const textClasses = {
@@ -44,6 +45,6 @@ const sizeClasses = {
       v-if="dot !== false"
       :class="['w-1.5 h-1.5 rounded-full flex-shrink-0', dotClasses[variant || 'neutral']]"
     />
-    <slot />
+    <slot>{{ label }}</slot>
   </span>
 </template>

@@ -44,16 +44,14 @@ function getVehicleTypeLabel(type: any): string {
 }
 
 function getVerificationLabel(status: any): string {
-  const n = typeof status === 'number' ? status : Number(status)
-  if (n === 2) return 'Approved'
-  if (n === 3) return 'Rejected'
+  if (status === 2 || status === '2' || status === 'Verified' || status === 'Approved') return 'Approved'
+  if (status === 3 || status === '3' || status === 'Rejected') return 'Rejected'
   return 'Pending'
 }
 
 function getVerificationColor(status: any): string {
-  const n = typeof status === 'number' ? status : Number(status)
-  if (n === 2) return '#059669'
-  if (n === 3) return '#dc2626'
+  if (status === 2 || status === '2' || status === 'Verified' || status === 'Approved') return '#059669'
+  if (status === 3 || status === '3' || status === 'Rejected') return '#dc2626'
   return '#d97706'
 }
 

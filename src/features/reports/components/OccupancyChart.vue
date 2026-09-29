@@ -29,7 +29,7 @@ const props = defineProps<{
         </p>
       </div>
       <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-[#D22730]"></span>
         <span>Capacity load %</span>
       </div>
     </div>
@@ -38,8 +38,8 @@ const props = defineProps<{
       <svg viewBox="0 0 600 240" class="w-full h-full overflow-visible">
         <defs>
           <linearGradient id="loadGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#ef4444" stop-opacity="0.3"/>
-            <stop offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+            <stop offset="0%" stop-color="#D22730" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#D22730" stop-opacity="0"/>
           </linearGradient>
         </defs>
         <!-- Grid Lines -->
@@ -57,10 +57,10 @@ const props = defineProps<{
 
         <!-- Dynamic Area & Line Paths -->
         <path :d="occupancySvgPath.areaD" fill="url(#loadGrad)" />
-        <path :d="occupancySvgPath.lineD" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round"/>
+        <path :d="occupancySvgPath.lineD" fill="none" stroke="#D22730" stroke-width="3" stroke-linecap="round"/>
 
         <!-- Dynamic Highlight Peak Point -->
-        <circle :cx="occupancySvgPath.peakX" :cy="occupancySvgPath.peakY" r="5" fill="#ef4444" stroke="#ffffff" stroke-width="2"/>
+        <circle :cx="occupancySvgPath.peakX" :cy="occupancySvgPath.peakY" r="5" fill="#D22730" stroke="#ffffff" stroke-width="2"/>
 
         <!-- X Axis labels -->
         <text x="90" y="222" class="text-[10px] fill-slate-400 dark:fill-slate-500 text-center" text-anchor="middle">06 AM</text>
