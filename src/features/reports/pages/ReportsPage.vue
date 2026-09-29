@@ -73,10 +73,11 @@ const lastSyncTime = ref<string>('Just now')
 const fetchReportsData = async () => {
   isLoading.value = true
   try {
-    const [violationsRes, vehiclesRes, logsRes, activeRes, settingsRes] = await Promise.allSettled([
+    const [violationsRes, vehiclesRes, historyLogsRes, allHistoryRes, activeRes, settingsRes] = await Promise.allSettled([
       api.get('/violations/history/page/1/1000'),
       api.get('/vehicles'),
       api.get('/parking-logs/history/page/1/1000'),
+      api.get('/parking-history/all/page/1/1000'),
       api.get('/parking-logs/active-sessions'),
       api.get('/system-settings')
     ])
@@ -90,12 +91,18 @@ const fetchReportsData = async () => {
       rawVehicles.value = Array.isArray(data) ? data : data.items || []
     }
 
-    if (logsRes.status === 'fulfilled' && logsRes.value.data?.isSuccess) {
-      rawParkingLogs.value = logsRes.value.data.data?.items || logsRes.value.data.data || []
-    }
+    // Historical Logs
+    const histData = historyLogsRes.status === 'fulfilled' && historyLogsRes.value.data?.isSuccess
+      ? (historyLogsRes.value.data.data?.items || historyLogsRes.value.data.data || [])
+      : (allHistoryRes.status === 'fulfilled' && allHistoryRes.value.data?.isSuccess
+          ? (allHistoryRes.value.data.data?.items || allHistoryRes.value.data.data || [])
+          : [])
+    rawParkingLogs.value = Array.isArray(histData) ? histData : []
 
+    // Active Sessions (including Overstays)
     if (activeRes.status === 'fulfilled' && activeRes.value.data?.isSuccess) {
-      activeSessions.value = activeRes.value.data.data?.activeSessions || activeRes.value.data.data || []
+      const data = activeRes.value.data.data
+      activeSessions.value = Array.isArray(data) ? data : (data?.activeSessions || data?.items || [])
     }
 
     if (settingsRes.status === 'fulfilled' && settingsRes.value.data?.isSuccess) {
@@ -157,6 +164,65 @@ const getVerificationStatus = (status: any): { label: string; variant: 'success'
   return { label: 'Pending', variant: 'warning' }
 }
 
+const formatEntryMethod = (method: any): string => {
+  if (method === 0 || method === '0' || method === 'QrCode' || method === 'QRCode') return 'QR Code'
+  if (method === 1 || method === '1' || method === 'Manual') return 'Manual Entry'
+  if (String(method).toLowerCase().includes('qr')) return 'QR Code'
+  if (String(method).toLowerCase().includes('manual')) return 'Manual Entry'
+  return 'QR Code'
+}
+
+const computeSessionDuration = (log: any): { text: string; hours: number } => {
+  // 1. If explicit duration is provided as number or string
+  let rawDuration = log.parkingDuration ?? log.totalParkingHours ?? log.duration
+
+  if (typeof rawDuration === 'string') {
+    const parsed = parseFloat(rawDuration)
+    if (!isNaN(parsed) && parsed > 0) {
+      rawDuration = parsed
+    }
+  }
+
+  // 2. Compute from EntryTime and ExitTime (or now if active)
+  if ((rawDuration === undefined || rawDuration === null || rawDuration === 0 || isNaN(Number(rawDuration))) && log.entryTime) {
+    const start = new Date(log.entryTime).getTime()
+    const end = log.exitTime ? new Date(log.exitTime).getTime() : Date.now()
+    if (!isNaN(start) && !isNaN(end) && end >= start) {
+      const diffMinutes = Math.max(1, Math.round((end - start) / (1000 * 60)))
+      const hrs = Math.floor(diffMinutes / 60)
+      const mins = diffMinutes % 60
+      const text = hrs > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`) : `${mins}m`
+      return { text, hours: diffMinutes / 60 }
+    }
+  }
+
+  if (typeof rawDuration === 'number' && rawDuration > 0) {
+    const totalMinutes = Math.max(1, Math.round(rawDuration * 60))
+    const hrs = Math.floor(totalMinutes / 60)
+    const mins = totalMinutes % 60
+    const text = hrs > 0 ? (mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`) : `${mins}m`
+    return { text, hours: rawDuration }
+  }
+
+  return { text: log.isActive ? 'Active' : '0m', hours: 0 }
+}
+
+const formatDuration = (totalHours: any, isActive: boolean = false): string => {
+  if (totalHours === undefined || totalHours === null || totalHours === '' || totalHours === 0 || totalHours === '0') {
+    return isActive ? 'Active' : '0m'
+  }
+  const h = typeof totalHours === 'number' ? totalHours : parseFloat(totalHours)
+  if (isNaN(h)) {
+    return String(totalHours)
+  }
+  const totalMinutes = Math.round(h * 60)
+  const hrs = Math.floor(totalMinutes / 60)
+  const mins = totalMinutes % 60
+  if (hrs > 0 && mins > 0) return `${hrs}h ${mins}m`
+  if (hrs > 0) return `${hrs}h`
+  return `${mins}m`
+}
+
 // Date Range Filter Checker
 const isWithinDateRange = (dateStr?: string) => {
   if (!dateStr || dateRange.value === 'all') return true
@@ -197,22 +263,81 @@ const matchesVehicleType = (typeVal: any) => {
   return true
 }
 
+// Combined Gate Activity (Active Sessions + Overstays + Historical Records)
+const allGateActivity = computed(() => {
+  const list: any[] = []
+
+  // 1. Active sessions (including overstays currently parked on campus)
+  activeSessions.value.forEach((s: any) => {
+    const isOverstay = Number(s.overstayHours) > 0 || String(s.status || '').toLowerCase().includes('overstay')
+    const dur = computeSessionDuration({ ...s, isActive: true })
+    list.push({
+      sessionId: s.sessionId || s.id || `active-${s.plateNumber || s.vehiclePlate}`,
+      plateNumber: s.plateNumber || s.vehiclePlate || 'N/A',
+      ownerName: (s.firstName && s.lastName) ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Guest Driver'),
+      role: s.role || 'Student',
+      vehicleType: s.vehicleType || s.type || 'Car',
+      brand: s.brand || '',
+      entryTime: s.entryTime || s.checkInTime || new Date().toISOString(),
+      exitTime: null,
+      duration: dur.text,
+      totalParkingHours: dur.hours,
+      overstayHours: s.overstayHours || 0,
+      entryMethod: formatEntryMethod(s.entryMethod),
+      status: isOverstay ? 'Overstay' : 'Active',
+      isActive: true,
+      isOverstay
+    })
+  })
+
+  // 2. Completed historical parking logs
+  rawParkingLogs.value.forEach((l: any) => {
+    const isOverstay = Number(l.overstayHours) > 0 || String(l.status || '').toLowerCase().includes('over') || Boolean(l.hasViolation)
+    const dur = computeSessionDuration({ ...l, isActive: false })
+    list.push({
+      sessionId: l.sessionId || l.id || `hist-${l.plateNumber}-${l.entryTime}`,
+      plateNumber: l.plateNumber || l.vehiclePlate || 'N/A',
+      ownerName: (l.firstName && l.lastName) ? `${l.firstName} ${l.lastName}` : (l.ownerName || 'Guest Driver'),
+      role: l.roleName || l.role || l.ownerRole || 'Student',
+      vehicleType: l.vehicleType || l.type || 'Car',
+      brand: l.brand || '',
+      entryTime: l.entryTime || l.checkInTime,
+      exitTime: l.exitTime || l.checkOutTime,
+      duration: dur.text,
+      totalParkingHours: dur.hours,
+      overstayHours: l.overstayHours || 0,
+      entryMethod: formatEntryMethod(l.entryMethod),
+      status: isOverstay ? 'Overdue' : (l.status || 'Completed'),
+      isActive: false,
+      isOverstay
+    })
+  })
+
+  return list
+})
+
 // Filtered Lists
 const filteredParkingLogs = computed(() => {
-  return rawParkingLogs.value.filter((log: any) => {
-    const dateMatch = isWithinDateRange(log.entryTime || log.createdAt)
+  return allGateActivity.value.filter((log: any) => {
+    const dateMatch = log.isActive || isWithinDateRange(log.entryTime || log.createdAt)
     const typeMatch = matchesVehicleType(log.vehicleType)
     
     // Sub-search
     const q = activitySearch.value.toLowerCase().trim()
-    const queryMatch = !q ||
-      (log.plateNumber && log.plateNumber.toLowerCase().includes(q)) ||
-      (log.ownerName && log.ownerName.toLowerCase().includes(q)) ||
-      (log.entryMethod && log.entryMethod.toLowerCase().includes(q))
+    const plate = (log.plateNumber || '').toLowerCase()
+    const driver = (log.ownerName || '').toLowerCase()
+    const method = (log.entryMethod || '').toLowerCase()
+    const queryMatch = !q || plate.includes(q) || driver.includes(q) || method.includes(q)
 
-    // Sub-status
-    const statusMatch = activityStatusFilter.value === 'all' ||
-      (log.status && log.status.toLowerCase() === activityStatusFilter.value.toLowerCase())
+    // Sub-status filter
+    let statusMatch = true
+    if (activityStatusFilter.value === 'active') {
+      statusMatch = log.isActive // Includes both active parked and active overstays!
+    } else if (activityStatusFilter.value === 'overstay') {
+      statusMatch = log.isOverstay // Includes any overstaying session
+    } else if (activityStatusFilter.value === 'completed') {
+      statusMatch = !log.isActive
+    }
 
     return dateMatch && typeMatch && queryMatch && statusMatch
   })
@@ -771,13 +896,14 @@ watch([dateRange, reportVehicleType, vehiclesSearch, vehiclesTypeFilter], () => 
               size="sm"
             />
           </div>
-          <div class="w-full sm:w-48">
+          <div class="w-full sm:w-56">
             <UiSelect
               v-model="activityStatusFilter"
               :options="[
                 { label: 'All Session Statuses', value: 'all' },
-                { label: 'Completed Sessions', value: 'completed' },
-                { label: 'Active Parked', value: 'active' }
+                { label: 'Active Parked', value: 'active' },
+                { label: 'Overstay / Exceeded', value: 'overstay' },
+                { label: 'Completed Sessions', value: 'completed' }
               ]"
               size="sm"
             />
@@ -806,18 +932,21 @@ watch([dateRange, reportVehicleType, vehiclesSearch, vehiclesTypeFilter], () => 
             <span class="text-xs text-slate-600 dark:text-slate-400">{{ item.exitTime ? formatDate(item.exitTime) : '—' }}</span>
           </template>
           <template #cell-duration="{ item }">
-            <span class="font-medium text-slate-700 dark:text-slate-300">
-              {{ item.totalParkingHours ? `${item.totalParkingHours}h` : item.exitTime ? 'Completed' : 'Parked' }}
+            <span
+              class="font-medium text-xs"
+              :class="item.isOverstay ? 'text-[#D22730] font-bold' : 'text-slate-700 dark:text-slate-300'"
+            >
+              {{ item.duration }}
             </span>
           </template>
           <template #cell-entryMethod="{ item }">
-            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">{{ item.entryMethod || 'RFID' }}</span>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">{{ formatEntryMethod(item.entryMethod) }}</span>
           </template>
           <template #cell-status="{ item }">
             <UiStatusText
-              :variant="item.status === 'Completed' || item.exitTime ? 'success' : 'info'"
+              :variant="item.isOverstay ? 'danger' : item.isActive ? 'info' : 'success'"
             >
-              {{ item.status === 'Completed' || item.exitTime ? 'Completed' : 'Active Parked' }}
+              {{ item.isOverstay ? (item.isActive ? 'Overstay' : 'Overdue Exit') : item.isActive ? 'Active Parked' : 'Completed' }}
             </UiStatusText>
           </template>
         </UiTable>
