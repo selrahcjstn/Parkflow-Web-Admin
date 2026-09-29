@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { FeedbackItem, FeedbackStatus } from '../types'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import api from '@/api/axios'
@@ -170,6 +171,19 @@ const filteredFeedbacks = computed(() => {
     }
     return true
   })
+})
+
+// Pagination State
+const currentPage = ref(1)
+const itemsPerPage = ref(10)
+
+watch([searchQuery, selectedCategory, selectedStatus, selectedRating], () => {
+  currentPage.value = 1
+})
+
+const paginatedFeedbacks = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  return filteredFeedbacks.value.slice(start, start + itemsPerPage.value)
 })
 
 // Open Inspection Modal
@@ -505,7 +519,7 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
     <div class="table-card p-0 overflow-hidden">
       <UiTable
         :columns="feedColumns"
-        :data="filteredFeedbacks"
+        :data="paginatedFeedbacks"
         :is-loading="isLoading"
         :loading-rows="6"
         empty-text="No user feedback matches your current search and filter criteria."
@@ -573,6 +587,12 @@ const getStatusBadgeClass = (status?: FeedbackStatus) => {
           </button>
         </template>
       </UiTable>
+
+      <TablePagination
+        v-model:current-page="currentPage"
+        v-model:items-per-page="itemsPerPage"
+        :total-items="filteredFeedbacks.length"
+      />
     </div>
 
     <!-- Inspection & Reply / Invoice Modal -->
