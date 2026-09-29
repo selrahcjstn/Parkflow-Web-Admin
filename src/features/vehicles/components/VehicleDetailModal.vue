@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import type { Vehicle } from '../types'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const props = defineProps<{
   vehicle: Vehicle | null
@@ -11,26 +10,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'togglePrimary', id: string): void
-  (e: 'toggleStatus', id: string): void
 }>()
-
-const isSuspendConfirmOpen = ref(false)
-
-const handleToggleStatusClick = () => {
-  if (!props.vehicle) return
-  if (props.vehicle.status === 'Active') {
-    isSuspendConfirmOpen.value = true
-  } else {
-    emit('toggleStatus', props.vehicle.id)
-  }
-}
-
-const confirmSuspendVehicle = () => {
-  if (props.vehicle) {
-    emit('toggleStatus', props.vehicle.id)
-  }
-  isSuspendConfirmOpen.value = false
-}
 
 const getVehicleIcon = computed(() => {
   if (!props.vehicle) return 'Car'
@@ -49,119 +29,100 @@ const getRoleLabel = (role: string) => {
     <Transition name="fade">
       <div v-if="isOpen && vehicle" class="modal-backdrop" @click="emit('close')">
         <div class="modal-content" @click.stop>
-        <div class="modal-header">
-          <h3 class="modal-title">Vehicle details</h3>
-          <button class="close-btn" @click="emit('close')">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="modal-body">
-          <!-- Main Card Highlight -->
-          <div class="vehicle-banner" :class="'vehicle-banner--' + vehicle.status.toLowerCase()">
-            <div class="banner-icon">
-              <svg v-if="vehicle.vehicleType === 'Car'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="11" width="18" height="6" rx="2" />
-                <path d="M5 17h14" />
-                <circle cx="7" cy="17" r="2" />
-                <circle cx="17" cy="17" r="2" />
-                <path d="M6 11l1.5-4.5h9L18 11" />
+          <div class="modal-header">
+            <h3 class="modal-title">Vehicle details</h3>
+            <button class="close-btn" @click="emit('close')">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
-              <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="5" cy="18" r="3" />
-                <circle cx="19" cy="18" r="3" />
-                <path d="M12 18V8h4" />
-                <path d="M5 18h14" opacity="0.3" />
-              </svg>
-            </div>
-            <div class="banner-info">
-              <span class="plate-number monospace">{{ vehicle.plateNumber }}</span>
-              <span class="brand-model">{{ vehicle.brand }}</span>
-            </div>
-            <span class="status-indicator">{{ vehicle.status }}</span>
+            </button>
           </div>
 
-          <!-- General Details -->
-          <div class="info-section">
-            <h4 class="section-title">Registration properties</h4>
-            <div class="details-grid">
-              <div class="detail-item">
-                <span class="detail-label">Vehicle Type</span>
-                <span class="detail-value">{{ vehicle.vehicleType === 'ElectricBike' ? 'E-Bike' : vehicle.vehicleType }}</span>
+          <div class="modal-body">
+            <!-- Main Card Highlight -->
+            <div class="vehicle-banner vehicle-banner--active">
+              <div class="banner-icon">
+                <svg v-if="vehicle.vehicleType === 'Car'" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="6" rx="2" />
+                  <path d="M5 17h14" />
+                  <circle cx="7" cy="17" r="2" />
+                  <circle cx="17" cy="17" r="2" />
+                  <path d="M6 11l1.5-4.5h9L18 11" />
+                </svg>
+                <svg v-else width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="5" cy="18" r="3" />
+                  <circle cx="19" cy="18" r="3" />
+                  <path d="M12 18V8h4" />
+                  <path d="M5 18h14" opacity="0.3" />
+                </svg>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Primary Status</span>
-                <span class="detail-value">
-                  <span class="status-pill" :class="vehicle.isPrimary ? 'status-pill--primary' : 'status-pill--secondary'">
-                    {{ vehicle.isPrimary ? 'Primary' : 'Secondary' }}
+              <div class="banner-info">
+                <span class="plate-number monospace">{{ vehicle.plateNumber }}</span>
+                <span class="brand-model">{{ vehicle.brand }}</span>
+              </div>
+            </div>
+
+            <!-- General Details -->
+            <div class="info-section">
+              <h4 class="section-title">Registration properties</h4>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Vehicle Type</span>
+                  <span class="detail-value">{{ vehicle.vehicleType === 'ElectricBike' ? 'E-Bike' : vehicle.vehicleType }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Primary Status</span>
+                  <span class="detail-value">
+                    <span class="status-pill" :class="vehicle.isPrimary ? 'status-pill--primary' : 'status-pill--secondary'">
+                      {{ vehicle.isPrimary ? 'Primary' : 'Secondary' }}
+                    </span>
                   </span>
-                </span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">RFID/QR Code Hash</span>
-                <span class="detail-value monospace code-text">{{ vehicle.qrCodeHash || 'QR-NOT-GENERATED' }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">System Record ID</span>
-                <span class="detail-value monospace mini-id">{{ vehicle.id }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">QR Code Pass Hash</span>
+                  <span class="detail-value monospace code-text">{{ vehicle.qrCodeHash || 'QR-NOT-GENERATED' }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">System Record ID</span>
+                  <span class="detail-value monospace mini-id">{{ vehicle.id }}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Owner Details -->
-          <div class="info-section">
-            <h4 class="section-title">Owner Information</h4>
-            <div class="details-grid">
-              <div class="detail-item">
-                <span class="detail-label">Full Name</span>
-                <span class="detail-value">{{ vehicle.ownerName }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Classification</span>
-                <span class="detail-value">
-                  <span class="role-badge" :class="'role-badge--' + vehicle.ownerRole.toLowerCase()">
-                    {{ getRoleLabel(vehicle.ownerRole) }}
+            <!-- Owner Details -->
+            <div class="info-section">
+              <h4 class="section-title">Owner Information</h4>
+              <div class="details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">Full Name</span>
+                  <span class="detail-value">{{ vehicle.ownerName }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">Classification</span>
+                  <span class="detail-value">
+                    <span class="role-badge" :class="'role-badge--' + vehicle.ownerRole.toLowerCase()">
+                      {{ getRoleLabel(vehicle.ownerRole) }}
+                    </span>
                   </span>
-                </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="modal-footer">
-          <button
-            class="action-btn action-btn--secondary"
-            @click="handleToggleStatusClick"
-          >
-            {{ vehicle.status === 'Active' ? 'Suspend Vehicle' : 'Activate Vehicle' }}
-          </button>
-          <button
-            v-if="!vehicle.isPrimary"
-            class="action-btn action-btn--primary"
-            @click="emit('togglePrimary', vehicle.id)"
-          >
-            Set as Primary
-          </button>
-          <button class="action-btn action-btn--close" @click="emit('close')">Close</button>
+          <div class="modal-footer">
+            <button
+              v-if="!vehicle.isPrimary"
+              class="action-btn action-btn--primary"
+              @click="emit('togglePrimary', vehicle.id)"
+            >
+              Set as Primary
+            </button>
+            <button class="action-btn action-btn--close" @click="emit('close')">Close</button>
+          </div>
         </div>
       </div>
-    </div>
-  </Transition>
-</Teleport>
-
-<!-- Suspend Vehicle Confirmation Modal -->
-<ConfirmModal
-  :is-open="isSuspendConfirmOpen"
-  title="Suspend Vehicle Clearance"
-  :message="`Are you sure you want to suspend clearance for vehicle <strong>${vehicle?.plateNumber || ''}</strong> (${vehicle?.brand || ''})?`"
-  confirm-text="Suspend Vehicle"
-  cancel-text="Cancel"
-  variant="warning"
-  @confirm="confirmSuspendVehicle"
-  @close="isSuspendConfirmOpen = false"
-/>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -246,11 +207,6 @@ const getRoleLabel = (role: string) => {
   color: var(--color-success);
 }
 
-.vehicle-banner--suspended {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--color-danger);
-}
-
 .banner-icon {
   width: 46px;
   height: 46px;
@@ -280,16 +236,6 @@ const getRoleLabel = (role: string) => {
   font-size: 13px;
   color: var(--color-muted);
   margin-top: 2px;
-}
-
-.status-indicator {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: 12px;
-  background: currentColor;
-  color: var(--color-surface);
 }
 
 .info-section {
@@ -417,16 +363,6 @@ const getRoleLabel = (role: string) => {
 
 .action-btn--primary:hover {
   background: var(--color-primary-dark);
-}
-
-.action-btn--secondary {
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-}
-
-.action-btn--secondary:hover {
-  background: var(--color-surface-lighter);
 }
 
 .action-btn--close {

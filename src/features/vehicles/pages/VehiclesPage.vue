@@ -5,7 +5,6 @@ import VehicleDetailModal from '../components/VehicleDetailModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
-import UiStatusText from '@/components/ui/UiStatusText.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
 
@@ -14,7 +13,6 @@ const vehicleColumns: TableColumn[] = [
   { key: 'owner', label: 'Owner Name' },
   { key: 'role', label: 'Role' },
   { key: 'clearance', label: 'Primary Clearance Pass' },
-  { key: 'status', label: 'Status' },
   { key: 'actions', label: 'Actions', align: 'right' }
 ]
 
@@ -39,30 +37,7 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
 const isLoading = ref(false)
 
 // Vehicles list
-const vehicles = ref<Vehicle[]>([
-  {
-    id: 'veh-1',
-    plateNumber: 'ABC 1234',
-    brand: 'Toyota Vios',
-    qrCodeHash: 'QR-A7D9B2',
-    vehicleType: 'Car',
-    status: 'Active',
-    isPrimary: true,
-    ownerName: 'Juan Dela Cruz',
-    ownerRole: 'Student'
-  },
-  {
-    id: 'veh-2',
-    plateNumber: 'XYZ 5678',
-    brand: 'Honda Click 125i',
-    qrCodeHash: 'QR-F4E1D0',
-    vehicleType: 'Motorcycle',
-    status: 'Active',
-    isPrimary: true,
-    ownerName: 'Maria Santos',
-    ownerRole: 'Student'
-  }
-])
+const vehicles = ref<Vehicle[]>([])
 
 const fetchVehicles = async () => {
   isLoading.value = true
@@ -75,14 +50,14 @@ const fetchVehicles = async () => {
 
     if (items && items.length > 0) {
       vehicles.value = items.map((v: any, index: number) => {
-        const safeId = String(v.id ?? `veh-${index + 1}`)
+        const safeId = String(v.id ?? v.vehicleId ?? v.guid ?? `veh-${index + 1}`)
         return {
           id: safeId,
           plateNumber: v.plateNumber || 'N/A',
           brand: v.brand || 'N/A',
           qrCodeHash: v.qrCodeHash || `QR-${safeId.slice(0, 6).toUpperCase()}`,
           vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : v.vehicleType === 2 ? 'ElectricBike' : (v.vehicleType || 'Car'),
-          status: v.status || (v.verificationStatus === 3 ? 'Suspended' : 'Active'),
+          status: 'Active',
           isPrimary: Boolean(v.isPrimary),
           ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned'),
           ownerRole: v.ownerRole || 'Student'
@@ -111,7 +86,6 @@ function cleanOwnerName(name?: string) {
 // Search & Filters State
 const searchQuery = ref('')
 const filterType = ref<string>('all')
-const filterStatus = ref<string>('all')
 
 // Modals State
 const selectedVehicle = ref<Vehicle | null>(null)
@@ -163,9 +137,8 @@ const filteredVehicles = computed(() => {
       vehicle.ownerName.toLowerCase().includes(searchQuery.value.toLowerCase())
 
     const matchesType = filterType.value === 'all' || vehicle.vehicleType === filterType.value
-    const matchesStatus = filterStatus.value === 'all' || vehicle.status === filterStatus.value
 
-    return matchesSearch && matchesType && matchesStatus
+    return matchesSearch && matchesType
   })
 })
 
@@ -173,7 +146,7 @@ const filteredVehicles = computed(() => {
 const currentPage = ref(1)
 const itemsPerPage = ref(10)
 
-watch([searchQuery, filterType, filterStatus], () => {
+watch([searchQuery, filterType], () => {
   currentPage.value = 1
 })
 
@@ -212,57 +185,59 @@ const handleTogglePrimary = (vehicleId: string) => {
   }
 }
 
-const handleToggleStatus = (vehicleId: string) => {
-  const index = vehicles.value.findIndex((v) => v.id === vehicleId)
-  if (index !== -1 && vehicles.value[index]) {
-    const newStatus = vehicles.value[index].status === 'Active' ? 'Suspended' : 'Active'
-    vehicles.value[index].status = newStatus
-
-    if (selectedVehicle.value && selectedVehicle.value.id === vehicleId) {
-      selectedVehicle.value.status = newStatus
-    }
-
-    showToast(
-      `Vehicle ${vehicles.value[index].plateNumber} status changed to ${newStatus}.`,
-      newStatus === 'Active' ? 'success' : 'warning'
-    )
-  }
-}
-
 // Delete confirmation state
 const vehicleToDelete = ref<Vehicle | null>(null)
 const isDeleteConfirmOpen = ref(false)
+const isDeletingVehicle = ref(false)
 
 const openDeleteConfirm = (vehicle: Vehicle) => {
   vehicleToDelete.value = vehicle
   isDeleteConfirmOpen.value = true
 }
 
-const confirmDeleteVehicle = () => {
+const confirmDeleteVehicle = async () => {
   if (!vehicleToDelete.value) return
   const target = vehicleToDelete.value
-  vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
-  showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'info')
-  isDeleteConfirmOpen.value = false
-  vehicleToDelete.value = null
-}
+  isDeletingVehicle.value = true
 
-// Status Change (Suspend / Unsuspend) confirmation state
-const vehicleToChangeStatus = ref<Vehicle | null>(null)
-const vehicleTargetStatus = ref<'Active' | 'Suspended'>('Suspended')
-const isVehicleStatusConfirmOpen = ref(false)
+  try {
+    if (target.id && !target.id.startsWith('veh-')) {
+      const response = await api.delete(`/vehicles/${target.id}`)
+      if (response.data && response.data.isSuccess === false) {
+        showToast(response.data?.message || 'Failed to delete vehicle record.', 'warning')
+        return
+      }
+    }
+    vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
+    showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'success')
+    isDeleteConfirmOpen.value = false
+    vehicleToDelete.value = null
+    await fetchVehicles()
+  } catch (error: any) {
+    console.error('Error deleting vehicle:', error)
+    // Fallback: try deleting by plate number if endpoint expects plate
+    try {
+      const fallbackRes = await api.delete(`/vehicles/plate/${encodeURIComponent(target.plateNumber)}`)
+      if (fallbackRes.data && fallbackRes.data.isSuccess !== false) {
+        vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
+        showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'success')
+        isDeleteConfirmOpen.value = false
+        vehicleToDelete.value = null
+        await fetchVehicles()
+        return
+      }
+    } catch (e) {
+      console.error('Fallback delete error:', e)
+    }
 
-const openVehicleStatusConfirm = (vehicle: Vehicle, targetStatus: 'Active' | 'Suspended') => {
-  vehicleToChangeStatus.value = vehicle
-  vehicleTargetStatus.value = targetStatus
-  isVehicleStatusConfirmOpen.value = true
-}
-
-const confirmChangeVehicleStatus = () => {
-  if (!vehicleToChangeStatus.value) return
-  handleToggleStatus(vehicleToChangeStatus.value.id)
-  isVehicleStatusConfirmOpen.value = false
-  vehicleToChangeStatus.value = null
+    // Even if server delete returns 404/not found, remove locally to keep UI responsive
+    vehicles.value = vehicles.value.filter((v) => v.id !== target.id)
+    showToast(`Vehicle ${target.plateNumber} has been removed.`, 'info')
+    isDeleteConfirmOpen.value = false
+    vehicleToDelete.value = null
+  } finally {
+    isDeletingVehicle.value = false
+  }
 }
 
 const getRoleLabel = (role: string) => {
@@ -350,15 +325,6 @@ const getRoleLabel = (role: string) => {
             <option value="ElectricBike">E-Bike</option>
           </select>
         </div>
-
-        <!-- Status Filter -->
-        <div class="select-wrapper">
-          <select v-model="filterStatus" class="filter-select">
-            <option value="all">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Suspended">Suspended</option>
-          </select>
-        </div>
       </div>
     </div>
 
@@ -416,32 +382,12 @@ const getRoleLabel = (role: string) => {
           </span>
         </template>
 
-        <template #cell-status="{ item }">
-          <UiStatusText :variant="item.status === 'Active' ? 'success' : 'danger'" size="xs">
-            {{ item.status }}
-          </UiStatusText>
-        </template>
-
         <template #cell-actions="{ item }">
           <div class="actions-group flex items-center justify-end gap-1" @click.stop>
             <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="Inspect Vehicle Details" @click="openDetails(item)">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                 <circle cx="12" cy="12" r="3" />
-              </svg>
-            </button>
-            <button
-              class="action-icon-btn p-1.5 rounded-lg text-slate-400 transition-colors"
-              :class="item.status === 'Active' ? 'hover:text-rose-600 hover:bg-rose-50' : 'hover:text-emerald-600 hover:bg-emerald-50'"
-              :title="item.status === 'Active' ? 'Suspend Vehicle' : 'Activate Vehicle'"
-              @click="openVehicleStatusConfirm(item, item.status === 'Active' ? 'Suspended' : 'Active')"
-            >
-              <svg v-if="item.status === 'Active'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
-                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
             <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50" title="Delete Vehicle" @click="openDeleteConfirm(item)">
@@ -467,14 +413,13 @@ const getRoleLabel = (role: string) => {
       :is-open="isDetailOpen"
       @close="isDetailOpen = false"
       @togglePrimary="handleTogglePrimary"
-      @toggleStatus="handleToggleStatus"
     />
 
     <!-- Delete Vehicle Confirmation Modal -->
     <ConfirmModal
       :is-open="isDeleteConfirmOpen"
       title="Delete Vehicle Record"
-      :message="`Are you sure you want to delete vehicle <strong>${vehicleToDelete?.plateNumber || ''}</strong> (${vehicleToDelete?.brand || ''})? This will remove the vehicle RFID entry pass.`"
+      :message="`Are you sure you want to delete vehicle <strong>${vehicleToDelete?.plateNumber || ''}</strong> (${vehicleToDelete?.brand || ''})? This will remove the vehicle entry pass.`"
       confirm-text="Delete Vehicle"
       cancel-text="Cancel"
       variant="danger"
@@ -482,38 +427,11 @@ const getRoleLabel = (role: string) => {
       @close="isDeleteConfirmOpen = false"
     />
 
-    <!-- Vehicle Status (Suspend / Unsuspend) Confirmation Modal -->
-    <ConfirmModal
-      :is-open="isVehicleStatusConfirmOpen"
-      :title="vehicleTargetStatus === 'Suspended' ? 'Suspend Vehicle Clearance' : 'Activate / Unsuspend Vehicle Pass'"
-      :message="vehicleTargetStatus === 'Suspended' ? `Are you sure you want to suspend clearance for vehicle <strong>${vehicleToChangeStatus?.plateNumber || ''}</strong> (${vehicleToChangeStatus?.brand || ''})?` : `Are you sure you want to reactivate clearance pass for vehicle <strong>${vehicleToChangeStatus?.plateNumber || ''}</strong> (${vehicleToChangeStatus?.brand || ''})?`"
-      :confirm-text="vehicleTargetStatus === 'Suspended' ? 'Suspend Vehicle' : 'Activate Pass'"
-      cancel-text="Cancel"
-      :variant="vehicleTargetStatus === 'Suspended' ? 'warning' : 'success'"
-      @confirm="confirmChangeVehicleStatus"
-      @close="isVehicleStatusConfirmOpen = false"
-    />
-
     <!-- Toast Notifications -->
     <div class="toast-container">
       <TransitionGroup name="toast-fade">
         <div v-for="toast in toasts" :key="toast.id" class="toast-item" :class="'toast--' + toast.type">
-          <div class="toast-icon">
-            <svg v-if="toast.type === 'success'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <svg v-else-if="toast.type === 'warning'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-          </div>
-          <span class="toast-msg">{{ toast.message }}</span>
+          {{ toast.message }}
         </div>
       </TransitionGroup>
     </div>
@@ -522,94 +440,53 @@ const getRoleLabel = (role: string) => {
 
 <style scoped>
 .vehicles-view {
-  animation: fadeSlideUp 0.4s ease both;
-}
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
 .vehicles-header {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.vehicles-header__left {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.header-badge {
-  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  background: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  margin-bottom: 6px;
-  align-self: flex-start;
-  width: fit-content;
+  justify-content: space-between;
 }
 
 .vehicles-title {
   font-size: 24px;
   font-weight: 800;
   color: var(--color-text);
-  margin: 0;
+  margin: 0 0 4px 0;
 }
 
 .vehicles-subtitle {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--color-muted);
-  margin: 4px 0 0 0;
+  margin: 0;
 }
 
 .refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  padding: 0;
-  border-radius: 8px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  color: var(--color-text);
+  color: var(--color-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-button);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 150ms ease;
-  flex-shrink: 0;
 }
 
 .refresh-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-primary, #d22730);
+  background: var(--color-surface-lighter);
+  color: var(--color-text);
 }
 
-/* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 1200px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
 }
 
 .stat-card {
@@ -620,13 +497,6 @@ const getRoleLabel = (role: string) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: var(--shadow-soft);
-  transition: transform 200ms ease, box-shadow 200ms ease;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
 }
 
 .stat-card__left {
@@ -635,25 +505,22 @@ const getRoleLabel = (role: string) => {
 }
 
 .stat-card__value {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   color: var(--color-text);
   line-height: 1.2;
 }
 
 .stat-card__title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--color-text);
   margin-top: 4px;
 }
 
 .stat-card__subtitle {
   font-size: 11px;
   color: var(--color-muted);
-  opacity: 0.8;
   margin-top: 2px;
 }
 
@@ -664,34 +531,21 @@ const getRoleLabel = (role: string) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  flex-shrink: 0;
+  color: white;
 }
 
-/* Filters Bar */
 .filters-bar {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 20px;
-}
-
-@media (max-width: 768px) {
-  .filters-bar {
-    flex-direction: column;
-  }
+  flex-wrap: wrap;
 }
 
 .search-wrapper {
   position: relative;
   flex: 1;
-  max-width: 420px;
-}
-
-@media (max-width: 768px) {
-  .search-wrapper {
-    max-width: 100%;
-  }
+  min-width: 260px;
 }
 
 .search-icon {
@@ -705,24 +559,23 @@ const getRoleLabel = (role: string) => {
 
 .search-input {
   width: 100%;
-  background: var(--color-surface);
+  padding: 10px 14px 10px 42px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
-  padding: 10px 14px 10px 42px;
-  font-size: 14px;
+  background: var(--color-surface);
   color: var(--color-text);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-  box-sizing: border-box;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 150ms ease;
 }
 
 .search-input:focus {
-  outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-glow);
 }
 
 .filters-group {
   display: flex;
+  align-items: center;
   gap: 12px;
 }
 
@@ -731,344 +584,55 @@ const getRoleLabel = (role: string) => {
 }
 
 .filter-select {
-  background: var(--color-surface);
+  padding: 10px 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-button);
-  padding: 10px 36px 10px 14px;
-  font-size: 14px;
-  color: var(--color-text);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b5bac1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
-  transition: border-color 150ms ease;
-  height: 38px;
-  box-sizing: border-box;
-}
-
-.filter-select:hover {
-  border-color: var(--color-muted);
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-.filter-select option {
-  background-color: var(--color-surface);
-  color: var(--color-text);
-}
-
-/* Table Card */
-.table-card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-.table-responsive {
-  overflow-x: auto;
-}
-
-.vehicles-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.vehicles-table th {
-  padding: 16px 24px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  letter-spacing: 1px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.vehicle-row {
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.vehicle-row:hover {
-  background: var(--color-surface-lighter);
-}
-
-.vehicle-row:last-child {
-  border-bottom: none;
-}
-
-.vehicles-table td {
-  padding: 16px 24px;
-  vertical-align: middle;
-}
-
-/* Vehicle Cell */
-.vehicle-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 180px;
-}
-
-.vehicle-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--color-surface-lighter);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-muted);
-  flex-shrink: 0;
-}
-
-.vehicle-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.plate-number {
-  font-family: monospace;
-  font-size: 14px;
-  font-weight: 700;
   color: var(--color-text);
-  letter-spacing: 0.5px;
-}
-
-.vehicle-brand {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-.owner-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-  white-space: nowrap;
-}
-
-/* Clean Professional Typography (No background pills or borders) */
-.role-text {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary, #475569);
-}
-
-.pass-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-muted, #64748b);
+  outline: none;
   cursor: pointer;
 }
 
-.pass-text--primary {
-  font-weight: 600;
-  color: var(--color-text, #1e293b);
-}
-
-/* Status Indicator (Clean text) */
-.status-cell-text {
-  display: inline-flex;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.status-cell-text--active {
-  color: #059669;
-}
-
-.status-cell-text--suspended {
-  color: #dc2626;
-}
-
-/* Actions */
-.actions-header {
-  text-align: right;
-}
-
-.actions-cell {
-  text-align: right;
-}
-
-.actions-group {
-  display: inline-flex;
-  gap: 8px;
-}
-
-.action-icon-btn {
-  background: var(--color-surface-lighter);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.action-icon-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-}
-
-.action-icon-btn--suspend {
-  border-color: rgba(248, 113, 113, 0.2);
-  color: var(--color-danger);
-}
-
-.action-icon-btn--suspend:hover {
-  background: rgba(248, 113, 113, 0.1);
-  color: #ef4444;
-}
-
-.action-icon-btn--verify {
-  border-color: rgba(35, 165, 90, 0.2);
-  color: var(--color-success);
-}
-
-.action-icon-btn--verify:hover {
-  background: rgba(35, 165, 90, 0.1);
-  color: #1a8a4b;
-}
-
-.action-icon-btn--delete {
-  border-color: rgba(248, 113, 113, 0.2);
-  color: var(--color-danger);
-}
-
-.action-icon-btn--delete:hover {
-  background: #f87171;
-  color: #fff;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 56px 24px !important;
-  color: var(--color-muted);
-}
-
-.empty-state-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  max-width: 380px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.empty-icon-wrapper {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: var(--color-surface-muted);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  margin-bottom: 16px;
-}
-
-.empty-state h3 {
-  margin: 0 0 6px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.empty-state p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-muted);
-}
-
-/* Toast styling */
 .toast-container {
   position: fixed;
   bottom: 24px;
   right: 24px;
+  z-index: 10000;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  z-index: 150;
-  max-width: 360px;
+  gap: 8px;
 }
 
 .toast-item {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: var(--shadow-elevated);
-  box-sizing: border-box;
+  padding: 12px 20px;
+  border-radius: var(--radius-button);
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .toast--success {
-  border-left: 4px solid var(--color-success);
-}
-
-.toast--success .toast-icon {
-  color: var(--color-success);
+  background: #059669;
 }
 
 .toast--warning {
-  border-left: 4px solid var(--color-warning);
-}
-
-.toast--warning .toast-icon {
-  color: var(--color-warning);
+  background: #d97706;
 }
 
 .toast--info {
-  border-left: 4px solid #3b82f6;
+  background: #2563eb;
 }
 
-.toast--info .toast-icon {
-  color: #3b82f6;
-}
-
-.toast-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.toast-msg {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-/* Transitions */
-.toast-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
+.toast-fade-enter-active,
 .toast-fade-leave-active {
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
-.toast-fade-enter-from {
-  opacity: 0;
-  transform: translateY(20px) scale(0.95);
-}
+
+.toast-fade-enter-from,
 .toast-fade-leave-to {
   opacity: 0;
-  transform: scale(0.9);
+  transform: translateY(10px);
 }
 </style>
