@@ -2,11 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
-import UiCard from '@/components/ui/UiCard.vue'
-import UiInput from '@/components/ui/UiInput.vue'
-import UiSelect from '@/components/ui/UiSelect.vue'
+import StaffRoleSelectorCard from '../components/StaffRoleSelectorCard.vue'
+import StaffPersonalInfoCard from '../components/StaffPersonalInfoCard.vue'
+import StaffAssignmentCard from '../components/StaffAssignmentCard.vue'
+import EmailOtpModal from '../components/EmailOtpModal.vue'
+import StaffConfirmModal from '../components/StaffConfirmModal.vue'
+import StaffSuccessModal from '../components/StaffSuccessModal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
-import UiModal from '@/components/ui/UiModal.vue'
 
 const router = useRouter()
 
@@ -22,7 +24,7 @@ const form = ref({
   middleName: '',
   email: '',
   password: 'Password123!',
-  phoneNumber: '09171234567',
+  phoneNumber: '',
   assignedGate: 1,
   roleLevel: 2
 })
@@ -33,7 +35,6 @@ function checkUserRole() {
 
   if (storedEmail.includes('superadmin') || storedEmail === 'superadmin@parkflow.com' || !storedEmail) {
     isSuperAdmin.value = true
-    otpSentEmail.value = storedEmail || 'superadmin@parkflow.com'
   } else {
     isSuperAdmin.value = false
     router.replace('/dashboard')
@@ -44,157 +45,278 @@ onMounted(() => {
   checkUserRole()
 })
 
-function toggleAdminRole(role: AccountType) {
-  if (role === 'Admin' && !isSuperAdmin.value) {
-    showNotification('Admin account creation is restricted to the SuperAdmin user.', 'error')
-    return
-  }
-  form.value.accountType = role
-}
+const isSubmitting = ref(false)
+const errorMessage = ref<string | null>(null)
+const successModalVisible = ref(false)
+const confirmModalVisible = ref(false)
+const registeredUserEmail = ref('')
 
+// Field specific validation errors
+const emailFieldError = ref<string | null>(null)
+const phoneFieldError = ref<string | null>(null)
+
+// Email OTP verification state
+const isEmailVerified = ref(false)
+const verifiedEmail = ref('')
 const isSendingOtp = ref(false)
 const isVerifyingOtp = ref(false)
-const isSubmitting = ref(false)
-
-const showOtpModal = ref(false)
-const otpCode = ref('')
+const otpModalVisible = ref(false)
 const otpError = ref<string | null>(null)
-const otpSentEmail = ref('superadmin@parkflow.com')
+const resendCountdown = ref(0)
+let resendTimer: any = null
 
-const toastMessage = ref<string | null>(null)
-const toastType = ref<'success' | 'error'>('success')
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
 
-function showNotification(msg: string, type: 'success' | 'error' = 'success') {
-  toastMessage.value = msg
-  toastType.value = type
-  setTimeout(() => {
-    toastMessage.value = null
-  }, 4000)
+const onEmailInput = () => {
+  emailFieldError.value = null
+  if (form.value.email.trim().toLowerCase() !== verifiedEmail.value.toLowerCase()) {
+    isEmailVerified.value = false
+  }
 }
 
-const gateOptions = [
-  { label: 'Gate 1 - Main Campus Entrance', value: 1 },
-  { label: 'Gate 2 - East Campus Entrance', value: 2 },
-  { label: 'Gate 3 - South Gate Entrance', value: 3 }
-]
+const onRoleRestricted = () => {
+  errorMessage.value = 'System Administrator account creation is restricted to SuperAdmin users.'
+}
 
-const roleLevelOptions = [
-  { label: 'System Administrator (Standard Admin)', value: 2 }
-]
+const startResendTimer = () => {
+  resendCountdown.value = 30
+  if (resendTimer) clearInterval(resendTimer)
+  resendTimer = setInterval(() => {
+    if (resendCountdown.value > 0) {
+      resendCountdown.value--
+    } else {
+      clearInterval(resendTimer)
+      resendTimer = null
+    }
+  }, 1000)
+}
 
-const handleInitiateSubmit = async () => {
-  if (!form.value.firstName || !form.value.lastName || !form.value.email) {
-    showNotification('Please fill out all required personal information fields.', 'error')
+const handleSendOtp = async (isResend = false) => {
+  emailFieldError.value = null
+  otpError.value = null
+  const email = form.value.email.trim()
+
+  if (!email) {
+    emailFieldError.value = 'Email address is required.'
+    return
+  }
+
+  if (!EMAIL_REGEX.test(email)) {
+    emailFieldError.value = 'Please enter a valid email address (e.g. name@domain.com).'
     return
   }
 
   isSendingOtp.value = true
-  otpError.value = null
-
   try {
+    // 1. Check if email is already in use
     try {
-      const checkRes = await api.get(`/auth/check-email?email=${encodeURIComponent(form.value.email.trim())}`)
+      const checkRes = await api.get(`/auth/check-email?email=${encodeURIComponent(email)}`)
       if (checkRes.data?.isSuccess === false || checkRes.data?.data === false) {
-        showNotification(checkRes.data?.message || 'This email address is already registered to an account.', 'error')
+        emailFieldError.value = checkRes.data?.message || 'This email address is already registered to an existing account. Please use a different email.'
         isSendingOtp.value = false
         return
       }
     } catch (checkErr: any) {
       if (checkErr.response?.status === 409 || checkErr.response?.data?.message?.toLowerCase().includes('already')) {
-        showNotification(checkErr.response?.data?.message || 'This email address is already registered to an account.', 'error')
+        emailFieldError.value = checkErr.response?.data?.message || 'This email address is already registered to an existing account. Please use a different email.'
         isSendingOtp.value = false
         return
       }
     }
 
-    const response = await api.post('/auth/send-email-otp', {
-      email: otpSentEmail.value
-    })
-
-    if (response.data?.isSuccess) {
-      showOtpModal.value = true
-      showNotification(`Security OTP code sent to ${otpSentEmail.value}`, 'success')
-    } else {
-      showOtpModal.value = true
-      showNotification(`OTP Code generated for ${otpSentEmail.value}`, 'success')
+    const otpRes = await api.post('/auth/send-email-otp', { email })
+    if (otpRes.data?.isSuccess === false) {
+      emailFieldError.value = otpRes.data?.message || 'Failed to dispatch verification code.'
+      isSendingOtp.value = false
+      return
     }
-  } catch (error: any) {
-    console.warn('Backend OTP notice:', error)
-    showOtpModal.value = true
-    showNotification(`Security OTP requested for ${otpSentEmail.value}`, 'success')
+
+    otpModalVisible.value = true
+    startResendTimer()
+  } catch (err: any) {
+    console.error('Error sending email OTP:', err)
+    const msg = err.response?.data?.message || 'Failed to dispatch verification code to this email address.'
+    emailFieldError.value = msg
+    if (isResend) {
+      otpError.value = msg
+    }
   } finally {
     isSendingOtp.value = false
   }
 }
 
-const handleVerifyOtpAndCreate = async () => {
-  if (!otpCode.value || otpCode.value.trim().length < 4) {
-    otpError.value = 'Please enter a valid 6-digit OTP code.'
+const handleVerifyOtp = async (code: string) => {
+  otpError.value = null
+  const email = form.value.email.trim()
+
+  if (code.length < 6) {
+    otpError.value = 'Please enter the complete 6-digit verification code.'
     return
   }
 
   isVerifyingOtp.value = true
+  try {
+    const res = await api.post('/auth/verify-email-otp', {
+      email,
+      otpCode: code,
+      purpose: 'Verification'
+    })
+
+    if (res.data?.isSuccess || res.status === 200) {
+      isEmailVerified.value = true
+      verifiedEmail.value = email
+      otpModalVisible.value = false
+      otpError.value = null
+      emailFieldError.value = null
+    } else {
+      otpError.value = res.data?.message || 'Invalid or expired verification code. Please check your inbox or request a new code.'
+    }
+  } catch (err: any) {
+    console.error('Error verifying email OTP:', err)
+    otpError.value = err.response?.data?.message || 'Verification failed. Please check the code and try again.'
+  } finally {
+    isVerifyingOtp.value = false
+  }
+}
+
+const resetFormAndContinue = () => {
+  form.value = {
+    accountType: 'Guard',
+    firstName: '',
+    lastName: '',
+    middleName: '',
+    email: '',
+    password: 'Password123!',
+    phoneNumber: '',
+    assignedGate: 1,
+    roleLevel: 2
+  }
+  isEmailVerified.value = false
+  verifiedEmail.value = ''
   otpError.value = null
+  confirmModalVisible.value = false
+  successModalVisible.value = false
+  errorMessage.value = null
+  emailFieldError.value = null
+  phoneFieldError.value = null
+}
+
+const goToAccountsList = () => {
+  successModalVisible.value = false
+  router.push({ path: '/users', query: { registered: 'true' } })
+}
+
+const handleInitialSubmit = () => {
+  errorMessage.value = null
+  emailFieldError.value = null
+  phoneFieldError.value = null
+
+  // 1. Personal Information Validation
+  if (!form.value.firstName.trim()) {
+    errorMessage.value = 'Please provide the staff First Name.'
+    return
+  }
+  if (!form.value.lastName.trim()) {
+    errorMessage.value = 'Please provide the staff Last Name.'
+    return
+  }
+
+  // 2. Email Validation & Verification
+  const email = form.value.email.trim()
+  if (!email) {
+    emailFieldError.value = 'Email address is required.'
+    errorMessage.value = 'Email address is required.'
+    return
+  }
+  if (!EMAIL_REGEX.test(email)) {
+    emailFieldError.value = 'Please enter a valid email address.'
+    errorMessage.value = 'Please enter a valid email address.'
+    return
+  }
+  if (!isEmailVerified.value || email.toLowerCase() !== verifiedEmail.value.toLowerCase()) {
+    emailFieldError.value = 'Email verification is required before registration.'
+    errorMessage.value = 'Email verification is required. Please verify that the email belongs to the user using the verification code.'
+    return
+  }
+
+  // 3. Phone Number Validation (digits only, exactly 11 digits starting with 09)
+  const phone = form.value.phoneNumber.trim()
+  if (!phone) {
+    phoneFieldError.value = 'Phone number is required.'
+    errorMessage.value = 'Phone number is required.'
+    return
+  }
+  if (!/^09\d{9}$/.test(phone)) {
+    phoneFieldError.value = 'Please enter a valid 11-digit phone number starting with 09 (e.g. 09171234567).'
+    errorMessage.value = 'Please enter a valid 11-digit phone number starting with 09 (e.g. 09171234567).'
+    return
+  }
+
+  // 4. Role Authorization Check
+  if (form.value.accountType === 'Admin' && !isSuperAdmin.value) {
+    errorMessage.value = 'Admin account creation is restricted to the SuperAdmin user.'
+    return
+  }
+
+  // All validations passed -> Open Confirmation Modal
+  confirmModalVisible.value = true
+}
+
+const executeRegistration = async () => {
+  isSubmitting.value = true
+  errorMessage.value = null
 
   try {
-    try {
-      await api.post('/auth/verify-email-otp', {
-        email: otpSentEmail.value,
-        otpCode: otpCode.value.trim(),
-        purpose: 'StaffCreation'
-      })
-    } catch {
-      // Fallback
-    }
-
-    isSubmitting.value = true
-
     if (form.value.accountType === 'Guard') {
       const guardPayload = {
         account: {
-          email: form.value.email,
+          email: form.value.email.trim(),
           password: form.value.password || undefined,
-          phoneNumber: form.value.phoneNumber
+          phoneNumber: form.value.phoneNumber.trim()
         },
         profile: {
-          firstName: form.value.firstName,
-          lastName: form.value.lastName,
-          middleName: form.value.middleName || undefined,
+          firstName: form.value.firstName.trim(),
+          lastName: form.value.lastName.trim(),
+          middleName: form.value.middleName?.trim() || undefined,
           assignedGateNumber: form.value.assignedGate
         }
       }
+
       const response = await api.post('/guards', guardPayload)
-      if (response.data?.isSuccess) {
-        showNotification('Campus Security Guard account registered successfully!', 'success')
-        showOtpModal.value = false
-        setTimeout(() => router.push('/users'), 1000)
+      if (response.data?.isSuccess || response.status === 200 || response.status === 201) {
+        confirmModalVisible.value = false
+        registeredUserEmail.value = form.value.email.trim()
+        successModalVisible.value = true
       } else {
-        otpError.value = response.data?.message || 'Failed to register guard.'
+        confirmModalVisible.value = false
+        errorMessage.value = response.data?.message || 'Failed to register campus guard account.'
       }
     } else {
       const adminPayload = {
-        email: form.value.email,
+        email: form.value.email.trim(),
         password: form.value.password || undefined,
-        firstName: form.value.firstName,
-        lastName: form.value.lastName,
-        middleName: form.value.middleName || undefined,
-        phoneNumber: form.value.phoneNumber,
+        firstName: form.value.firstName.trim(),
+        lastName: form.value.lastName.trim(),
+        middleName: form.value.middleName?.trim() || undefined,
+        phoneNumber: form.value.phoneNumber.trim(),
         roleLevel: form.value.roleLevel
       }
+
       const response = await api.post('/users/staff', adminPayload)
-      if (response.data?.isSuccess) {
-        showNotification('System Administrator account registered successfully!', 'success')
-        showOtpModal.value = false
-        setTimeout(() => router.push('/users'), 1000)
+      if (response.data?.isSuccess || response.status === 200 || response.status === 201) {
+        confirmModalVisible.value = false
+        registeredUserEmail.value = form.value.email.trim()
+        successModalVisible.value = true
       } else {
-        otpError.value = response.data?.message || 'Failed to register admin staff.'
+        confirmModalVisible.value = false
+        errorMessage.value = response.data?.message || 'Failed to register system administrator account.'
       }
     }
-  } catch (err: any) {
-    console.error('Account creation error:', err)
-    otpError.value = err.response?.data?.message || 'Verification failed. Please check your OTP code.'
+  } catch (error: any) {
+    console.error('API error during staff registration:', error)
+    confirmModalVisible.value = false
+    errorMessage.value = error.response?.data?.message || error.message || 'An error occurred while registering the staff account.'
   } finally {
-    isVerifyingOtp.value = false
     isSubmitting.value = false
   }
 }
@@ -202,206 +324,59 @@ const handleVerifyOtpAndCreate = async () => {
 
 <template>
   <div class="space-y-6 w-full">
-    <!-- Notification Toast -->
-    <Transition name="fade">
-      <div
-        v-if="toastMessage"
-        class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
-        :class="toastType === 'error' ? 'bg-rose-600' : 'bg-emerald-600'"
-      >
-        <span>{{ toastMessage }}</span>
+    <!-- Header Title -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">Register Staff / Admin Account</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-0">Provision an official campus security guard or system administrator profile for campus access and operations.</p>
       </div>
-    </Transition>
-
-    <!-- Header -->
-    <div>
-      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Register Staff Account</h1>
-      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-        Provision an official campus security guard or system administrator account.
-      </p>
     </div>
 
-    <form @submit.prevent="handleInitiateSubmit" class="space-y-6 w-full">
-      <!-- Card 1: Staff Account Role -->
-      <UiCard custom-class="p-6 space-y-5">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white">1. Staff Role & Privileges</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Select staff account type for system permissions</p>
-          </div>
-        </div>
+    <form @submit.prevent="handleInitialSubmit" class="space-y-6 w-full">
+      <div v-if="errorMessage" class="flex items-center gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm">
+        <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <span>{{ errorMessage }}</span>
+      </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div
-            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-            :class="form.accountType === 'Guard' ? 'border-blue-600 bg-blue-50/50 dark:bg-blue-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'"
-            @click="toggleAdminRole('Guard')"
-          >
-            <div class="flex items-center justify-between">
-              <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
-              </div>
-              <div
-                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-                :class="form.accountType === 'Guard' ? 'border-blue-600 bg-blue-600' : 'border-slate-300 dark:border-slate-600'"
-              >
-                <div v-if="form.accountType === 'Guard'" class="w-2 h-2 rounded-full bg-white"></div>
-              </div>
-            </div>
-            <div>
-              <h4 class="font-bold text-slate-900 dark:text-white text-xs">Campus Guard Account</h4>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Enables gate scanning, QR verification, and manual plate entry</p>
-            </div>
-          </div>
+      <!-- Card 1: Role Selection -->
+      <StaffRoleSelectorCard
+        v-model="form.accountType"
+        :is-super-admin="isSuperAdmin"
+        @restricted="onRoleRestricted"
+      />
 
-          <div
-            v-if="isSuperAdmin"
-            class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-            :class="form.accountType === 'Admin' ? 'border-purple-600 bg-purple-50/50 dark:bg-purple-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'"
-            @click="toggleAdminRole('Admin')"
-          >
-            <div class="flex items-center justify-between">
-              <div class="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              </div>
-              <div
-                class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-                :class="form.accountType === 'Admin' ? 'border-purple-600 bg-purple-600' : 'border-slate-300 dark:border-slate-600'"
-              >
-                <div v-if="form.accountType === 'Admin'" class="w-2 h-2 rounded-full bg-white"></div>
-              </div>
-            </div>
-            <div>
-              <h4 class="font-bold text-slate-900 dark:text-white text-xs">System Administrator</h4>
-              <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Full Web Admin management, user verification, and system settings</p>
-            </div>
-          </div>
-        </div>
-      </UiCard>
+      <!-- Card 2: Personal Information -->
+      <StaffPersonalInfoCard
+        v-model:first-name="form.firstName"
+        v-model:middle-name="form.middleName"
+        v-model:last-name="form.lastName"
+        v-model:email="form.email"
+        v-model:phone-number="form.phoneNumber"
+        :is-email-verified="isEmailVerified"
+        :is-sending-otp="isSendingOtp"
+        :email-error="emailFieldError"
+        :phone-error="phoneFieldError"
+        @send-otp="handleSendOtp(false)"
+        @email-input="onEmailInput"
+      />
 
-      <!-- Card 2: Personal & Contact Information -->
-      <UiCard custom-class="p-6 space-y-5">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white">2. Staff Credentials & Contact Details</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Official staff identity details and authentication credentials</p>
-          </div>
-        </div>
+      <!-- Card 3: Role Specific Deployment / Authority -->
+      <StaffAssignmentCard
+        :account-type="form.accountType"
+        v-model:assigned-gate="form.assignedGate"
+        v-model:role-level="form.roleLevel"
+      />
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">First Name <span class="text-rose-500">*</span></label>
-            <UiInput
-              v-model="form.firstName"
-              type="text"
-              placeholder="e.g. Ricardo"
-              size="md"
-              required
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Last Name <span class="text-rose-500">*</span></label>
-            <UiInput
-              v-model="form.lastName"
-              type="text"
-              placeholder="e.g. Santos"
-              size="md"
-              required
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Middle Name (Optional)</label>
-            <UiInput
-              v-model="form.middleName"
-              type="text"
-              placeholder="e.g. Alonzo"
-              size="md"
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Official Email Address <span class="text-rose-500">*</span></label>
-            <UiInput
-              v-model="form.email"
-              type="email"
-              placeholder="e.g. guard.santos@parkflow.com"
-              size="md"
-              required
-            />
-          </div>
-
-          <div>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Phone Number <span class="text-rose-500">*</span></label>
-            <UiInput
-              v-model="form.phoneNumber"
-              type="tel"
-              placeholder="09171234567"
-              size="md"
-              required
-            />
-          </div>
-        </div>
-      </UiCard>
-
-      <!-- Card 3: Role Specific Assignment -->
-      <UiCard custom-class="p-6 space-y-5">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 2 7 12 12 22 7 12 2" />
-              <polyline points="2 17 12 22 22 17" />
-              <polyline points="2 12 12 17 22 12" />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-slate-900 dark:text-white">3. {{ form.accountType === 'Guard' ? 'Guard Deployment Post' : 'Admin Authority Level' }}</h3>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Role-dependent assignment and clearance parameters</p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div v-if="form.accountType === 'Guard'">
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Assigned Gate Entrance <span class="text-rose-500">*</span></label>
-            <UiSelect
-              v-model="form.assignedGate"
-              :options="gateOptions"
-              size="md"
-            />
-          </div>
-
-          <div v-else>
-            <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">Admin Authority Level <span class="text-rose-500">*</span></label>
-            <UiSelect
-              v-model="form.roleLevel"
-              :options="roleLevelOptions"
-              size="md"
-            />
-          </div>
-        </div>
-      </UiCard>
-
-      <!-- Action Footer Toolbar -->
+      <!-- Action Toolbar -->
       <div class="flex items-center justify-end gap-3 pt-2">
         <UiButton
+          type="button"
           variant="secondary"
+          size="md"
           @click="router.push('/users')"
         >
           Cancel
@@ -409,74 +384,48 @@ const handleVerifyOtpAndCreate = async () => {
         <UiButton
           type="submit"
           variant="primary"
-          :loading="isSendingOtp"
+          size="md"
+          :loading="isSubmitting"
         >
-          Authorize & Register {{ form.accountType }}
+          <template #icon>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </template>
+          <span>Register Staff Account</span>
         </UiButton>
       </div>
     </form>
 
-    <!-- OTP Verification Modal using Reusable UiModal -->
-    <UiModal
-      :is-open="showOtpModal"
-      title="SuperAdmin OTP Verification"
-      size="sm"
-      @close="showOtpModal = false"
-    >
-      <div class="space-y-4">
-        <div class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-          A 6-digit Security OTP has been sent to <strong class="font-bold">{{ otpSentEmail }}</strong>. Enter the code below to authorize creating this <strong class="font-bold">{{ form.accountType }}</strong> account.
-        </div>
+    <!-- Email OTP Verification Modal -->
+    <EmailOtpModal
+      :is-open="otpModalVisible"
+      :email="form.email"
+      :is-verifying="isVerifyingOtp"
+      :is-sending-otp="isSendingOtp"
+      :resend-countdown="resendCountdown"
+      :error="otpError"
+      @close="otpModalVisible = false"
+      @verify="handleVerifyOtp"
+      @resend="handleSendOtp(true)"
+    />
 
-        <div v-if="otpError" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-xs">
-          {{ otpError }}
-        </div>
+    <!-- Registration Confirmation Modal -->
+    <StaffConfirmModal
+      :is-open="confirmModalVisible"
+      :is-submitting="isSubmitting"
+      :form="form"
+      @close="confirmModalVisible = false"
+      @confirm="executeRegistration"
+    />
 
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            6-Digit OTP Security Code <span class="text-rose-500">*</span>
-          </label>
-          <UiInput
-            v-model="otpCode"
-            type="text"
-            placeholder="123456"
-            size="lg"
-            custom-class="text-center font-mono text-lg tracking-widest"
-            :maxlength="6"
-            autofocus
-          />
-        </div>
-      </div>
-
-      <template #footer>
-        <div class="flex items-center justify-end gap-2">
-          <UiButton
-            variant="secondary"
-            @click="showOtpModal = false"
-          >
-            Cancel
-          </UiButton>
-          <UiButton
-            variant="primary"
-            :loading="isVerifyingOtp || isSubmitting"
-            @click="handleVerifyOtpAndCreate"
-          >
-            Verify OTP & Create Account
-          </UiButton>
-        </div>
-      </template>
-    </UiModal>
+    <!-- Success Registration Modal -->
+    <StaffSuccessModal
+      :is-open="successModalVisible"
+      :registered-email="registeredUserEmail"
+      :account-type="form.accountType"
+      @provision-another="resetFormAndContinue"
+      @go-to-list="goToAccountsList"
+    />
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-</style>
