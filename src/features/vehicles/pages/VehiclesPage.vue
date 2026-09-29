@@ -7,6 +7,7 @@ import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import api from '@/api/axios'
+import { cachedVehicleApprovals } from '@/stores/appCache'
 
 const vehicleColumns: TableColumn[] = [
   { key: 'vehicle', label: 'Plate Number' },
@@ -50,10 +51,13 @@ const fetchVehicles = async () => {
       : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
 
     if (items && items.length > 0) {
+      cachedVehicleApprovals.value = items
       vehicles.value = items.map((v: any, index: number) => {
-        const safeId = String(v.id ?? v.vehicleId ?? v.guid ?? `veh-${index + 1}`)
+        const rawId = v.id ?? v.vehicleId ?? v.guid ?? v.vehicleGuid
+        const safeId = rawId ? String(rawId) : `veh-${index + 1}`
         return {
           id: safeId,
+          rawId: rawId ? String(rawId) : undefined,
           plateNumber: v.plateNumber || 'N/A',
           brand: v.brand || 'N/A',
           qrCodeHash: v.qrCodeHash || `QR-${safeId.slice(0, 6).toUpperCase()}`,
@@ -199,17 +203,35 @@ const openDeleteConfirm = (vehicle: Vehicle) => {
 const confirmDeleteVehicle = async () => {
   if (!vehicleToDelete.value) return
   const target = vehicleToDelete.value
+  const targetRawId = (target as any).rawId || target.id
   isDeletingVehicle.value = true
 
-  // Immediately remove from local list for 0ms instant UI feedback
+  // 1. Immediately remove from local list for 0ms instant UI response
   vehicles.value = vehicles.value.filter((v) => v.id !== target.id && v.plateNumber !== target.plateNumber)
+  if (cachedVehicleApprovals.value && Array.isArray(cachedVehicleApprovals.value)) {
+    cachedVehicleApprovals.value = cachedVehicleApprovals.value.filter(
+      (v: any) => v.id !== target.id && v.id !== targetRawId && v.plateNumber !== target.plateNumber && v.guid !== target.id && v.guid !== targetRawId
+    )
+  }
   isDeleteConfirmOpen.value = false
 
   try {
     let deletedOnBackend = false
 
-    // Attempt 1: DELETE /vehicles/{id}
-    if (target.id) {
+    // Attempt 1: DELETE /vehicles/{targetRawId}
+    if (targetRawId && !targetRawId.startsWith('veh-')) {
+      try {
+        const res = await api.delete(`/vehicles/${targetRawId}`)
+        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
+          deletedOnBackend = true
+        }
+      } catch (e) {
+        console.warn('DELETE /vehicles/{rawId} endpoint note:', e)
+      }
+    }
+
+    // Attempt 2: DELETE /vehicles/{id}
+    if (!deletedOnBackend && target.id && !target.id.startsWith('veh-')) {
       try {
         const res = await api.delete(`/vehicles/${target.id}`)
         if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
@@ -220,7 +242,19 @@ const confirmDeleteVehicle = async () => {
       }
     }
 
-    // Attempt 2: DELETE /vehicles/plate/{plateNumber}
+    // Attempt 3: DELETE /vehicles?id={id}
+    if (!deletedOnBackend && targetRawId && !targetRawId.startsWith('veh-')) {
+      try {
+        const res = await api.delete(`/vehicles?id=${targetRawId}`)
+        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
+          deletedOnBackend = true
+        }
+      } catch (e) {
+        console.warn('DELETE /vehicles?id={id} endpoint note:', e)
+      }
+    }
+
+    // Attempt 4: DELETE /vehicles/plate/{plateNumber}
     if (!deletedOnBackend && target.plateNumber) {
       try {
         const res = await api.delete(`/vehicles/plate/${encodeURIComponent(target.plateNumber)}`)
@@ -232,7 +266,7 @@ const confirmDeleteVehicle = async () => {
       }
     }
 
-    // Attempt 3: DELETE /vehicles/{plateNumber}
+    // Attempt 5: DELETE /vehicles/{plateNumber}
     if (!deletedOnBackend && target.plateNumber) {
       try {
         const res = await api.delete(`/vehicles/${encodeURIComponent(target.plateNumber)}`)
@@ -241,6 +275,18 @@ const confirmDeleteVehicle = async () => {
         }
       } catch (e) {
         console.warn('DELETE /vehicles/{plate} endpoint note:', e)
+      }
+    }
+
+    // Attempt 6: POST /vehicles/delete/{id}
+    if (!deletedOnBackend && targetRawId && !targetRawId.startsWith('veh-')) {
+      try {
+        const res = await api.post(`/vehicles/delete/${targetRawId}`)
+        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
+          deletedOnBackend = true
+        }
+      } catch (e) {
+        console.warn('POST /vehicles/delete/{id} endpoint note:', e)
       }
     }
 
@@ -561,7 +607,8 @@ const getRoleLabel = (role: string) => {
 .search-wrapper {
   position: relative;
   flex: 1;
-  min-width: 260px;
+  min-width: 240px;
+  max-width: 360px;
 }
 
 .search-icon {
