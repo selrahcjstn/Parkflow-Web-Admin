@@ -27,7 +27,7 @@ const statsData = ref(cachedStatsData.value || {
   activeParking: 0,
   todayRevenue: 0,
   violations: 0,
-  maxCapacity: 150
+  maxCapacity: 500
 })
 
 const stats = computed(() => {
@@ -78,12 +78,9 @@ const stats = computed(() => {
 
 const activityData = ref<{ day: string; checkIns: number; checkOuts: number }[]>(cachedActivityData.value || [])
 
-onMounted(async () => {
-  if (!cachedStatsData.value) {
-    isLoading.value = true
-  }
+const fetchDashboardStats = async () => {
   try {
-    const response = await api.get('/dashboard/summary?parkingCapacity=150')
+    const response = await api.get('/dashboard/summary')
     if (response.data?.isSuccess && response.data?.data) {
       const data = response.data.data
       const newStats = {
@@ -103,18 +100,16 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Error loading dashboard stats:', error)
-    if (!cachedStatsData.value) {
-      statsData.value = {
-        totalUsers: 142,
-        activeParking: 38,
-        todayRevenue: 0,
-        violations: 5,
-        maxCapacity: 150
-      }
-    }
   } finally {
     isLoading.value = false
   }
+}
+
+onMounted(() => {
+  if (!cachedStatsData.value) {
+    isLoading.value = true
+  }
+  fetchDashboardStats()
 })
 </script>
 

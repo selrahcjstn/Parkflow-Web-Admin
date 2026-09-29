@@ -23,7 +23,6 @@ interface SystemSettings {
   academicYear: string
   currentSemester: string
   lastResetDate?: string
-  maxParkingHours?: number
   totalCapacity: number
   maxVehiclesPerUser: number
   maintenanceMode: boolean

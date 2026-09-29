@@ -11,7 +11,6 @@ const props = defineProps<{
     currentSemester: string
     totalCapacity: number
     maxVehiclesPerUser: number
-    maxParkingHours?: number
     lastResetDate?: string
   }
   isSaving?: boolean
@@ -116,7 +115,7 @@ const formattedResetDate = computed(() => {
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <!-- Academic Year -->
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -139,21 +138,6 @@ const formattedResetDate = computed(() => {
             v-model="settings.currentSemester"
             :options="semesterOptions"
             size="md"
-          />
-        </div>
-
-        <!-- Max Parking Hours Limit -->
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Max Daily Parking Hours
-          </label>
-          <UiInput
-            v-model.number="settings.maxParkingHours"
-            type="number"
-            placeholder="8"
-            size="md"
-            min="1"
-            max="24"
           />
         </div>
       </div>
