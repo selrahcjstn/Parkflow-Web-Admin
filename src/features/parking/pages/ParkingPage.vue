@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { ActiveSession, ParkingHistoryItem, VehicleType, ParkingStatus, EntryMethod } from '../types'
-import StatsCard from '@/features/dashboard/components/StatsCard.vue'
-import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
-import TablePagination from '@/components/ui/TablePagination.vue'
+import type { ActiveSession, ParkingHistoryItem, VehicleType } from '../types'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
-import UiButton from '@/components/ui/UiButton.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import ParkingStats from '../components/ParkingStats.vue'
 import ParkingFilters from '../components/ParkingFilters.vue'
@@ -58,18 +57,10 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
   }, 4000)
 }
 
-// Total parking slots capacity
 const TOTAL_CAPACITY = 200
-
-// Today's total check-ins
 const todaysEntriesCount = ref(0)
-
-// Active Sessions (Initialized from Cache for 0ms Instant Loading)
 const activeSessions = ref<ActiveSession[]>(cachedActiveSessions.value || [])
-
-// Parking History (Initialized from Cache for 0ms Instant Loading)
 const historySessions = ref<ParkingHistoryItem[]>(cachedHistorySessions.value || [])
-
 const isLoading = ref(!cachedActiveSessions.value)
 
 const getLoggedInUserId = (): string => {
@@ -118,135 +109,51 @@ const updateTodaysEntriesCount = () => {
   todaysEntriesCount.value = activeToday + historyToday
 }
 
-// Real-time Clock & Overstay Tracking
-const now = ref(new Date())
-let durationInterval: any = null
-const notifiedOverstayPlates = new Set<string>()
-
-const checkSessionOverstay = (item: any): boolean => {
-  // Explicit overstay flag from backend or overstay hours
-  if (item.status === 'Overstay' || (item.overstayHours && item.overstayHours > 0)) {
-    return true
-  }
-
-  // Backend maximumExitTime check
-  if (item.maximumExitTime && !item.maximumExitTime.startsWith('0001')) {
-    const maxExit = new Date(item.maximumExitTime).getTime()
-    if (!isNaN(maxExit) && now.value.getTime() > maxExit) {
-      return true
-    }
-  }
-
-  // Schedule time boundary check
-  if (item.scheduledEndTime) {
-    const [schedH, schedM] = item.scheduledEndTime.split(':').map(Number)
-    if (!isNaN(schedH)) {
-      const scheduledDate = new Date(item.entryTime || item.checkInTime)
-      scheduledDate.setHours(schedH, schedM || 0, 0, 0)
-      if (now.value > scheduledDate) return true
-    }
-  }
-
-  const checkIn = new Date(item.entryTime || item.checkInTime).getTime()
-  if (isNaN(checkIn)) return false
-  const elapsedHours = (now.value.getTime() - checkIn) / (3600 * 1000)
-
-  // Allowed class/shift schedule limit (Students 4h slot, Staff 8h)
-  const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' ? 8 : 4)
-  return elapsedHours > maxAllowed
-}
-
 const fetchParkingData = async () => {
   if (!cachedActiveSessions.value) {
     isLoading.value = true
   }
   try {
-    const activeRes = await api.get('/parking-logs/active-sessions?parkingCapacity=200')
-    if (activeRes.data && activeRes.data.isSuccess) {
-      const mappedActive = activeRes.data.data.map((item: any) => {
-        const isOverstay = checkSessionOverstay(item)
-        if (isOverstay) {
-          notifiedOverstayPlates.add(item.plateNumber)
-        }
+    const [activeRes, historyRes] = await Promise.allSettled([
+      api.get('/parking-logs/active-sessions?parkingCapacity=200'),
+      api.get('/parking-logs/history/page/1/1000')
+    ])
 
-        const rawMethod = (item.entryMethod || item.method || item.entryType || '').toString().toLowerCase()
-        let entryMethodVal: EntryMethod = 'QrCode'
-        if (
-          rawMethod.includes('manual') ||
-          item.entryMethod === 'Manual' ||
-          item.entryMethod === 1 ||
-          item.entryMethod === '1' ||
-          item.isManual === true ||
-          item.isManualEntry === true
-        ) {
-          entryMethodVal = 'Manual'
-        }
-
-        return {
-          id: item.plateNumber,
-          vehiclePlate: item.plateNumber,
-          brand: item.brand,
-          vehicleType: item.vehicleType as VehicleType,
-          ownerName: `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.ownerName || 'Unknown Owner',
-          role: item.role || 'Guest',
-          checkInTime: item.entryTime,
-          duration: item.totalParkingHours || '0m',
-          gate: item.gate || 1,
-          status: isOverstay ? 'Overstay' : (item.status as ParkingStatus || 'Parked'),
-          method: entryMethodVal,
-          scheduledEndTime: item.scheduledEndTime,
-          maximumExitTime: item.maximumExitTime,
-          maxAllowedHours: item.maxAllowedHours,
-          overstayHours: item.overstayHours,
-          amount: item.amount,
-          fee: item.amount != null ? (item.amount > 0 ? `₱${Number(item.amount).toFixed(2)}` : '₱0.00') : undefined
-        }
-      })
+    if (activeRes.status === 'fulfilled' && activeRes.value.data?.isSuccess) {
+      const rawActive = activeRes.value.data.data || []
+      const mappedActive: ActiveSession[] = rawActive.map((s: any) => ({
+        id: s.sessionId || s.id,
+        vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
+        vehicleType: s.vehicleType || 'Car',
+        brand: s.brand || '',
+        ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
+        role: s.role || 'Student',
+        checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
+        duration: s.totalParkingHours ? `${s.totalParkingHours}h` : '0h 0m',
+        amount: s.amount ?? 0,
+        status: s.status || (s.overstayHours > 0 ? 'Overstay' : 'Parked'),
+        maxAllowedHours: s.maxAllowedHours || 8
+      }))
       activeSessions.value = mappedActive
       cachedActiveSessions.value = mappedActive
     }
 
-    const historyRes = await api.get('/parking-history/all/page/1/100')
-    if (historyRes.data && historyRes.data.isSuccess) {
-      const mappedHistory = historyRes.data.data.items.map((item: any) => {
-        let durationStr = '0m'
-        if (item.parkingDuration != null) {
-          const totalMins = Math.floor(item.parkingDuration * 60)
-          const hrs = Math.floor(totalMins / 60)
-          const mins = totalMins % 60
-          durationStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
-        }
-
-        const chargeStr = item.hasViolation && item.violationFee > 0
-          ? `₱${Number(item.violationFee).toFixed(2)}`
-          : 'Free'
-
-        // Determine Entry Method dynamically (QR Code vs Manual)
-        const rawMethod = (item.entryMethod || item.method || item.entryType || '').toString().toLowerCase()
-        let entryMethodVal: EntryMethod = 'Manual'
-        if (rawMethod.includes('qr') || rawMethod.includes('code') || rawMethod.includes('rfid') || rawMethod.includes('scan') || item.entryMethod === 'QrCode') {
-          entryMethodVal = 'QrCode'
-        } else if (item.isManual === false || item.isManualEntry === false) {
-          entryMethodVal = 'QrCode'
-        } else if (item.userId || (item.roleName && item.roleName !== 'Guest' && item.roleName !== 'Visitor')) {
-          entryMethodVal = 'QrCode'
-        }
-
-        return {
-          id: `${item.plateNumber}-${item.entryTime}`,
-          vehiclePlate: item.plateNumber,
-          brand: item.brand,
-          vehicleType: item.type as VehicleType,
-          ownerName: `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Guest',
-          role: item.roleName || 'Guest',
-          checkInTime: item.entryTime,
-          checkOutTime: item.exitTime || '',
-          duration: durationStr,
-          charge: chargeStr,
-          status: 'Exited' as ParkingStatus,
-          method: entryMethodVal
-        }
-      })
+    if (historyRes.status === 'fulfilled' && historyRes.value.data?.isSuccess) {
+      const rawHistory = historyRes.value.data.data?.items || historyRes.value.data.data || []
+      const mappedHistory: ParkingHistoryItem[] = rawHistory.map((s: any) => ({
+        id: s.sessionId || s.id,
+        vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
+        vehicleType: s.vehicleType || 'Car',
+        brand: s.brand || '',
+        ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
+        role: s.role || 'Student',
+        checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
+        checkOutTime: s.exitTime || s.checkOutTime || new Date().toISOString(),
+        duration: s.totalParkingHours ? `${s.totalParkingHours}h` : '0h',
+        amount: s.penaltyFee ?? s.amount ?? 0,
+        method: s.entryMethod || 'QrCode',
+        status: s.overstayHours > 0 ? 'Overdue' : 'Completed'
+      }))
       historySessions.value = mappedHistory
       cachedHistorySessions.value = mappedHistory
     }
@@ -254,99 +161,41 @@ const fetchParkingData = async () => {
     updateTodaysEntriesCount()
   } catch (error) {
     console.error('Error fetching parking data:', error)
-    showToast('Failed to fetch parking sessions data.', 'warning')
   } finally {
     isLoading.value = false
   }
 }
 
-onMounted(async () => {
-  await fetchParkingData()
-  durationInterval = setInterval(() => {
-    now.value = new Date()
-    // Auto-update status to overstay if exceeding scheduled access time
-    activeSessions.value.forEach((session) => {
-      if (checkSessionOverstay(session)) {
-        session.status = 'Overstay'
-        if (!notifiedOverstayPlates.has(session.vehiclePlate)) {
-          notifiedOverstayPlates.add(session.vehiclePlate)
-          showToast(`Warning: Vehicle ${session.vehiclePlate} has exceeded scheduled parking time.`, 'warning')
-        }
-      }
-    })
-  }, 10000)
+let syncInterval: any = null
+
+onMounted(() => {
+  fetchParkingData()
+  syncInterval = setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      fetchParkingData()
+    }
+  }, 30000)
 })
 
 onUnmounted(() => {
-  if (durationInterval) clearInterval(durationInterval)
+  if (syncInterval) clearInterval(syncInterval)
 })
 
-// Dynamic duration formatter
-const getDuration = (session: ActiveSession | ParkingHistoryItem) => {
-  if ('checkOutTime' in session && session.checkOutTime) {
-    return session.duration
-  }
-  const start = new Date(session.checkInTime).getTime()
-  const diffMs = now.value.getTime() - start
-  if (diffMs < 0) return '0m'
-  const diffMins = Math.floor(diffMs / 60000)
-  const hours = Math.floor(diffMins / 60)
-  const mins = diffMins % 60
-  if (hours > 0) {
-    return `${hours}h ${mins}m`
-  }
-  return `${mins}m`
-}
-
-const getActiveSessionFee = (session: ActiveSession) => {
-  if (session.amount !== undefined && session.amount !== null && Number(session.amount) > 0) {
-    return `₱${Number(session.amount).toFixed(2)}`
-  }
-  if ((session as any).penaltyFee != null && Number((session as any).penaltyFee) > 0) {
-    return `₱${Number((session as any).penaltyFee).toFixed(2)}`
-  }
-  if (session.fee) return session.fee
-
-  // If overstayed in client timer before next polling cycle
-  if (session.status === 'Overstay') {
-    let overstayHours = session.overstayHours || 0
-    if (session.maximumExitTime && !session.maximumExitTime.startsWith('0001')) {
-      const maxExitMs = new Date(session.maximumExitTime).getTime()
-      if (!isNaN(maxExitMs) && now.value.getTime() > maxExitMs) {
-        overstayHours = Math.max(overstayHours, (now.value.getTime() - maxExitMs) / (3600 * 1000))
-      }
-    }
-    if (overstayHours > 0) {
-      const hourlyRate = 100
-      const calculated = Math.ceil(overstayHours) * hourlyRate
-      return `₱${calculated.toFixed(2)}`
-    }
-  }
-
-  // Parking is schedule-based and completely free within authorized schedule & grace period!
-  return '₱0.00'
-}
-
-const getMustExitByParts = (item: ActiveSession): { time: string; date: string } => {
-  if (item.maximumExitTime && !item.maximumExitTime.startsWith('0001')) {
-    const d = new Date(item.maximumExitTime)
-    if (!isNaN(d.getTime())) {
-      return {
-        time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: d.toLocaleDateString([], { month: 'short', day: 'numeric' })
-      }
-    }
-  }
-  if (item.scheduledEndTime) {
-    const checkIn = new Date(item.checkInTime)
-    const dateStr = !isNaN(checkIn.getTime()) ? checkIn.toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''
-    return {
-      time: item.scheduledEndTime,
-      date: dateStr
-    }
+function getDuration(item: ActiveSession | ParkingHistoryItem): string {
+  if (item.duration && item.duration !== '0h 0m' && item.duration !== '0h') {
+    return item.duration
   }
   const checkIn = new Date(item.checkInTime)
-  if (isNaN(checkIn.getTime())) return { time: '—', date: '' }
+  const exit = (item as ParkingHistoryItem).checkOutTime ? new Date((item as ParkingHistoryItem).checkOutTime) : new Date()
+  const diffMs = exit.getTime() - checkIn.getTime()
+  if (diffMs <= 0) return '0m'
+  const hours = Math.floor(diffMs / 3600000)
+  const mins = Math.floor((diffMs % 3600000) / 60000)
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
+}
+
+function getMustExitByParts(item: ActiveSession): { time: string; date: string } {
+  const checkIn = new Date(item.checkInTime)
   const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' || item.role === 'NonAcademicPersonnel' ? 8 : 4)
   const mustExitDate = new Date(checkIn.getTime() + maxAllowed * 3600 * 1000)
   return {
@@ -374,30 +223,6 @@ const filterMethod = ref<string>('all')
 const occupancyCount = computed(() => activeSessions.value.length)
 const occupancyRate = computed(() => Math.round((occupancyCount.value / TOTAL_CAPACITY) * 100))
 const overstayCount = computed(() => activeSessions.value.filter((s) => s.status === 'Overstay').length)
-
-const stats = computed(() => [
-  {
-    title: 'Occupancy Rate',
-    value: `${occupancyCount.value} / ${TOTAL_CAPACITY}`,
-    subtitle: `${occupancyRate.value}% slots filled`,
-    icon: 'occupancy',
-    gradient: 'linear-gradient(135deg, #10b981, #34d399)'
-  },
-  {
-    title: "Today's Entries",
-    value: String(todaysEntriesCount.value),
-    subtitle: 'RFID & manual check-ins',
-    icon: 'entries',
-    gradient: 'linear-gradient(135deg, #6366f1, #818cf8)'
-  },
-  {
-    title: 'Active Overstays',
-    value: String(overstayCount.value),
-    subtitle: 'Exceeded 8-hour limit',
-    icon: 'overstay',
-    gradient: 'linear-gradient(135deg, #d22730, #f87171)'
-  }
-])
 
 // Filtered sessions computation
 const filteredActiveSessions = computed(() => {
@@ -449,14 +274,12 @@ watch([searchQuery, filterVehicleType, filterStatus, filterMethod], () => {
   historyCurrentPage.value = 1
 })
 
-// Handlers
 const openDetails = (session: ActiveSession | ParkingHistoryItem) => {
   const targetId = session.id || session.vehiclePlate
   router.push(`/parking/${encodeURIComponent(targetId)}`)
 }
 
-
-// Manual Checkout Confirmation Modal State (Reusable ConfirmModal)
+// Manual Checkout Confirmation Modal State
 const isConfirmCheckoutOpen = ref(false)
 const checkoutTargetSession = ref<ActiveSession | ParkingHistoryItem | null>(null)
 const isCheckingOut = ref(false)
@@ -515,7 +338,6 @@ const executeManualCheckout = async () => {
   }
 }
 
-// Helper methods for label rendering
 const getVehicleTypeLabel = (type: VehicleType) => {
   if (type === 'ElectricBike') return 'E-Bike'
   return type
@@ -529,24 +351,41 @@ const getRoleLabel = (role: string) => {
 </script>
 
 <template>
-  <div class="parking-view">
-    <!-- Header -->
-    <div class="parking-header">
-      <div class="parking-header__left">
-        <h1 class="parking-title">Parking Operations</h1>
-        <p class="parking-subtitle">Monitor real-time gate occupancy, active check-ins, and logs.</p>
+  <div class="space-y-6">
+    <!-- Toast Notifications -->
+    <TransitionGroup name="fade">
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
+        class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
+        :class="toast.type === 'warning' ? 'bg-amber-600' : toast.type === 'info' ? 'bg-blue-600' : 'bg-emerald-600'"
+      >
+        <span>{{ toast.message }}</span>
       </div>
-      <div class="header-actions">
+    </TransitionGroup>
+
+    <!-- Page Header with Consistent Structure & Refresh Button -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+          Parking Operations
+        </h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Monitor real-time gate occupancy, active check-ins, and logs.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3">
         <UiButton
           variant="secondary"
-          size="md"
           :loading="isLoading"
           @click="fetchParkingData"
-          title="Refresh Data"
         >
-          <template #icon>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" stroke-linecap="round" stroke-linejoin="round" />
+          <template #prefix>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
           </template>
           Refresh
@@ -566,17 +405,19 @@ const getRoleLabel = (role: string) => {
       @click-overstay="currentTab = 'active'; filterStatus = 'Overstay'"
     />
 
-    <!-- Filters Bar Component -->
-    <ParkingFilters
-      v-model:search-query="searchQuery"
-      v-model:current-tab="currentTab"
-      v-model:filter-vehicle-type="filterVehicleType"
-      v-model:filter-status="filterStatus"
-      v-model:filter-method="filterMethod"
-    />
+    <!-- Filters Bar Card -->
+    <UiCard custom-class="p-4">
+      <ParkingFilters
+        v-model:search-query="searchQuery"
+        v-model:current-tab="currentTab"
+        v-model:filter-vehicle-type="filterVehicleType"
+        v-model:filter-status="filterStatus"
+        v-model:filter-method="filterMethod"
+      />
+    </UiCard>
 
-    <!-- Tables -->
-    <div class="table-card p-0 overflow-hidden">
+    <!-- Tables Container Card -->
+    <UiCard custom-class="p-0 overflow-hidden">
       <!-- Active Sessions Table -->
       <UiTable
         v-if="currentTab === 'active'"
@@ -587,54 +428,54 @@ const getRoleLabel = (role: string) => {
         @row-click="openDetails"
       >
         <template #cell-vehicle="{ item }">
-          <div class="vehicle-cell flex items-center gap-3">
-            <div class="vehicle-icon p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              <svg v-if="item.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0">
+              <svg v-if="item.vehicleType === 'Car'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="6" rx="2" />
                 <path d="M5 17h14" />
                 <circle cx="7" cy="17" r="2" />
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="5" cy="18" r="3" />
                 <circle cx="19" cy="18" r="3" />
                 <path d="M12 18V8h4" />
                 <path d="M5 18h14" opacity="0.3" />
               </svg>
             </div>
-            <div class="vehicle-info flex flex-col">
-              <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
-              <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand || 'Unknown' }}</span>
+            <div class="flex flex-col">
+              <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.vehiclePlate }}</span>
+              <span class="text-[11px] text-slate-400 dark:text-slate-500">{{ item.brand || 'Unknown' }}</span>
             </div>
           </div>
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="owner-name font-semibold text-slate-900 dark:text-white">{{ item.ownerName }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
         </template>
 
         <template #cell-role="{ item }">
-          <span class="role-text text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
         </template>
 
         <template #cell-entryTime="{ item }">
           <div class="flex flex-col">
-            <span class="time-text font-semibold text-slate-900 dark:text-white">{{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-            <span class="date-sub text-[11px] text-slate-400">{{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
+            <span class="text-[11px] text-slate-400">{{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
           </div>
         </template>
 
         <template #cell-mustExitBy="{ item }">
           <div class="flex flex-col">
             <span
-              class="time-text font-semibold"
+              class="text-xs font-semibold"
               :class="item.status === 'Overstay' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'"
             >
               {{ getMustExitByParts(item).time }}
             </span>
             <span
-              class="date-sub text-[11px]"
+              class="text-[11px]"
               :class="item.status === 'Overstay' ? 'text-rose-400 dark:text-rose-500 font-medium' : 'text-slate-400'"
             >
               {{ getMustExitByParts(item).date }}
@@ -643,12 +484,12 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-duration="{ item }">
-          <span class="duration-text font-medium text-slate-700 dark:text-slate-300">{{ getDuration(item) }}</span>
+          <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ getDuration(item) }}</span>
         </template>
 
         <template #cell-fee="{ item }">
           <span class="font-bold text-slate-900 dark:text-white text-xs">
-            {{ getActiveSessionFee(item) }}
+            {{ item.amount > 0 ? `₱${item.amount.toFixed(2)}` : 'Free' }}
           </span>
         </template>
 
@@ -659,91 +500,87 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="actions-group flex items-center justify-end gap-1" @click.stop>
-            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="View Details" @click="openDetails(item)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-              </svg>
+          <div class="flex items-center justify-end gap-1.5" @click.stop>
+            <button
+              class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors cursor-pointer border-none"
+              @click="handleManualCheckout(item)"
+              title="Manual Gate Checkout"
+            >
+              Checkout
             </button>
             <button
-              class="action-icon-btn action-icon-btn--checkout p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-              title="Manual Checkout"
-              @click="handleManualCheckout(item)"
+              class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold transition-colors cursor-pointer border-none"
+              @click="openDetails(item)"
+              title="Inspect Session"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
-              </svg>
+              Inspect
             </button>
           </div>
         </template>
       </UiTable>
 
-      <!-- Parking History Table -->
+      <!-- History Table -->
       <UiTable
         v-else
         :columns="historyColumns"
         :data="paginatedHistorySessions"
         :is-loading="isLoading"
-        empty-text="No parking history logs found."
+        empty-text="No past parking sessions found."
         @row-click="openDetails"
       >
         <template #cell-vehicle="{ item }">
-          <div class="vehicle-cell flex items-center gap-3">
-            <div class="vehicle-icon p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              <svg v-if="item.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0">
+              <svg v-if="item.vehicleType === 'Car'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="6" rx="2" />
                 <path d="M5 17h14" />
                 <circle cx="7" cy="17" r="2" />
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="5" cy="18" r="3" />
                 <circle cx="19" cy="18" r="3" />
                 <path d="M12 18V8h4" />
                 <path d="M5 18h14" opacity="0.3" />
               </svg>
             </div>
-            <div class="vehicle-info flex flex-col">
-              <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
-              <span class="vehicle-brand text-xs text-slate-500 dark:text-slate-400">{{ item.brand || 'Unknown' }}</span>
+            <div class="flex flex-col">
+              <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.vehiclePlate }}</span>
+              <span class="text-[11px] text-slate-400">{{ item.brand || 'Unknown' }}</span>
             </div>
           </div>
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="owner-name font-semibold text-slate-900 dark:text-white">{{ item.ownerName }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
         </template>
 
         <template #cell-role="{ item }">
-          <span class="role-text text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
         </template>
 
         <template #cell-timeSlot="{ item }">
           <div class="flex flex-col">
-            <span class="time-text font-semibold text-slate-900 dark:text-white text-xs">
-              {{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
-              <span class="text-slate-400 dark:text-slate-500 font-normal mx-0.5">→</span>
-              {{ item.checkOutTime ? new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—' }}
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">
+              {{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }} → {{ new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
             </span>
-            <span class="date-sub text-[11px] text-slate-400">
-              {{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}
-            </span>
+            <span class="text-[11px] text-slate-400">{{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
           </div>
         </template>
 
         <template #cell-duration="{ item }">
-          <span class="duration-text font-medium text-slate-700 dark:text-slate-300">{{ item.duration }}</span>
+          <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ getDuration(item) }}</span>
         </template>
 
         <template #cell-fee="{ item }">
-          <span class="charge-text font-semibold text-slate-900 dark:text-white">{{ item.charge }}</span>
+          <span class="font-bold text-slate-900 dark:text-white text-xs">
+            {{ item.amount > 0 ? `₱${item.amount.toFixed(2)}` : 'Free' }}
+          </span>
         </template>
 
         <template #cell-method="{ item }">
-          <span class="method-text text-xs text-slate-600 dark:text-slate-400">{{ item.method === 'QrCode' ? 'QR Code' : 'Manual' }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{ item.method === 'QrCode' ? 'QR Gate Pass' : 'Manual Entry' }}</span>
         </template>
 
         <template #cell-status="{ item }">
@@ -753,716 +590,56 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="actions-group flex items-center justify-end" @click.stop>
-            <button class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800" title="View Details" @click="openDetails(item)">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="16" x2="12" y2="12" />
-                <line x1="12" y1="8" x2="12.01" y2="8" />
-              </svg>
+          <div class="flex items-center justify-end" @click.stop>
+            <button
+              class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold transition-colors cursor-pointer border-none"
+              @click="openDetails(item)"
+              title="Inspect Session"
+            >
+              Inspect
             </button>
           </div>
         </template>
       </UiTable>
 
-      <!-- Reusable Table Pagination Footer -->
+      <!-- Pagination -->
       <TablePagination
-        v-if="currentTab === 'active' && !isLoading"
-        :total-items="filteredActiveSessions.length"
+        v-if="currentTab === 'active'"
         v-model:current-page="activeCurrentPage"
         v-model:items-per-page="activeItemsPerPage"
+        :total-items="filteredActiveSessions.length"
       />
       <TablePagination
-        v-else-if="currentTab === 'history' && !isLoading"
-        :total-items="filteredHistorySessions.length"
+        v-else
         v-model:current-page="historyCurrentPage"
         v-model:items-per-page="historyItemsPerPage"
+        :total-items="filteredHistorySessions.length"
       />
-    </div>
+    </UiCard>
 
-    <!-- Modals -->
-    <!-- Reusable Confirmation Modal for Manual Checkout -->
+    <!-- Manual Checkout Confirmation Modal -->
     <ConfirmModal
       :is-open="isConfirmCheckoutOpen"
-      title="Confirm Manual Checkout"
+      title="Manual Gate Checkout"
       :message="checkoutConfirmMessage"
-      confirm-text="Checkout Vehicle"
+      confirm-text="Confirm Checkout"
       cancel-text="Cancel"
-      variant="warning"
+      variant="success"
       :is-submitting="isCheckingOut"
       @confirm="executeManualCheckout"
-      @cancel="isConfirmCheckoutOpen = false"
       @close="isConfirmCheckoutOpen = false"
     />
-
-    <!-- Toast Notifications -->
-    <div class="toast-container">
-      <TransitionGroup name="toast-fade">
-        <div v-for="toast in toasts" :key="toast.id" class="toast-item" :class="'toast--' + toast.type">
-          <div class="toast-icon">
-            <svg v-if="toast.type === 'success'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            <svg v-else-if="toast.type === 'warning'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-          </div>
-          <span class="toast-msg">{{ toast.message }}</span>
-        </div>
-      </TransitionGroup>
-    </div>
   </div>
 </template>
 
 <style scoped>
-.parking-view {
-  animation: fadeSlideUp 0.4s ease both;
-}
-
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.parking-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 640px) {
-  .parking-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-}
-
-.parking-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.parking-subtitle {
-  font-size: 14px;
-  color: var(--color-muted);
-  margin: 4px 0 0 0;
-}
-
-.add-entry-btn {
-  background: var(--color-primary);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-button);
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px var(--color-primary-light);
-  transition: background 150ms ease, transform 150ms ease;
-}
-
-.add-entry-btn:hover {
-  background: var(--color-primary-dark);
-  transform: translateY(-1px);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.refresh-btn {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-button);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease;
-  box-sizing: border-box;
-}
-
-.refresh-btn:hover:not(:disabled) {
-  background: var(--color-surface-lighter);
-  color: var(--color-text);
-  border-color: var(--color-muted);
-}
-
-.refresh-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.spin-animation {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* Stats Grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 1024px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 640px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.stat-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  box-shadow: var(--shadow-soft);
-  transition: transform 200ms ease, box-shadow 200ms ease;
-  min-height: 84px;
-  box-sizing: border-box;
-}
-
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card);
-}
-
-.stat-card__left {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-card__value {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--color-text);
-}
-
-.stat-card__title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 4px;
-}
-
-.stat-card__subtitle {
-  font-size: 11px;
-  color: var(--color-muted);
-  opacity: 0.8;
-  margin-top: 2px;
-}
-
-.stat-card__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-/* Filters Bar */
-.filters-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 20px;
-}
-
-@media (max-width: 1024px) {
-  .filters-bar {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-.search-wrapper {
-  position: relative;
-  flex: 1;
-  max-width: 420px;
-}
-
-@media (max-width: 1024px) {
-  .search-wrapper {
-    max-width: 100%;
-  }
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-muted);
-  pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 10px 14px 10px 42px;
-  font-size: 14px;
-  color: var(--color-text);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-  box-sizing: border-box;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-light);
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-@media (max-width: 640px) {
-  .toolbar-right {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-/* Tabs Switcher (Consistent with Approvals switcher design) */
-.tabs-switcher {
-  display: flex;
-  background: #e2e8f0;
-  border: 1px solid #cbd5e1;
-  padding: 4px;
-  border-radius: 9px;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #475569;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.tab-btn:hover {
-  color: #1e293b;
-}
-
-.tab-btn.active {
-  background: #4f46e5;
-  color: #ffffff;
-  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.35);
-}
-
-.tab-btn.active:hover {
-  color: #ffffff;
-}
-
-.filters-group {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.select-wrapper {
-  position: relative;
-}
-
-.filter-select {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  padding: 10px 36px 10px 14px;
-  font-size: 14px;
-  color: var(--color-text);
-  cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  background-size: 16px;
-  transition: border-color 150ms ease;
-  height: 38px;
-  box-sizing: border-box;
-}
-
-.filter-select:hover {
-  border-color: var(--color-muted);
-}
-
-.filter-select:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
-/* Table Card */
-.table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-.table-responsive {
-  overflow-x: auto;
-}
-
-.parking-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-}
-
-.parking-table th {
-  padding: 16px 24px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  letter-spacing: 1px;
-  border-bottom: 1px solid var(--color-border);
-  background: var(--color-surface-lighter);
-}
-
-.parking-row {
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background 150ms ease;
-  background: var(--color-surface);
-}
-
-.parking-row:hover {
-  background: var(--color-surface-lighter);
-}
-
-.parking-row:last-child {
-  border-bottom: none;
-}
-
-.parking-table td {
-  padding: 16px 24px;
-  vertical-align: middle;
-}
-
-/* Vehicle Cell */
-.vehicle-cell {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 180px;
-}
-
-.vehicle-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--color-surface-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-muted);
-  flex-shrink: 0;
-}
-
-.vehicle-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.plate-number {
-  font-family: monospace;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--color-text);
-  letter-spacing: 0.5px;
-}
-
-.vehicle-brand {
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
-/* Owner Cell */
-.owner-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 140px;
-}
-
-.owner-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-/* Time format */
-.time-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-  display: block;
-}
-
-.date-sub {
-  font-size: 11px;
-  color: var(--color-muted);
-  display: block;
-  margin-top: 2px;
-}
-
-.history-time {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-}
-
-.time-label {
-  font-weight: 700;
-  color: var(--color-muted);
-  font-size: 10px;
-}
-
-.time-value {
-  color: var(--color-text);
-  font-weight: 500;
-}
-
-/* Clean Professional Typography (No background pills or borders) */
-.role-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary, #475569);
-}
-
-.duration-text {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text, #1e293b);
-}
-
-.charge-text {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-text, #1e293b);
-}
-
-.method-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-muted, #64748b);
-}
-
-/* Status Indicator (Clean text) */
-.status-cell-text {
-  display: inline-flex;
-  align-items: center;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.status-cell-text--parked {
-  color: #059669;
-}
-
-.status-cell-text--overstay {
-  color: #dc2626;
-}
-
-.status-cell-text--exited {
-  color: #64748b;
-}
-
-/* Actions */
-.actions-header {
-  text-align: right;
-}
-
-.actions-cell {
-  text-align: right;
-}
-
-.actions-group {
-  display: inline-flex;
-  gap: 8px;
-}
-
-.action-icon-btn {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.action-icon-btn:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text);
-}
-
-.action-icon-btn--checkout {
-  border-color: rgba(210, 39, 48, 0.2);
-  color: var(--color-danger);
-}
-
-.action-icon-btn--checkout:hover {
-  background: rgba(210, 39, 48, 0.1);
-  color: var(--color-primary-dark);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 48px !important;
-  color: var(--color-muted);
-  font-size: 14px;
-}
-
-.clickable-stat-card {
-  cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.clickable-stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-}
-
-/* Toast System styling */
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 150;
-  max-width: 360px;
-}
-
-.toast-item {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: var(--shadow-elevated);
-  box-sizing: border-box;
-}
-
-.toast--success {
-  border-left: 4px solid var(--color-success);
-}
-
-.toast--success .toast-icon {
-  color: var(--color-success);
-}
-
-.toast--warning {
-  border-left: 4px solid var(--color-warning);
-}
-
-.toast--warning .toast-icon {
-  color: var(--color-warning);
-}
-
-.toast--info {
-  border-left: 4px solid var(--color-info);
-}
-
-.toast--info .toast-icon {
-  color: var(--color-info);
-}
-
-.toast-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.toast-msg {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-/* Toast Transitions */
-.toast-fade-enter-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.toast-fade-leave-active {
-  transition: all 0.2s ease;
-}
-.toast-fade-enter-from {
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
-  transform: translateY(20px) scale(0.95);
-}
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: scale(0.9);
+  transform: translateY(-8px);
 }
 </style>

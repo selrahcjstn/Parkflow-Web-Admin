@@ -2,10 +2,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Vehicle } from '../types'
-import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import UiCard from '@/components/ui/UiCard.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import VehicleStats from '../components/VehicleStats.vue'
+import VehicleFilters from '../components/VehicleFilters.vue'
 import api from '@/api/axios'
 import { cachedVehicleApprovals, cachedVehicles } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
@@ -119,37 +122,6 @@ const carsCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 
 const motoCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 'Motorcycle').length)
 const ebikesCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 'ElectricBike').length)
 
-const stats = computed(() => [
-  {
-    title: 'Total Vehicles',
-    value: String(totalCount.value),
-    subtitle: 'Registered & active passes',
-    icon: 'total',
-    gradient: 'linear-gradient(135deg, #6366f1, #818cf8)'
-  },
-  {
-    title: 'Cars Registered',
-    value: String(carsCount.value),
-    subtitle: '4-wheeled sedans & SUVs',
-    icon: 'car',
-    gradient: 'linear-gradient(135deg, #10b981, #34d399)'
-  },
-  {
-    title: 'Motorcycles',
-    value: String(motoCount.value),
-    subtitle: '2-wheeled motor vehicles',
-    icon: 'moto',
-    gradient: 'linear-gradient(135deg, #f59e0b, #fbbf24)'
-  },
-  {
-    title: 'E-Bikes',
-    value: String(ebikesCount.value),
-    subtitle: 'Electric light vehicles',
-    icon: 'ebike',
-    gradient: 'linear-gradient(135deg, #ef4444, #f87171)'
-  }
-])
-
 // Filtered Vehicles
 const filteredVehicles = computed(() => {
   return vehicles.value.filter((vehicle) => {
@@ -193,7 +165,7 @@ const confirmDeleteVehicle = async () => {
   const targetRawId = (target as any).rawId || target.id
   isDeletingVehicle.value = true
 
-  // 1. Immediately remove from local list for 0ms instant UI response
+  // Immediately remove from local list for 0ms instant UI response
   vehicles.value = vehicles.value.filter((v) => v.id !== target.id && v.plateNumber !== target.plateNumber)
   cachedVehicles.value = [...vehicles.value]
   if (cachedVehicleApprovals.value && Array.isArray(cachedVehicleApprovals.value)) {
@@ -206,7 +178,6 @@ const confirmDeleteVehicle = async () => {
   try {
     let deletedOnBackend = false
 
-    // Attempt 1: DELETE /vehicles/{targetRawId}
     if (targetRawId && !targetRawId.startsWith('veh-')) {
       try {
         const res = await api.delete(`/vehicles/${targetRawId}`)
@@ -218,7 +189,6 @@ const confirmDeleteVehicle = async () => {
       }
     }
 
-    // Attempt 2: DELETE /vehicles/{id}
     if (!deletedOnBackend && target.id && !target.id.startsWith('veh-')) {
       try {
         const res = await api.delete(`/vehicles/${target.id}`)
@@ -230,19 +200,6 @@ const confirmDeleteVehicle = async () => {
       }
     }
 
-    // Attempt 3: DELETE /vehicles?id={id}
-    if (!deletedOnBackend && targetRawId && !targetRawId.startsWith('veh-')) {
-      try {
-        const res = await api.delete(`/vehicles?id=${targetRawId}`)
-        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
-          deletedOnBackend = true
-        }
-      } catch (e) {
-        console.warn('DELETE /vehicles?id={id} endpoint note:', e)
-      }
-    }
-
-    // Attempt 4: DELETE /vehicles/plate/{plateNumber}
     if (!deletedOnBackend && target.plateNumber) {
       try {
         const res = await api.delete(`/vehicles/plate/${encodeURIComponent(target.plateNumber)}`)
@@ -251,30 +208,6 @@ const confirmDeleteVehicle = async () => {
         }
       } catch (e) {
         console.warn('DELETE /vehicles/plate/{plate} endpoint note:', e)
-      }
-    }
-
-    // Attempt 5: DELETE /vehicles/{plateNumber}
-    if (!deletedOnBackend && target.plateNumber) {
-      try {
-        const res = await api.delete(`/vehicles/${encodeURIComponent(target.plateNumber)}`)
-        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
-          deletedOnBackend = true
-        }
-      } catch (e) {
-        console.warn('DELETE /vehicles/{plate} endpoint note:', e)
-      }
-    }
-
-    // Attempt 6: POST /vehicles/delete/{id}
-    if (!deletedOnBackend && targetRawId && !targetRawId.startsWith('veh-')) {
-      try {
-        const res = await api.post(`/vehicles/delete/${targetRawId}`)
-        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
-          deletedOnBackend = true
-        }
-      } catch (e) {
-        console.warn('POST /vehicles/delete/{id} endpoint note:', e)
       }
     }
 
@@ -300,198 +233,158 @@ const getVehicleTypeLabel = (type: string) => {
   if (type === 'ElectricBike') return 'E-Bike'
   return type
 }
-
-const getVerificationLabel = (status: number) => {
-  if (status === 2) return 'Approved'
-  if (status === 3) return 'Rejected'
-  return 'Pending'
-}
-
-const isApproved = (status: number) => status === 2
 </script>
 
 <template>
-  <div class="vehicles-view">
-    <!-- Header -->
-    <div class="vehicles-header">
-      <div class="vehicles-header__left">
-        <h1 class="vehicles-title">Registered Vehicle Directory &amp; Clearance</h1>
-        <p class="vehicles-subtitle">Inspect active vehicle plate records, pass statuses, owner roles, and primary clearance passes across campus gates.</p>
+  <div class="space-y-6">
+    <!-- Toast Notifications -->
+    <TransitionGroup name="fade">
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
+        class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
+        :class="toast.type === 'warning' ? 'bg-amber-600' : toast.type === 'info' ? 'bg-blue-600' : 'bg-emerald-600'"
+      >
+        <span>{{ toast.message }}</span>
+      </div>
+    </TransitionGroup>
+
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+          Registered Vehicle Directory
+        </h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Inspect active vehicle plate records, pass statuses, and owner profiles across campus gates.
+        </p>
       </div>
 
-      <button class="refresh-btn" @click="fetchVehicles" title="Refresh">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
-          <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16"/>
-        </svg>
-      </button>
+      <div class="flex items-center gap-3">
+        <UiButton
+          variant="secondary"
+          :loading="isLoading"
+          @click="fetchVehicles"
+        >
+          <template #prefix>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </template>
+          Refresh
+        </UiButton>
+      </div>
     </div>
 
     <!-- Stats Grid -->
-    <div class="stats-grid">
-      <div v-for="stat in stats" :key="stat.title" class="stat-card">
-        <template v-if="isLoading">
-          <div class="stat-card__left" style="width: 100%">
-            <SkeletonLoader variant="rect" height="28px" style="width: 50%; border-radius: 6px; margin-bottom: 8px;" />
-            <SkeletonLoader variant="rect" height="13px" style="width: 70%; border-radius: 4px; margin-bottom: 4px;" />
-            <SkeletonLoader variant="rect" height="11px" style="width: 45%; border-radius: 4px;" />
-          </div>
-          <SkeletonLoader variant="circle" height="44px" width="44px" style="border-radius: 12px; flex-shrink: 0;" />
-        </template>
-        <template v-else>
-          <div class="stat-card__left">
-            <span class="stat-card__value">{{ stat.value }}</span>
-            <span class="stat-card__title">{{ stat.title }}</span>
-            <span class="stat-card__subtitle">{{ stat.subtitle }}</span>
-          </div>
-          <div class="stat-card__icon" :style="{ background: stat.gradient }">
-            <!-- Total Vehicles Icon -->
-            <svg v-if="stat.icon === 'total'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="3" />
-              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-            </svg>
-            <!-- Car Icon -->
-            <svg v-if="stat.icon === 'car'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="11" width="18" height="6" rx="2" />
-              <path d="M5 17h14" />
-              <circle cx="7" cy="17" r="2" />
-              <circle cx="17" cy="17" r="2" />
-              <path d="M6 11l1.5-4.5h9L18 11" />
-            </svg>
-            <!-- Moto Icon -->
-            <svg v-if="stat.icon === 'moto'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="5" cy="18" r="3" />
-              <circle cx="19" cy="18" r="3" />
-              <path d="M12 18V8h4" />
-              <path d="M5 18h14" opacity="0.3" />
-            </svg>
-            <!-- EBike Icon -->
-            <svg v-if="stat.icon === 'ebike'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="6" cy="19" r="3" />
-              <circle cx="17" cy="19" r="3" />
-              <path d="M17 19h-7V10h4" />
-              <path d="M12 10L9 7h4" />
-            </svg>
-          </div>
-        </template>
-      </div>
-    </div>
+    <VehicleStats
+      :is-loading="isLoading"
+      :total-count="totalCount"
+      :cars-count="carsCount"
+      :moto-count="motoCount"
+      :ebikes-count="ebikesCount"
+    />
 
     <!-- Filters Bar -->
-    <div class="filters-bar">
-      <!-- Search Input -->
-      <div class="search-wrapper">
-        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8" stroke-linecap="round" stroke-linejoin="round" />
-          <line x1="21" y1="21" x2="16.65" y2="16.65" stroke-linecap="round" stroke-linejoin="round" />
-        </svg>
-        <input v-model="searchQuery" type="text" placeholder="Search by plate, owner, brand..." class="search-input" />
-      </div>
-
-      <div class="filters-group">
-        <!-- Vehicle Type Filter -->
-        <div class="select-wrapper">
-          <select v-model="filterType" class="filter-select">
-            <option value="all">All Vehicle Types</option>
-            <option value="Car">Car</option>
-            <option value="Motorcycle">Motorcycle</option>
-            <option value="ElectricBike">E-Bike</option>
-          </select>
-        </div>
-      </div>
-    </div>
+    <UiCard custom-class="p-4">
+      <VehicleFilters
+        v-model:search-query="searchQuery"
+        v-model:filter-type="filterType"
+      />
+    </UiCard>
 
     <!-- Vehicles Table Card -->
-    <div class="table-card p-0 overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-
+    <UiCard custom-class="p-0 overflow-hidden">
       <UiTable
         :columns="vehicleColumns"
         :data="paginatedVehicles"
         :is-loading="isLoading"
         :loading-rows="6"
-        empty-text="No Registered Vehicles Found"
+        empty-text="No registered vehicles found matching your criteria."
       >
         <template #cell-vehicle="{ item }">
-          <div class="vehicle-cell flex items-center gap-3">
-            <div class="vehicle-icon p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-              <svg v-if="item.vehicleType === 'Car'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0">
+              <svg v-if="item.vehicleType === 'Car'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="11" width="18" height="6" rx="2" />
                 <path d="M5 17h14" />
                 <circle cx="7" cy="17" r="2" />
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <svg v-else-if="item.vehicleType === 'Motorcycle'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg v-else-if="item.vehicleType === 'Motorcycle'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="5" cy="18" r="3" />
                 <circle cx="19" cy="18" r="3" />
                 <path d="M12 18V8h4" />
                 <path d="M5 18h14" opacity="0.3" />
               </svg>
-              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="6" cy="19" r="3" />
                 <circle cx="17" cy="19" r="3" />
                 <path d="M17 19h-7V10h4" />
                 <path d="M12 10L9 7h4" />
               </svg>
             </div>
-            <span class="plate-number font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber }}</span>
+            <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.plateNumber }}</span>
           </div>
         </template>
 
         <template #cell-vehicleType="{ item }">
-          <span class="text-sm text-slate-700 dark:text-slate-300">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
+          <span class="text-xs text-slate-700 dark:text-slate-300 font-medium">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
         </template>
 
         <template #cell-brand="{ item }">
-          <span class="vehicle-brand font-medium text-slate-700 dark:text-slate-300">{{ item.brand }}</span>
+          <span class="text-xs text-slate-700 dark:text-slate-300">{{ item.brand }}</span>
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="owner-name font-semibold text-slate-900 dark:text-white" :title="item.ownerName">
-            {{ cleanOwnerName(item.ownerName) }}
+          <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[160px] inline-block" :title="item.ownerName">
+            {{ item.ownerName }}
           </span>
         </template>
 
         <template #cell-role="{ item }">
-          <span class="text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.ownerRole) }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.ownerRole) }}</span>
         </template>
 
         <template #cell-vstatus="{ item }">
           <span
             v-if="item.verificationStatus === 2"
-            style="color:#059669;font-weight:600"
-          >Approved</span>
+            class="text-xs font-bold text-emerald-600 dark:text-emerald-400"
+          >
+            Approved
+          </span>
           <span
             v-else-if="item.verificationStatus === 3"
-            style="color:#dc2626;font-weight:600"
-          >Rejected</span>
+            class="text-xs font-bold text-rose-600 dark:text-rose-400"
+          >
+            Rejected
+          </span>
           <span
             v-else
-            style="color:#d97706;font-weight:600"
-          >Pending</span>
+            class="text-xs font-bold text-amber-600 dark:text-amber-400"
+          >
+            Pending
+          </span>
         </template>
 
         <template #cell-actions="{ item }">
-          <div class="actions-group flex items-center justify-end gap-1" @click.stop>
+          <div class="flex items-center justify-end gap-1.5" @click.stop>
             <button
-              class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
-              title="View Vehicle Details"
+              class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold transition-colors cursor-pointer border-none"
               @click="router.push('/vehicles/' + item.id)"
+              title="Inspect Vehicle Details"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
+              Inspect
             </button>
             <button
-              class="action-icon-btn p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+              class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-semibold transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
+              @click="openDeleteConfirm(item)"
               title="Delete Vehicle"
-              @click.stop="openDeleteConfirm(item)"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
+              Delete
             </button>
           </div>
         </template>
@@ -502,236 +395,31 @@ const isApproved = (status: number) => status === 2
         v-model:items-per-page="itemsPerPage"
         :total-items="filteredVehicles.length"
       />
-    </div>
+    </UiCard>
 
-    <!-- Delete Vehicle Confirmation Modal -->
+    <!-- Delete Confirmation Modal using Reusable ConfirmModal -->
     <ConfirmModal
       :is-open="isDeleteConfirmOpen"
-      title="Delete Vehicle Record"
-      :message="`Are you sure you want to delete vehicle <strong>${vehicleToDelete?.plateNumber || ''}</strong> (${vehicleToDelete?.brand || ''})? This will remove the vehicle entry pass.`"
-      confirm-text="Delete Vehicle"
+      title="Delete Registered Vehicle?"
+      :message="`Are you sure you want to delete vehicle <strong class='font-mono text-slate-900 dark:text-white font-bold'>${vehicleToDelete?.plateNumber}</strong> (${vehicleToDelete?.brand || ''}) belonging to <strong>${vehicleToDelete?.ownerName}</strong>? This action cannot be undone.`"
+      confirm-text="Yes, Delete Vehicle"
       cancel-text="Cancel"
       variant="danger"
       :is-submitting="isDeletingVehicle"
       @confirm="confirmDeleteVehicle"
       @close="isDeleteConfirmOpen = false"
     />
-
-    <!-- Toast Notifications -->
-    <div class="toast-container">
-      <TransitionGroup name="toast-fade">
-        <div v-for="toast in toasts" :key="toast.id" class="toast-item" :class="'toast--' + toast.type">
-          {{ toast.message }}
-        </div>
-      </TransitionGroup>
-    </div>
   </div>
 </template>
 
 <style scoped>
-.vehicles-view {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
-
-.vehicles-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.vehicles-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0 0 4px 0;
-}
-
-.vehicles-subtitle {
-  font-size: 14px;
-  color: var(--color-muted);
-  margin: 0;
-}
-
-.refresh-btn {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-button);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.refresh-btn:hover {
-  background: var(--color-surface-lighter);
-  color: var(--color-text);
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
-}
-
-.stat-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.stat-card__left {
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-card__value {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--color-text);
-  line-height: 1.2;
-}
-
-.stat-card__title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
-  margin-top: 4px;
-}
-
-.stat-card__subtitle {
-  font-size: 11px;
-  color: var(--color-muted);
-  margin-top: 2px;
-}
-
-.stat-card__icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-}
-
-.filters-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.search-wrapper {
-  position: relative;
-  flex: 1;
-  min-width: 240px;
-  max-width: 360px;
-}
-
-.search-icon {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-muted);
-  pointer-events: none;
-}
-
-.search-input {
-  width: 100%;
-  padding: 10px 14px 10px 42px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 14px;
-  outline: none;
-  transition: border-color 150ms ease;
-}
-
-.search-input:focus {
-  border-color: var(--color-primary);
-}
-
-.filters-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.select-wrapper {
-  position: relative;
-}
-
-.filter-select {
-  padding: 10px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-button);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: 13px;
-  outline: none;
-  cursor: pointer;
-}
-
-.table-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-.toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 10000;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.toast-item {
-  padding: 12px 20px;
-  border-radius: var(--radius-button);
-  font-size: 13px;
-  font-weight: 600;
-  color: white;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.toast--success {
-  background: #059669;
-}
-
-.toast--warning {
-  background: #d97706;
-}
-
-.toast--info {
-  background: #2563eb;
-}
-
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: all 0.3s ease;
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(-8px);
 }
 </style>
