@@ -569,7 +569,7 @@ const executeManualCheckout = async () => {
             </div>
             <div class="detail-item">
               <span class="detail-label">Entry Location / Gate</span>
-              <span class="detail-value">Gate {{ ('gate' in session ? session.gate : 1) || 1 }} (Main Campus Gate)</span>
+              <span class="detail-value">Gate {{ ('gate' in session ? session.gate : 1) || 1 }}</span>
             </div>
             <div class="detail-item">
               <span class="detail-label">Session ID</span>

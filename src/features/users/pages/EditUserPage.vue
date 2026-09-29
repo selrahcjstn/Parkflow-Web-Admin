@@ -552,9 +552,11 @@ async function handleSubmit() {
             <div class="form-group">
               <label class="form-label">Assigned Campus Gate</label>
               <select v-model.number="form.assignedGate" class="form-select">
-                <option :value="1">Gate 1 - Main Entrance</option>
-                <option :value="2">Gate 2 - East Entrance</option>
-                <option :value="3">Gate 3 - South Gate</option>
+                <option :value="1">Gate 1</option>
+                <option :value="2">Gate 2</option>
+                <option :value="3">Gate 3</option>
+                <option :value="4">Gate 4</option>
+                <option :value="5">Gate 5</option>
               </select>
             </div>
           </template>

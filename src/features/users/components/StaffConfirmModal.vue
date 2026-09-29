@@ -25,9 +25,11 @@ const emit = defineEmits<{
 }>()
 
 const gateNames: Record<number, string> = {
-  1: 'Gate 1 - Main Campus Entrance',
-  2: 'Gate 2 - East Campus Entrance',
-  3: 'Gate 3 - South Gate Entrance'
+  1: 'Gate 1',
+  2: 'Gate 2',
+  3: 'Gate 3',
+  4: 'Gate 4',
+  5: 'Gate 5'
 }
 </script>
 

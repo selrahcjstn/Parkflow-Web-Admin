@@ -16,9 +16,11 @@ const emit = defineEmits<{
 }>()
 
 const gateOptions = [
-  { label: 'Gate 1 - Main Campus Entrance', value: 1 },
-  { label: 'Gate 2 - East Campus Entrance', value: 2 },
-  { label: 'Gate 3 - South Gate Entrance', value: 3 }
+  { label: 'Gate 1', value: 1 },
+  { label: 'Gate 2', value: 2 },
+  { label: 'Gate 3', value: 3 },
+  { label: 'Gate 4', value: 4 },
+  { label: 'Gate 5', value: 5 }
 ]
 
 const roleLevelOptions = [
