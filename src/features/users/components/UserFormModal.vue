@@ -202,8 +202,8 @@ const handleSubmit = () => {
                     class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                   >
                     <option value="Student">Student</option>
-                    <option value="UniversityStaff">University Staff (Faculty)</option>
-                    <option value="NonAcademicPersonnel">Non-Academic Personnel</option>
+                    <option value="UniversityStaff">Faculty Member</option>
+                    <option value="NonAcademicPersonnel">University Staff</option>
                     <option value="Guard">Security Guard</option>
                     <option value="Admin">Administrator</option>
                   </select>

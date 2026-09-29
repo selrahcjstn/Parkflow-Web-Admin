@@ -497,9 +497,9 @@ async function handleSubmit() {
           <div class="form-group full-width">
             <label class="form-label">User Classification Role</label>
             <select v-model="form.role" class="form-select">
-              <option value="Student">Student (Enrolled COR)</option>
-              <option value="UniversityStaff">University Faculty</option>
-              <option value="NonAcademicPersonnel">Non-Academic Staff</option>
+              <option value="Student">Student</option>
+              <option value="UniversityStaff">Faculty Member</option>
+              <option value="NonAcademicPersonnel">University Staff</option>
               <option value="Guard">Security Guard</option>
               <option value="Admin">System Administrator</option>
             </select>

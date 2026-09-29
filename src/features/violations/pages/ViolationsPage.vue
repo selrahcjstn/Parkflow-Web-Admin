@@ -279,8 +279,8 @@ const handlePaymentSubmit = async () => {
 }
 
 const getRoleLabel = (role: string) => {
-  if (role === 'UniversityStaff') return 'Faculty'
-  if (role === 'NonAcademicPersonnel') return 'Staff'
+  if (role === 'UniversityStaff') return 'Faculty Member'
+  if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role
 }
 </script>

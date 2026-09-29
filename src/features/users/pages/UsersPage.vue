@@ -199,8 +199,8 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
 // Dynamic Header Properties
 const headerTitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Student Client Directory'
-  if (selectedRole.value === 'UniversityStaff') return 'Faculty Client Directory'
-  if (selectedRole.value === 'NonAcademicPersonnel') return 'Staff Client Directory'
+  if (selectedRole.value === 'UniversityStaff') return 'Faculty Member Directory'
+  if (selectedRole.value === 'NonAcademicPersonnel') return 'University Staff Directory'
   if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Staff & Faculty Directory'
   if (selectedRole.value === 'AdminStaff') return 'Staff & Admin Directory'
   if (selectedRole.value === 'Guard') return 'Security Guards Directory'
@@ -210,8 +210,8 @@ const headerTitle = computed(() => {
 
 const headerSubtitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
-  if (selectedRole.value === 'UniversityStaff') return 'Manage faculty accounts, department assignments, and vehicle clearance.'
-  if (selectedRole.value === 'NonAcademicPersonnel') return 'Manage non-academic personnel accounts, administrative departments, and vehicle clearance.'
+  if (selectedRole.value === 'UniversityStaff') return 'Manage faculty member accounts, department assignments, and vehicle clearance.'
+  if (selectedRole.value === 'NonAcademicPersonnel') return 'Manage university staff accounts, administrative departments, and vehicle clearance.'
   if (selectedRole.value === 'NAPA' || selectedRole.value === 'staff') return 'Manage staff and faculty accounts, department assignments, and vehicle clearance.'
   if (selectedRole.value === 'AdminStaff') return 'Manage registered campus security guards and system administrator accounts.'
   if (selectedRole.value === 'Guard') return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
@@ -297,9 +297,9 @@ const getRoleLabel = (role: UserRole) => {
     case 'Student':
       return 'Student'
     case 'UniversityStaff':
-      return 'Faculty'
+      return 'Faculty Member'
     case 'NonAcademicPersonnel':
-      return 'Staff'
+      return 'University Staff'
     case 'Guard':
       return 'Security Guard'
     case 'Admin':
@@ -666,7 +666,7 @@ const handleFormSubmit = async (formData: any) => {
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
         :class="selectedRole === 'UniversityStaff' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
       >
-        Faculty ({{ facultyCount }})
+        Faculty Member ({{ facultyCount }})
       </button>
 
       <button
@@ -675,7 +675,7 @@ const handleFormSubmit = async (formData: any) => {
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
         :class="selectedRole === 'NonAcademicPersonnel' ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
       >
-        Staff ({{ staffCount }})
+        University Staff ({{ staffCount }})
       </button>
 
       <button
@@ -714,9 +714,9 @@ const handleFormSubmit = async (formData: any) => {
           class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 cursor-pointer transition-all"
         >
           <option value="all">All Account Types ({{ users.length }})</option>
-          <option value="Student">Students ({{ studentCount }})</option>
-          <option value="UniversityStaff">Faculty ({{ facultyCount }})</option>
-          <option value="NonAcademicPersonnel">Staff (Non-Academic) ({{ staffCount }})</option>
+          <option value="Student">Student ({{ studentCount }})</option>
+          <option value="UniversityStaff">Faculty Member ({{ facultyCount }})</option>
+          <option value="NonAcademicPersonnel">University Staff ({{ staffCount }})</option>
           <option v-if="isSuperAdmin" value="Guard">Security Guards ({{ guardCount }})</option>
           <option v-if="isSuperAdmin" value="Admin">Administrators ({{ adminCount }})</option>
         </select>
