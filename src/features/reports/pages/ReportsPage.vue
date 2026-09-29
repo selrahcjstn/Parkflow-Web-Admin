@@ -146,9 +146,9 @@ const occupancySvgPath = computed(() => {
 
 // DYNAMIC VEHICLE TYPE PIE / DONUT CHART COMPUTATION FROM REAL DATABASE
 const vehiclePieData = computed(() => {
-  let cars = realVehicles.value.filter((v: any) => v.vehicleType === 'Car' || v.vehicleType === 0).length
-  let motos = realVehicles.value.filter((v: any) => v.vehicleType === 'Motorcycle' || v.vehicleType === 1).length
-  let ebikes = realVehicles.value.filter((v: any) => v.vehicleType === 'ElectricBike' || v.vehicleType === 2).length
+  let cars = realVehicles.value.filter((v: any) => v.vehicleType === 'Car' || v.vehicleType === 2).length
+  let motos = realVehicles.value.filter((v: any) => v.vehicleType === 'Motorcycle' || v.vehicleType === 0).length
+  let ebikes = realVehicles.value.filter((v: any) => v.vehicleType === 'ElectricBike' || v.vehicleType === 1).length
 
   if (!cars && !motos && !ebikes) {
     cars = 18

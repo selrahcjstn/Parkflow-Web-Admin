@@ -63,7 +63,7 @@ const fetchVehicles = async () => {
           plateNumber: v.plateNumber || 'N/A',
           brand: v.brand || 'N/A',
           qrCodeHash: v.qrCodeHash || `QR-${safeId.slice(0, 6).toUpperCase()}`,
-          vehicleType: v.vehicleType === 0 ? 'Car' : v.vehicleType === 1 ? 'Motorcycle' : v.vehicleType === 2 ? 'ElectricBike' : (v.vehicleType || 'Car'),
+          vehicleType: v.vehicleType === 0 ? 'Motorcycle' : v.vehicleType === 1 ? 'ElectricBike' : v.vehicleType === 2 ? 'Car' : (v.vehicleType || 'Motorcycle'),
           status: 'Active',
           isPrimary: Boolean(v.isPrimary),
           ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned'),
