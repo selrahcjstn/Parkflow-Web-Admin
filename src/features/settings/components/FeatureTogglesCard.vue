@@ -43,7 +43,7 @@ const emit = defineEmits<{
         <input
           :checked="settings.rfidInstantScanEnabled"
           type="checkbox"
-          class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+          class="w-4 h-4 rounded text-[#D22730] focus:ring-[#D22730] cursor-pointer"
           @change="emit('toggle', 'rfidInstantScanEnabled')"
         />
       </div>
@@ -57,7 +57,7 @@ const emit = defineEmits<{
         <input
           :checked="settings.autoApproveVerification"
           type="checkbox"
-          class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+          class="w-4 h-4 rounded text-[#D22730] focus:ring-[#D22730] cursor-pointer"
           @change="emit('toggle', 'autoApproveVerification')"
         />
       </div>

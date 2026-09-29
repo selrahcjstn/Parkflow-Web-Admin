@@ -312,7 +312,7 @@ function openZoom(url: string) {
           <button
             type="button"
             class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+            :class="viewMode === 'grid' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
             @click="viewMode = 'grid'"
             title="Review Grid Mode"
           >
@@ -327,7 +327,7 @@ function openZoom(url: string) {
           <button
             type="button"
             class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'table' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+            :class="viewMode === 'table' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
             @click="viewMode = 'table'"
             title="List View Mode"
           >
@@ -350,10 +350,11 @@ function openZoom(url: string) {
           @click="fetchApprovals"
           title="Refresh Data"
         >
-          <template #icon>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <template #prefix>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="23 4 23 10 17 10" />
-              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
           </template>
           Refresh
@@ -460,7 +461,7 @@ function openZoom(url: string) {
       >
         <template #cell-applicant="{ item }">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+            <div class="w-8 h-8 rounded-full bg-[#D22730] text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
               {{ item.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() }}
             </div>
             <div class="flex flex-col min-w-0">
@@ -490,7 +491,7 @@ function openZoom(url: string) {
           <div class="inline-flex items-center gap-1.5" @click.stop>
             <button
               type="button"
-              class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors cursor-pointer border-none"
+              class="px-2.5 py-1 rounded-lg bg-[#D22730] hover:bg-[#B81E26] text-white font-semibold text-xs transition-colors cursor-pointer border-none"
               @click="openInspector(item)"
             >
               Inspect

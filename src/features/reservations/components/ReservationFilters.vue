@@ -40,7 +40,7 @@ const statusTabs = [
         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer border"
         :class="[
           selectedStatusTab === tab.id
-            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+            ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm'
             : 'bg-white dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
         ]"
         @click="emit('update:selectedStatusTab', tab.id)"
@@ -66,7 +66,7 @@ const statusTabs = [
         <input
           type="date"
           :value="selectedDateFilter"
-          class="w-full h-9 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-colors"
+          class="w-full h-9 px-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#D22730]/20 focus:border-[#D22730] transition-colors"
           title="Filter by reservation date"
           @input="emit('update:selectedDateFilter', ($event.target as HTMLInputElement).value)"
         />

@@ -57,7 +57,7 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
   }, 4000)
 }
 
-const TOTAL_CAPACITY = 200
+const totalCapacity = ref(500)
 const todaysEntriesCount = ref(0)
 const activeSessions = ref<ActiveSession[]>(cachedActiveSessions.value || [])
 const historySessions = ref<ParkingHistoryItem[]>(cachedHistorySessions.value || [])
@@ -114,10 +114,15 @@ const fetchParkingData = async () => {
     isLoading.value = true
   }
   try {
-    const [activeRes, historyRes] = await Promise.allSettled([
-      api.get('/parking-logs/active-sessions?parkingCapacity=200'),
-      api.get('/parking-logs/history/page/1/1000')
+    const [activeRes, historyRes, settingsRes] = await Promise.allSettled([
+      api.get(`/parking-logs/active-sessions?parkingCapacity=${totalCapacity.value}`),
+      api.get('/parking-logs/history/page/1/1000'),
+      api.get('/system-settings')
     ])
+
+    if (settingsRes.status === 'fulfilled' && settingsRes.value.data?.isSuccess && settingsRes.value.data?.data?.totalCapacity) {
+      totalCapacity.value = settingsRes.value.data.data.totalCapacity
+    }
 
     if (activeRes.status === 'fulfilled' && activeRes.value.data?.isSuccess) {
       const rawActive = activeRes.value.data.data || []
@@ -221,7 +226,7 @@ const filterMethod = ref<string>('all')
 
 // Stats computations
 const occupancyCount = computed(() => activeSessions.value.length)
-const occupancyRate = computed(() => Math.round((occupancyCount.value / TOTAL_CAPACITY) * 100))
+const occupancyRate = computed(() => totalCapacity.value > 0 ? Math.round((occupancyCount.value / totalCapacity.value) * 100) : 0)
 const overstayCount = computed(() => activeSessions.value.filter((s) => s.status === 'Overstay').length)
 
 // Filtered sessions computation
@@ -397,7 +402,7 @@ const getRoleLabel = (role: string) => {
     <ParkingStats
       :is-loading="isLoading"
       :occupancy-count="occupancyCount"
-      :total-capacity="TOTAL_CAPACITY"
+      :total-capacity="totalCapacity"
       :occupancy-rate="occupancyRate"
       :todays-entries-count="todaysEntriesCount"
       :overstay-count="overstayCount"
@@ -405,16 +410,14 @@ const getRoleLabel = (role: string) => {
       @click-overstay="currentTab = 'active'; filterStatus = 'Overstay'"
     />
 
-    <!-- Filters Bar Card -->
-    <UiCard custom-class="p-4">
-      <ParkingFilters
-        v-model:search-query="searchQuery"
-        v-model:current-tab="currentTab"
-        v-model:filter-vehicle-type="filterVehicleType"
-        v-model:filter-status="filterStatus"
-        v-model:filter-method="filterMethod"
-      />
-    </UiCard>
+    <!-- Filters Bar (Frameless / Borderless) -->
+    <ParkingFilters
+      v-model:search-query="searchQuery"
+      v-model:current-tab="currentTab"
+      v-model:filter-vehicle-type="filterVehicleType"
+      v-model:filter-status="filterStatus"
+      v-model:filter-method="filterMethod"
+    />
 
     <!-- Tables Container Card -->
     <UiCard custom-class="p-0 overflow-hidden">

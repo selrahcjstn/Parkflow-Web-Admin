@@ -12,10 +12,10 @@
   --color-accent: #334155;
 
   /* ── Unified Button Theme ──────────────────────── */
-  --btn-primary-bg: #4f46e5;
-  --btn-primary-hover: #4338ca;
+  --btn-primary-bg: #D22730;
+  --btn-primary-hover: #B81E26;
   --btn-primary-text: #ffffff;
-  --btn-primary-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  --btn-primary-shadow: 0 4px 12px rgba(210, 39, 48, 0.25);
   --btn-secondary-bg: #ffffff;
   --btn-secondary-hover: #f8fafc;
   --btn-secondary-border: #cbd5e1;

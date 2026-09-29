@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import { cachedViolations } from '@/stores/appCache'
 import type { Violation } from '../types'
@@ -212,12 +213,22 @@ const handlePaymentSubmit = async () => {
           <p class="page-subtitle">Inspect violation infraction records, penalty fee breakdown, driver identity, and payment settlement.</p>
         </div>
         <div class="header-actions">
-          <button class="refresh-btn" @click="fetchViolationDetail" title="Refresh Ticket">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21.5 2v6h-6M2.5 22v-6h6" />
-              <path d="M2 11.5a10 10 0 0 1 18.8-4.3L21.5 8M22 12.5a10 10 0 0 1-18.8 4.2L2.5 16" />
-            </svg>
-          </button>
+          <UiButton
+            variant="secondary"
+            size="md"
+            :loading="isLoading"
+            @click="fetchViolationDetail"
+            title="Refresh Ticket"
+          >
+            <template #prefix>
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10" />
+                <polyline points="1 20 1 14 7 14" />
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+              </svg>
+            </template>
+            Refresh
+          </UiButton>
           <button
             v-if="violation && violation.settlementStatus === 'Unpaid'"
             class="settle-action-btn"
@@ -574,7 +585,7 @@ const handlePaymentSubmit = async () => {
 }
 
 .back-btn:hover {
-  color: #4f46e5;
+  color: var(--color-primary, #D22730);
 }
 
 .header-content {
@@ -710,7 +721,7 @@ const handlePaymentSubmit = async () => {
 
 .hero-infraction-type {
   font-weight: 700;
-  color: #4f46e5;
+  color: var(--color-primary, #D22730);
 }
 
 .hero-dot {
@@ -798,7 +809,7 @@ const handlePaymentSubmit = async () => {
   flex-shrink: 0;
 }
 
-.card-icon-badge--blue   { background: rgba(79, 70, 229, 0.1);  color: #4f46e5; }
+.card-icon-badge--blue   { background: rgba(210, 39, 48, 0.08);  color: var(--color-primary, #D22730); }
 .card-icon-badge--purple { background: rgba(147, 51, 234, 0.1); color: #9333ea; }
 .card-icon-badge--orange { background: rgba(245, 158, 11, 0.1); color: #d97706; }
 .card-icon-badge--green  { background: rgba(5, 150, 105, 0.1);  color: #059669; }

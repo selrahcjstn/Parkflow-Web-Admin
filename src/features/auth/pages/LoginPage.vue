@@ -8,7 +8,7 @@ import LoginForm from '../components/LoginForm.vue'
     <div class="w-full max-w-md space-y-6">
       <!-- Branding Header -->
       <div class="flex flex-col items-center gap-3 text-center">
-        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-md shadow-blue-500/20">
+        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#D22730] shadow-lg shadow-[#D22730]/25">
           <svg width="28" height="28" viewBox="0 0 20 20" fill="none">
             <rect x="3" y="10" width="4" height="7" rx="1" fill="white" />
             <rect x="8" y="6" width="4" height="11" rx="1" fill="white" opacity="0.7" />

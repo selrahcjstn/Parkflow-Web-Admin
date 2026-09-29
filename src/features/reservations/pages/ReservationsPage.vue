@@ -412,6 +412,23 @@ async function handleReject(item: ParkingReservationItem) {
       </div>
       <div class="flex items-center gap-3">
         <UiButton
+          variant="secondary"
+          size="md"
+          :loading="isLoading"
+          @click="fetchReservations(false)"
+          title="Refresh Data"
+        >
+          <template #prefix>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </template>
+          Refresh
+        </UiButton>
+
+        <UiButton
           variant="primary"
           @click="router.push('/reservations/create')"
         >
@@ -436,15 +453,13 @@ async function handleReject(item: ParkingReservationItem) {
       :rejected-count="rejectedCount"
     />
 
-    <!-- Controls Bar -->
-    <UiCard custom-class="p-4">
-      <ReservationFilters
-        v-model:search-query="searchQuery"
-        v-model:selected-status-tab="selectedStatusTab"
-        v-model:selected-date-filter="selectedDateFilter"
-        :counts="counts"
-      />
-    </UiCard>
+    <!-- Controls Bar (Frameless / Borderless) -->
+    <ReservationFilters
+      v-model:search-query="searchQuery"
+      v-model:selected-status-tab="selectedStatusTab"
+      v-model:selected-date-filter="selectedDateFilter"
+      :counts="counts"
+    />
 
     <!-- Table Container -->
     <UiCard custom-class="p-0 overflow-hidden">

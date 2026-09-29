@@ -726,7 +726,7 @@ onMounted(() => {
 }
 
 .back-btn:hover {
-  color: #4f46e5;
+  color: var(--color-primary, #D22730);
 }
 
 .header-titles {
@@ -762,7 +762,7 @@ onMounted(() => {
 }
 
 .crumb-ref {
-  color: #4f46e5;
+  color: var(--color-primary, #D22730);
   font-weight: 700;
 }
 
@@ -809,13 +809,13 @@ onMounted(() => {
 }
 
 .action-btn--primary {
-  background: #4f46e5;
-  border-color: #4338ca;
+  background: var(--btn-primary-bg, #D22730);
+  border-color: var(--btn-primary-bg, #D22730);
   color: #ffffff;
 }
 
 .action-btn--primary:hover {
-  background: #4338ca;
+  background: var(--btn-primary-hover, #B81E26);
 }
 
 /* Toast */
@@ -942,8 +942,8 @@ onMounted(() => {
 }
 
 .card-icon-badge--blue {
-  background: rgba(79, 70, 229, 0.1);
-  color: #4f46e5;
+  background: rgba(210, 39, 48, 0.08);
+  color: var(--color-primary, #D22730);
 }
 
 .card-icon-badge--purple {
@@ -1089,7 +1089,7 @@ onMounted(() => {
 /* Callout Boxes */
 .text-callout-box {
   background: #f8fafc;
-  border-left: 3px solid #4f46e5;
+  border-left: 3px solid var(--color-primary, #D22730);
   border-radius: 0 8px 8px 0;
   padding: 12px 16px;
   margin-top: 4px;
@@ -1193,7 +1193,7 @@ onMounted(() => {
 .zoom-ref-code {
   font-size: 15px;
   font-weight: 800;
-  color: #4f46e5;
+  color: var(--color-primary, #D22730);
   margin: 0 0 16px;
 }
 

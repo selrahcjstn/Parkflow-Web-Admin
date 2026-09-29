@@ -187,13 +187,13 @@ async function handleSubmit() {
           <input
             v-model="rememberMe"
             type="checkbox"
-            class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            class="w-4 h-4 rounded border-slate-300 text-[#D22730] focus:ring-[#D22730] cursor-pointer"
           />
           Remember me
         </label>
         <a
           href="#"
-          class="font-semibold text-blue-600 dark:text-blue-400 hover:underline transition-colors"
+          class="font-semibold text-[#D22730] dark:text-[#f87171] hover:underline transition-colors"
         >
           Forgot password?
         </a>

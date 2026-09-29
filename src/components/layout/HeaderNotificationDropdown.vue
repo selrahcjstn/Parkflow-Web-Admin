@@ -223,7 +223,12 @@ onBeforeUnmount(() => {
           </div>
 
           <button class="refresh-btn" @click="notifStore.fetchPendingAdminNotifications">
-            ↻ Refresh
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+            Refresh
           </button>
         </div>
       </div>
@@ -409,7 +414,7 @@ onBeforeUnmount(() => {
 .icon--schedule_pending { background: #dbeafe; color: #2563eb; }
 .icon--vehicle_pending { background: #d1fae5; color: #059669; }
 .icon--feedback_pending { background: #fef3c7; color: #d97706; }
-.icon--reservation_pending { background: #e0e7ff; color: #4f46e5; }
+.icon--reservation_pending { background: #fef2f2; color: #D22730; }
 .icon--violation_issued { background: #ffe4e6; color: #e11d48; }
 .icon--session_activity { background: #f3e8ff; color: #7c3aed; }
 .icon--payment_processed { background: #ecfdf5; color: #10b981; }
@@ -529,6 +534,9 @@ onBeforeUnmount(() => {
 }
 
 .refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: transparent;
   border: none;
   color: var(--color-muted);

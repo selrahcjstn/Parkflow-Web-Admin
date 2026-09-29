@@ -161,8 +161,8 @@ defineExpose({
 }
 
 .ui-textarea-wrapper:focus-within {
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.18);
+  border-color: var(--color-primary, #D22730);
+  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.15);
 }
 
 .ui-textarea-field {

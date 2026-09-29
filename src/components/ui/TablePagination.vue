@@ -158,7 +158,7 @@ const handlePerPageChange = (event: Event) => {
 }
 
 .per-page-select:focus {
-  border-color: #4f46e5;
+  border-color: var(--color-primary, #D22730);
 }
 
 .page-buttons {
@@ -185,8 +185,8 @@ const handlePerPageChange = (event: Event) => {
 }
 
 .page-btn:hover:not(:disabled) {
-  border-color: #4f46e5;
-  color: #4f46e5;
+  border-color: var(--color-primary, #D22730);
+  color: var(--color-primary, #D22730);
 }
 
 .page-num-btn {
@@ -207,13 +207,13 @@ const handlePerPageChange = (event: Event) => {
 }
 
 .page-num-btn:hover:not(.page-num-btn--active) {
-  border-color: #4f46e5;
-  color: #4f46e5;
+  border-color: var(--color-primary, #D22730);
+  color: var(--color-primary, #D22730);
 }
 
 .page-num-btn--active {
-  background: #4f46e5 !important;
-  border-color: #4f46e5 !important;
+  background: var(--color-primary, #D22730) !important;
+  border-color: var(--color-primary, #D22730) !important;
   color: #ffffff !important;
 }
 

@@ -287,13 +287,11 @@ const getVehicleTypeLabel = (type: string) => {
       :ebikes-count="ebikesCount"
     />
 
-    <!-- Filters Bar -->
-    <UiCard custom-class="p-4">
-      <VehicleFilters
-        v-model:search-query="searchQuery"
-        v-model:filter-type="filterType"
-      />
-    </UiCard>
+    <!-- Filters Bar (Frameless / Borderless) -->
+    <VehicleFilters
+      v-model:search-query="searchQuery"
+      v-model:filter-type="filterType"
+    />
 
     <!-- Vehicles Table Card -->
     <UiCard custom-class="p-0 overflow-hidden">

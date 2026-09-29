@@ -306,6 +306,8 @@ onMounted(() => {
         <!-- 2. Campus Capacity Card -->
         <CampusCapacityCard
           :settings="settings"
+          :is-saving="isSaving"
+          @save="saveSettings"
           @open-reset-modal="showResetModal = true"
         />
 

@@ -358,8 +358,8 @@ async function handleSubmit() {
 }
 
 .card-icon-badge--blue {
-  background: #eff6ff;
-  color: #2563eb;
+  background: rgba(210, 39, 48, 0.08);
+  color: var(--color-primary, #D22730);
 }
 
 .card-icon-badge--purple {
@@ -414,7 +414,7 @@ async function handleSubmit() {
   border-radius: 4px;
   margin-top: 2px;
   cursor: pointer;
-  accent-color: #4f46e5;
+  accent-color: var(--color-primary, #D22730);
 }
 
 .checkbox-content {

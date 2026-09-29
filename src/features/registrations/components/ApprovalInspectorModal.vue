@@ -112,7 +112,7 @@ function handleImageError(event: Event, fallback: string) {
           <button
             type="button"
             class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'cor' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'cor' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'cor'"
           >
             Certificate of Registration (COR)
@@ -123,7 +123,7 @@ function handleImageError(event: Event, fallback: string) {
           <button
             type="button"
             class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'schedule' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'schedule' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'schedule'"
           >
             Class Access Schedule
@@ -131,7 +131,7 @@ function handleImageError(event: Event, fallback: string) {
           <button
             type="button"
             class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'cor' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'cor' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'cor'"
           >
             COR Document
@@ -142,7 +142,7 @@ function handleImageError(event: Event, fallback: string) {
           <button
             type="button"
             class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'orcr' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'orcr' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'orcr'"
           >
             OR/CR Document
@@ -150,7 +150,7 @@ function handleImageError(event: Event, fallback: string) {
           <button
             type="button"
             class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'motorPic' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'motorPic' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'motorPic'"
           >
             Vehicle Photo
@@ -179,7 +179,7 @@ function handleImageError(event: Event, fallback: string) {
               :href="(activeDocType === 'cor' ? item.corUrl : item.orcrUrl) || '#'"
               target="_blank"
               rel="noopener noreferrer"
-              class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors no-underline"
+              class="px-3 py-1.5 rounded-lg bg-[#D22730] hover:bg-[#B81E26] text-white text-xs font-semibold transition-colors no-underline"
             >
               Open in New Tab
             </a>

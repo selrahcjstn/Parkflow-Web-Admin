@@ -92,7 +92,7 @@ const feeCalculationModeOptions = [
             <input
               v-model="settings.isGracePeriodEnabled"
               type="checkbox"
-              class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+              class="w-4 h-4 rounded text-[#D22730] focus:ring-[#D22730] cursor-pointer"
             />
           </div>
           <UiInput
@@ -113,7 +113,7 @@ const feeCalculationModeOptions = [
             <input
               v-model="settings.isEarlyParkingAllowed"
               type="checkbox"
-              class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+              class="w-4 h-4 rounded text-[#D22730] focus:ring-[#D22730] cursor-pointer"
             />
           </div>
           <UiInput

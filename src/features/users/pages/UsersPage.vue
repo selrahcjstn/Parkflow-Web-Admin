@@ -424,7 +424,7 @@ const handleFormSubmit = async (formData: any) => {
           <button
             type="button"
             class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'grid' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+            :class="viewMode === 'grid' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
             @click="viewMode = 'grid'"
             title="Cards Grid Mode"
           >
@@ -439,7 +439,7 @@ const handleFormSubmit = async (formData: any) => {
           <button
             type="button"
             class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'table' ? 'bg-indigo-600 text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+            :class="viewMode === 'table' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
             @click="viewMode = 'table'"
             title="Table List Mode"
           >
@@ -451,6 +451,23 @@ const handleFormSubmit = async (formData: any) => {
             <span>Table List</span>
           </button>
         </div>
+
+        <UiButton
+          variant="secondary"
+          size="md"
+          :loading="isLoading"
+          @click="fetchUsers"
+          title="Refresh Users"
+        >
+          <template #prefix>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <polyline points="1 20 1 14 7 14" />
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+            </svg>
+          </template>
+          Refresh
+        </UiButton>
 
         <UiButton
           v-if="!isAdminStaffView || isSuperAdmin"
@@ -484,7 +501,7 @@ const handleFormSubmit = async (formData: any) => {
               {{ stat.title }}
             </span>
           </div>
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-[#D22730] dark:text-[#f87171] bg-red-50 dark:bg-red-950/40">
             <svg v-if="stat.icon === 'people'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round" />
               <circle cx="9" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round" />

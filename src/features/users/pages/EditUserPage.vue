@@ -695,7 +695,7 @@ async function handleSubmit() {
 }
 
 .back-btn:hover {
-  color: #4f46e5;
+  color: var(--color-primary, #D22730);
 }
 
 .header-titles {
@@ -780,7 +780,7 @@ async function handleSubmit() {
   flex-shrink: 0;
 }
 
-.card-icon-badge--blue { background: rgba(79, 70, 229, 0.1); color: #4f46e5; }
+.card-icon-badge--blue { background: rgba(210, 39, 48, 0.08); color: var(--color-primary, #D22730); }
 .card-icon-badge--purple { background: rgba(147, 51, 234, 0.1); color: #9333ea; }
 .card-icon-badge--orange { background: rgba(245, 158, 11, 0.1); color: #d97706; }
 .card-icon-badge--red { background: rgba(239, 68, 68, 0.1); color: #dc2626; }
@@ -825,7 +825,7 @@ async function handleSubmit() {
   width: 96px;
   height: 96px;
   border-radius: 50%;
-  background: #4f46e5;
+  background: var(--color-primary, #D22730);
   color: #ffffff;
   font-size: 32px;
   font-weight: 800;
@@ -875,13 +875,13 @@ async function handleSubmit() {
 }
 
 .btn-photo--upload {
-  background: #4f46e5;
+  background: var(--btn-primary-bg, #D22730);
   color: #ffffff;
   border: none;
 }
 
 .btn-photo--upload:hover {
-  background: #4338ca;
+  background: var(--btn-primary-hover, #B81E26);
 }
 
 .btn-photo--remove {
@@ -961,8 +961,8 @@ async function handleSubmit() {
 .form-input:focus,
 .form-select:focus {
   outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  border-color: var(--color-primary, #D22730);
+  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.12);
 }
 
 .password-toggle-row {
@@ -984,7 +984,7 @@ async function handleSubmit() {
 .checkbox-input {
   width: 16px;
   height: 16px;
-  accent-color: #4f46e5;
+  accent-color: var(--color-primary, #D22730);
   cursor: pointer;
 }
 
@@ -1120,7 +1120,7 @@ async function handleSubmit() {
   padding: 10px 24px;
   border-radius: 8px;
   border: none;
-  background: #4f46e5;
+  background: var(--btn-primary-bg, #D22730);
   color: #ffffff;
   font-size: 13.5px;
   font-weight: 600;
@@ -1129,7 +1129,7 @@ async function handleSubmit() {
 }
 
 .btn-submit:hover:not(:disabled) {
-  background: #4338ca;
+  background: var(--btn-primary-hover, #B81E26);
 }
 
 .btn-submit:disabled {

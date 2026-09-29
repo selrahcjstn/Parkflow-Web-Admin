@@ -119,7 +119,7 @@ body {
 .add-entry-btn,
 .add-user-btn,
 .btn-submit {
-  background: var(--btn-primary-bg, #4f46e5) !important;
+  background: var(--btn-primary-bg, #D22730) !important;
   color: var(--btn-primary-text, #ffffff) !important;
   border: none !important;
   border-radius: 8px !important;
@@ -131,7 +131,7 @@ body {
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  box-shadow: var(--btn-primary-shadow, 0 4px 12px rgba(79, 70, 229, 0.25)) !important;
+  box-shadow: var(--btn-primary-shadow, 0 4px 12px rgba(210, 39, 48, 0.25)) !important;
   transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease !important;
   text-decoration: none !important;
   box-sizing: border-box !important;
@@ -141,9 +141,9 @@ body {
 .add-entry-btn:hover:not(:disabled),
 .add-user-btn:hover:not(:disabled),
 .btn-submit:hover:not(:disabled) {
-  background: var(--btn-primary-hover, #4338ca) !important;
+  background: var(--btn-primary-hover, #B81E26) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35) !important;
+  box-shadow: 0 6px 16px rgba(210, 39, 48, 0.35) !important;
 }
 
 .btn-primary:active:not(:disabled),

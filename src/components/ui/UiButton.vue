@@ -81,8 +81,8 @@ function handleClick(event: MouseEvent) {
     </svg>
 
     <!-- Leading Icon -->
-    <span v-if="$slots.icon && !loading" class="ui-btn__icon ui-btn__icon--prefix">
-      <slot name="icon" />
+    <span v-if="($slots.icon || $slots.prefix) && !loading" class="ui-btn__icon ui-btn__icon--prefix">
+      <slot name="icon"><slot name="prefix" /></slot>
     </span>
 
     <!-- Button Text / Default Content -->
@@ -171,22 +171,23 @@ function handleClick(event: MouseEvent) {
 }
 
 /* ── Variants ── */
-/* Primary (Indigo Theme) */
+/* Primary (BulSU Red Theme) */
 .ui-btn--primary {
-  background: #4f46e5;
-  color: #ffffff;
-  border-color: #4f46e5;
-  --ring-color: rgba(79, 70, 229, 0.35);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(79, 70, 229, 0.15);
+  background: var(--btn-primary-bg, #D22730);
+  color: var(--btn-primary-text, #ffffff);
+  border-color: var(--btn-primary-bg, #D22730);
+  --ring-color: rgba(210, 39, 48, 0.35);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(210, 39, 48, 0.15);
 }
 .ui-btn--primary:hover:not(:disabled) {
-  background: #4338ca;
-  border-color: #4338ca;
+  background: var(--btn-primary-hover, #B81E26);
+  border-color: var(--btn-primary-hover, #B81E26);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.25);
 }
 .ui-btn--primary:active:not(:disabled) {
-  background: #3730a3;
+  background: #9E1B22;
+  border-color: #9E1B22;
   transform: translateY(0);
 }
 
@@ -282,16 +283,16 @@ function handleClick(event: MouseEvent) {
 /* Outline */
 .ui-btn--outline {
   background: transparent;
-  color: #4f46e5;
-  border-color: #c7d2fe;
-  --ring-color: rgba(79, 70, 229, 0.25);
+  color: var(--color-primary, #D22730);
+  border-color: #fca5a5;
+  --ring-color: rgba(210, 39, 48, 0.25);
 }
 .ui-btn--outline:hover:not(:disabled) {
-  background: rgba(79, 70, 229, 0.06);
-  border-color: #818cf8;
+  background: rgba(210, 39, 48, 0.06);
+  border-color: #ef4444;
 }
 .ui-btn--outline:active:not(:disabled) {
-  background: rgba(79, 70, 229, 0.12);
+  background: rgba(210, 39, 48, 0.12);
 }
 
 /* ── Disabled & Loading States ── */
