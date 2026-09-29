@@ -81,7 +81,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 flex items-center justify-between h-[60px] px-6 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 flex-shrink-0">
+  <header class="sticky top-0 z-30 flex items-center justify-between h-[60px] px-6 bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 flex-shrink-0 transition-colors">
     <!-- Left side -->
     <div class="flex items-center gap-3">
       <!-- Mobile hamburger -->
