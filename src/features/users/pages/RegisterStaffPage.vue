@@ -81,6 +81,22 @@ const handleInitiateSubmit = async () => {
   otpError.value = null
 
   try {
+    // Check if staff email is already in use
+    try {
+      const checkRes = await api.get(`/auth/check-email?email=${encodeURIComponent(form.value.email.trim())}`)
+      if (checkRes.data?.isSuccess === false || checkRes.data?.data === false) {
+        showNotification(checkRes.data?.message || 'This email address is already registered to an account.', 'error')
+        isSendingOtp.value = false
+        return
+      }
+    } catch (checkErr: any) {
+      if (checkErr.response?.status === 409 || checkErr.response?.data?.message?.toLowerCase().includes('already')) {
+        showNotification(checkErr.response?.data?.message || 'This email address is already registered to an account.', 'error')
+        isSendingOtp.value = false
+        return
+      }
+    }
+
     const response = await api.post('/auth/send-email-otp', {
       email: otpSentEmail.value
     })

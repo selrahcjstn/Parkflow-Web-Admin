@@ -223,6 +223,22 @@ const handleSendOtp = async (isResend = false) => {
 
   isSendingOtp.value = true
   try {
+    // 1. Check if email is already in use
+    try {
+      const checkRes = await api.get(`/auth/check-email?email=${encodeURIComponent(email)}`)
+      if (checkRes.data?.isSuccess === false || checkRes.data?.data === false) {
+        emailFieldError.value = checkRes.data?.message || 'This email address is already registered to an existing account. Please use a different email.'
+        isSendingOtp.value = false
+        return
+      }
+    } catch (checkErr: any) {
+      if (checkErr.response?.status === 409 || checkErr.response?.data?.message?.toLowerCase().includes('already')) {
+        emailFieldError.value = checkErr.response?.data?.message || 'This email address is already registered to an existing account. Please use a different email.'
+        isSendingOtp.value = false
+        return
+      }
+    }
+
     const otpRes = await api.post('/auth/send-email-otp', { email })
     if (otpRes.data?.isSuccess === false) {
       emailFieldError.value = otpRes.data?.message || 'Failed to dispatch verification code.'
