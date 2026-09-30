@@ -2,6 +2,7 @@ export default [
   { path: '/users', name: 'Users', component: () => import('./pages/UsersPage.vue'), meta: { title: 'Clients' } },
   { path: '/users/create', name: 'RegisterUser', component: () => import('./pages/RegisterUserPage.vue'), meta: { title: 'Register Client' } },
   { path: '/users/create-staff', name: 'RegisterStaff', component: () => import('./pages/RegisterStaffPage.vue'), meta: { title: 'Register Staff / Admin', requiresSuperAdmin: true } },
+  { path: '/users/:id', name: 'UserDetail', component: () => import('./pages/UserDetailPage.vue'), meta: { title: 'Client Record Details' } },
   { path: '/users/:id/edit', name: 'EditUser', component: () => import('./pages/EditUserPage.vue'), meta: { title: 'Edit Client Account' } },
   { path: '/users/change-password', name: 'ChangePassword', component: () => import('./pages/ChangePasswordPage.vue'), meta: { title: 'Change Account Password' } }
 ]

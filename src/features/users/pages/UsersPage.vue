@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
-import UserDetailModal from '../components/UserDetailModal.vue'
 import UserFormModal from '../components/UserFormModal.vue'
 import UserCard from '../components/UserCard.vue'
 import UserFilters from '../components/UserFilters.vue'
@@ -243,8 +242,6 @@ watch([searchQuery, selectedRole, selectedStatus, selectedVehicleFilter, itemsPe
 })
 
 // Modal states
-const selectedUser = ref<UserWithDetails | null>(null)
-const isDetailOpen = ref(false)
 const userToEdit = ref<UserWithDetails | null>(null)
 const isFormOpen = ref(false)
 const isDeleteConfirmOpen = ref(false)
@@ -270,8 +267,10 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
 }
 
 function openDetails(user: UserWithDetails) {
-  selectedUser.value = user
-  isDetailOpen.value = true
+  router.push({
+    path: `/users/${user.id}`,
+    state: { user: JSON.parse(JSON.stringify(user)) }
+  })
 }
 
 function openEditUser(user: UserWithDetails) {
@@ -390,9 +389,6 @@ const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
       status: newStatus
     }
     users.value[targetIndex] = updatedUser
-    if (selectedUser.value && String(selectedUser.value.id) === String(userId)) {
-      selectedUser.value.status = newStatus
-    }
     cachedUsers.value = [...users.value]
   }
 
@@ -724,14 +720,6 @@ const handleFormSubmit = async (formData: any) => {
         v-model:items-per-page="itemsPerPage"
       />
     </UiCard>
-
-    <!-- User Detail Modal -->
-    <UserDetailModal
-      :user="selectedUser"
-      :is-open="isDetailOpen"
-      @close="isDetailOpen = false"
-      @update-status="handleUpdateStatus"
-    />
 
     <!-- User Form Modal -->
     <UserFormModal
