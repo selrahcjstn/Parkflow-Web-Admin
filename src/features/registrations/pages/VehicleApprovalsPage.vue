@@ -124,12 +124,9 @@ async function handleConfirmReject() {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
-        <div class="flex items-center gap-2.5">
-          <div class="w-2.5 h-6 bg-blue-600 rounded-full"></div>
-          <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight m-0">
-            Vehicle Approvals
-          </h1>
-        </div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight m-0">
+          Vehicle Approvals
+        </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Review and verify vehicle documents, OR/CR registrations, and photos submitted by campus motorists.
         </p>

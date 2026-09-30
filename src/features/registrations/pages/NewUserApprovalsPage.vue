@@ -129,12 +129,9 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
-        <div class="flex items-center gap-2.5">
-          <div class="w-2.5 h-6 bg-emerald-600 rounded-full"></div>
-          <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight m-0">
-            New User Approvals
-          </h1>
-        </div>
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight m-0">
+          New User Approvals
+        </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
           Review 3-in-1 initial registration packages (COR, Class Schedule, and Vehicle OR/CR) for new accounts with one-tap dual verification.
         </p>

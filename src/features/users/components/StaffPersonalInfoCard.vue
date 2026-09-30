@@ -73,9 +73,9 @@ function onPhoneInput(val: string | number) {
     </div>
 
     <!-- Email & Phone Fields -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       <!-- Email Address with OTP Verify Trigger -->
-      <div class="space-y-1.5">
+      <div class="md:col-span-2 space-y-1.5">
         <div class="flex items-center justify-between">
           <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300">
             Official Email Address <span class="text-red-500 font-bold">*</span>
@@ -127,17 +127,19 @@ function onPhoneInput(val: string | number) {
       </div>
 
       <!-- Phone Number -->
-      <UiInput
-        :model-value="phoneNumber"
-        type="tel"
-        label="Phone Number (11 digits)"
-        placeholder="09171234567"
-        :maxlength="11"
-        :error="phoneError || ''"
-        hint="Philippine mobile number starting with 09"
-        required
-        @update:model-value="onPhoneInput"
-      />
+      <div class="md:col-span-1">
+        <UiInput
+          :model-value="phoneNumber"
+          type="tel"
+          label="Phone Number (11 digits)"
+          placeholder="09171234567"
+          :maxlength="11"
+          :error="phoneError || ''"
+          hint="Philippine mobile number starting with 09"
+          required
+          @update:model-value="onPhoneInput"
+        />
+      </div>
     </div>
   </UiCard>
 </template>
