@@ -41,7 +41,7 @@ const roleOptions = [
 </script>
 
 <template>
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
     <!-- Search Bar -->
     <div class="flex-1 max-w-md">
       <UiInput
