@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 
@@ -24,18 +25,18 @@ const emit = defineEmits<{
   (e: 'refresh'): void
 }>()
 
-const categoryOptions = [
+const categoryOptions = computed(() => [
   { label: `All Approval Types (${props.totalCount})`, value: 'all' },
-  { label: `Schedule Clearances (${props.scheduleCount})`, value: 'Schedule' },
+  { label: `Schedule / COR Clearances (${props.scheduleCount})`, value: 'Schedule' },
   { label: `Vehicle Registrations (${props.vehicleCount})`, value: 'Vehicle' }
-]
+])
 
-const statusOptions = [
+const statusOptions = computed(() => [
   { label: `All Statuses (${props.totalCount})`, value: 'all' },
   { label: `Pending Review (${props.pendingCount})`, value: 'pending' },
   { label: `Approved & Verified (${props.approvedCount})`, value: 'approved' },
   { label: `Rejected / Declined (${props.rejectedCount})`, value: 'rejected' }
-]
+])
 </script>
 
 <template>

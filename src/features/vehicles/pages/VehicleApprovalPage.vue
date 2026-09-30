@@ -111,15 +111,25 @@ onUnmounted(() => {
   if (unsubscribeApprovalUpdates) unsubscribeApprovalUpdates()
 })
 
-const pendingCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 1 || v.verificationStatus === 0 || v.verificationStatus === undefined || v.verificationStatus === null).length)
-const verifiedCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 2).length)
-const rejectedCount = computed(() => vehicles.value.filter(v => v.verificationStatus === 3).length)
+function isStatusVerified(status: any) {
+  return status === 2 || status === '2' || status === 'Verified' || status === 'verified'
+}
+function isStatusRejected(status: any) {
+  return status === 3 || status === '3' || status === 'Rejected' || status === 'rejected'
+}
+function isStatusPending(status: any) {
+  return !isStatusVerified(status) && !isStatusRejected(status)
+}
+
+const pendingCount = computed(() => vehicles.value.filter(v => isStatusPending(v.verificationStatus)).length)
+const verifiedCount = computed(() => vehicles.value.filter(v => isStatusVerified(v.verificationStatus)).length)
+const rejectedCount = computed(() => vehicles.value.filter(v => isStatusRejected(v.verificationStatus)).length)
 
 const filteredVehicles = computed(() => {
   return vehicles.value.filter(item => {
-    if (selectedTab.value === 'pending' && item.verificationStatus !== 1 && item.verificationStatus !== 0 && item.verificationStatus !== undefined && item.verificationStatus !== null) return false
-    if (selectedTab.value === 'verified' && item.verificationStatus !== 2) return false
-    if (selectedTab.value === 'rejected' && item.verificationStatus !== 3) return false
+    if (selectedTab.value === 'pending' && !isStatusPending(item.verificationStatus)) return false
+    if (selectedTab.value === 'verified' && !isStatusVerified(item.verificationStatus)) return false
+    if (selectedTab.value === 'rejected' && !isStatusRejected(item.verificationStatus)) return false
 
     if (searchQuery.value.trim()) {
       const q = searchQuery.value.toLowerCase()

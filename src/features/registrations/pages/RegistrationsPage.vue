@@ -63,12 +63,22 @@ const inspectorItem = ref<ApprovalItem | null>(null)
 const isInspectorOpen = ref(false)
 const selectedZoomImage = ref<string | null>(null)
 
+function mapVerificationStatus(status: any): 'pending' | 'approved' | 'rejected' {
+  if (status === 2 || status === '2' || status === 'Verified' || status === 'verified' || status === 'Approved' || status === 'approved') {
+    return 'approved'
+  }
+  if (status === 3 || status === '3' || status === 'Rejected' || status === 'rejected') {
+    return 'rejected'
+  }
+  return 'pending'
+}
+
 // Stats Computations
 const pendingCount = computed(() => approvals.value.filter((r) => r.status === 'pending').length)
 const approvedCount = computed(() => approvals.value.filter((r) => r.status === 'approved').length)
 const rejectedCount = computed(() => approvals.value.filter((r) => r.status === 'rejected').length)
 
-const scheduleCount = computed(() => approvals.value.filter((r) => r.category === 'Schedule').length)
+const scheduleCount = computed(() => approvals.value.filter((r) => r.category === 'Schedule' || r.category === 'Registration').length)
 const vehicleCount = computed(() => approvals.value.filter((r) => r.category === 'Vehicle').length)
 
 const filteredApprovals = computed(() => {
@@ -86,7 +96,9 @@ const filteredApprovals = computed(() => {
       selectedStatusTab.value === 'all' || item.status === selectedStatusTab.value
 
     const matchesCategory =
-      selectedCategoryFilter.value === 'all' || item.category === selectedCategoryFilter.value
+      selectedCategoryFilter.value === 'all' ||
+      item.category === selectedCategoryFilter.value ||
+      (selectedCategoryFilter.value === 'Schedule' && (item.category === 'Registration' || item.category === 'Schedule'))
 
     return matchesQuery && matchesStatus && matchesCategory
   })
@@ -128,12 +140,8 @@ async function fetchApprovals() {
 
     if (Array.isArray(corItems) && corItems.length > 0) {
       corItems.forEach((sub: any, i: number) => {
-        let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
-        if (sub.verificationStatus === 2) mappedStatus = 'approved'
-        if (sub.verificationStatus === 3) mappedStatus = 'rejected'
-
+        const mappedStatus = mapVerificationStatus(sub.verificationStatus)
         const hasSchedules = Array.isArray(sub.schedules) && sub.schedules.length > 0
-        const isScheduleCategory = hasSchedules || i % 2 === 1
 
         const cor = sub.corDocumentUrl || sub.corDocumentPath || sub.corUrl
         const orcr = sub.orcrDocumentUrl || sub.orcrDocumentPath || sub.orcrUrl
@@ -142,7 +150,7 @@ async function fetchApprovals() {
         list.push({
           id: `cor-${i + 1}`,
           guid: sub.id,
-          category: isScheduleCategory ? 'Schedule' : 'Registration',
+          category: 'Schedule',
           fullName: sub.fullName || `Applicant ${i + 1}`,
           email: sub.email || `applicant-${i + 1}@parkflow.app`,
           role: sub.userRole || 'Student',
@@ -176,9 +184,7 @@ async function fetchApprovals() {
 
     if (Array.isArray(vehItems) && vehItems.length > 0) {
       vehItems.forEach((veh: any, i: number) => {
-        let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
-        if (veh.approvalStatus === 'Approved' || veh.isApproved) mappedStatus = 'approved'
-        if (veh.approvalStatus === 'Rejected') mappedStatus = 'rejected'
+        const mappedStatus = mapVerificationStatus(veh.verificationStatus ?? veh.approvalStatus)
 
         const orcr = veh.orcrDocumentUrl || veh.orcrDocumentPath || veh.orcrUrl
         const motor = veh.vehiclePictureUrl || veh.motorPictureUrl || veh.pictureUrl
@@ -360,7 +366,12 @@ function openZoom(url: string) {
 
     <!-- Overview Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
-      <UiCard custom-class="p-5 flex items-center justify-between">
+      <UiCard
+        hover
+        custom-class="p-5 flex items-center justify-between cursor-pointer transition-all border-2"
+        :class="selectedStatusTab === 'pending' ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-transparent'"
+        @click="selectedStatusTab = selectedStatusTab === 'pending' ? 'all' : 'pending'"
+      >
         <div>
           <span class="text-2xl font-extrabold text-amber-600 dark:text-amber-400 block">{{ pendingCount }}</span>
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Pending Review</span>
@@ -373,7 +384,12 @@ function openZoom(url: string) {
         </div>
       </UiCard>
 
-      <UiCard custom-class="p-5 flex items-center justify-between">
+      <UiCard
+        hover
+        custom-class="p-5 flex items-center justify-between cursor-pointer transition-all border-2"
+        :class="selectedStatusTab === 'approved' ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-transparent'"
+        @click="selectedStatusTab = selectedStatusTab === 'approved' ? 'all' : 'approved'"
+      >
         <div>
           <span class="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 block">{{ approvedCount }}</span>
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Approved & Verified</span>
@@ -385,7 +401,12 @@ function openZoom(url: string) {
         </div>
       </UiCard>
 
-      <UiCard custom-class="p-5 flex items-center justify-between">
+      <UiCard
+        hover
+        custom-class="p-5 flex items-center justify-between cursor-pointer transition-all border-2"
+        :class="selectedStatusTab === 'rejected' ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-transparent'"
+        @click="selectedStatusTab = selectedStatusTab === 'rejected' ? 'all' : 'rejected'"
+      >
         <div>
           <span class="text-2xl font-extrabold text-rose-600 dark:text-rose-400 block">{{ rejectedCount }}</span>
           <span class="text-xs font-semibold text-slate-500 dark:text-slate-400">Rejected / Declined</span>
