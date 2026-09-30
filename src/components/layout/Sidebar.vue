@@ -96,14 +96,10 @@ const navItems: NavItem[] = [
   { key: 'settings', label: 'Settings', path: '/settings', icon: 'settings' }
 ]
 
-const userEmail = computed(() => localStorage.getItem('parkflow_user_email') || 'admin@parkflow.com')
-const userRole = computed(() => localStorage.getItem('parkflow_user_role') || '')
+import { isSuperAdminUser, getStoredUserEmail } from '@/utils/auth'
 
-const isSuperAdmin = computed(() => {
-  const email = userEmail.value.toLowerCase().trim()
-  const role = userRole.value.toLowerCase().trim()
-  return role === 'superadmin' || role === 'super_admin' || email.includes('superadmin') || email === 'superadmin@parkflow.com' || email === 'admin@parkflow.com' || !email
-})
+const userEmail = computed(() => getStoredUserEmail() || 'admin@parkflow.com')
+const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const filteredNavItems = computed(() => {
   return navItems

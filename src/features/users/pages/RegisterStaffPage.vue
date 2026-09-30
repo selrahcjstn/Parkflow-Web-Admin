@@ -10,6 +10,8 @@ import StaffConfirmModal from '../components/StaffConfirmModal.vue'
 import StaffSuccessModal from '../components/StaffSuccessModal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 
+import { isSuperAdminUser, getStoredUserEmail } from '@/utils/auth'
+
 const router = useRouter()
 
 type AccountType = 'Guard' | 'Admin'
@@ -30,13 +32,11 @@ const form = ref({
 })
 
 function checkUserRole() {
-  const storedEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
-  currentUserEmail.value = storedEmail || 'superadmin@parkflow.com'
+  const isSuper = isSuperAdminUser()
+  currentUserEmail.value = getStoredUserEmail() || 'admin@parkflow.com'
+  isSuperAdmin.value = isSuper
 
-  if (storedEmail.includes('superadmin') || storedEmail === 'superadmin@parkflow.com' || !storedEmail) {
-    isSuperAdmin.value = true
-  } else {
-    isSuperAdmin.value = false
+  if (!isSuper) {
     router.replace('/dashboard')
   }
 }

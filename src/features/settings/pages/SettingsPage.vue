@@ -31,14 +31,9 @@ interface SystemSettings {
   autoApproveVerification: boolean
 }
 
-const userEmail = computed(() => (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim())
-const userRole = computed(() => (localStorage.getItem('parkflow_user_role') || '').toLowerCase().trim())
+import { isSuperAdminUser } from '@/utils/auth'
 
-const isSuperAdmin = computed(() => {
-  const email = userEmail.value
-  const role = userRole.value
-  return role === 'superadmin' || role === 'super_admin' || email.includes('superadmin') || email === 'superadmin@parkflow.com' || email === 'admin@parkflow.com' || !email
-})
+const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const settings = ref<SystemSettings>({
   violationRatePerHour: 100,
@@ -246,6 +241,8 @@ onMounted(() => {
   if (isSuperAdmin.value) {
     loadSettings()
     loadAnnouncement()
+  } else {
+    router.replace('/dashboard')
   }
 })
 </script>

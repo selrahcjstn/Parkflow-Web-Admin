@@ -36,6 +36,8 @@ const router = createRouter({
   ]
 })
 
+import { isSuperAdminUser } from '@/utils/auth'
+
 router.beforeEach((to, from, next) => {
   const rawToken = localStorage.getItem('parkflow_token')
   const token = rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken.trim() !== '' ? rawToken.trim() : null
@@ -55,10 +57,7 @@ router.beforeEach((to, from, next) => {
   } else if (to.name === 'Login' && token) {
     next({ name: 'Dashboard' })
   } else if (to.meta.requiresSuperAdmin) {
-    const storedEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
-    const storedRole = (localStorage.getItem('parkflow_user_role') || '').toLowerCase().trim()
-    const isSuperAdmin = storedRole === 'superadmin' || storedRole === 'super_admin' || storedEmail.includes('superadmin') || storedEmail === 'superadmin@parkflow.com' || storedEmail === 'admin@parkflow.com' || !storedEmail
-    if (!isSuperAdmin) {
+    if (!isSuperAdminUser()) {
       next({ name: 'Dashboard' })
     } else {
       next()

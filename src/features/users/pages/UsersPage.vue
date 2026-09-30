@@ -18,13 +18,14 @@ import UiButton from '@/components/ui/UiButton.vue'
 import api from '@/api/axios'
 import { cachedUsers } from '@/stores/appCache'
 
+import { isSuperAdminUser } from '@/utils/auth'
+
 const route = useRoute()
 const router = useRouter()
 const users = ref<UserWithDetails[]>(cachedUsers.value || [])
 const isLoading = ref(!cachedUsers.value)
 
-const userEmail = (localStorage.getItem('parkflow_user_email') || '').toLowerCase().trim()
-const isSuperAdmin = computed(() => userEmail.includes('superadmin') || userEmail === 'superadmin@parkflow.com' || !userEmail)
+const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const fetchUsers = async () => {
   if (!cachedUsers.value) {
