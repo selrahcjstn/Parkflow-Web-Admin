@@ -12,6 +12,9 @@ import '@fontsource/inter/600.css'
 import '@fontsource/inter/700.css'
 import '@fontsource/inter/800.css'
 
+// Ensure dark mode is disabled and removed
+document.documentElement.classList.remove('dark')
+
 const app = createApp(App)
 
 app.use(createPinia())
