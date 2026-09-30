@@ -401,7 +401,7 @@ async function saveSchedule(item: ApprovalItem, updatedSchedules: ScheduleItem[]
   item.schedules = updatedSchedules
   try {
     const targetGuid = item.corGuid || item.guid
-    await api.patch(`/cor-submissions/${targetGuid}/schedule`, { schedules: updatedSchedules })
+    await api.put(`/cor-submissions/${targetGuid}/schedules`, updatedSchedules)
   } catch (err) {
     console.warn('API update notice, schedules saved locally:', err)
   }

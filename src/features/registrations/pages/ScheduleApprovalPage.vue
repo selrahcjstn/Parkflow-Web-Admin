@@ -254,7 +254,7 @@ function clearAllDays() {
   })
 }
 
-function saveScheduleChanges() {
+async function saveScheduleChanges() {
   if (!selectedSubmission.value) return
 
   const updatedSchedules: ScheduleItem[] = []
@@ -271,7 +271,17 @@ function saveScheduleChanges() {
     }
   })
 
+  try {
+    await api.put(`/cor-submissions/${selectedSubmission.value.id}/schedules`, updatedSchedules)
+  } catch (err) {
+    console.error('Failed to save schedules via API:', err)
+  }
+
   selectedSubmission.value.schedules = updatedSchedules
+  if (cachedScheduleSubmissions.value) {
+    const cachedItem = cachedScheduleSubmissions.value.find(s => s.id === selectedSubmission.value?.id)
+    if (cachedItem) cachedItem.schedules = [...updatedSchedules]
+  }
   isEditingSchedule.value = false
   scheduleSuccessMsg.value = 'Schedule modifications saved successfully!'
   setTimeout(() => {
