@@ -8,31 +8,19 @@ const notifStore = useAdminNotificationStore()
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
-const selectedFilter = ref<'all' | 'pending' | 'alerts' | 'activity'>('all')
+const listContainerRef = ref<HTMLElement | null>(null)
 
-const filteredNotifications = computed(() => {
-  const list = notifStore.notifications
-  if (selectedFilter.value === 'pending') {
-    return list.filter((n) => n.type === 'schedule_pending' || n.type === 'vehicle_pending' || n.type === 'feedback_pending' || n.type === 'reservation_pending')
-  }
-  if (selectedFilter.value === 'alerts') {
-    return list.filter((n) => n.type === 'violation_issued' || n.priority === 'high')
-  }
-  if (selectedFilter.value === 'activity') {
-    return list.filter((n) => n.type === 'session_activity' || n.type === 'payment_processed' || n.type === 'system')
-  }
-  return list
-})
+// Pagination / Load More state
+const PAGE_SIZE = 10
+const visibleLimit = ref(PAGE_SIZE)
+const isLoadingMore = ref(false)
 
 function toggleDropdown() {
   isOpen.value = !isOpen.value
   if (isOpen.value) {
+    visibleLimit.value = PAGE_SIZE
     notifStore.fetchPendingAdminNotifications()
   }
-}
-
-function closeDropdown() {
-  isOpen.value = false
 }
 
 function handleNotificationClick(item: AdminNotification) {
@@ -57,14 +45,157 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleOutsideClick)
 })
+
+function parseDate(item: AdminNotification): Date {
+  if (item.createdAt) {
+    const d = item.createdAt instanceof Date ? item.createdAt : new Date(item.createdAt)
+    if (!isNaN(d.getTime())) return d
+  }
+  return new Date()
+}
+
+interface NotificationGroup {
+  label: string
+  items: AdminNotification[]
+}
+
+const allSortedNotifications = computed(() => {
+  return [...notifStore.notifications].sort((a, b) => {
+    return parseDate(b).getTime() - parseDate(a).getTime()
+  })
+})
+
+const paginatedNotifications = computed(() => {
+  return allSortedNotifications.value.slice(0, visibleLimit.value)
+})
+
+const hasMoreNotifications = computed(() => {
+  return allSortedNotifications.value.length > visibleLimit.value
+})
+
+const remainingCount = computed(() => {
+  return Math.max(0, allSortedNotifications.value.length - visibleLimit.value)
+})
+
+function loadMore() {
+  if (isLoadingMore.value || !hasMoreNotifications.value) return
+  isLoadingMore.value = true
+  setTimeout(() => {
+    visibleLimit.value += PAGE_SIZE
+    isLoadingMore.value = false
+  }, 250)
+}
+
+function onListScroll(event: Event) {
+  const el = event.target as HTMLElement
+  if (!el) return
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 40) {
+    if (hasMoreNotifications.value && !isLoadingMore.value) {
+      loadMore()
+    }
+  }
+}
+
+const groupedNotifications = computed<NotificationGroup[]>(() => {
+  const list = paginatedNotifications.value
+  if (list.length === 0) return []
+
+  const now = new Date()
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const yesterdayStart = todayStart - 86400000
+
+  const groupsMap = new Map<string, { label: string; order: number; items: AdminNotification[] }>()
+
+  list.forEach((item) => {
+    const date = parseDate(item)
+    const itemDayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+
+    let key: string
+    let label: string
+    let order: number
+
+    if (itemDayStart === todayStart) {
+      key = 'today'
+      label = 'Today'
+      order = 1
+    } else if (itemDayStart === yesterdayStart) {
+      key = 'yesterday'
+      label = 'Yesterday'
+      order = 2
+    } else {
+      const isCurrentYear = date.getFullYear() === now.getFullYear()
+      const formatted = date.toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: isCurrentYear ? undefined : 'numeric'
+      })
+      key = `date-${itemDayStart}`
+      label = formatted
+      order = 3 + (now.getTime() - itemDayStart)
+    }
+
+    if (!groupsMap.has(key)) {
+      groupsMap.set(key, { label, order, items: [] })
+    }
+    groupsMap.get(key)!.items.push(item)
+  })
+
+  return Array.from(groupsMap.values())
+    .sort((a, b) => a.order - b.order)
+    .map((g) => ({ label: g.label, items: g.items }))
+})
+
+function formatRelativeTime(item: AdminNotification): string {
+  const date = parseDate(item)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffSec = Math.floor(diffMs / 1000)
+  const diffMin = Math.floor(diffSec / 60)
+  const diffHour = Math.floor(diffMin / 60)
+
+  if (diffSec < 45) return 'Just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffHour < 24 && date.getDate() === now.getDate()) return `${diffHour}h ago`
+
+  const isYesterday = (diffHour < 48 && date.getDate() === now.getDate() - 1)
+  const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+
+  if (isYesterday) {
+    return `Yesterday at ${timeStr}`
+  }
+
+  return `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${timeStr}`
+}
+
+function getTypeBg(type: string): string {
+  switch (type) {
+    case 'schedule_pending':
+      return 'bg-blue-600 text-white'
+    case 'vehicle_pending':
+      return 'bg-emerald-600 text-white'
+    case 'feedback_pending':
+      return 'bg-amber-500 text-white'
+    case 'reservation_pending':
+      return 'bg-purple-600 text-white'
+    case 'violation_issued':
+      return 'bg-[#D22730] text-white'
+    case 'session_activity':
+      return 'bg-sky-600 text-white'
+    case 'payment_processed':
+      return 'bg-teal-600 text-white'
+    default:
+      return 'bg-slate-700 text-white'
+  }
+}
 </script>
 
 <template>
-  <div class="notification-dropdown-wrap" ref="dropdownRef">
+  <div class="relative" ref="dropdownRef">
     <!-- Notification Bell Button -->
     <button
-      class="relative flex items-center justify-center w-9 h-9 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all cursor-pointer"
-      :class="{ 'ring-2 ring-[#D22730]/20 border-[#D22730] text-[#D22730] dark:text-[#D22730]': isOpen }"
+      type="button"
+      class="relative flex items-center justify-center w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-all cursor-pointer shadow-xs"
+      :class="{ 'ring-2 ring-[#D22730]/20 border-[#D22730] text-[#D22730]': isOpen }"
       aria-label="Notifications"
       @click="toggleDropdown"
     >
@@ -74,165 +205,177 @@ onBeforeUnmount(() => {
       </svg>
       <span
         v-if="notifStore.unreadCount > 0"
-        class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#D22730] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-sm leading-none pointer-events-none"
+        class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#D22730] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white shadow-sm leading-none pointer-events-none"
       >
         {{ notifStore.unreadCount > 99 ? '99+' : notifStore.unreadCount }}
       </span>
     </button>
 
-    <!-- Dropdown Panel -->
+    <!-- Facebook-Style Notification Dropdown Panel -->
     <Transition name="dropdown-slide">
-      <div v-if="isOpen" class="notif-panel">
+      <div
+        v-if="isOpen"
+        class="absolute right-0 top-full mt-2 w-[390px] sm:w-[410px] max-w-[calc(100vw-24px)] rounded-2xl bg-white border border-slate-200 shadow-2xl overflow-hidden z-50 flex flex-col"
+      >
         <!-- Header -->
-        <div class="notif-header">
-          <div class="notif-header-title">
-            <h3>Admin Notifications</h3>
-            <span v-if="notifStore.unreadCount > 0" class="unread-pill">{{ notifStore.unreadCount }} New</span>
+        <div class="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 bg-white">
+          <div class="flex items-center gap-2">
+            <h3 class="text-base font-extrabold text-slate-900 tracking-tight m-0">Notifications</h3>
+            <span
+              v-if="notifStore.unreadCount > 0"
+              class="text-[11px] font-bold text-[#D22730] bg-red-50 border border-red-200/60 px-2 py-0.5 rounded-full"
+            >
+              {{ notifStore.unreadCount }} new
+            </span>
           </div>
 
           <button
             v-if="notifStore.unreadCount > 0"
-            class="mark-all-btn"
+            type="button"
+            class="text-xs font-semibold text-[#D22730] hover:text-[#b91c1c] transition-colors cursor-pointer bg-transparent border-none p-1"
             @click="notifStore.markAllAsRead"
           >
-            Mark all read
+            Mark all as read
           </button>
         </div>
 
-        <!-- Filter Tabs -->
-        <div class="notif-tabs">
-          <button
-            class="tab-btn"
-            :class="{ active: selectedFilter === 'all' }"
-            @click="selectedFilter = 'all'"
-          >
-            All ({{ notifStore.notifications.length }})
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: selectedFilter === 'pending' }"
-            @click="selectedFilter = 'pending'"
-          >
-            Tasks
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: selectedFilter === 'alerts' }"
-            @click="selectedFilter = 'alerts'"
-          >
-            Alerts
-          </button>
-          <button
-            class="tab-btn"
-            :class="{ active: selectedFilter === 'activity' }"
-            @click="selectedFilter = 'activity'"
-          >
-            Gate Logs
-          </button>
-        </div>
-
-        <!-- Notification List -->
-        <div class="notif-list">
-          <div v-if="filteredNotifications.length === 0" class="empty-notif">
-            <div class="empty-icon">🔔</div>
-            <p>No admin notifications right now</p>
-            <span class="empty-sub">All system verification tasks are clear!</span>
+        <!-- Notification Feed with Infinite Scroll & Pagination (Grouped by Date) -->
+        <div
+          ref="listContainerRef"
+          class="max-h-[480px] overflow-y-auto divide-y divide-slate-100/80"
+          @scroll="onListScroll"
+        >
+          <!-- Empty State -->
+          <div v-if="notifStore.notifications.length === 0" class="py-14 px-4 text-center flex flex-col items-center justify-center gap-2">
+            <div class="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xl">
+              🔔
+            </div>
+            <p class="text-sm font-bold text-slate-800 m-0">No notifications yet</p>
+            <span class="text-xs text-slate-400 max-w-xs">You're all caught up! New alerts and approval submissions will appear here.</span>
           </div>
 
-          <div
-            v-for="item in filteredNotifications"
-            :key="item.id"
-            class="notif-item"
-            :class="{ unread: item.isUnread }"
-            @click="handleNotificationClick(item)"
-          >
-            <!-- Type Icon Box -->
-            <div class="item-icon-wrap" :class="`icon--${item.type}`">
-              <!-- Schedule Pending -->
-              <svg v-if="item.type === 'schedule_pending'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-
-              <!-- Vehicle Pending -->
-              <svg v-else-if="item.type === 'vehicle_pending'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14 16H9m10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0M1 16a2 2 0 1 0 4 0 2 2 0 0 0-4 0M5 16l2.1-6.3A2 2 0 0 1 9 8.4h6a2 2 0 0 1 1.9 1.3L19 16"/>
-              </svg>
-
-              <!-- Feedback Inquiry -->
-              <svg v-else-if="item.type === 'feedback_pending'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-
-              <!-- Reservation Pending -->
-              <svg v-else-if="item.type === 'reservation_pending'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
-              </svg>
-
-              <!-- Violation Alert -->
-              <svg v-else-if="item.type === 'violation_issued'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="10.29 3.86 1.82 18 12 21 22.18 18 13.71 3.86 10.29 3.86"/>
-                <line x1="12" y1="9" x2="12" y2="13"/>
-                <line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-
-              <!-- Gate Session Activity -->
-              <svg v-else-if="item.type === 'session_activity'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="3"/>
-                <path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>
-              </svg>
-
-              <!-- System Notice -->
-              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="16" x2="12" y2="12"/>
-                <line x1="12" y1="8" x2="12.01" y2="8"/>
-              </svg>
+          <!-- Grouped Items -->
+          <div v-for="group in groupedNotifications" :key="group.label" class="flex flex-col">
+            <!-- Section Header (Today, Yesterday, Date) -->
+            <div class="px-4 py-2 bg-slate-50/95 border-b border-slate-100 text-[11.5px] font-bold text-slate-600 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-xs">
+              {{ group.label }}
             </div>
 
-            <!-- Content -->
-            <div class="item-content">
-              <div class="item-top">
-                <span class="item-title">{{ item.title }}</span>
-                <span class="item-time">{{ item.timestamp }}</span>
-              </div>
-              <p class="item-msg">{{ item.message }}</p>
-
-              <div class="item-actions">
-                <span class="action-btn">{{ item.actionLabel }} &rarr;</span>
-                <span v-if="item.isUnread" class="unread-dot"></span>
-              </div>
-            </div>
-
-            <!-- Delete / Dismiss button -->
-            <button
-              class="dismiss-btn"
-              title="Dismiss"
-              @click.stop="notifStore.removeNotification(item.id)"
+            <!-- Items within Group -->
+            <div
+              v-for="item in group.items"
+              :key="item.id"
+              class="group relative flex items-start gap-3.5 px-4 py-3 transition-colors cursor-pointer"
+              :class="item.isUnread ? 'bg-red-50/35 hover:bg-red-50/60' : 'bg-white hover:bg-slate-50'"
+              @click="handleNotificationClick(item)"
             >
-              ✕
+              <!-- Icon Circle Avatar -->
+              <div
+                class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 shadow-xs mt-0.5"
+                :class="getTypeBg(item.type)"
+              >
+                <!-- Schedule Pending -->
+                <svg v-if="item.type === 'schedule_pending'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+
+                <!-- Vehicle Pending -->
+                <svg v-else-if="item.type === 'vehicle_pending'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 16H9m10 0a2 2 0 1 0 4 0 2 2 0 0 0-4 0M1 16a2 2 0 1 0 4 0 2 2 0 0 0-4 0M5 16l2.1-6.3A2 2 0 0 1 9 8.4h6a2 2 0 0 1 1.9 1.3L19 16"/>
+                </svg>
+
+                <!-- Feedback Inquiry -->
+                <svg v-else-if="item.type === 'feedback_pending'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+
+                <!-- Reservation Pending -->
+                <svg v-else-if="item.type === 'reservation_pending'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <polyline points="12 6 12 12 16 14"/>
+                </svg>
+
+                <!-- Violation Alert -->
+                <svg v-else-if="item.type === 'violation_issued'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="10.29 3.86 1.82 18 12 21 22.18 18 13.71 3.86 10.29 3.86"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+
+                <!-- Session Activity -->
+                <svg v-else-if="item.type === 'session_activity'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="3"/>
+                  <path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>
+                </svg>
+
+                <!-- Payment Processed -->
+                <svg v-else-if="item.type === 'payment_processed'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="2" />
+                  <line x1="2" y1="10" x2="22" y2="10" />
+                </svg>
+
+                <!-- Default / System Notice -->
+                <svg v-else class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="16" x2="12" y2="12"/>
+                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                </svg>
+              </div>
+
+              <!-- Message Body -->
+              <div class="flex-1 min-w-0 pr-1">
+                <p class="text-xs text-slate-800 leading-snug m-0">
+                  <span class="font-bold text-slate-900">{{ item.title }}</span>: {{ item.message }}
+                </p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span
+                    class="text-[11px]"
+                    :class="item.isUnread ? 'text-[#D22730] font-bold' : 'text-slate-500 font-medium'"
+                  >
+                    {{ formatRelativeTime(item) }}
+                  </span>
+                  <span v-if="item.actionLabel" class="text-[11px] font-semibold text-blue-600 hover:underline">
+                    {{ item.actionLabel }} &rarr;
+                  </span>
+                </div>
+              </div>
+
+              <!-- Right Actions: Unread indicator -->
+              <div class="flex items-center flex-shrink-0 self-center">
+                <span
+                  v-if="item.isUnread"
+                  class="w-2.5 h-2.5 rounded-full bg-[#D22730]"
+                  title="Unread"
+                ></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pagination / Load More Footer inside Scroll -->
+          <div v-if="hasMoreNotifications" class="p-3 text-center bg-slate-50/60">
+            <button
+              type="button"
+              class="w-full py-2 px-3 rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 bg-white hover:bg-slate-100 border border-slate-200 shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              :class="{ 'opacity-60 pointer-events-none': isLoadingMore }"
+              @click="loadMore"
+            >
+              <svg
+                v-if="isLoadingMore"
+                class="w-3.5 h-3.5 animate-spin"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
+                <circle cx="12" cy="12" r="10" stroke-opacity="0.25"/>
+                <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/>
+              </svg>
+              <span>{{ isLoadingMore ? 'Loading earlier notifications...' : `Load earlier notifications (${remainingCount} more)` }}</span>
             </button>
           </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="notif-footer">
-          <div class="signalr-status">
-            <span class="status-dot" :class="{ live: notifStore.isSignalRConnected }"></span>
-            {{ notifStore.isSignalRConnected ? 'Live Gate Hub Connected' : 'Syncing Admin Data' }}
-          </div>
-
-          <button class="refresh-btn" @click="notifStore.fetchPendingAdminNotifications">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-            Refresh
-          </button>
         </div>
       </div>
     </Transition>
@@ -240,327 +383,13 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.notification-dropdown-wrap {
-  position: relative;
-}
-
-.notification-btn {
-  position: relative;
-}
-
-.notification-badge {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  min-width: 17px;
-  height: 17px;
-  padding: 0 4px;
-  border-radius: 9px;
-  background: var(--color-primary, #d22730);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 6px rgba(210, 39, 48, 0.4);
-}
-
-.notif-panel {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 380px;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 16px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
-  z-index: 500;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  max-height: 520px;
-}
-
-.notif-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--color-border-muted, #f1f5f9);
-}
-
-.notif-header-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.notif-header-title h3 {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--color-text);
-  margin: 0;
-}
-
-.unread-pill {
-  font-size: 11px;
-  font-weight: 800;
-  background: rgba(210, 39, 48, 0.1);
-  color: var(--color-primary, #d22730);
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.mark-all-btn {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-primary, #d22730);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-
-.mark-all-btn:hover {
-  background: var(--color-surface-muted, #f8fafc);
-}
-
-.notif-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 8px 12px;
-  background: var(--color-surface-muted, #f8fafc);
-  border-bottom: 1px solid var(--color-border-muted, #f1f5f9);
-}
-
-.tab-btn {
-  flex: 1;
-  padding: 5px 8px;
-  border-radius: 8px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--color-muted);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab-btn.active {
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-}
-
-.notif-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.empty-notif {
-  text-align: center;
-  padding: 36px 16px;
-  color: var(--color-muted);
-}
-
-.empty-icon {
-  font-size: 28px;
-  margin-bottom: 8px;
-}
-
-.empty-notif p {
-  font-size: 13.5px;
-  font-weight: 700;
-  margin: 0 0 4px;
-  color: var(--color-text);
-}
-
-.empty-sub {
-  font-size: 11.5px;
-}
-
-.notif-item {
-  display: flex;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  cursor: pointer;
-  position: relative;
-  transition: background 0.2s ease;
-}
-
-.notif-item:hover {
-  background: var(--color-surface-muted, #f8fafc);
-}
-
-.notif-item.unread {
-  background: rgba(59, 130, 246, 0.04);
-}
-
-.item-icon-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 2px;
-}
-
-.icon--schedule_pending { background: #dbeafe; color: #2563eb; }
-.icon--vehicle_pending { background: #d1fae5; color: #059669; }
-.icon--feedback_pending { background: #fef3c7; color: #d97706; }
-.icon--reservation_pending { background: #fef2f2; color: #D22730; }
-.icon--violation_issued { background: #ffe4e6; color: #e11d48; }
-.icon--session_activity { background: #f3e8ff; color: #7c3aed; }
-.icon--payment_processed { background: #ecfdf5; color: #10b981; }
-
-.item-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.item-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 2px;
-}
-
-.item-title {
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--color-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.item-time {
-  font-size: 10.5px;
-  color: var(--color-muted);
-  flex-shrink: 0;
-}
-
-.item-msg {
-  font-size: 11.5px;
-  color: var(--color-muted);
-  line-height: 1.4;
-  margin: 0 0 6px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.item-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.action-btn {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-primary, #d22730);
-}
-
-.unread-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #2563eb;
-}
-
-.dismiss-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 10px;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.notif-item:hover .dismiss-btn {
-  opacity: 0.8;
-}
-
-.dismiss-btn:hover {
-  opacity: 1 !important;
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.notif-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: var(--color-surface-muted, #f8fafc);
-  border-top: 1px solid var(--color-border-muted, #f1f5f9);
-  font-size: 11px;
-}
-
-.signalr-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--color-muted);
-  font-weight: 600;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.status-dot.live {
-  background: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-}
-
-.refresh-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.refresh-btn:hover {
-  color: var(--color-text);
-}
-
-/* Slide Transition */
 .dropdown-slide-enter-active,
 .dropdown-slide-leave-active {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-
 .dropdown-slide-enter-from,
 .dropdown-slide-leave-to {
   opacity: 0;
-  transform: translateY(-8px) scale(0.97);
+  transform: translateY(-8px) scale(0.98);
 }
 </style>

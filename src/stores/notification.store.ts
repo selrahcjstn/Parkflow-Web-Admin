@@ -74,6 +74,35 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     })
   }
 
+  const STORAGE_KEY_READ_NOTIFS = 'parkflow_read_notifications_v1'
+  const STORAGE_KEY_LAST_READ_ALL = 'parkflow_last_read_all_v1'
+
+  function getReadIdsFromStorage(): Set<string> {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_READ_NOTIFS)
+      if (raw) {
+        const arr = JSON.parse(raw)
+        if (Array.isArray(arr)) return new Set(arr)
+      }
+    } catch (e) {}
+    return new Set()
+  }
+
+  function getLastMarkAllReadTime(): number {
+    try {
+      const val = localStorage.getItem(STORAGE_KEY_LAST_READ_ALL)
+      if (val) return Number(val) || 0
+    } catch (e) {}
+    return 0
+  }
+
+  function saveReadIdsToStorage(ids: Set<string>) {
+    try {
+      const arr = Array.from(ids).slice(-500)
+      localStorage.setItem(STORAGE_KEY_READ_NOTIFS, JSON.stringify(arr))
+    } catch (e) {}
+  }
+
   const unreadCount = computed(() => {
     return notifications.value.filter((n) => n.isUnread).length
   })
@@ -82,33 +111,60 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     const item = notifications.value.find((n) => n.id === id)
     if (item) {
       item.isUnread = false
+      const readIds = getReadIdsFromStorage()
+      if (item.referenceCode) readIds.add(item.referenceCode)
+      readIds.add(item.id)
+      readIds.add(`${item.type}-${item.title}-${item.message}`)
+      saveReadIdsToStorage(readIds)
     }
   }
 
   function markAllAsRead() {
+    const readIds = getReadIdsFromStorage()
+    const now = Date.now()
     notifications.value.forEach((n) => {
       n.isUnread = false
+      if (n.referenceCode) readIds.add(n.referenceCode)
+      readIds.add(n.id)
+      readIds.add(`${n.type}-${n.title}-${n.message}`)
     })
+    saveReadIdsToStorage(readIds)
+    localStorage.setItem(STORAGE_KEY_LAST_READ_ALL, String(now))
   }
 
   function removeNotification(id: string) {
     notifications.value = notifications.value.filter((n) => n.id !== id)
   }
 
-  function addNotification(item: Omit<AdminNotification, 'id' | 'createdAt' | 'isUnread'>, allowDuplicate = false) {
+  function addNotification(item: Omit<AdminNotification, 'id' | 'createdAt' | 'isUnread'> & { createdAt?: Date | string }, allowDuplicate = false) {
+    const notifKey = item.referenceCode || `${item.type}-${item.title}-${item.message}`
+
     // Avoid adding exact duplicate by reference code or title for REST sync
     if (!allowDuplicate) {
       const exists = notifications.value.some(
-        (n) => (Boolean(item.referenceCode) && n.referenceCode === item.referenceCode) || (n.title === item.title && n.message === item.message)
+        (n) => (Boolean(item.referenceCode) && n.referenceCode === item.referenceCode) || (n.title === item.title && n.message === item.message) || n.id === notifKey
       )
       if (exists) return
     }
 
+    let parsedDate = new Date()
+    if (item.createdAt) {
+      const d = item.createdAt instanceof Date ? item.createdAt : new Date(item.createdAt)
+      if (!isNaN(d.getTime())) {
+        parsedDate = d
+      }
+    }
+
+    const readIds = getReadIdsFromStorage()
+    const lastMarkAll = getLastMarkAllReadTime()
+
+    const isAlreadyRead = readIds.has(notifKey) || (Boolean(item.referenceCode) && readIds.has(item.referenceCode!)) || (lastMarkAll > 0 && parsedDate.getTime() <= lastMarkAll)
+
     const newNotif: AdminNotification = {
       ...item,
-      id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      createdAt: new Date(),
-      isUnread: true
+      id: notifKey,
+      createdAt: parsedDate,
+      isUnread: !isAlreadyRead
     }
 
     notifications.value.unshift(newNotif)
@@ -126,12 +182,14 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
           const pendingCors = items.filter((item: any) => item.verificationStatus === 1 || item.verificationStatus === 'Pending')
           pendingCors.forEach((item: any) => {
             const refCode = item.id || item.referenceNumber || `cor-${item.userId || item.userAccountId}`
+            const rawDate = item.createdAt || item.submittedAt
             addNotification({
               type: 'schedule_pending',
               title: 'Schedule Verification Pending',
               subtitle: 'COR Document Review Required',
               message: `${item.fullName || item.userFullName || 'Student'} uploaded a new COR schedule document awaiting verification.`,
-              timestamp: item.createdAt || item.submittedAt ? new Date(item.createdAt || item.submittedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending',
+              timestamp: rawDate ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending',
+              createdAt: rawDate,
               actionUrl: '/schedule-approval',
               actionLabel: 'Review Schedule',
               priority: 'high',
@@ -151,12 +209,14 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
           const pendingVehicles = items.filter((item: any) => item.verificationStatus === 1 || item.verificationStatus === 'Pending')
           pendingVehicles.forEach((item: any) => {
             const refCode = item.id || item.plateNumber
+            const rawDate = item.createdAt || item.registeredAt || item.submittedAt
             addNotification({
               type: 'vehicle_pending',
               title: 'Vehicle Registration Approval',
               subtitle: item.plateNumber || 'Vehicle Verification',
               message: `Vehicle [${item.plateNumber || 'Pending Plate'}] (${item.brand || item.make || ''} ${item.model || ''}) registered by ${item.ownerName || 'User'} awaiting approval.`,
-              timestamp: 'Pending Review',
+              timestamp: rawDate ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending Review',
+              createdAt: rawDate,
               actionUrl: '/vehicle-approval',
               actionLabel: 'Inspect Vehicle',
               priority: 'high',
@@ -174,12 +234,14 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
           const pendingFeedbacks = items.filter((f: any) => f.status === 'Pending' || f.statusName === 'Pending' || f.status === 1)
           pendingFeedbacks.forEach((item: any) => {
             const refCode = item.id || `fb-${item.id}`
+            const rawDate = item.createdAt || item.submittedAt
             addNotification({
               type: 'feedback_pending',
               title: 'New Feedback / Inquiry',
               subtitle: item.category || 'General Feedback',
               message: `Inquiry from ${item.fullName || item.email || 'User'}: "${item.description || item.message || ''}"`,
-              timestamp: item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unanswered',
+              timestamp: rawDate ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Unanswered',
+              createdAt: rawDate,
               actionUrl: '/feedback',
               actionLabel: 'Answer Inquiry',
               priority: 'medium',
@@ -197,13 +259,15 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
           const pendingRes = items.filter((r: any) => r.status === 'Pending' || r.status === 0)
           pendingRes.forEach((item: any) => {
             const refCode = item.referenceNumber || item.id || `res-${item.id}`
-            const timeStr = item.createdAt ? new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending Review'
+            const rawDate = item.createdAt || item.reservationDate || item.startTime
+            const timeStr = rawDate ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending Review'
             addNotification({
               type: 'reservation_pending',
               title: 'Parking Reservation Request',
               subtitle: item.referenceNumber || 'Reservation Request',
               message: `Reservation [${item.referenceNumber || 'Pending'}] by ${item.userFullName || item.userEmail || 'Applicant'} awaiting admin review.`,
               timestamp: timeStr,
+              createdAt: rawDate,
               actionUrl: '/reservations',
               actionLabel: 'View Reservation',
               priority: 'high',
@@ -221,12 +285,14 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
           const unpaid = items.filter((v: any) => !v.isPaid && (v.status === 'Active' || v.status === 'Pending' || v.status === 1))
           unpaid.slice(0, 5).forEach((item: any) => {
             const refCode = item.id || item.violationNumber || item.referenceNumber
+            const rawDate = item.createdAt || item.issuedAt || item.violationDate
             addNotification({
               type: 'violation_issued',
               title: 'Active Overstay Violation Citation',
               subtitle: item.violationType || 'Overstay Citation',
               message: `Vehicle [${item.plateNumber}] citation unpaid. Fine Amount: ₱${Number(item.penaltyFee || item.amount || 100).toFixed(2)}.`,
-              timestamp: 'Active Alert',
+              timestamp: rawDate ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active Alert',
+              createdAt: rawDate,
               actionUrl: '/violations',
               actionLabel: 'Manage Citation',
               priority: 'high',
