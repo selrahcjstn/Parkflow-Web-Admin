@@ -165,6 +165,15 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         const vEmail = v.ownerEmail ? v.ownerEmail.toLowerCase() : ''
         const user = userMap.get(vOwnerId) || (vEmail ? userMap.get(vEmail) : null)
 
+        const matchingCor = rawCor.find((c: any) => {
+          const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
+          const cEmail = c.email ? c.email.toLowerCase() : ''
+          return (vOwnerId && cUserId && vOwnerId === cUserId) || (vEmail && cEmail && vEmail === cEmail)
+        })
+
+        const orcr = v.orcrDocumentUrl || v.orcrUrl || matchingCor?.orcrDocumentUrl || ''
+        const motorPic = v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || matchingCor?.motorPictureUrl || ''
+
         combinedList.push({
           id: nextId++,
           guid: vehGuid,
@@ -177,8 +186,8 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           vehiclePlate: v.plateNumber || '—',
           vehicleType: v.vehicleType ?? 'Car',
           brand: v.brand || '—',
-          orcrUrl: formatDocUrl(v.orcrDocumentUrl, ''),
-          motorPicUrl: formatDocUrl(v.vehiclePictureUrl, ''),
+          orcrUrl: formatDocUrl(orcr, ''),
+          motorPicUrl: formatDocUrl(motorPic, ''),
           status: mapVerificationStatus(v.verificationStatus),
           verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : 1
         })

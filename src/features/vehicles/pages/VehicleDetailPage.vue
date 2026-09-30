@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
 import { cachedVehicleApprovals } from '@/stores/appCache'
+import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,8 +32,7 @@ function closeZoom() {
 }
 
 function checkIsPdf(url?: string | null): boolean {
-  if (!url) return false
-  return url.toLowerCase().includes('.pdf')
+  return isPdfDoc(url || '')
 }
 
 // --- Helpers ---
@@ -70,6 +70,9 @@ function cleanOwnerName(name?: string): string {
 
 // --- Data fetch ---
 function mapRawVehicle(v: any) {
+  const vehPic = v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || null
+  const orcrDoc = v.orcrDocumentUrl || v.orcrUrl || v.documentUrl || null
+
   return {
     id: String(v.id ?? v.vehicleId ?? v.guid ?? v.vehicleGuid ?? ''),
     plateNumber: v.plateNumber || 'N/A',
@@ -80,8 +83,8 @@ function mapRawVehicle(v: any) {
     ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || ''),
     ownerRole: v.ownerRole || 'Student',
     ownerEmail: v.ownerEmail || v.email || '',
-    vehiclePictureUrl: v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || null,
-    orcrDocumentUrl: v.orcrDocumentUrl || v.orcrUrl || v.documentUrl || null
+    vehiclePictureUrl: vehPic ? formatDocUrl(vehPic, '') : null,
+    orcrDocumentUrl: orcrDoc ? formatDocUrl(orcrDoc, '') : null
   }
 }
 

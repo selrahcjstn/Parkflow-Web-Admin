@@ -53,9 +53,11 @@ function getIdentifier(u: UserWithDetails): string {
 }
 
 function getRoleLabel(role: string): string {
-  if (role === 'UniversityStaff') return 'Faculty Member'
-  if (role === 'NonAcademicPersonnel') return 'University Staff'
+  if (role === 'UniversityStaff' || role === 'Faculty') return 'Faculty Member'
+  if (role === 'NonAcademicPersonnel' || role === 'Staff') return 'University Staff'
   if (role === 'Guard') return 'Security Guard'
+  if (role === 'Admin') return 'Administrator'
+  if (role === 'SuperAdmin') return 'Super Administrator'
   return role
 }
 </script>
