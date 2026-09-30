@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { Vehicle } from '../types'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
 
 const props = defineProps<{
   vehicle: Vehicle | null
@@ -68,7 +69,7 @@ const getRoleLabel = (role: string) => {
               <div class="details-grid">
                 <div class="detail-item">
                   <span class="detail-label">Vehicle Type</span>
-                  <span class="detail-value">{{ vehicle.vehicleType === 'ElectricBike' ? 'E-Bike' : vehicle.vehicleType }}</span>
+                  <span class="detail-value">{{ getVehicleTypeLabel(vehicle.vehicleType) }}</span>
                 </div>
                 <div class="detail-item">
                   <span class="detail-label">Primary Status</span>

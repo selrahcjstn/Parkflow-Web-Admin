@@ -6,6 +6,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiModal from '@/components/ui/UiModal.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
 
 const props = defineProps<{
   item: ApprovalItem | null
@@ -91,7 +92,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         </div>
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Vehicle Type</span>
-          <span class="font-semibold text-slate-900 dark:text-white">{{ item.vehicleType || '—' }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white">{{ item.vehicleType ? getVehicleTypeLabel(item.vehicleType) : '—' }}</span>
         </div>
       </div>
 

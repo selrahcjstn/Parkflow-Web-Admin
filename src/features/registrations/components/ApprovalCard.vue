@@ -3,6 +3,7 @@ import type { ApprovalItem } from '../pages/RegistrationsPage.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { isPdfDoc } from '@/utils/documentUrl'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
 
 const props = defineProps<{
   item: ApprovalItem
@@ -74,7 +75,7 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
         <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
         <span class="text-slate-500 dark:text-slate-400">• {{ item.brand }}</span>
       </div>
-      <span class="font-semibold text-slate-700 dark:text-slate-300">{{ item.vehicleType }}</span>
+      <span class="font-semibold text-slate-700 dark:text-slate-300">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
     </div>
 
     <!-- Schedule summary bar (Schedule category) -->

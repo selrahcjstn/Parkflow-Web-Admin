@@ -13,6 +13,7 @@ import ApprovalInspectorModal from '../components/ApprovalInspectorModal.vue'
 import DocumentZoomModal from '../components/DocumentZoomModal.vue'
 import type { ScheduleItem } from '../components/ScheduleEditor.vue'
 import { formatDocUrl } from '@/utils/documentUrl'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
 import { cachedApprovals } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 
@@ -157,7 +158,7 @@ async function fetchApprovals() {
           dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
           academicTerm: sub.academicTerm || '1st Sem AY 2026-2027',
           vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'ABC 1234',
-          vehicleType: sub.vehicleType || 'Motorcycle',
+          vehicleType: getVehicleTypeLabel(sub.vehicleType),
           brand: sub.brand || 'Honda Click 125i',
           corUrl: formatDocUrl(cor, ''),
           orcrUrl: formatDocUrl(orcr, ''),
@@ -199,7 +200,7 @@ async function fetchApprovals() {
           dateApplied: veh.createdAt ? new Date(veh.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
           academicTerm: 'AY 2026-2027',
           vehiclePlate: veh.plateNumber || 'XYZ 789',
-          vehicleType: veh.vehicleType || 'Motorcycle',
+          vehicleType: getVehicleTypeLabel(veh.vehicleType),
           brand: veh.brand || 'Yamaha NMAX 155',
           corUrl: '',
           orcrUrl: formatDocUrl(orcr, ''),
