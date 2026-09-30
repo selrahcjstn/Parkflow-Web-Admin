@@ -105,7 +105,31 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             :class="activeDocType === 'cor' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'cor'"
           >
-            Certificate of Registration (COR)
+            1. COR Document
+          </button>
+          <button
+            type="button"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            :class="activeDocType === 'schedule' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            @click="activeDocType = 'schedule'"
+          >
+            2. Class Schedule
+          </button>
+          <button
+            type="button"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            :class="activeDocType === 'orcr' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            @click="activeDocType = 'orcr'"
+          >
+            3. Vehicle OR/CR
+          </button>
+          <button
+            type="button"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            :class="activeDocType === 'motorPic' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            @click="activeDocType = 'motorPic'"
+          >
+            4. Vehicle Photo
           </button>
         </template>
 

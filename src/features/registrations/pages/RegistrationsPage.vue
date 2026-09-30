@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
@@ -23,6 +24,8 @@ export type ApprovalCategory = 'Registration' | 'Schedule' | 'Vehicle'
 export interface ApprovalItem {
   id: number | string
   guid: string
+  corGuid?: string
+  vehicleGuid?: string
   category: ApprovalCategory
   fullName: string
   email: string
@@ -48,13 +51,32 @@ const regColumns: TableColumn[] = [
   { key: 'actions', label: 'Actions', align: 'right' }
 ]
 
+const route = useRoute()
+const router = useRouter()
+
 // Reactive state
 const approvals = ref<ApprovalItem[]>(cachedApprovals.value || [])
 const isLoading = ref(!cachedApprovals.value || cachedApprovals.value.length === 0)
 const searchQuery = ref('')
 const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('all')
-const selectedCategoryFilter = ref<'all' | 'Registration' | 'Schedule' | 'Vehicle'>('all')
+const selectedCategoryFilter = ref<'all' | 'Registration' | 'Schedule' | 'Vehicle'>('Registration')
 const viewMode = ref<'grid' | 'table'>('grid')
+
+// Sync route query category
+watch(
+  () => route.query.category,
+  (newCat) => {
+    if (newCat && ['Registration', 'Schedule', 'Vehicle', 'all'].includes(String(newCat))) {
+      selectedCategoryFilter.value = newCat as any
+    }
+  },
+  { immediate: true }
+)
+
+function selectCategory(cat: 'all' | 'Registration' | 'Schedule' | 'Vehicle') {
+  selectedCategoryFilter.value = cat
+  router.replace({ query: { ...route.query, category: cat === 'all' ? undefined : cat } })
+}
 
 // Pagination State
 const currentPage = ref(1)
@@ -76,11 +98,13 @@ function mapVerificationStatus(status: any): 'pending' | 'approved' | 'rejected'
 }
 
 // Stats Computations
+const totalCount = computed(() => approvals.value.length)
 const pendingCount = computed(() => approvals.value.filter((r) => r.status === 'pending').length)
 const approvedCount = computed(() => approvals.value.filter((r) => r.status === 'approved').length)
 const rejectedCount = computed(() => approvals.value.filter((r) => r.status === 'rejected').length)
 
-const scheduleCount = computed(() => approvals.value.filter((r) => r.category === 'Schedule' || r.category === 'Registration').length)
+const newUserCount = computed(() => approvals.value.filter((r) => r.category === 'Registration').length)
+const scheduleCount = computed(() => approvals.value.filter((r) => r.category === 'Schedule').length)
 const vehicleCount = computed(() => approvals.value.filter((r) => r.category === 'Vehicle').length)
 
 const filteredApprovals = computed(() => {
@@ -99,8 +123,7 @@ const filteredApprovals = computed(() => {
 
     const matchesCategory =
       selectedCategoryFilter.value === 'all' ||
-      item.category === selectedCategoryFilter.value ||
-      (selectedCategoryFilter.value === 'Schedule' && (item.category === 'Registration' || item.category === 'Schedule'))
+      item.category === selectedCategoryFilter.value
 
     return matchesQuery && matchesStatus && matchesCategory
   })
@@ -131,36 +154,70 @@ async function fetchApprovals() {
   const list: ApprovalItem[] = []
 
   try {
-    // 1. Fetch COR Submissions (Registrations & Schedules)
-    const corRes = await api.get('/cor-submissions').catch(() => null)
+    const [corRes, vehRes] = await Promise.all([
+      api.get('/cor-submissions').catch(() => null),
+      api.get('/vehicles').catch(() => null)
+    ])
+
     const rawCor = corRes?.data
-    const corItems = Array.isArray(rawCor)
+    const corItems: any[] = Array.isArray(rawCor)
       ? rawCor
       : (rawCor?.isSuccess && Array.isArray(rawCor?.data)
           ? rawCor.data
-          : (Array.isArray(rawCor?.data) ? rawCor.data : null))
+          : (Array.isArray(rawCor?.data) ? rawCor.data : []))
 
-    if (Array.isArray(corItems) && corItems.length > 0) {
-      corItems.forEach((sub: any, i: number) => {
-        const mappedStatus = mapVerificationStatus(sub.verificationStatus)
+    const rawVeh = vehRes?.data
+    const vehItems: any[] = Array.isArray(rawVeh)
+      ? rawVeh
+      : (rawVeh?.isSuccess && Array.isArray(rawVeh?.data)
+          ? rawVeh.data
+          : (Array.isArray(rawVeh?.data) ? rawVeh.data : []))
+
+    const consumedCorIds = new Set<string>()
+    const consumedVehIds = new Set<string>()
+
+    // 1. Pass 1: Combine Newly Registered Users (User has BOTH pending/active COR and Vehicle registration)
+    corItems.forEach((sub: any, i: number) => {
+      const matchedVeh = vehItems.find((v: any) => {
+        if (consumedVehIds.has(String(v.id))) return false
+        const matchById = sub.userAccountId && v.ownerId && String(sub.userAccountId) === String(v.ownerId)
+        const matchByEmail = sub.email && v.ownerEmail && sub.email.toLowerCase().trim() === v.ownerEmail.toLowerCase().trim()
+        return matchById || matchByEmail
+      })
+
+      if (matchedVeh) {
+        consumedCorIds.add(String(sub.id))
+        consumedVehIds.add(String(matchedVeh.id))
+
+        const corStatus = mapVerificationStatus(sub.verificationStatus)
+        const vehStatus = mapVerificationStatus(matchedVeh.verificationStatus ?? matchedVeh.approvalStatus)
+        
+        let combinedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
+        if (corStatus === 'approved' && vehStatus === 'approved') {
+          combinedStatus = 'approved'
+        } else if (corStatus === 'rejected' || vehStatus === 'rejected') {
+          combinedStatus = 'rejected'
+        }
+
         const hasSchedules = Array.isArray(sub.schedules) && sub.schedules.length > 0
-
         const cor = sub.corDocumentUrl || sub.corDocumentPath || sub.corUrl
-        const orcr = sub.orcrDocumentUrl || sub.orcrDocumentPath || sub.orcrUrl
-        const motor = sub.motorPictureUrl || sub.motorPicturePath || sub.motorPicUrl
+        const orcr = matchedVeh.orcrDocumentUrl || matchedVeh.orcrDocumentPath || sub.orcrDocumentUrl
+        const motor = matchedVeh.vehiclePictureUrl || matchedVeh.motorPictureUrl || sub.motorPictureUrl
 
         list.push({
-          id: `cor-${i + 1}`,
+          id: `reg-${sub.id}-${matchedVeh.id}`,
           guid: sub.id,
-          category: 'Schedule',
-          fullName: sub.fullName || `Applicant ${i + 1}`,
-          email: sub.email || `applicant-${i + 1}@parkflow.app`,
-          role: sub.userRole || 'Student',
+          corGuid: sub.id,
+          vehicleGuid: matchedVeh.id,
+          category: 'Registration', // "New User Approvals" (All 3 Documents: COR, OR/CR, Vehicle Photo + Schedule)
+          fullName: sub.fullName || matchedVeh.ownerName || `Applicant ${i + 1}`,
+          email: sub.email || matchedVeh.ownerEmail || `applicant-${i + 1}@parkflow.app`,
+          role: sub.userRole || matchedVeh.ownerRole || 'Student',
           dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
-          academicTerm: sub.academicTerm || '1st Sem AY 2026-2027',
-          vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'ABC 1234',
-          vehicleType: getVehicleTypeLabel(sub.vehicleType),
-          brand: sub.brand || 'Honda Click 125i',
+          academicTerm: sub.academicTerm || 'AY 2026-2027',
+          vehiclePlate: matchedVeh.plateNumber || sub.vehiclePlate || 'ABC 1234',
+          vehicleType: getVehicleTypeLabel(matchedVeh.vehicleType ?? sub.vehicleType),
+          brand: matchedVeh.brand || sub.brand || 'Vehicle',
           corUrl: formatDocUrl(cor, ''),
           orcrUrl: formatDocUrl(orcr, ''),
           motorPicUrl: formatDocUrl(motor, ''),
@@ -169,53 +226,77 @@ async function fetchApprovals() {
             { dayOfWeek: 3, startTime: '08:00', endTime: '17:00' },
             { dayOfWeek: 5, startTime: '08:00', endTime: '17:00' }
           ],
-          status: mappedStatus,
+          status: combinedStatus,
           verificationStatus: sub.verificationStatus || 1
         })
+      }
+    })
+
+    // 2. Pass 2: Standalone COR & Schedule updates (not part of combined registration)
+    corItems.forEach((sub: any, i: number) => {
+      if (consumedCorIds.has(String(sub.id))) return
+
+      const mappedStatus = mapVerificationStatus(sub.verificationStatus)
+      const hasSchedules = Array.isArray(sub.schedules) && sub.schedules.length > 0
+      const cor = sub.corDocumentUrl || sub.corDocumentPath || sub.corUrl
+
+      list.push({
+        id: `cor-${i + 1}`,
+        guid: sub.id,
+        corGuid: sub.id,
+        category: 'Schedule',
+        fullName: sub.fullName || `Applicant ${i + 1}`,
+        email: sub.email || `applicant-${i + 1}@parkflow.app`,
+        role: sub.userRole || 'Student',
+        dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
+        academicTerm: sub.academicTerm || 'AY 2026-2027',
+        vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'N/A',
+        vehicleType: getVehicleTypeLabel(sub.vehicleType),
+        brand: sub.brand || 'Vehicle',
+        corUrl: formatDocUrl(cor, ''),
+        orcrUrl: '',
+        motorPicUrl: '',
+        schedules: hasSchedules ? sub.schedules : [
+          { dayOfWeek: 1, startTime: '08:00', endTime: '17:00' },
+          { dayOfWeek: 3, startTime: '08:00', endTime: '17:00' },
+          { dayOfWeek: 5, startTime: '08:00', endTime: '17:00' }
+        ],
+        status: mappedStatus,
+        verificationStatus: sub.verificationStatus || 1
       })
-    }
+    })
 
-    // 2. Fetch Vehicle Registrations
-    const vehRes = await api.get('/vehicles').catch(() => null)
-    const rawVeh = vehRes?.data
-    const vehItems = Array.isArray(rawVeh)
-      ? rawVeh
-      : (rawVeh?.isSuccess && Array.isArray(rawVeh?.data)
-          ? rawVeh.data
-          : (Array.isArray(rawVeh?.data) ? rawVeh.data : null))
+    // 3. Pass 3: Standalone Vehicle updates (not part of combined registration)
+    vehItems.forEach((veh: any, i: number) => {
+      if (consumedVehIds.has(String(veh.id))) return
 
-    if (Array.isArray(vehItems) && vehItems.length > 0) {
-      vehItems.forEach((veh: any, i: number) => {
-        const mappedStatus = mapVerificationStatus(veh.verificationStatus ?? veh.approvalStatus)
+      const mappedStatus = mapVerificationStatus(veh.verificationStatus ?? veh.approvalStatus)
+      const orcr = veh.orcrDocumentUrl || veh.orcrDocumentPath || veh.orcrUrl
+      const motor = veh.vehiclePictureUrl || veh.motorPictureUrl || veh.pictureUrl
 
-        const orcr = veh.orcrDocumentUrl || veh.orcrDocumentPath || veh.orcrUrl
-        const motor = veh.vehiclePictureUrl || veh.motorPictureUrl || veh.pictureUrl
-
-        list.push({
-          id: `veh-${i + 1}`,
-          guid: veh.id,
-          category: 'Vehicle',
-          fullName: veh.ownerName || veh.fullName || `Vehicle Owner ${i + 1}`,
-          email: veh.ownerEmail || veh.email || `vehicle.owner${i + 1}@parkflow.app`,
-          role: veh.ownerRole || veh.role || 'Student',
-          dateApplied: veh.createdAt ? new Date(veh.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
-          academicTerm: 'AY 2026-2027',
-          vehiclePlate: veh.plateNumber || 'XYZ 789',
-          vehicleType: getVehicleTypeLabel(veh.vehicleType),
-          brand: veh.brand || 'Yamaha NMAX 155',
-          corUrl: '',
-          orcrUrl: formatDocUrl(orcr, ''),
-          motorPicUrl: formatDocUrl(motor, ''),
-          status: mappedStatus,
-          verificationStatus: veh.verificationStatus || 1
-        })
+      list.push({
+        id: `veh-${i + 1}`,
+        guid: veh.id,
+        vehicleGuid: veh.id,
+        category: 'Vehicle',
+        fullName: veh.ownerName || veh.fullName || `Vehicle Owner ${i + 1}`,
+        email: veh.ownerEmail || veh.email || `vehicle.owner${i + 1}@parkflow.app`,
+        role: veh.ownerRole || veh.role || 'Student',
+        dateApplied: veh.createdAt ? new Date(veh.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
+        academicTerm: 'AY 2026-2027',
+        vehiclePlate: veh.plateNumber || 'XYZ 789',
+        vehicleType: getVehicleTypeLabel(veh.vehicleType),
+        brand: veh.brand || 'Vehicle',
+        corUrl: '',
+        orcrUrl: formatDocUrl(orcr, ''),
+        motorPicUrl: formatDocUrl(motor, ''),
+        status: mappedStatus,
+        verificationStatus: veh.verificationStatus || 1
       })
-    }
+    })
 
-    if (list.length > 0) {
-      approvals.value = list
-      cachedApprovals.value = list
-    }
+    approvals.value = list
+    cachedApprovals.value = list
   } catch (error) {
     console.error('Error fetching approvals:', error)
   } finally {
@@ -251,14 +332,21 @@ const isApproving = ref(false)
 
 const approveModalTitle = computed(() => {
   if (!itemToApprove.value) return 'Approve Registration'
+  if (itemToApprove.value.category === 'Registration') return 'Approve New User Application'
   return `Approve ${itemToApprove.value.category} Verification`
 })
 
 const approveModalMessage = computed(() => {
   if (!itemToApprove.value) return ''
   const item = itemToApprove.value
+  if (item.category === 'Registration') {
+    const vType = item.vehicleType ? ` - ${item.vehicleType}` : ''
+    const plate = item.vehiclePlate ? `<strong>${item.vehiclePlate}</strong>` : 'their vehicle'
+    const brand = item.brand ? ` (${item.brand}${vType})` : ''
+    return `Are you sure you want to approve all 3 verification documents (COR, Class Schedule, OR/CR & Vehicle Photo) for new applicant <strong>${item.fullName || 'this applicant'}</strong> with ${plate}${brand}?<br><br>This will verify their COR, schedule, and vehicle simultaneously in one tap.`
+  }
   if (item.category === 'Vehicle') {
-    const vType = item.vehicleType ? ` - ${getVehicleTypeLabel(item.vehicleType)}` : ''
+    const vType = item.vehicleType ? ` - ${item.vehicleType}` : ''
     const plate = item.vehiclePlate ? `<strong>${item.vehiclePlate}</strong>` : 'this vehicle'
     const brand = item.brand ? ` (${item.brand}${vType})` : ''
     return `Are you sure you want to approve and verify vehicle ${plate}${brand} owned by <strong>${item.fullName || 'this applicant'}</strong>?<br><br>This will grant verified status and allow campus parking entry.`
@@ -276,22 +364,19 @@ async function confirmApprove() {
   const item = itemToApprove.value
   isApproving.value = true
 
-  if (!item.guid) {
-    item.status = 'approved'
-    item.verificationStatus = 2
-    if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
-    isApproveModalOpen.value = false
-    if (isInspectorOpen.value && inspectorItem.value?.id === item.id) {
-      isInspectorOpen.value = false
-    }
-    itemToApprove.value = null
-    isApproving.value = false
-    return
-  }
-
   try {
-    const endpoint = item.category === 'Vehicle' ? `/vehicles/${item.guid}/validate` : `/cor-submissions/${item.guid}/validate`
-    await api.patch(endpoint, { verificationStatus: 2 })
+    if (item.category === 'Registration' || (item.corGuid && item.vehicleGuid)) {
+      // In ONE TAP, approve BOTH COR and Vehicle!
+      await Promise.all([
+        item.corGuid ? api.patch(`/cor-submissions/${item.corGuid}/validate`, { verificationStatus: 2 }) : Promise.resolve(),
+        item.vehicleGuid ? api.patch(`/vehicles/${item.vehicleGuid}/validate`, { verificationStatus: 2 }) : Promise.resolve()
+      ])
+    } else if (item.category === 'Vehicle' || item.vehicleGuid) {
+      await api.patch(`/vehicles/${item.vehicleGuid || item.guid}/validate`, { verificationStatus: 2 })
+    } else {
+      await api.patch(`/cor-submissions/${item.corGuid || item.guid}/validate`, { verificationStatus: 2 })
+    }
+
     item.status = 'approved'
     item.verificationStatus = 2
   } catch (err) {
@@ -317,15 +402,17 @@ async function reject(item: ApprovalItem) {
   const reason = window.prompt(`Enter rejection reason for this ${item.category.toLowerCase()} approval (optional):`, 'Invalid or unreadable documents uploaded.')
   if (reason === null) return
 
-  if (!item.guid) {
-    item.status = 'rejected'
-    if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
-    return
-  }
-
   try {
-    const endpoint = item.category === 'Vehicle' ? `/vehicles/${item.guid}/validate` : `/cor-submissions/${item.guid}/validate`
-    await api.patch(endpoint, { verificationStatus: 3, rejectionReason: reason })
+    if (item.category === 'Registration' || (item.corGuid && item.vehicleGuid)) {
+      await Promise.all([
+        item.corGuid ? api.patch(`/cor-submissions/${item.corGuid}/validate`, { verificationStatus: 3, rejectionReason: reason }) : Promise.resolve(),
+        item.vehicleGuid ? api.patch(`/vehicles/${item.vehicleGuid}/validate`, { verificationStatus: 3, rejectionReason: reason }) : Promise.resolve()
+      ])
+    } else if (item.category === 'Vehicle' || item.vehicleGuid) {
+      await api.patch(`/vehicles/${item.vehicleGuid || item.guid}/validate`, { verificationStatus: 3, rejectionReason: reason })
+    } else {
+      await api.patch(`/cor-submissions/${item.corGuid || item.guid}/validate`, { verificationStatus: 3, rejectionReason: reason })
+    }
     item.status = 'rejected'
   } catch (err) {
     console.error('Error rejecting item:', err)
@@ -338,7 +425,8 @@ async function reject(item: ApprovalItem) {
 async function saveSchedule(item: ApprovalItem, updatedSchedules: ScheduleItem[]) {
   item.schedules = updatedSchedules
   try {
-    await api.patch(`/cor-submissions/${item.guid}/schedule`, { schedules: updatedSchedules })
+    const targetGuid = item.corGuid || item.guid
+    await api.patch(`/cor-submissions/${targetGuid}/schedule`, { schedules: updatedSchedules })
   } catch (err) {
     console.warn('API update notice, schedules saved locally:', err)
   }
@@ -473,13 +561,71 @@ function openZoom(url: string) {
       </UiCard>
     </div>
 
+    <!-- Category Navigation Tabs -->
+    <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar flex-wrap">
+      <button
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
+        :class="selectedCategoryFilter === 'Registration' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        @click="selectCategory('Registration')"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <polyline points="16 11 18 13 22 9" />
+        </svg>
+        <span>New User Approvals ({{ newUserCount }})</span>
+      </button>
+
+      <button
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
+        :class="selectedCategoryFilter === 'Schedule' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        @click="selectCategory('Schedule')"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span>COR & Schedule Approvals ({{ scheduleCount }})</span>
+      </button>
+
+      <button
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
+        :class="selectedCategoryFilter === 'Vehicle' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        @click="selectCategory('Vehicle')"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 17h14" />
+          <path d="M6 11l1.5-4.5a1 1 0 0 1 .95-.5h7.1a1 1 0 0 1 .95.5L18 11" />
+          <rect x="3" y="11" width="18" height="6" rx="2" />
+          <circle cx="7" cy="17" r="2" />
+          <circle cx="17" cy="17" r="2" />
+        </svg>
+        <span>Vehicle Approvals ({{ vehicleCount }})</span>
+      </button>
+
+      <button
+        type="button"
+        class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
+        :class="selectedCategoryFilter === 'all' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        @click="selectCategory('all')"
+      >
+        <span>All Requests ({{ totalCount }})</span>
+      </button>
+    </div>
+
     <!-- Filters Bar -->
     <ApprovalFilters
       v-model:search-query="searchQuery"
       v-model:selected-status-tab="selectedStatusTab"
       v-model:selected-category-filter="selectedCategoryFilter"
       :view-mode="viewMode"
-      :total-count="approvals.length"
+      :total-count="totalCount"
+      :new-user-count="newUserCount"
       :pending-count="pendingCount"
       :approved-count="approvedCount"
       :rejected-count="rejectedCount"

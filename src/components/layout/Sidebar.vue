@@ -77,11 +77,13 @@ const navItems: NavItem[] = [
   { key: 'client', label: 'Client Accounts', path: '/users', icon: 'users' },
   {
     key: 'register',
-    label: 'Registration',
+    label: 'Approvals & Verification',
     icon: 'register',
     children: [
-      { label: 'Register Client', path: '/users/create' },
-      { label: 'Approvals', path: '/registrations' }
+      { label: 'New User Approvals', path: '/registrations?category=Registration' },
+      { label: 'COR & Schedule Approvals', path: '/registrations?category=Schedule' },
+      { label: 'Vehicle Approvals', path: '/registrations?category=Vehicle' },
+      { label: 'Register Client', path: '/users/create' }
     ]
   },
   { key: 'divider-2', label: 'Operations', icon: '', section: true },

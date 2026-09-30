@@ -9,6 +9,7 @@ const props = defineProps<{
   selectedCategoryFilter: 'all' | 'Registration' | 'Schedule' | 'Vehicle'
   viewMode: 'grid' | 'table'
   totalCount: number
+  newUserCount: number
   pendingCount: number
   approvedCount: number
   rejectedCount: number
@@ -26,9 +27,10 @@ const emit = defineEmits<{
 }>()
 
 const categoryOptions = computed(() => [
-  { label: `All Approval Types (${props.totalCount})`, value: 'all' },
-  { label: `Schedule / COR Clearances (${props.scheduleCount})`, value: 'Schedule' },
-  { label: `Vehicle Registrations (${props.vehicleCount})`, value: 'Vehicle' }
+  { label: `All Requests (${props.totalCount})`, value: 'all' },
+  { label: `New User Approvals (${props.newUserCount})`, value: 'Registration' },
+  { label: `COR & Schedule Approvals (${props.scheduleCount})`, value: 'Schedule' },
+  { label: `Vehicle Approvals (${props.vehicleCount})`, value: 'Vehicle' }
 ])
 
 const statusOptions = computed(() => [

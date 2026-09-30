@@ -53,9 +53,9 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
             </h4>
             <span
               class="px-2 py-0.5 rounded text-[10px] font-bold"
-              :class="item.category === 'Schedule' ? 'bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'"
+              :class="item.category === 'Registration' ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400' : item.category === 'Schedule' ? 'bg-purple-50 dark:bg-purple-950 text-purple-600 dark:text-purple-400' : 'bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400'"
             >
-              {{ item.category }}
+              {{ item.category === 'Registration' ? 'New Registration' : item.category }}
             </span>
           </div>
           <span class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
@@ -69,8 +69,23 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
       </UiBadge>
     </div>
 
+    <!-- Combined Registration Bar (Registration category: 3 documents + Schedule) -->
+    <div v-if="item.category === 'Registration'" class="space-y-1.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
+          <span class="text-slate-500 dark:text-slate-400">• {{ item.brand }}</span>
+        </div>
+        <span class="font-semibold text-slate-700 dark:text-slate-300">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
+      </div>
+      <div class="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/40 dark:border-slate-800/40">
+        <span class="font-bold text-slate-600 dark:text-slate-300">Hours:</span>
+        <span class="truncate">{{ getScheduleSummary(item.schedules) }}</span>
+      </div>
+    </div>
+
     <!-- Vehicle Badge Bar (Vehicle category) -->
-    <div v-if="item.category === 'Vehicle'" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
+    <div v-else-if="item.category === 'Vehicle'" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
       <div class="flex items-center gap-2">
         <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
         <span class="text-slate-500 dark:text-slate-400">• {{ item.brand }}</span>
@@ -85,24 +100,30 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
     </div>
 
     <!-- Quick Document Thumbnails -->
-    <div class="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+    <div class="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex-wrap">
       <div
         v-if="item.corUrl"
-        class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
       >
-        📄 COR Proof
+        📄 COR
+      </div>
+      <div
+        v-if="item.schedules && item.schedules.length > 0"
+        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
+      >
+        ⏱ Schedule
       </div>
       <div
         v-if="item.orcrUrl"
-        class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
       >
-        📋 OR/CR Proof
+        📋 OR/CR
       </div>
       <div
-        v-if="item.schedules"
-        class="flex-1 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+        v-if="item.motorPicUrl"
+        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
       >
-        ⏱ Schedule
+        🚗 Photo
       </div>
     </div>
 
