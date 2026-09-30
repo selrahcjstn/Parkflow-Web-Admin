@@ -179,6 +179,7 @@ async function handleConfirmReject() {
       :approved-count="approvedCount"
       :rejected-count="rejectedCount"
       :active-status-tab="selectedStatusTab"
+      :is-loading="isLoading"
       @select-status="selectedStatusTab = $event"
     />
 

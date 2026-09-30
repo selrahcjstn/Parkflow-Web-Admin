@@ -184,6 +184,7 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
       :approved-count="approvedCount"
       :rejected-count="rejectedCount"
       :active-status-tab="selectedStatusTab"
+      :is-loading="isLoading"
       @select-status="selectedStatusTab = $event"
     />
 
