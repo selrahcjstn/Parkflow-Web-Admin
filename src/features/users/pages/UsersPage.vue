@@ -326,7 +326,19 @@ const handleDeleteUser = async () => {
   userToDelete.value = null
 }
 
-const handleApproveUser = async (user: UserWithDetails) => {
+const isApproveConfirmOpen = ref(false)
+const userToApprove = ref<UserWithDetails | null>(null)
+const isApprovingUser = ref(false)
+
+const openApproveModal = (user: UserWithDetails) => {
+  userToApprove.value = user
+  isApproveConfirmOpen.value = true
+}
+
+const confirmApproveUser = async () => {
+  if (!userToApprove.value) return
+  const user = userToApprove.value
+  isApprovingUser.value = true
   try {
     user.corVerificationStatus = 'Verified'
     user.status = 'Active'
@@ -339,7 +351,15 @@ const handleApproveUser = async (user: UserWithDetails) => {
   } catch (error: any) {
     console.error('Error approving client:', error)
     showToast(error.response?.data?.message || `Error approving ${user.fullName}.`, 'error')
+  } finally {
+    isApprovingUser.value = false
+    isApproveConfirmOpen.value = false
+    userToApprove.value = null
   }
+}
+
+const handleApproveUser = (user: UserWithDetails) => {
+  openApproveModal(user)
 }
 
 const handleRejectUser = async (user: UserWithDetails) => {
@@ -740,6 +760,19 @@ const handleFormSubmit = async (formData: any) => {
       :is-updating="isUpdatingStatus"
       @confirm="confirmUpdateUserStatus"
       @close="isStatusConfirmOpen = false"
+    />
+
+    <!-- Approve User Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isApproveConfirmOpen"
+      title="Approve User Registration"
+      :message="`Are you sure you want to approve and verify registration for <strong>${userToApprove?.fullName || 'this user'}</strong>? This will activate their account and grant campus parking access.`"
+      confirm-text="Approve User"
+      cancel-text="Cancel"
+      variant="success"
+      :is-submitting="isApprovingUser"
+      @confirm="confirmApproveUser"
+      @close="isApproveConfirmOpen = false"
     />
   </div>
 </template>

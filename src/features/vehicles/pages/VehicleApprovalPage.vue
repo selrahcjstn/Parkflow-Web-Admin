@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/axios'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 import UiButton from '@/components/ui/UiButton.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 import { cachedVehicleApprovals } from '@/stores/appCache'
 
@@ -157,7 +159,21 @@ function selectVehicle(item: VehicleApprovalItem) {
   selectedVehicle.value = item
 }
 
-async function approveVehicle(item: VehicleApprovalItem) {
+// Approve Modal State
+const isApproveModalOpen = ref(false)
+const itemToApprove = ref<VehicleApprovalItem | null>(null)
+const isApproving = ref(false)
+
+function openApproveModal(item: VehicleApprovalItem) {
+  itemToApprove.value = item
+  isApproveModalOpen.value = true
+}
+
+async function confirmApprove() {
+  if (!itemToApprove.value) return
+  const item = itemToApprove.value
+  isApproving.value = true
+
   try {
     const res = await api.patch(`/vehicles/${item.id}/validate`, {
       verificationStatus: 2
@@ -168,7 +184,18 @@ async function approveVehicle(item: VehicleApprovalItem) {
   } catch (err) {
     console.error('Error approving vehicle:', err)
     item.verificationStatus = 2
+  } finally {
+    if (cachedVehicleApprovals.value) {
+      cachedVehicleApprovals.value = [...vehicles.value]
+    }
+    isApproving.value = false
+    isApproveModalOpen.value = false
+    itemToApprove.value = null
   }
+}
+
+async function approveVehicle(item: VehicleApprovalItem) {
+  openApproveModal(item)
 }
 
 async function rejectVehicle(item: VehicleApprovalItem) {
@@ -550,6 +577,19 @@ function closeZoom() {
         <img :src="zoomedImage" alt="Zoomed Document" class="zoomed-image" />
       </div>
     </div>
+
+    <!-- Approve Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isApproveModalOpen"
+      title="Approve Vehicle Registration"
+      :message="`Are you sure you want to approve and verify vehicle <strong>${itemToApprove?.plateNumber || ''}</strong> (${itemToApprove?.brand || ''} - ${itemToApprove ? getVehicleTypeLabel(itemToApprove.vehicleType) : ''}) owned by <strong>${itemToApprove?.ownerName || 'this applicant'}</strong>?<br><br>This will verify the vehicle and permit campus parking access.`"
+      confirm-text="Approve & Verify"
+      cancel-text="Cancel"
+      variant="success"
+      :is-submitting="isApproving"
+      @confirm="confirmApprove"
+      @close="isApproveModalOpen = false"
+    />
   </div>
 </template>
 

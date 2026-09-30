@@ -4,6 +4,7 @@ import api from '@/api/axios'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 import { cachedScheduleSubmissions } from '@/stores/appCache'
 
@@ -278,7 +279,21 @@ function saveScheduleChanges() {
   }, 3500)
 }
 
-async function approveSubmission(item: CorSubmissionItem) {
+// Approve Modal State
+const isApproveModalOpen = ref(false)
+const itemToApprove = ref<CorSubmissionItem | null>(null)
+const isApproving = ref(false)
+
+function openApproveModal(item: CorSubmissionItem) {
+  itemToApprove.value = item
+  isApproveModalOpen.value = true
+}
+
+async function confirmApprove() {
+  if (!itemToApprove.value) return
+  const item = itemToApprove.value
+  isApproving.value = true
+
   try {
     const res = await api.patch(`/cor-submissions/${item.id}/validate`, {
       verificationStatus: 2
@@ -289,7 +304,18 @@ async function approveSubmission(item: CorSubmissionItem) {
   } catch (err) {
     console.error('Error approving submission:', err)
     item.verificationStatus = 2
+  } finally {
+    if (cachedScheduleSubmissions.value) {
+      cachedScheduleSubmissions.value = [...submissions.value]
+    }
+    isApproving.value = false
+    isApproveModalOpen.value = false
+    itemToApprove.value = null
   }
+}
+
+async function approveSubmission(item: CorSubmissionItem) {
+  openApproveModal(item)
 }
 
 async function rejectSubmission(item: CorSubmissionItem) {
@@ -702,6 +728,19 @@ watch(selectedSubmission, () => {
         </div>
       </div>
     </Teleport>
+
+    <!-- Approve Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isApproveModalOpen"
+      title="Approve COR & Schedule"
+      :message="`Are you sure you want to approve and verify the Certificate of Registration (COR) and schedule submission for <strong>${itemToApprove?.fullName || 'this applicant'}</strong> (${itemToApprove?.academicTerm || 'Current Term'})?<br><br>This will grant verified status and grant campus parking clearance.`"
+      confirm-text="Approve & Grant Access"
+      cancel-text="Cancel"
+      variant="success"
+      :is-submitting="isApproving"
+      @confirm="confirmApprove"
+      @close="isApproveModalOpen = false"
+    />
   </div>
 </template>
 

@@ -11,6 +11,7 @@ import ApprovalCard from '../components/ApprovalCard.vue'
 import ApprovalFilters from '../components/ApprovalFilters.vue'
 import ApprovalInspectorModal from '../components/ApprovalInspectorModal.vue'
 import DocumentZoomModal from '../components/DocumentZoomModal.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import type { ScheduleItem } from '../components/ScheduleEditor.vue'
 import { formatDocUrl } from '@/utils/documentUrl'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
@@ -243,10 +244,48 @@ function openInspector(item: ApprovalItem) {
   isInspectorOpen.value = true
 }
 
-async function approve(item: ApprovalItem) {
+// Approve Confirmation Modal State
+const isApproveModalOpen = ref(false)
+const itemToApprove = ref<ApprovalItem | null>(null)
+const isApproving = ref(false)
+
+const approveModalTitle = computed(() => {
+  if (!itemToApprove.value) return 'Approve Registration'
+  return `Approve ${itemToApprove.value.category} Verification`
+})
+
+const approveModalMessage = computed(() => {
+  if (!itemToApprove.value) return ''
+  const item = itemToApprove.value
+  if (item.category === 'Vehicle') {
+    const vType = item.vehicleType ? ` - ${getVehicleTypeLabel(item.vehicleType)}` : ''
+    const plate = item.vehiclePlate ? `<strong>${item.vehiclePlate}</strong>` : 'this vehicle'
+    const brand = item.brand ? ` (${item.brand}${vType})` : ''
+    return `Are you sure you want to approve and verify vehicle ${plate}${brand} owned by <strong>${item.fullName || 'this applicant'}</strong>?<br><br>This will grant verified status and allow campus parking entry.`
+  }
+  return `Are you sure you want to approve and verify the Certificate of Registration (COR) and schedule submission for <strong>${item.fullName || 'this applicant'}</strong> (${item.role || 'Applicant'})?<br><br>This will grant official campus parking clearance.`
+})
+
+function openApproveModal(item: ApprovalItem) {
+  itemToApprove.value = item
+  isApproveModalOpen.value = true
+}
+
+async function confirmApprove() {
+  if (!itemToApprove.value) return
+  const item = itemToApprove.value
+  isApproving.value = true
+
   if (!item.guid) {
     item.status = 'approved'
+    item.verificationStatus = 2
     if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
+    isApproveModalOpen.value = false
+    if (isInspectorOpen.value && inspectorItem.value?.id === item.id) {
+      isInspectorOpen.value = false
+    }
+    itemToApprove.value = null
+    isApproving.value = false
     return
   }
 
@@ -254,12 +293,24 @@ async function approve(item: ApprovalItem) {
     const endpoint = item.category === 'Vehicle' ? `/vehicles/${item.guid}/validate` : `/cor-submissions/${item.guid}/validate`
     await api.patch(endpoint, { verificationStatus: 2 })
     item.status = 'approved'
+    item.verificationStatus = 2
   } catch (err) {
     console.error('Error approving item:', err)
     item.status = 'approved'
+    item.verificationStatus = 2
   } finally {
     if (cachedApprovals.value) cachedApprovals.value = [...approvals.value]
+    isApproveModalOpen.value = false
+    if (isInspectorOpen.value && inspectorItem.value?.id === item.id) {
+      isInspectorOpen.value = false
+    }
+    itemToApprove.value = null
+    isApproving.value = false
   }
+}
+
+async function approve(item: ApprovalItem) {
+  openApproveModal(item)
 }
 
 async function reject(item: ApprovalItem) {
@@ -557,6 +608,19 @@ function openZoom(url: string) {
     <DocumentZoomModal
       :image-url="selectedZoomImage"
       @close="selectedZoomImage = null"
+    />
+
+    <!-- Approve Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isApproveModalOpen"
+      :title="approveModalTitle"
+      :message="approveModalMessage"
+      confirm-text="Approve & Verify"
+      cancel-text="Cancel"
+      variant="success"
+      :is-submitting="isApproving"
+      @confirm="confirmApprove"
+      @close="isApproveModalOpen = false"
     />
   </div>
 </template>
