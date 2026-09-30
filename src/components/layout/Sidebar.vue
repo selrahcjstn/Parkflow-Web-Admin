@@ -81,7 +81,6 @@ const navItems: NavItem[] = [
     icon: 'register',
     children: [
       { label: 'Register Client', path: '/users/create' },
-      { label: 'Register Staff / Admin', path: '/users/create-staff' },
       { label: 'Approvals', path: '/registrations' }
     ]
   },
@@ -92,8 +91,7 @@ const navItems: NavItem[] = [
   { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
   { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
   { key: 'divider-3', label: 'System', icon: '', section: true },
-  { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },
-  { key: 'settings', label: 'Settings', path: '/settings', icon: 'settings' }
+  { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' }
 ]
 
 import { isSuperAdminUser, getStoredUserEmail } from '@/utils/auth'
@@ -103,29 +101,6 @@ const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const filteredNavItems = computed(() => {
   return navItems
-    .filter(item => {
-      if (item.key === 'settings' && !isSuperAdmin.value) {
-        return false
-      }
-      return true
-    })
-    .map(item => {
-      if (item.children) {
-        return {
-          ...item,
-          children: item.children.filter(sub => {
-            if (sub.path === '/users/create-staff' && !isSuperAdmin.value) {
-              return false
-            }
-            if (sub.path === '/users?role=AdminStaff' && !isSuperAdmin.value) {
-              return false
-            }
-            return true
-          })
-        }
-      }
-      return item
-    })
 })
 
 const userInitials = computed(() => {
