@@ -388,28 +388,28 @@ const userInitials = computed(() => {
           <span class="text-[10.5px] text-slate-500 dark:text-slate-400 leading-none truncate max-w-[150px]">{{ userEmail }}</span>
         </div>
       </div>
-
-      <!-- Collapse toggle -->
-      <button
-        class="hidden lg:flex absolute bottom-[68px] -right-[13px] items-center justify-center w-6 h-6 rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-all z-50 shadow-xs"
-        @click="appStore.toggleSidebar"
-        :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-      >
-        <svg
-          class="w-3.5 h-3.5 transition-transform duration-300"
-          :class="{ 'rotate-180': collapsed }"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-      </button>
     </div>
+
+    <!-- Collapse toggle button (direct child of <aside> to avoid overflow clipping) -->
+    <button
+      type="button"
+      class="hidden lg:flex absolute top-[20px] -right-3.5 items-center justify-center w-7 h-7 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer transition-all z-50 shadow-md hover:scale-110 hover:border-slate-300 dark:hover:border-slate-600 active:scale-95"
+      @click="appStore.toggleSidebar"
+      :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+      aria-label="Toggle sidebar collapse"
+    >
+      <svg
+        class="w-3.5 h-3.5 transition-transform duration-300"
+        :class="{ 'rotate-180': collapsed }"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="15 18 9 12 15 6" />
+      </svg>
+    </button>
   </aside>
 </template>

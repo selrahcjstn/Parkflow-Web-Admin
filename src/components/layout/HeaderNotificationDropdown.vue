@@ -63,16 +63,19 @@ onBeforeUnmount(() => {
   <div class="notification-dropdown-wrap" ref="dropdownRef">
     <!-- Notification Bell Button -->
     <button
-      class="header-icon-btn notification-btn"
-      :class="{ active: isOpen }"
+      class="relative flex items-center justify-center w-9 h-9 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-600 transition-all cursor-pointer"
+      :class="{ 'ring-2 ring-[#D22730]/20 border-[#D22730] text-[#D22730] dark:text-[#D22730]': isOpen }"
       aria-label="Notifications"
       @click="toggleDropdown"
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <svg class="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
       </svg>
-      <span v-if="notifStore.unreadCount > 0" class="notification-badge">
+      <span
+        v-if="notifStore.unreadCount > 0"
+        class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#D22730] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-sm leading-none pointer-events-none"
+      >
         {{ notifStore.unreadCount > 99 ? '99+' : notifStore.unreadCount }}
       </span>
     </button>
