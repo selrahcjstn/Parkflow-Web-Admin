@@ -9,38 +9,30 @@ const props = withDefaults(
     pendingCount: number
     approvedCount: number
     rejectedCount: number
-    activeStatusTab?: 'all' | 'pending' | 'approved' | 'rejected'
     isLoading?: boolean
   }>(),
   {
-    activeStatusTab: 'all',
     isLoading: false
   }
 )
 
-const emit = defineEmits<{
-  (e: 'selectStatus', status: 'all' | 'pending' | 'approved' | 'rejected'): void
-}>()
-
 interface StatItem {
-  key: 'all' | 'pending' | 'approved' | 'rejected'
+  key: string
   title: string
   value: number
   icon: string
   colorClass: string
   bgClass: string
-  activeRingClass: string
 }
 
 const statItems = computed<StatItem[]>(() => [
   {
-    key: 'all',
+    key: 'total',
     title: 'Total Submissions',
     value: props.totalCount,
     icon: 'document',
     colorClass: 'text-slate-700 dark:text-slate-200',
-    bgClass: 'bg-slate-100 dark:bg-slate-800',
-    activeRingClass: 'ring-2 ring-slate-400 dark:ring-slate-500 shadow-sm'
+    bgClass: 'bg-slate-100 dark:bg-slate-800'
   },
   {
     key: 'pending',
@@ -48,8 +40,7 @@ const statItems = computed<StatItem[]>(() => [
     value: props.pendingCount,
     icon: 'clock',
     colorClass: 'text-amber-600 dark:text-amber-400',
-    bgClass: 'bg-amber-50 dark:bg-amber-950/40',
-    activeRingClass: 'ring-2 ring-amber-500 shadow-sm'
+    bgClass: 'bg-amber-50 dark:bg-amber-950/40'
   },
   {
     key: 'approved',
@@ -57,8 +48,7 @@ const statItems = computed<StatItem[]>(() => [
     value: props.approvedCount,
     icon: 'check',
     colorClass: 'text-emerald-600 dark:text-emerald-400',
-    bgClass: 'bg-emerald-50 dark:bg-emerald-950/40',
-    activeRingClass: 'ring-2 ring-emerald-500 shadow-sm'
+    bgClass: 'bg-emerald-50 dark:bg-emerald-950/40'
   },
   {
     key: 'rejected',
@@ -66,8 +56,7 @@ const statItems = computed<StatItem[]>(() => [
     value: props.rejectedCount,
     icon: 'x',
     colorClass: 'text-rose-600 dark:text-rose-400',
-    bgClass: 'bg-rose-50 dark:bg-rose-950/40',
-    activeRingClass: 'ring-2 ring-rose-500 shadow-sm'
+    bgClass: 'bg-rose-50 dark:bg-rose-950/40'
   }
 ])
 </script>
@@ -88,9 +77,7 @@ const statItems = computed<StatItem[]>(() => [
         v-for="item in statItems"
         :key="item.key"
         hover
-        custom-class="flex items-center justify-between p-5 cursor-pointer transition-all duration-200 select-none"
-        :class="activeStatusTab === item.key ? item.activeRingClass : 'hover:border-slate-300 dark:hover:border-slate-700'"
-        @click="emit('selectStatus', item.key)"
+        custom-class="flex items-center justify-between p-5"
       >
         <div class="flex flex-col gap-1">
           <span class="text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
@@ -102,7 +89,7 @@ const statItems = computed<StatItem[]>(() => [
         </div>
 
         <div
-          class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 group-hover:scale-105"
+          class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
           :class="[item.colorClass, item.bgClass]"
         >
           <!-- Document / Total Icon -->
