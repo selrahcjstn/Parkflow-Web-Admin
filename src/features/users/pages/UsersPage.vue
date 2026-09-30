@@ -429,7 +429,7 @@ const handleFormSubmit = async (formData: any) => {
     </div>
 
     <!-- Header & Register Button -->
-    <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
       <div class="flex flex-col gap-1">
         <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
           {{ headerTitle }}
@@ -439,7 +439,7 @@ const handleFormSubmit = async (formData: any) => {
         </p>
       </div>
 
-      <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
         <!-- View Mode Switcher -->
         <div class="flex items-center p-1 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl gap-1 flex-shrink-0">
           <button
