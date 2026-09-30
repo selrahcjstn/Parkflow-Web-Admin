@@ -425,38 +425,36 @@ function openZoom(url: string) {
 
       <div class="flex items-center gap-3 flex-wrap">
         <!-- View Mode Switcher -->
-        <div class="flex items-center p-1 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl gap-1 flex-shrink-0">
+        <div class="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
           <button
             type="button"
-            class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'grid' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+            class="p-1.5 rounded-lg transition-colors cursor-pointer border-none"
+            :class="viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-transparent'"
+            title="Grid view"
             @click="viewMode = 'grid'"
-            title="Review Grid Mode"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <rect x="3" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="14" width="7" height="7" rx="1.5" />
-              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
             </svg>
-            <span>Cards Grid</span>
           </button>
           <button
             type="button"
-            class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'table' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+            class="p-1.5 rounded-lg transition-colors cursor-pointer border-none"
+            :class="viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-transparent'"
+            title="Table view"
             @click="viewMode = 'table'"
-            title="List View Mode"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6" stroke-linecap="round" />
+              <line x1="8" y1="12" x2="21" y2="12" stroke-linecap="round" />
+              <line x1="8" y1="18" x2="21" y2="18" stroke-linecap="round" />
+              <line x1="3" y1="6" x2="3.01" y2="6" stroke-linecap="round" />
+              <line x1="3" y1="12" x2="3.01" y2="12" stroke-linecap="round" />
+              <line x1="3" y1="18" x2="3.01" y2="18" stroke-linecap="round" />
             </svg>
-            <span>Table List</span>
           </button>
         </div>
 

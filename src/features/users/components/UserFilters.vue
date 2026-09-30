@@ -15,6 +15,7 @@ const props = defineProps<{
   guardCount: number
   adminCount: number
   isSuperAdmin: boolean
+  isLoading?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,6 +24,7 @@ const emit = defineEmits<{
   (e: 'update:selectedStatus', val: string): void
   (e: 'update:selectedVehicleFilter', val: string): void
   (e: 'update:viewMode', val: 'grid' | 'table'): void
+  (e: 'refresh'): void
 }>()
 
 const statusOptions = [
@@ -123,7 +125,7 @@ const roleOptions = [
         </UiInput>
       </div>
 
-      <!-- Filter Dropdowns -->
+      <!-- Filter Dropdowns & Controls -->
       <div class="flex items-center gap-2.5 sm:ml-auto flex-wrap">
         <div class="w-44">
           <UiSelect
@@ -151,6 +153,53 @@ const roleOptions = [
             @update:model-value="emit('update:selectedVehicleFilter', String($event))"
           />
         </div>
+
+        <!-- View Mode Grid/Table Switcher -->
+        <div class="flex items-center rounded-xl bg-slate-100 dark:bg-slate-800 p-0.5 border border-slate-200 dark:border-slate-700">
+          <button
+            type="button"
+            class="p-1.5 rounded-lg transition-colors cursor-pointer border-none"
+            :class="viewMode === 'grid' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-transparent'"
+            title="Grid view"
+            @click="emit('update:viewMode', 'grid')"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            class="p-1.5 rounded-lg transition-colors cursor-pointer border-none"
+            :class="viewMode === 'table' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-transparent'"
+            title="Table view"
+            @click="emit('update:viewMode', 'table')"
+          >
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="8" y1="6" x2="21" y2="6" stroke-linecap="round" />
+              <line x1="8" y1="12" x2="21" y2="12" stroke-linecap="round" />
+              <line x1="8" y1="18" x2="21" y2="18" stroke-linecap="round" />
+              <line x1="3" y1="6" x2="3.01" y2="6" stroke-linecap="round" />
+              <line x1="3" y1="12" x2="3.01" y2="12" stroke-linecap="round" />
+              <line x1="3" y1="18" x2="3.01" y2="18" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Refresh Button -->
+        <button
+          type="button"
+          class="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border-none cursor-pointer"
+          :class="{ 'animate-spin': isLoading }"
+          title="Refresh data"
+          @click="emit('refresh')"
+        >
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </button>
       </div>
     </div>
   </div>

@@ -436,56 +436,6 @@ const handleFormSubmit = async (formData: any) => {
       </div>
 
       <div class="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
-        <!-- View Mode Switcher -->
-        <div class="flex items-center p-1 bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl gap-1 flex-shrink-0">
-          <button
-            type="button"
-            class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'grid' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
-            @click="viewMode = 'grid'"
-            title="Cards Grid Mode"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <rect x="3" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="3" width="7" height="7" rx="1.5" />
-              <rect x="14" y="14" width="7" height="7" rx="1.5" />
-              <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            </svg>
-            <span>Cards Grid</span>
-          </button>
-          <button
-            type="button"
-            class="flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-            :class="viewMode === 'table' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
-            @click="viewMode = 'table'"
-            title="Table List Mode"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-              <line x1="4" y1="6" x2="20" y2="6" stroke-linecap="round" />
-              <line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round" />
-              <line x1="4" y1="18" x2="20" y2="18" stroke-linecap="round" />
-            </svg>
-            <span>Table List</span>
-          </button>
-        </div>
-
-        <UiButton
-          variant="secondary"
-          size="md"
-          :loading="isLoading"
-          @click="fetchUsers"
-          title="Refresh Users"
-        >
-          <template #prefix>
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </template>
-          Refresh
-        </UiButton>
-
         <UiButton
           v-if="!isAdminStaffView || isSuperAdmin"
           variant="primary"
@@ -541,13 +491,13 @@ const handleFormSubmit = async (formData: any) => {
       </template>
     </div>
 
-    <!-- Filters Bar (Search & Filter Dropdowns & Role Tabs) -->
+    <!-- Filters Bar (Search & Filter Dropdowns & Role Tabs & View Mode & Refresh) -->
     <UserFilters
       v-model:search-query="searchQuery"
       v-model:selected-role="selectedRole"
       v-model:selected-status="selectedStatus"
       v-model:selected-vehicle-filter="selectedVehicleFilter"
-      :view-mode="viewMode"
+      v-model:view-mode="viewMode"
       :total-count="users.length"
       :student-count="studentCount"
       :faculty-count="facultyCount"
@@ -555,6 +505,8 @@ const handleFormSubmit = async (formData: any) => {
       :guard-count="guardCount"
       :admin-count="adminCount"
       :is-super-admin="isSuperAdmin"
+      :is-loading="isLoading"
+      @refresh="fetchUsers"
     />
 
     <!-- Grid View Mode -->
