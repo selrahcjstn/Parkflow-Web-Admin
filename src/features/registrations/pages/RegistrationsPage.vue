@@ -12,36 +12,11 @@ import ApprovalCard from '../components/ApprovalCard.vue'
 import ApprovalFilters from '../components/ApprovalFilters.vue'
 import ApprovalInspectorModal from '../components/ApprovalInspectorModal.vue'
 import DocumentZoomModal from '../components/DocumentZoomModal.vue'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import type { ScheduleItem } from '../components/ScheduleEditor.vue'
+import type { ApprovalCategory, ApprovalItem, ScheduleItem } from '../types'
 import { formatDocUrl } from '@/utils/documentUrl'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
 import { cachedApprovals } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
-
-export type ApprovalCategory = 'Registration' | 'Schedule' | 'Vehicle'
-
-export interface ApprovalItem {
-  id: number | string
-  guid: string
-  corGuid?: string
-  vehicleGuid?: string
-  category: ApprovalCategory
-  fullName: string
-  email: string
-  role: string
-  dateApplied: string
-  academicTerm?: string
-  vehiclePlate: string
-  vehicleType: string
-  brand: string
-  corUrl?: string
-  orcrUrl?: string
-  motorPicUrl?: string
-  schedules?: ScheduleItem[]
-  status: 'pending' | 'approved' | 'rejected'
-  verificationStatus: number
-}
 
 const regColumns: TableColumn[] = [
   { key: 'applicant', label: 'Applicant' },

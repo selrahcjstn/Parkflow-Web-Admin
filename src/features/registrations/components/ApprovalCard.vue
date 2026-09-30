@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import type { ApprovalItem } from '../pages/RegistrationsPage.vue'
+import type { ApprovalItem } from '../types'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
-import { isPdfDoc } from '@/utils/documentUrl'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
 
 const props = defineProps<{

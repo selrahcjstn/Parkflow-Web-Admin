@@ -11,7 +11,7 @@ const collapsed = computed(() => appStore.sidebarCollapsed)
 
 const openDropdowns = ref<Record<string, boolean>>({
   client: true,
-  register: true
+  approvals: true
 })
 
 const toggleDropdown = (key: string) => {
@@ -39,6 +39,9 @@ const isGroupActive = (item: NavItem) => {
     if (item.key === 'client') {
       return route.path.startsWith('/users') && !route.path.startsWith('/users/create')
     }
+    if (item.key === 'register-client') {
+      return route.path === '/users/create'
+    }
     return route.path === item.path
   }
   return item.children.some((child) => isSubActive(child.path))
@@ -50,8 +53,8 @@ watch(
     if (newFullPath.startsWith('/users?role=')) {
       openDropdowns.value['client'] = true
     }
-    if (newFullPath.startsWith('/registrations') || newFullPath.startsWith('/users/create')) {
-      openDropdowns.value['register'] = true
+    if (newFullPath.startsWith('/approvals') || newFullPath.startsWith('/registrations')) {
+      openDropdowns.value['approvals'] = true
     }
   },
   { immediate: true }
@@ -75,15 +78,16 @@ const navItems: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
   { key: 'divider-1', label: 'User Management', icon: '', section: true },
   { key: 'client', label: 'Client Accounts', path: '/users', icon: 'users' },
+  { key: 'register-client', label: 'Register Client', path: '/users/create', icon: 'register' },
+  { key: 'divider-approvals', label: 'Approvals & Verification', icon: '', section: true },
   {
-    key: 'register',
-    label: 'Approvals & Verification',
+    key: 'approvals',
+    label: 'Approvals',
     icon: 'register',
     children: [
-      { label: 'New User Approvals', path: '/registrations?category=Registration' },
-      { label: 'COR & Schedule Approvals', path: '/registrations?category=Schedule' },
-      { label: 'Vehicle Approvals', path: '/registrations?category=Vehicle' },
-      { label: 'Register Client', path: '/users/create' }
+      { label: 'New User Approvals', path: '/approvals/new-users' },
+      { label: 'COR & Schedule Approvals', path: '/approvals/schedules' },
+      { label: 'Vehicle Approvals', path: '/approvals/vehicles' }
     ]
   },
   { key: 'divider-2', label: 'Operations', icon: '', section: true },

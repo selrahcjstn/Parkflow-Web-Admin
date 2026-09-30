@@ -13,6 +13,6 @@ export default [
   },
   {
     path: '/vehicle-approvals',
-    redirect: '/registrations'
+    redirect: '/approvals/vehicles'
   }
 ]

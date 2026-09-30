@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { ApprovalItem } from '../pages/RegistrationsPage.vue'
-import ScheduleEditor, { type ScheduleItem } from './ScheduleEditor.vue'
+import type { ApprovalItem, ScheduleItem } from '../types'
+import ScheduleEditor from './ScheduleEditor.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiModal from '@/components/ui/UiModal.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
@@ -62,7 +62,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             <div class="flex items-center gap-2">
               <h3 class="text-base font-bold text-slate-900 dark:text-white m-0">{{ item.fullName }}</h3>
               <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                {{ item.category }}
+                {{ item.category === 'Registration' ? 'New User Registration' : item.category }}
               </span>
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400 m-0">{{ item.email }} • Applied {{ item.dateApplied }}</p>
@@ -97,7 +97,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
       </div>
 
       <!-- Document Tabs Switcher -->
-      <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+      <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 flex-wrap">
         <template v-if="item.category === 'Registration'">
           <button
             type="button"
@@ -249,6 +249,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
         <div class="flex items-center gap-2">
           <UiButton
+            v-if="item.status === 'pending'"
             type="button"
             variant="danger"
             size="md"
@@ -257,6 +258,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             Reject Request
           </UiButton>
           <UiButton
+            v-if="item.status === 'pending'"
             type="button"
             variant="success"
             size="md"
