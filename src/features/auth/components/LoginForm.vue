@@ -33,15 +33,16 @@ async function handleSubmit() {
   isLoading.value = true
 
   try {
+    const trimmedEmail = email.value.trim()
     const response = await api.post('/users/login', {
-      email: email.value,
+      email: trimmedEmail,
       password: password.value,
     })
 
     if (response.data?.isSuccess) {
       const token = response.data.data.token
       localStorage.setItem('parkflow_token', token)
-      localStorage.setItem('parkflow_user_email', email.value.toLowerCase().trim())
+      localStorage.setItem('parkflow_user_email', trimmedEmail.toLowerCase())
 
       try {
         const parts = token.split('.')
