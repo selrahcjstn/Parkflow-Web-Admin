@@ -63,6 +63,7 @@ watch(
 interface SubNavItem {
   label: string
   path: string
+  icon?: string
 }
 
 interface NavItem {
@@ -83,11 +84,11 @@ const navItems: NavItem[] = [
   {
     key: 'approvals',
     label: 'Approvals',
-    icon: 'register',
+    icon: 'approvals',
     children: [
-      { label: 'New User Approvals', path: '/approvals/new-users' },
-      { label: 'COR & Schedule Approvals', path: '/approvals/schedules' },
-      { label: 'Vehicle Approvals', path: '/approvals/vehicles' }
+      { label: 'New User Approvals', path: '/approvals/new-users', icon: 'newUser' },
+      { label: 'COR & Schedule Approvals', path: '/approvals/schedules', icon: 'schedule' },
+      { label: 'Vehicle Approvals', path: '/approvals/vehicles', icon: 'vehicle' }
     ]
   },
   { key: 'divider-2', label: 'Operations', icon: '', section: true },
@@ -211,6 +212,13 @@ const userInitials = computed(() => {
                   <circle cx="17" cy="8" r="3" />
                   <path d="M21 21v-1.5a3 3 0 0 0-2.5-2.96" />
                 </svg>
+                <!-- Register / User-plus icon -->
+                <svg v-else-if="item.icon === 'register'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" y1="8" x2="19" y2="14" />
+                  <line x1="16" y1="11" x2="22" y2="11" />
+                </svg>
                 <!-- Parking icon -->
                 <svg v-else-if="item.icon === 'parking'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="3" />
@@ -288,6 +296,11 @@ const userInitials = computed(() => {
                   <line x1="19" y1="8" x2="19" y2="14" />
                   <line x1="16" y1="11" x2="22" y2="11" />
                 </svg>
+                <!-- Approvals / Verification Icon -->
+                <svg v-else-if="item.icon === 'approvals'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 11l3 3L22 4" />
+                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                </svg>
               </div>
               <span
                 class="text-[13px] font-medium flex-1 overflow-hidden transition-all duration-200"
@@ -322,7 +335,7 @@ const userInitials = computed(() => {
                 v-slot="{ navigate }"
               >
                 <a
-                  class="flex items-center h-8 px-2.5 my-0.5 rounded-md text-[12.5px] font-medium transition-all no-underline cursor-pointer"
+                  class="flex items-center gap-2 h-8 px-2.5 my-0.5 rounded-md text-[12.5px] font-medium transition-all no-underline cursor-pointer"
                   :class="[
                     isSubActive(sub.path)
                       ? 'text-[#D22730] dark:text-[#f87171] bg-[#D22730]/10 font-semibold'
@@ -330,6 +343,27 @@ const userInitials = computed(() => {
                   ]"
                   @click="(e) => { navigate(e); appStore.closeMobileSidebar(); }"
                 >
+                  <!-- Sub item icons -->
+                  <svg v-if="sub.icon === 'newUser'" class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" y1="8" x2="19" y2="14" />
+                    <line x1="16" y1="11" x2="22" y2="11" />
+                  </svg>
+                  <svg v-else-if="sub.icon === 'schedule'" class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                    <polyline points="12 14 12 17 15 17" />
+                  </svg>
+                  <svg v-else-if="sub.icon === 'vehicle'" class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 17h14" />
+                    <path d="M6 11l1.5-4.5a1 1 0 0 1 .95-.5h7.1a1 1 0 0 1 .95.5L18 11" />
+                    <rect x="3" y="11" width="18" height="6" rx="2" />
+                    <circle cx="7" cy="17" r="2" />
+                    <circle cx="17" cy="17" r="2" />
+                  </svg>
                   <span>{{ sub.label }}</span>
                 </a>
               </router-link>

@@ -357,19 +357,9 @@ const executeRegistration = async () => {
   <div class="space-y-6 w-full">
     <!-- Header Title -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <div class="flex items-center gap-3.5">
-        <div class="w-11 h-11 rounded-2xl bg-[#D22730]/10 border border-[#D22730]/20 text-[#D22730] flex items-center justify-center flex-shrink-0 shadow-xs">
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <line x1="19" y1="8" x2="19" y2="14" />
-            <line x1="16" y1="11" x2="22" y2="11" />
-          </svg>
-        </div>
-        <div>
-          <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">Register Client Account</h1>
-          <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5 mb-0">Provision a new student, faculty, staff, or guard client profile for campus parking access.</p>
-        </div>
+      <div>
+        <h1 class="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">Register Client Account</h1>
+        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1 mb-0">Provision a new student, faculty, staff, or guard client profile for campus parking access.</p>
       </div>
     </div>
 
