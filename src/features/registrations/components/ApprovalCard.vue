@@ -16,10 +16,6 @@ const emit = defineEmits<{
   (e: 'zoomImage', url: string): void
 }>()
 
-const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
-const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
-
 function getScheduleSummary(schedules?: any[]): string {
   if (!schedules || schedules.length === 0) return 'No schedule set'
   const dayAbbrs: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' }
@@ -34,13 +30,6 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
   if (status === 'approved') return 'success'
   if (status === 'rejected') return 'danger'
   return 'warning'
-}
-
-function handleImageError(event: Event, fallback: string) {
-  const target = event.target as HTMLImageElement
-  if (target && target.src !== fallback) {
-    target.src = fallback
-  }
 }
 </script>
 

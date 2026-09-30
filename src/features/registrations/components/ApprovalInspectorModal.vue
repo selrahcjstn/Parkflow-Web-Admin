@@ -22,10 +22,6 @@ const emit = defineEmits<{
 
 const activeDocType = ref<'schedule' | 'cor' | 'orcr' | 'motorPic'>('cor')
 
-const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
-const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
-
 watch(
   () => props.item,
   (newItem) => {
@@ -46,13 +42,6 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
   if (status === 'approved') return 'success'
   if (status === 'rejected') return 'danger'
   return 'warning'
-}
-
-function handleImageError(event: Event, fallback: string) {
-  const target = event.target as HTMLImageElement
-  if (target && target.src !== fallback) {
-    target.src = fallback
-  }
 }
 </script>
 
@@ -169,40 +158,55 @@ function handleImageError(event: Event, fallback: string) {
 
         <!-- 2. COR or PDF Document Preview -->
         <div v-else-if="activeDocType === 'cor' || (activeDocType === 'orcr' && isPdfDoc(item.orcrUrl))" class="space-y-3">
-          <iframe
-            :src="(activeDocType === 'cor' ? item.corUrl : item.orcrUrl) || defaultCorPdf"
-            class="w-full h-[400px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
-            title="Verification PDF Document"
-          ></iframe>
-          <div class="flex items-center justify-end gap-2">
-            <a
-              :href="(activeDocType === 'cor' ? item.corUrl : item.orcrUrl) || '#'"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="px-3 py-1.5 rounded-lg bg-[#D22730] hover:bg-[#B81E26] text-white text-xs font-semibold transition-colors no-underline"
-            >
-              Open in New Tab
-            </a>
-            <a
-              :href="getDocDownloadUrl(activeDocType === 'cor' ? item.corUrl : item.orcrUrl)"
-              download
-              class="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors no-underline"
-            >
-              Download PDF
-            </a>
+          <template v-if="(activeDocType === 'cor' ? item.corUrl : item.orcrUrl)">
+            <iframe
+              :src="activeDocType === 'cor' ? item.corUrl : item.orcrUrl"
+              class="w-full h-[400px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+              title="Verification PDF Document"
+            ></iframe>
+            <div class="flex items-center justify-end gap-2">
+              <a
+                :href="activeDocType === 'cor' ? item.corUrl : item.orcrUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="px-3 py-1.5 rounded-lg bg-[#D22730] hover:bg-[#B81E26] text-white text-xs font-semibold transition-colors no-underline"
+              >
+                Open in New Tab
+              </a>
+              <a
+                :href="getDocDownloadUrl(activeDocType === 'cor' ? item.corUrl : item.orcrUrl)"
+                download
+                class="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors no-underline"
+              >
+                Download PDF
+              </a>
+            </div>
+          </template>
+          <div v-else class="h-[260px] flex flex-col items-center justify-center text-slate-400">
+            <svg class="w-12 h-12 mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="text-sm font-medium">No document uploaded</span>
           </div>
         </div>
 
-        <!-- 3. Image preview (OR/CR or Motorcycle Photo) -->
+        <!-- 3. Image preview (OR/CR or Vehicle Photo) -->
         <div v-else class="flex flex-col items-center justify-center p-4">
-          <img
-            :src="(activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl) || (activeDocType === 'orcr' ? defaultOrcrImage : defaultMotorImage)"
-            :alt="activeDocType === 'orcr' ? 'OR/CR Receipt' : 'Vehicle Photo'"
-            class="max-h-[380px] max-w-full object-contain rounded-xl shadow-md cursor-pointer hover:opacity-95 transition-opacity"
-            @error="handleImageError($event, activeDocType === 'orcr' ? defaultOrcrImage : defaultMotorImage)"
-            @click="emit('zoomImage', (activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl) || '')"
-          />
-          <p class="text-xs text-slate-400 mt-2">Click image to view full resolution</p>
+          <template v-if="(activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl)">
+            <img
+              :src="activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl"
+              :alt="activeDocType === 'orcr' ? 'OR/CR Receipt' : 'Vehicle Photo'"
+              class="max-h-[380px] max-w-full object-contain rounded-xl shadow-md cursor-pointer hover:opacity-95 transition-opacity"
+              @click="emit('zoomImage', (activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl) || '')"
+            />
+            <p class="text-xs text-slate-400 mt-2">Click image to view full resolution</p>
+          </template>
+          <div v-else class="h-[240px] flex flex-col items-center justify-center text-slate-400">
+            <svg class="w-12 h-12 mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span class="text-sm font-medium">{{ activeDocType === 'orcr' ? 'No OR/CR Document Uploaded' : 'No Vehicle Photo Uploaded' }}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -46,10 +46,6 @@ const regColumns: TableColumn[] = [
   { key: 'actions', label: 'Actions', align: 'right' }
 ]
 
-const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
-const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
-
 // Reactive state
 const approvals = ref<ApprovalItem[]>(cachedApprovals.value || [])
 const isLoading = ref(!cachedApprovals.value || cachedApprovals.value.length === 0)
@@ -155,9 +151,9 @@ async function fetchApprovals() {
           vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'ABC 1234',
           vehicleType: sub.vehicleType || 'Motorcycle',
           brand: sub.brand || 'Honda Click 125i',
-          corUrl: formatDocUrl(cor, defaultCorPdf),
-          orcrUrl: formatDocUrl(orcr, defaultOrcrImage),
-          motorPicUrl: formatDocUrl(motor, defaultMotorImage),
+          corUrl: formatDocUrl(cor, ''),
+          orcrUrl: formatDocUrl(orcr, ''),
+          motorPicUrl: formatDocUrl(motor, ''),
           schedules: hasSchedules ? sub.schedules : [
             { dayOfWeek: 1, startTime: '08:00', endTime: '17:00' },
             { dayOfWeek: 3, startTime: '08:00', endTime: '17:00' },
@@ -199,9 +195,9 @@ async function fetchApprovals() {
           vehiclePlate: veh.plateNumber || 'XYZ 789',
           vehicleType: veh.vehicleType || 'Motorcycle',
           brand: veh.brand || 'Yamaha NMAX 155',
-          corUrl: defaultCorPdf,
-          orcrUrl: formatDocUrl(orcr, defaultOrcrImage),
-          motorPicUrl: formatDocUrl(motor, defaultMotorImage),
+          corUrl: '',
+          orcrUrl: formatDocUrl(orcr, ''),
+          motorPicUrl: formatDocUrl(motor, ''),
           status: mappedStatus,
           verificationStatus: veh.verificationStatus || 1
         })

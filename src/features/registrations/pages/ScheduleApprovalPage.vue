@@ -29,10 +29,6 @@ interface CorSubmissionItem {
   schedules?: ScheduleItem[]
 }
 
-const defaultCorPdf = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
-const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
-
 const dayNames: Record<number, string> = {
   1: 'Monday',
   2: 'Tuesday',
@@ -45,48 +41,9 @@ const dayNames: Record<number, string> = {
 
 const weeklyDays = [1, 2, 3, 4, 5, 6, 0] // Mon to Sun
 
-const initialMockSubmissions: CorSubmissionItem[] = [
-  {
-    id: 'sub-demo-1',
-    userAccountId: 'usr-1',
-    fullName: 'Juan Dela Cruz',
-    email: 'juan.delacruz@parkflow.com',
-    academicTerm: '1st Sem 2026-2027',
-    corDocumentUrl: defaultCorPdf,
-    orcrDocumentUrl: defaultOrcrImage,
-    motorPictureUrl: defaultMotorImage,
-    verificationStatus: 1,
-    vehiclePlate: 'ABC 1234',
-    vehicleType: 'Car',
-    createdAt: new Date().toISOString(),
-    schedules: [
-      { dayOfWeek: 1, startTime: '08:00:00', endTime: '17:00:00' },
-      { dayOfWeek: 3, startTime: '08:00:00', endTime: '17:00:00' },
-      { dayOfWeek: 5, startTime: '08:00:00', endTime: '17:00:00' }
-    ]
-  },
-  {
-    id: 'sub-demo-2',
-    userAccountId: 'usr-2',
-    fullName: 'Maria Santos',
-    email: 'maria.santos@parkflow.com',
-    academicTerm: '1st Sem 2026-2027',
-    corDocumentUrl: defaultCorPdf,
-    orcrDocumentUrl: defaultOrcrImage,
-    motorPictureUrl: defaultMotorImage,
-    verificationStatus: 1,
-    vehiclePlate: 'XYZ 5678',
-    vehicleType: 'Motorcycle',
-    createdAt: new Date().toISOString(),
-    schedules: [
-      { dayOfWeek: 2, startTime: '07:30:00', endTime: '16:30:00' },
-      { dayOfWeek: 4, startTime: '07:30:00', endTime: '16:30:00' },
-      { dayOfWeek: 6, startTime: '08:00:00', endTime: '12:00:00' }
-    ]
-  }
-]
+const initialMockSubmissions: CorSubmissionItem[] = []
 
-const submissions = ref<CorSubmissionItem[]>(cachedScheduleSubmissions.value || initialMockSubmissions)
+const submissions = ref<CorSubmissionItem[]>(cachedScheduleSubmissions.value || [])
 const isLoading = ref(!cachedScheduleSubmissions.value)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
@@ -142,9 +99,9 @@ async function fetchSubmissions() {
     if (items && items.length > 0) {
       const mapped = items.map((s: any) => ({
         ...s,
-        corDocumentUrl: formatDocUrl(s.corDocumentUrl, defaultCorPdf),
-        orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, defaultOrcrImage),
-        motorPictureUrl: formatDocUrl(s.motorPictureUrl, defaultMotorImage)
+        corDocumentUrl: formatDocUrl(s.corDocumentUrl, ''),
+        orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, ''),
+        motorPictureUrl: formatDocUrl(s.motorPictureUrl, '')
       }))
       submissions.value = mapped
       cachedScheduleSubmissions.value = [...mapped]
@@ -349,8 +306,8 @@ function openZoom(url: string) {
 }
 
 const activeImageUrl = computed(() => {
-  if (!selectedSubmission.value) return defaultCorPdf
-  return selectedSubmission.value.corDocumentUrl || defaultCorPdf
+  if (!selectedSubmission.value) return ''
+  return selectedSubmission.value.corDocumentUrl || ''
 })
 
 const isPdf = computed(() => true)
@@ -570,7 +527,7 @@ watch(selectedSubmission, () => {
               <span class="cor-type-tag">Official Proof Document</span>
             </div>
 
-            <div class="doc-viewer-box">
+            <div v-if="activeImageUrl" class="doc-viewer-box">
               <iframe :src="activeImageUrl" class="doc-pdf-iframe" title="Certificate of Registration PDF Document"></iframe>
               <div class="pdf-toolbar">
                 <a :href="activeImageUrl" target="_blank" rel="noopener noreferrer" class="pdf-open-btn">
@@ -599,6 +556,12 @@ watch(selectedSubmission, () => {
                   Fullscreen PDF
                 </button>
               </div>
+            </div>
+            <div v-else class="h-[360px] flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 text-slate-400">
+              <svg class="w-12 h-12 mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span class="text-sm font-medium">No COR Document Uploaded</span>
             </div>
           </div>
 

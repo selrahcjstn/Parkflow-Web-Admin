@@ -24,47 +24,9 @@ interface VehicleApprovalItem {
   createdAt: string
 }
 
-const defaultOrcrImage = 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=800&q=80'
-const defaultMotorImage = 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=800&q=80'
+const initialMockVehicles: VehicleApprovalItem[] = []
 
-const initialMockVehicles: VehicleApprovalItem[] = [
-  {
-    id: 'veh-demo-1',
-    ownerId: 'usr-1',
-    ownerName: 'Juan Dela Cruz',
-    ownerEmail: 'juan.delacruz@parkflow.com',
-    ownerRole: 'Student',
-    plateNumber: 'ABC 1234',
-    brand: 'Toyota Vios',
-    qrCodeHash: 'QR-ABC1234',
-    vehicleType: 2,
-    status: 'Exited',
-    isPrimary: true,
-    orcrDocumentUrl: defaultOrcrImage,
-    vehiclePictureUrl: defaultMotorImage,
-    verificationStatus: 1,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'veh-demo-2',
-    ownerId: 'usr-2',
-    ownerName: 'Maria Santos',
-    ownerEmail: 'maria.santos@parkflow.com',
-    ownerRole: 'Student',
-    plateNumber: 'XYZ 5678',
-    brand: 'Honda Click 125i',
-    qrCodeHash: 'QR-XYZ5678',
-    vehicleType: 0,
-    status: 'Exited',
-    isPrimary: true,
-    orcrDocumentUrl: defaultOrcrImage,
-    vehiclePictureUrl: defaultMotorImage,
-    verificationStatus: 1,
-    createdAt: new Date().toISOString()
-  }
-]
-
-const vehicles = ref<VehicleApprovalItem[]>(cachedVehicleApprovals.value || initialMockVehicles)
+const vehicles = ref<VehicleApprovalItem[]>(cachedVehicleApprovals.value || [])
 const isLoading = ref(!cachedVehicleApprovals.value)
 const selectedTab = ref<'pending' | 'verified' | 'rejected' | 'all'>('pending')
 const searchQuery = ref('')
@@ -78,8 +40,6 @@ const vehicleTypeLabels: Record<number, string> = {
   1: 'Electric Bike',
   2: 'Car'
 }
-
-
 
 function handleImageError(event: Event, fallback: string) {
   const target = event.target as HTMLImageElement
@@ -101,8 +61,8 @@ async function fetchVehicles() {
     if (items && items.length > 0) {
       const mapped = items.map((v: any) => ({
         ...v,
-        orcrDocumentUrl: formatDocUrl(v.orcrDocumentUrl, defaultOrcrImage),
-        vehiclePictureUrl: formatDocUrl(v.vehiclePictureUrl, defaultMotorImage)
+        orcrDocumentUrl: formatDocUrl(v.orcrDocumentUrl, ''),
+        vehiclePictureUrl: formatDocUrl(v.vehiclePictureUrl, '')
       }))
       vehicles.value = mapped
       cachedVehicleApprovals.value = [...mapped]
@@ -401,7 +361,8 @@ function closeZoom() {
                 OR / CR Document
               </h3>
               <a
-                :href="selectedVehicle.orcrDocumentUrl || defaultOrcrImage"
+                v-if="selectedVehicle.orcrDocumentUrl"
+                :href="selectedVehicle.orcrDocumentUrl"
                 target="_blank"
                 class="open-link-btn"
                 title="Open in new tab"
@@ -420,21 +381,28 @@ function closeZoom() {
               </a>
             </div>
 
-            <div class="doc-viewer-box">
+            <div v-if="selectedVehicle.orcrDocumentUrl" class="doc-viewer-box">
               <iframe
-                v-if="checkIsPdf(selectedVehicle.orcrDocumentUrl) && selectedVehicle.orcrDocumentUrl"
-                :src="selectedVehicle.orcrDocumentUrl || defaultOrcrImage"
+                v-if="checkIsPdf(selectedVehicle.orcrDocumentUrl)"
+                :src="selectedVehicle.orcrDocumentUrl"
                 class="doc-pdf-iframe"
                 title="OR/CR PDF Document"
               />
               <img
                 v-else
-                :src="selectedVehicle.orcrDocumentUrl || defaultOrcrImage"
+                :src="selectedVehicle.orcrDocumentUrl"
                 alt="OR/CR Document"
                 class="doc-image"
-                @error="handleImageError($event, defaultOrcrImage)"
-                @click="openZoom(selectedVehicle.orcrDocumentUrl || defaultOrcrImage)"
+                @click="openZoom(selectedVehicle.orcrDocumentUrl)"
               />
+            </div>
+            <div v-else class="doc-viewer-box flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 min-h-[220px]">
+              <svg class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+              <p class="font-semibold text-xs text-slate-600 dark:text-slate-300">No OR/CR Document</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">No document has been uploaded for this vehicle.</p>
             </div>
           </div>
 
@@ -450,7 +418,8 @@ function closeZoom() {
                 Proof of Vehicle (Photo)
               </h3>
               <a
-                :href="selectedVehicle.vehiclePictureUrl || defaultMotorImage"
+                v-if="selectedVehicle.vehiclePictureUrl"
+                :href="selectedVehicle.vehiclePictureUrl"
                 target="_blank"
                 class="open-link-btn"
                 title="Open in new tab"
@@ -459,21 +428,31 @@ function closeZoom() {
               </a>
             </div>
 
-            <div class="doc-viewer-box">
+            <div v-if="selectedVehicle.vehiclePictureUrl" class="doc-viewer-box">
               <iframe
-                v-if="checkIsPdf(selectedVehicle.vehiclePictureUrl) && selectedVehicle.vehiclePictureUrl && (selectedVehicle.vehiclePictureUrl.startsWith('http://') || selectedVehicle.vehiclePictureUrl.startsWith('https://'))"
-                :src="selectedVehicle.vehiclePictureUrl || defaultMotorImage"
+                v-if="checkIsPdf(selectedVehicle.vehiclePictureUrl) && (selectedVehicle.vehiclePictureUrl.startsWith('http://') || selectedVehicle.vehiclePictureUrl.startsWith('https://'))"
+                :src="selectedVehicle.vehiclePictureUrl"
                 class="doc-pdf-iframe"
                 title="Proof of Vehicle PDF"
               />
               <img
                 v-else
-                :src="selectedVehicle.vehiclePictureUrl || defaultMotorImage"
+                :src="selectedVehicle.vehiclePictureUrl"
                 alt="Proof of Vehicle"
                 class="doc-image"
-                @error="handleImageError($event, defaultMotorImage)"
-                @click="openZoom(selectedVehicle.vehiclePictureUrl || defaultMotorImage)"
+                @click="openZoom(selectedVehicle.vehiclePictureUrl)"
               />
+            </div>
+            <div v-else class="doc-viewer-box flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 min-h-[220px]">
+              <svg class="w-10 h-10 text-slate-300 dark:text-slate-600 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="11" width="18" height="6" rx="2" />
+                <path d="M5 17h14" />
+                <circle cx="7" cy="17" r="2" />
+                <circle cx="17" cy="17" r="2" />
+                <path d="M6 11l1.5-4.5h9L18 11" />
+              </svg>
+              <p class="font-semibold text-xs text-slate-600 dark:text-slate-300">No Vehicle Photo</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">No photograph has been uploaded for this vehicle.</p>
             </div>
           </div>
         </div>
