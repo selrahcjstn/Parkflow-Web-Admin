@@ -5,6 +5,8 @@ import type { UserWithDetails } from '../types'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
+import { getRoleLabel } from '@/utils/role'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
 
 const router = useRouter()
 
@@ -112,7 +114,7 @@ const formatCorStatus = (status?: string) => {
               <div class="flex flex-col gap-1 min-w-0">
                 <h4 class="text-base font-bold text-slate-900 dark:text-white m-0 truncate">{{ user.fullName }}</h4>
                 <UiBadge variant="primary" size="xs">
-                  {{ user.role }}
+                  {{ getRoleLabel(user.role) }}
                 </UiBadge>
               </div>
             </div>
@@ -236,7 +238,7 @@ const formatCorStatus = (status?: string) => {
                   </div>
                   <div class="flex items-center gap-2">
                     <UiBadge variant="neutral" size="xs">
-                      {{ vehicle.vehicleType }}
+                      {{ getVehicleTypeLabel(vehicle.vehicleType) }}
                     </UiBadge>
                     <UiBadge v-if="vehicle.isPrimary" variant="success" size="xs">
                       Primary

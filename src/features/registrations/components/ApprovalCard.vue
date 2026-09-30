@@ -3,6 +3,7 @@ import type { ApprovalItem } from '../types'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
+import { getRoleLabel } from '@/utils/role'
 
 const props = defineProps<{
   item: ApprovalItem
@@ -58,7 +59,7 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
             </span>
           </div>
           <span class="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-            {{ item.role }} • Applied {{ item.dateApplied }}
+            {{ getRoleLabel(item.role) }} • Applied {{ item.dateApplied }}
           </span>
         </div>
       </div>

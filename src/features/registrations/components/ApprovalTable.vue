@@ -4,6 +4,7 @@ import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
+import { getRoleLabel } from '@/utils/role'
 
 defineProps<{
   items: ApprovalItem[]
@@ -50,7 +51,7 @@ const columns: TableColumn[] = [
             <span class="text-slate-500">• {{ getVehicleTypeLabel(item.vehicleType) }}</span>
           </div>
           <div class="text-[11px] text-slate-400 dark:text-slate-500">
-            Role: <span class="font-medium text-slate-600 dark:text-slate-300">{{ item.role }}</span>
+            Role: <span class="font-medium text-slate-600 dark:text-slate-300">{{ getRoleLabel(item.role) }}</span>
           </div>
         </div>
       </template>

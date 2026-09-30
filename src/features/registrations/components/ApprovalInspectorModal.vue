@@ -7,6 +7,7 @@ import UiModal from '@/components/ui/UiModal.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
+import { getRoleLabel } from '@/utils/role'
 
 const props = defineProps<{
   item: ApprovalItem | null
@@ -80,7 +81,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Role</span>
-          <span class="font-semibold text-slate-900 dark:text-white">{{ item.role }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white">{{ getRoleLabel(item.role) }}</span>
         </div>
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Academic Term</span>

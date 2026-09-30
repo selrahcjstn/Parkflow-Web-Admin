@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiModal from '@/components/ui/UiModal.vue'
+import { getRoleLabel } from '@/utils/role'
 
 const props = defineProps<{
   isOpen: boolean
@@ -64,7 +65,7 @@ const isJuniorHigh = computed(() => props.form.yearLevel >= 7 && props.form.year
 
         <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
           <span class="text-slate-500 dark:text-slate-400 font-medium">Role Classification</span>
-          <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ form.role }}</span>
+          <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ getRoleLabel(form.role) }}</span>
         </div>
 
         <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
