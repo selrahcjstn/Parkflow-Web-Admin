@@ -40,21 +40,37 @@ async function handleSubmit() {
     })
 
     if (response.data?.isSuccess) {
-      const token = response.data.data.token
-      localStorage.setItem('parkflow_token', token)
+      const data = response.data.data
+      const token = typeof data === 'string' ? data : (data?.token || '')
+      if (token) {
+        localStorage.setItem('parkflow_token', token)
+      }
       localStorage.setItem('parkflow_user_email', trimmedEmail.toLowerCase())
 
+      // Direct response properties
+      const directRole = data?.role || data?.userRole || data?.UserRole || data?.profileType
+      if (directRole) {
+        localStorage.setItem('parkflow_user_role', String(directRole))
+      }
+
+      const directId = data?.id || data?.userId || data?.userAccountId
+      if (directId) {
+        localStorage.setItem('parkflow_user_id', String(directId))
+      }
+
       try {
-        const parts = token.split('.')
-        if (parts[1]) {
-          const payload = JSON.parse(window.atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
-          const userId = payload.user_id || payload.sub || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || payload.nameid || payload.id
-          if (userId) {
-            localStorage.setItem('parkflow_user_id', userId)
-          }
-          const role = payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || payload.profile_type
-          if (role) {
-            localStorage.setItem('parkflow_user_role', role)
+        if (token && token.includes('.')) {
+          const parts = token.split('.')
+          if (parts[1]) {
+            const payload = JSON.parse(window.atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+            const userId = payload.user_id || payload.sub || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || payload.nameid || payload.id
+            if (userId) {
+              localStorage.setItem('parkflow_user_id', String(userId))
+            }
+            const role = payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || payload.Role || payload.userRole || payload.UserRole || payload.profile_type
+            if (role) {
+              localStorage.setItem('parkflow_user_role', String(role))
+            }
           }
         }
       } catch (err) {

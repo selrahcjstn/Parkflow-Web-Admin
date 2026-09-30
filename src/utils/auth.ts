@@ -18,21 +18,57 @@ export function getStoredUserEmail(): string {
 
 /**
  * Returns true if the currently logged-in user has SuperAdmin role / privileges.
- * Strictly verifies role and email to prevent regular Administrators or unauthenticated users from bypassing access.
+ * Comprehensively inspects stored role, email, and JWT payload.
  */
 export function isSuperAdminUser(): boolean {
-  const role = getStoredUserRole().toLowerCase()
+  const role = getStoredUserRole().toLowerCase().replace(/[\s_-]/g, '')
   const email = getStoredUserEmail().toLowerCase()
 
-  // 1. Explicit SuperAdmin role check from JWT claims
-  if (role === 'superadmin' || role === 'super_admin') {
+  // 1. Explicit SuperAdmin role check from stored role
+  if (role === 'superadmin' || role.includes('superadmin') || role === '5') {
     return true
   }
 
   // 2. Specific SuperAdmin email verification
-  if (email === 'superadmin@parkflow.com' || (email.startsWith('superadmin') && email.includes('@'))) {
+  if (email.includes('superadmin') || email.includes('super_admin')) {
     return true
   }
+
+  // 3. Inspect JWT token payload directly
+  try {
+    const token = localStorage.getItem('parkflow_token')
+    if (token && token.includes('.')) {
+      const parts = token.split('.')
+      if (parts[1]) {
+        const payload = JSON.parse(window.atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
+        const rawRole = String(
+          payload.role ||
+          payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
+          payload.Role ||
+          payload.userRole ||
+          payload.UserRole ||
+          payload.profile_type ||
+          payload.ProfileType ||
+          ''
+        ).toLowerCase().replace(/[\s_-]/g, '')
+
+        if (rawRole === 'superadmin' || rawRole.includes('superadmin') || rawRole === '5') {
+          return true
+        }
+
+        const tokenEmail = String(
+          payload.email ||
+          payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
+          payload.unique_name ||
+          ''
+        ).toLowerCase()
+
+        if (tokenEmail.includes('superadmin') || tokenEmail.includes('super_admin')) {
+          return true
+        }
+      }
+    }
+  } catch (err) {}
 
   return false
 }

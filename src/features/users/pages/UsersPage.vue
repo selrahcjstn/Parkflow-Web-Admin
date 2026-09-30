@@ -435,12 +435,11 @@ const handleFormSubmit = async (formData: any) => {
         </p>
       </div>
 
-      <div class="flex items-center gap-3 shrink-0 flex-wrap sm:flex-nowrap">
+      <div class="flex items-center gap-2.5 shrink-0 flex-wrap sm:flex-nowrap">
         <UiButton
-          v-if="!isAdminStaffView || isSuperAdmin"
-          variant="primary"
+          :variant="isSuperAdmin ? 'secondary' : 'primary'"
           size="md"
-          @click="router.push(isAdminStaffView ? '/users/create-staff' : '/users/create')"
+          @click="router.push('/users/create')"
         >
           <template #icon>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -448,7 +447,23 @@ const handleFormSubmit = async (formData: any) => {
               <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
           </template>
-          <span>{{ isAdminStaffView ? 'Register Staff / Admin' : 'Register Client Account' }}</span>
+          <span>Register Client</span>
+        </UiButton>
+
+        <UiButton
+          v-if="isSuperAdmin"
+          variant="primary"
+          size="md"
+          @click="router.push('/users/create-staff')"
+        >
+          <template #icon>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+          </template>
+          <span>Register Staff / Admin</span>
         </UiButton>
       </div>
     </div>

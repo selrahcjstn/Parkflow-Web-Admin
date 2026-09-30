@@ -37,10 +37,16 @@ const isGroupActive = (item: NavItem) => {
       return route.path.startsWith('/parking')
     }
     if (item.key === 'client') {
-      return route.path.startsWith('/users') && !route.path.startsWith('/users/create')
+      return route.path === '/users' || (route.path.startsWith('/users/') && !route.path.startsWith('/users/create'))
     }
     if (item.key === 'register-client') {
       return route.path === '/users/create'
+    }
+    if (item.key === 'register-staff') {
+      return route.path === '/users/create-staff'
+    }
+    if (item.key === 'settings') {
+      return route.path.startsWith('/settings')
     }
     return route.path === item.path
   }
@@ -75,39 +81,43 @@ interface NavItem {
   section?: boolean
 }
 
-const navItems: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
-  { key: 'divider-1', label: 'User Management', icon: '', section: true },
-  { key: 'client', label: 'Client Accounts', path: '/users', icon: 'users' },
-  { key: 'register-client', label: 'Register Client', path: '/users/create', icon: 'register' },
-  { key: 'divider-approvals', label: 'Approvals & Verification', icon: '', section: true },
-  {
-    key: 'approvals',
-    label: 'Approvals',
-    icon: 'approvals',
-    children: [
-      { label: 'New User Approvals', path: '/approvals/new-users', icon: 'newUser' },
-      { label: 'COR & Schedule Approvals', path: '/approvals/schedules', icon: 'schedule' },
-      { label: 'Vehicle Approvals', path: '/approvals/vehicles', icon: 'vehicle' }
-    ]
-  },
-  { key: 'divider-2', label: 'Operations', icon: '', section: true },
-  { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
-  { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
-  { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
-  { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
-  { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
-  { key: 'divider-3', label: 'System', icon: '', section: true },
-  { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' }
-]
-
 import { isSuperAdminUser, getStoredUserEmail } from '@/utils/auth'
 
 const userEmail = computed(() => getStoredUserEmail() || 'admin@parkflow.com')
 const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const filteredNavItems = computed(() => {
-  return navItems
+  return [
+    { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
+    { key: 'divider-1', label: 'User Management', icon: '', section: true },
+    { key: 'client', label: 'Client Accounts', path: '/users', icon: 'users' },
+    { key: 'register-client', label: 'Register Client', path: '/users/create', icon: 'register' },
+    ...(isSuperAdmin.value ? [
+      { key: 'register-staff', label: 'Register Staff & Admin', path: '/users/create-staff', icon: 'registerStaff' }
+    ] : []),
+    { key: 'divider-approvals', label: 'Approvals & Verification', icon: '', section: true },
+    {
+      key: 'approvals',
+      label: 'Approvals',
+      icon: 'approvals',
+      children: [
+        { label: 'New User Approvals', path: '/approvals/new-users', icon: 'newUser' },
+        { label: 'COR & Schedule Approvals', path: '/approvals/schedules', icon: 'schedule' },
+        { label: 'Vehicle Approvals', path: '/approvals/vehicles', icon: 'vehicle' }
+      ]
+    },
+    { key: 'divider-2', label: 'Operations', icon: '', section: true },
+    { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
+    { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
+    { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
+    { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
+    { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
+    { key: 'divider-3', label: 'System', icon: '', section: true },
+    { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },
+    ...(isSuperAdmin.value ? [
+      { key: 'settings', label: 'System Settings', path: '/settings', icon: 'settings' }
+    ] : [])
+  ]
 })
 
 const userInitials = computed(() => {
@@ -218,6 +228,12 @@ const userInitials = computed(() => {
                   <circle cx="9" cy="7" r="4" />
                   <line x1="19" y1="8" x2="19" y2="14" />
                   <line x1="16" y1="11" x2="22" y2="11" />
+                </svg>
+                <!-- Register Staff / Admin icon -->
+                <svg v-else-if="item.icon === 'registerStaff'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <line x1="12" y1="8" x2="12" y2="16" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
                 </svg>
                 <!-- Parking icon -->
                 <svg v-else-if="item.icon === 'parking'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
