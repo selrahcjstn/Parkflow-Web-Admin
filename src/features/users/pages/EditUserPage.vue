@@ -113,18 +113,19 @@ async function handleSendTempPassword() {
     const res = await api.post('/users/send-temp-password', payload)
     if (res.status === 200 || res.data?.isSuccess) {
       tempPwSuccessMessage.value = `Temporary password "${tempPw}" has been generated and emailed to ${form.value.email}. The user can use this to log in immediately.`
+      showPasswordFields.value = true
+      showNewPassword.value = true
+      showConfirmPassword.value = true
+      form.value.newPassword = tempPw
+      form.value.confirmPassword = tempPw
     } else {
-      tempPwSuccessMessage.value = `Temporary password "${tempPw}" has been generated and emailed to ${form.value.email}. User can now log in.`
+      errorMessage.value = res.data?.message || 'Failed to dispatch temporary password email.'
     }
-  } catch (err) {
-    tempPwSuccessMessage.value = `Temporary password "${tempPw}" has been generated and dispatched to ${form.value.email}. User can now log in with this credential.`
+  } catch (err: any) {
+    console.error('Error sending temp password:', err)
+    errorMessage.value = err.response?.data?.message || 'Failed to dispatch temporary password email. Please verify user email address and network.'
   } finally {
     isSendingTempPw.value = false
-    showPasswordFields.value = true
-    showNewPassword.value = true
-    showConfirmPassword.value = true
-    form.value.newPassword = tempPw
-    form.value.confirmPassword = tempPw
   }
 }
 
@@ -304,27 +305,18 @@ async function handleSubmit() {
     }
 
     const res = await api.put(`/users/${userId.value}`, payload)
-    syncToCachedUsers()
     if (res.status === 200 || res.data?.isSuccess) {
-      successToast.value = 'User account profile updated successfully!'
-      setTimeout(() => {
-        router.push('/users')
-      }, 1200)
-    } else {
       syncToCachedUsers()
       successToast.value = 'User account profile updated successfully!'
       setTimeout(() => {
         router.push('/users')
       }, 1200)
+    } else {
+      errorMessage.value = res.data?.message || 'Failed to update user account profile.'
     }
   } catch (err: any) {
     console.error('Error updating user:', err)
-    syncToCachedUsers()
-    // Simulate successful save if backend API endpoint mock
-    successToast.value = 'User account profile updated successfully!'
-    setTimeout(() => {
-      router.push('/users')
-    }, 1200)
+    errorMessage.value = err.response?.data?.message || 'Failed to update user account profile. Please check your inputs and try again.'
   } finally {
     isSubmitting.value = false
   }
