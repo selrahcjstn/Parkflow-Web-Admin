@@ -50,6 +50,9 @@ const columns: TableColumn[] = [
             <span class="font-mono font-bold text-slate-800 dark:text-slate-200">{{ item.vehiclePlate }}</span>
             <span class="text-slate-500">• {{ getVehicleTypeLabel(item.vehicleType) }}</span>
           </div>
+          <div v-if="item.brand && item.brand !== '—'" class="text-[11px] text-slate-500 dark:text-slate-400">
+            Brand: <span class="font-semibold text-slate-700 dark:text-slate-300">{{ item.brand }}</span>
+          </div>
           <div class="text-[11px] text-slate-400 dark:text-slate-500">
             Role: <span class="font-medium text-slate-600 dark:text-slate-300">{{ getRoleLabel(item.role) }}</span>
           </div>

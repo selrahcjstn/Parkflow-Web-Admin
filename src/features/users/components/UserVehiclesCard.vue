@@ -114,7 +114,7 @@ function formatVerificationText(status?: string | number): string {
                 </UiBadge>
               </div>
               <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 truncate">
-                {{ veh.brand || 'Vehicle Model Unspecified' }} • {{ getVehicleTypeLabel(veh.vehicleType) }}
+                Vehicle Brand: {{ veh.brand || 'Unspecified' }} • {{ getVehicleTypeLabel(veh.vehicleType) }}
               </span>
             </div>
           </div>

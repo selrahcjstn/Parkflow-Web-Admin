@@ -74,7 +74,7 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
-          <span class="text-slate-500 dark:text-slate-400">• {{ item.brand }}</span>
+          <span class="text-slate-500 dark:text-slate-400">• Vehicle Brand: <strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ item.brand && item.brand !== '—' ? item.brand : 'Unspecified' }}</strong></span>
         </div>
         <span class="font-semibold text-slate-700 dark:text-slate-300">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
       </div>
@@ -88,7 +88,7 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
     <div v-else-if="item.category === 'Vehicle'" class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
       <div class="flex items-center gap-2">
         <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate }}</span>
-        <span class="text-slate-500 dark:text-slate-400">• {{ item.brand }}</span>
+        <span class="text-slate-500 dark:text-slate-400">• Vehicle Brand: <strong class="text-slate-700 dark:text-slate-300 font-semibold">{{ item.brand && item.brand !== '—' ? item.brand : 'Unspecified' }}</strong></span>
       </div>
       <span class="font-semibold text-slate-700 dark:text-slate-300">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
     </div>

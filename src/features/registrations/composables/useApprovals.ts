@@ -72,32 +72,40 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
       const consumedCorIds = new Set<string>()
       const consumedVehIds = new Set<string>()
 
-      // Pass 1: Correlate newly registered users (having both COR and Vehicle submissions)
+      // Pass 1: Correlate newly registered users (having both COR and initial primary vehicle)
       rawCor.forEach((c: any) => {
         const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
         const cEmail = c.email ? c.email.toLowerCase() : ''
         const corGuid = c.id || c.guid || ''
 
-        const matchingVeh = rawVeh.find((v: any) => {
-          const vGuid = v.id || v.guid || ''
-          if (consumedVehIds.has(vGuid)) return false
+        // Find user's vehicles
+        const userVehicles = rawVeh.filter((v: any) => {
           const vOwnerId = v.ownerId ? String(v.ownerId).toLowerCase() : ''
           const vEmail = v.ownerEmail ? v.ownerEmail.toLowerCase() : ''
           return (cUserId && vOwnerId && cUserId === vOwnerId) || (cEmail && vEmail && cEmail === vEmail)
         })
 
-        if (matchingVeh) {
-          const vehGuid = matchingVeh.id || matchingVeh.guid || ''
+        // Pick ONLY the initial primary vehicle for initial registration package
+        const initialVeh = userVehicles.find((v: any) => {
+          const vGuid = v.id || v.guid || ''
+          return !consumedVehIds.has(vGuid) && v.isPrimary
+        }) || [...userVehicles].sort((a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()).find((v: any) => {
+          const vGuid = v.id || v.guid || ''
+          return !consumedVehIds.has(vGuid)
+        })
+
+        if (initialVeh) {
+          const vehGuid = initialVeh.id || initialVeh.guid || ''
           consumedCorIds.add(corGuid)
           consumedVehIds.add(vehGuid)
 
           const user = userMap.get(cUserId) || (cEmail ? userMap.get(cEmail) : null)
-          const role = user?.role || user?.userRole || matchingVeh.ownerRole || 'Student'
-          const fullName = c.fullName || matchingVeh.ownerName || user?.fullName || 'Registered Client'
-          const email = c.email || matchingVeh.ownerEmail || user?.email || '—'
+          const role = user?.role || user?.userRole || initialVeh.ownerRole || 'Student'
+          const fullName = c.fullName || initialVeh.ownerName || user?.fullName || 'Registered Client'
+          const email = c.email || initialVeh.ownerEmail || user?.email || '—'
 
           const corStatusNum = typeof c.verificationStatus === 'number' ? c.verificationStatus : (c.verificationStatus === 'Verified' ? 2 : (c.verificationStatus === 'Rejected' ? 3 : 1))
-          const vehStatusNum = typeof matchingVeh.verificationStatus === 'number' ? matchingVeh.verificationStatus : (matchingVeh.verificationStatus === 'Verified' ? 2 : (matchingVeh.verificationStatus === 'Rejected' ? 3 : 1))
+          const vehStatusNum = typeof initialVeh.verificationStatus === 'number' ? initialVeh.verificationStatus : (initialVeh.verificationStatus === 'Verified' ? 2 : (initialVeh.verificationStatus === 'Rejected' ? 3 : 1))
 
           let unifiedStatusNum = 1
           if (corStatusNum === 2 && vehStatusNum === 2) unifiedStatusNum = 2
@@ -112,14 +120,14 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
             fullName,
             email,
             role,
-            dateApplied: (c.createdAt || matchingVeh.createdAt || new Date().toISOString()).split('T')[0],
+            dateApplied: (c.createdAt || initialVeh.createdAt || new Date().toISOString()).split('T')[0],
             academicTerm: c.academicTerm || 'AY 2026-2027',
-            vehiclePlate: matchingVeh.plateNumber || c.vehiclePlate || '—',
-            vehicleType: matchingVeh.vehicleType ?? c.vehicleType ?? 'Car',
-            brand: matchingVeh.brand || '—',
+            vehiclePlate: initialVeh.plateNumber || c.vehiclePlate || '—',
+            vehicleType: initialVeh.vehicleType ?? c.vehicleType ?? 'Car',
+            brand: initialVeh.brand || c.brand || '—',
             corUrl: formatDocUrl(c.corDocumentUrl, ''),
-            orcrUrl: formatDocUrl(matchingVeh.orcrDocumentUrl || c.orcrDocumentUrl, ''),
-            motorPicUrl: formatDocUrl(matchingVeh.vehiclePictureUrl || c.motorPictureUrl, ''),
+            orcrUrl: formatDocUrl(initialVeh.orcrDocumentUrl || c.orcrDocumentUrl, ''),
+            motorPicUrl: formatDocUrl(initialVeh.vehiclePictureUrl || c.motorPictureUrl, ''),
             schedules: c.schedules || [],
             status: mapVerificationStatus(unifiedStatusNum),
             verificationStatus: unifiedStatusNum
@@ -148,7 +156,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           academicTerm: c.academicTerm || 'AY 2026-2027',
           vehiclePlate: c.vehiclePlate || '—',
           vehicleType: c.vehicleType ?? 'Car',
-          brand: '—',
+          brand: c.brand || '—',
           corUrl: formatDocUrl(c.corDocumentUrl, ''),
           schedules: c.schedules || [],
           status: mapVerificationStatus(c.verificationStatus),
@@ -156,7 +164,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         })
       })
 
-      // Pass 3: Standalone Vehicle Submissions
+      // Pass 3: Standalone Vehicle Submissions (2nd, 3rd, and all additional/updated vehicles)
       rawVeh.forEach((v: any) => {
         const vehGuid = v.id || v.guid || ''
         if (consumedVehIds.has(vehGuid)) return
@@ -165,14 +173,8 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         const vEmail = v.ownerEmail ? v.ownerEmail.toLowerCase() : ''
         const user = userMap.get(vOwnerId) || (vEmail ? userMap.get(vEmail) : null)
 
-        const matchingCor = rawCor.find((c: any) => {
-          const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
-          const cEmail = c.email ? c.email.toLowerCase() : ''
-          return (vOwnerId && cUserId && vOwnerId === cUserId) || (vEmail && cEmail && vEmail === cEmail)
-        })
-
-        const orcr = v.orcrDocumentUrl || v.orcrUrl || matchingCor?.orcrDocumentUrl || ''
-        const motorPic = v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || matchingCor?.motorPictureUrl || ''
+        const orcr = v.orcrDocumentUrl || v.orcrUrl || ''
+        const motorPic = v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || ''
 
         combinedList.push({
           id: nextId++,
@@ -184,12 +186,12 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           role: v.ownerRole || user?.role || 'Student',
           dateApplied: (v.createdAt || new Date().toISOString()).split('T')[0],
           vehiclePlate: v.plateNumber || '—',
-          vehicleType: v.vehicleType ?? 'Car',
+          vehicleType: v.vehicleType != null ? v.vehicleType : 'Car',
           brand: v.brand || '—',
           orcrUrl: formatDocUrl(orcr, ''),
           motorPicUrl: formatDocUrl(motorPic, ''),
           status: mapVerificationStatus(v.verificationStatus),
-          verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : 1
+          verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : (v.verificationStatus === 'Verified' ? 2 : (v.verificationStatus === 'Rejected' ? 3 : 1))
         })
       })
 

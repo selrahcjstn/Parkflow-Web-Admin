@@ -78,7 +78,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
     <div v-if="item" class="space-y-5">
       <!-- Top Overview Grid -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Role</span>
           <span class="font-semibold text-slate-900 dark:text-white">{{ getRoleLabel(item.role) }}</span>
@@ -92,8 +92,12 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate || '—' }}</span>
         </div>
         <div>
+          <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Vehicle Brand</span>
+          <span class="font-semibold text-slate-900 dark:text-white">{{ item.brand && item.brand !== '—' ? item.brand : '—' }}</span>
+        </div>
+        <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Vehicle Type</span>
-          <span class="font-semibold text-slate-900 dark:text-white">{{ item.vehicleType ? getVehicleTypeLabel(item.vehicleType) : '—' }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white">{{ item.vehicleType != null && item.vehicleType !== '' ? getVehicleTypeLabel(item.vehicleType) : '—' }}</span>
         </div>
       </div>
 
