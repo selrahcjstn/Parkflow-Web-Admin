@@ -43,14 +43,18 @@ onMounted(async () => {
     const response = await api.get('/parking-logs/active-sessions?parkingCapacity=150')
     if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
       const activeSessions = response.data.data
-      const newLogs: ParkingLog[] = activeSessions.slice(0, 5).map((session: any, i: number) => ({
-        id: Number(session.sessionId) || (i + 1),
-        vehiclePlate: session.plateNumber || 'N/A',
-        ownerName: session.firstName && session.lastName ? `${session.firstName} ${session.lastName}` : 'Unknown Owner',
-        duration: session.totalParkingHours || '0h',
-        charge: `₱${(session.amount || 0).toLocaleString()}`,
-        status: session.status || (session.overstayHours > 0 ? 'Overstay' : 'Parked')
-      }))
+      const newLogs: ParkingLog[] = activeSessions.slice(0, 5).map((session: any, i: number) => {
+        const isOverstay = (session.overstayHours != null && Number(session.overstayHours) > 0) ||
+          String(session.status || '').toLowerCase() === 'overstay'
+        return {
+          id: Number(session.sessionId) || (i + 1),
+          vehiclePlate: session.plateNumber || 'N/A',
+          ownerName: session.firstName && session.lastName ? `${session.firstName} ${session.lastName}` : 'Unknown Owner',
+          duration: session.totalParkingHours || '0h',
+          charge: `₱${(session.amount || 0).toLocaleString()}`,
+          status: isOverstay ? 'Overstay' : (session.status || 'Parked')
+        }
+      })
       logs.value = newLogs
       cachedParkingLogs.value = newLogs
     }

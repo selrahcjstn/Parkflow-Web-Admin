@@ -126,20 +126,26 @@ const fetchParkingData = async () => {
 
     if (activeRes.status === 'fulfilled' && activeRes.value.data?.isSuccess) {
       const rawActive = activeRes.value.data.data || []
-      const mappedActive: ActiveSession[] = rawActive.map((s: any) => ({
-        id: s.sessionId || s.id,
-        vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
-        vehicleType: s.vehicleType || 'Car',
-        brand: s.brand || '',
-        ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
-        email: s.email || s.ownerEmail || undefined,
-        role: s.role || 'Student',
-        checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
-        duration: s.totalParkingHours ? `${s.totalParkingHours}h` : '0h 0m',
-        amount: s.amount ?? 0,
-        status: s.status || (s.overstayHours > 0 ? 'Overstay' : 'Parked'),
-        maxAllowedHours: s.maxAllowedHours || 8
-      }))
+      const mappedActive: ActiveSession[] = rawActive.map((s: any) => {
+        const isOverstay = (s.overstayHours != null && Number(s.overstayHours) > 0) ||
+          String(s.status || '').toLowerCase() === 'overstay'
+        return {
+          id: s.sessionId || s.id || s.plateNumber,
+          vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
+          vehicleType: s.vehicleType || 'Car',
+          brand: s.brand || '',
+          ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
+          email: s.email || s.ownerEmail || undefined,
+          role: s.role || 'Student',
+          checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
+          duration: s.totalParkingHours ? `${s.totalParkingHours}` : '0h 0m',
+          amount: s.amount ?? 0,
+          status: isOverstay ? 'Overstay' : (s.status || 'Parked'),
+          maxAllowedHours: s.maxAllowedHours || 8,
+          maximumExitTime: s.maximumExitTime,
+          overstayHours: s.overstayHours
+        }
+      })
       activeSessions.value = mappedActive
       cachedActiveSessions.value = mappedActive
     }
@@ -156,10 +162,10 @@ const fetchParkingData = async () => {
         role: s.role || 'Student',
         checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
         checkOutTime: s.exitTime || s.checkOutTime || new Date().toISOString(),
-        duration: s.totalParkingHours ? `${s.totalParkingHours}h` : '0h',
+        duration: s.totalParkingHours ? `${s.totalParkingHours}` : '0h',
         amount: s.penaltyFee ?? s.amount ?? 0,
         method: s.entryMethod || 'QrCode',
-        status: s.overstayHours > 0 ? 'Overdue' : 'Completed'
+        status: (s.overstayHours != null && Number(s.overstayHours) > 0) || String(s.status || '').toLowerCase().includes('over') ? 'Overdue' : 'Completed'
       }))
       historySessions.value = mappedHistory
       cachedHistorySessions.value = mappedHistory
@@ -202,6 +208,15 @@ function getDuration(item: ActiveSession | ParkingHistoryItem): string {
 }
 
 function getMustExitByParts(item: ActiveSession): { time: string; date: string } {
+  if (item.maximumExitTime && !item.maximumExitTime.startsWith('0001')) {
+    const maxExitDate = new Date(item.maximumExitTime)
+    if (!isNaN(maxExitDate.getTime())) {
+      return {
+        time: maxExitDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        date: maxExitDate.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      }
+    }
+  }
   const checkIn = new Date(item.checkInTime)
   const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' || item.role === 'NonAcademicPersonnel' ? 8 : 4)
   const mustExitDate = new Date(checkIn.getTime() + maxAllowed * 3600 * 1000)
