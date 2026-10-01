@@ -531,7 +531,7 @@ async function handleSubmit() {
           <!-- Personnel Specific -->
           <template v-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'">
             <div class="form-group">
-              <label class="form-label">ID Card Number</label>
+              <label class="form-label">Client ID</label>
               <input v-model="form.idCardNumber" type="text" class="form-input" placeholder="e.g. EMP-2024-991" />
             </div>
 
