@@ -9,6 +9,7 @@ export interface ActiveSession {
   vehicleType: VehicleType
   ownerName: string
   role: string
+  email?: string
   checkInTime: string
   duration: string
   gate: number
@@ -29,6 +30,7 @@ export interface ParkingHistoryItem {
   vehicleType: VehicleType
   ownerName: string
   role: string
+  email?: string
   checkInTime: string
   checkOutTime: string
   duration: string

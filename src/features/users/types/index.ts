@@ -4,10 +4,15 @@ export type AuthProvider = 'Manual' | 'Microsoft'
 export type UserRole = 'Student' | 'UniversityStaff' | 'NonAcademicPersonnel' | 'Guard' | 'Admin'
 
 export interface VehicleInfo {
+  id?: string
   plateNumber: string
   brand: string
-  vehicleType: 'Motorcycle' | 'ElectricBike' | 'Car'
+  vehicleType: 'Motorcycle' | 'ElectricBike' | 'Car' | string
   isPrimary: boolean
+  vehiclePictureUrl?: string | null
+  orcrDocumentUrl?: string | null
+  verificationStatus?: string | number
+  rejectionReason?: string | null
 }
 
 export interface StudentDetails {

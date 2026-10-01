@@ -190,6 +190,7 @@ function mapActive(item: any): ActiveSession {
     vehicleType: item.vehicleType as VehicleType,
     ownerName: cleanOwnerName(`${item.firstName || ''} ${item.lastName || ''}`.trim() || item.ownerName),
     role: item.role || 'Guest',
+    email: item.email || item.ownerEmail || (item.userAccount?.primaryEmail) || (item.userAccount?.email) || undefined,
     checkInTime: item.entryTime || item.checkInTime,
     duration: item.totalParkingHours || '0m',
     gate: item.gate || 1,
@@ -234,6 +235,7 @@ function mapHistory(item: any): ParkingHistoryItem {
     vehicleType: item.type as VehicleType,
     ownerName: cleanOwnerName(`${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Guest'),
     role: item.roleName || 'Guest',
+    email: item.email || item.ownerEmail || (item.userAccount?.primaryEmail) || (item.userAccount?.email) || undefined,
     checkInTime: item.entryTime,
     checkOutTime: item.exitTime || '',
     duration: durationStr,
@@ -657,6 +659,12 @@ const executeManualCheckout = async () => {
             <div class="detail-item">
               <span class="detail-label">Full Name</span>
               <span class="detail-value font-bold">{{ session.ownerName }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Email Address</span>
+              <span class="detail-value font-medium text-slate-700 dark:text-slate-300">
+                {{ session.email || (session as any).ownerEmail || '—' }}
+              </span>
             </div>
             <div class="detail-item">
               <span class="detail-label">Campus Classification</span>

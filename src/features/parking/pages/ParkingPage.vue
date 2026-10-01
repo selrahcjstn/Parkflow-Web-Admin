@@ -132,6 +132,7 @@ const fetchParkingData = async () => {
         vehicleType: s.vehicleType || 'Car',
         brand: s.brand || '',
         ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
+        email: s.email || s.ownerEmail || undefined,
         role: s.role || 'Student',
         checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
         duration: s.totalParkingHours ? `${s.totalParkingHours}h` : '0h 0m',
@@ -151,6 +152,7 @@ const fetchParkingData = async () => {
         vehicleType: s.vehicleType || 'Car',
         brand: s.brand || '',
         ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
+        email: s.email || s.ownerEmail || undefined,
         role: s.role || 'Student',
         checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
         checkOutTime: s.exitTime || s.checkOutTime || new Date().toISOString(),
@@ -455,7 +457,10 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
+            <span v-if="item.email" class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[140px] inline-block" :title="item.email">{{ item.email }}</span>
+          </div>
         </template>
 
         <template #cell-role="{ item }">
@@ -556,7 +561,10 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
+          <div class="flex flex-col">
+            <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
+            <span v-if="item.email" class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[140px] inline-block" :title="item.email">{{ item.email }}</span>
+          </div>
         </template>
 
         <template #cell-role="{ item }">

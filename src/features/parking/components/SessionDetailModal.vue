@@ -90,6 +90,10 @@ const getEntryMethod = computed(() => {
                   <span class="detail-value">{{ session.ownerName }}</span>
                 </div>
                 <div class="detail-item">
+                  <span class="detail-label">Email Address</span>
+                  <span class="detail-value">{{ session.email || (session as any).ownerEmail || '—' }}</span>
+                </div>
+                <div class="detail-item">
                   <span class="detail-label">Classification</span>
                   <span class="detail-value">{{ session.role }}</span>
                 </div>

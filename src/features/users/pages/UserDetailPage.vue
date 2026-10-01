@@ -78,7 +78,17 @@ function mapRawUser(u: any): UserWithDetails {
     guard: u.guard ? {
       assignedGate: u.guard.assignedGate || 1
     } : undefined,
-    vehicles: Array.isArray(u.vehicles) ? u.vehicles : []
+    vehicles: Array.isArray(u.vehicles) ? u.vehicles.map((v: any) => ({
+      id: String(v.id || v.vehicleId || ''),
+      plateNumber: v.plateNumber || '',
+      brand: v.brand || '',
+      vehicleType: v.vehicleType || 'Car',
+      isPrimary: Boolean(v.isPrimary),
+      vehiclePictureUrl: v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || null,
+      orcrDocumentUrl: v.orcrDocumentUrl || v.orcrUrl || v.documentUrl || null,
+      verificationStatus: v.verificationStatus || 'Pending',
+      rejectionReason: v.rejectionReason || null
+    })) : []
   }
 }
 
