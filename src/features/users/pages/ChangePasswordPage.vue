@@ -5,13 +5,16 @@ import api from '@/api/axios'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import { getStoredUserEmail } from '@/utils/auth'
+import { cachedUsers } from '@/stores/appCache'
 
 const route = useRoute()
 const router = useRouter()
 
-const targetEmail = computed(() => (route.query.email as string) || '')
-const targetName = computed(() => (route.query.name as string) || 'Target User')
-const targetRole = computed(() => (route.query.role as string) || 'User')
+const targetEmail = ref((route.query.email as string) || '')
+const targetName = ref((route.query.name as string) || 'Target User')
+const targetRole = ref((route.query.role as string) || 'User')
+const targetId = computed(() => (route.query.id as string) || '')
 
 const verificationCode = ref('')
 const newPassword = ref('')
@@ -27,6 +30,33 @@ const successMessage = ref<string | null>(null)
 const otpCooldown = ref(0)
 let cooldownTimer: any = null
 
+const loadTargetUserData = async () => {
+  if (targetEmail.value) return
+
+  if (targetId.value) {
+    if (cachedUsers.value && cachedUsers.value.length > 0) {
+      const match = cachedUsers.value.find((u: any) => String(u.id) === targetId.value)
+      if (match) {
+        targetEmail.value = match.email || ''
+        targetName.value = match.fullName || targetName.value
+        targetRole.value = match.role || targetRole.value
+        return
+      }
+    }
+    try {
+      const res = await api.get(`/users/${targetId.value}`)
+      const d = res.data?.isSuccess && res.data?.data ? res.data.data : res.data
+      if (d) {
+        targetEmail.value = d.email || ''
+        targetName.value = d.fullName || `${d.firstName || ''} ${d.lastName || ''}`.trim() || targetName.value
+        targetRole.value = d.role || targetRole.value
+      }
+    } catch (e) {
+      console.error('Error fetching target user details:', e)
+    }
+  }
+}
+
 const requestAdminOtp = async () => {
   if (!targetEmail.value || isSendingOtp.value || otpCooldown.value > 0) return
 
@@ -34,12 +64,14 @@ const requestAdminOtp = async () => {
   errorMessage.value = null
 
   try {
+    const adminEmail = getStoredUserEmail()
     const response = await api.post('/users/admin-request-reset-otp', {
-      targetEmail: targetEmail.value
+      targetEmail: targetEmail.value,
+      adminEmail: adminEmail || undefined
     })
 
     if (response.data?.isSuccess || response.status === 200) {
-      successMessage.value = 'A 6-digit authorization code has been sent to your administrator email inbox.'
+      successMessage.value = response.data?.message || 'A 6-digit authorization code has been sent to your administrator email inbox.'
       startCooldown(60)
     } else {
       errorMessage.value = response.data?.message || 'Failed to dispatch verification code to admin email.'
@@ -63,7 +95,8 @@ const startCooldown = (seconds: number) => {
   }, 1000)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadTargetUserData()
   if (!targetEmail.value) {
     router.push('/users')
     return
@@ -87,6 +120,26 @@ const handlePasswordChange = async () => {
 
   if (newPassword.value.length < 8) {
     errorMessage.value = 'New password must be at least 8 characters long.'
+    return
+  }
+
+  if (!/[A-Z]/.test(newPassword.value)) {
+    errorMessage.value = 'New password must contain at least one uppercase letter (A-Z).'
+    return
+  }
+
+  if (!/[a-z]/.test(newPassword.value)) {
+    errorMessage.value = 'New password must contain at least one lowercase letter (a-z).'
+    return
+  }
+
+  if (!/[0-9]/.test(newPassword.value)) {
+    errorMessage.value = 'New password must contain at least one digit (0-9).'
+    return
+  }
+
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword.value)) {
+    errorMessage.value = 'New password must contain at least one special character (!@#$%^&*).'
     return
   }
 
@@ -243,6 +296,9 @@ const handlePasswordChange = async () => {
               </button>
             </template>
           </UiInput>
+          <p class="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+            Must be at least 8 characters and include uppercase, lowercase, numbers, and special symbols.
+          </p>
         </div>
 
         <!-- Confirm Password -->

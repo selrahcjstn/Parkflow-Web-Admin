@@ -661,6 +661,19 @@ const handleFormSubmit = async (formData: any) => {
               </svg>
             </button>
 
+            <!-- Change Password Icon -->
+            <button
+              type="button"
+              title="Change Password"
+              @click="handleChangePassword(item)"
+              class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer border-none bg-transparent"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            </button>
+
             <!-- Delete Icon -->
             <button
               type="button"
