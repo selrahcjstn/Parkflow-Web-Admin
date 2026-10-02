@@ -5,7 +5,6 @@ import api from '@/api/axios'
 import StaffRoleSelectorCard from '../components/StaffRoleSelectorCard.vue'
 import StaffPersonalInfoCard from '../components/StaffPersonalInfoCard.vue'
 import StaffAssignmentCard from '../components/StaffAssignmentCard.vue'
-import EmailOtpModal from '../components/EmailOtpModal.vue'
 import StaffConfirmModal from '../components/StaffConfirmModal.vue'
 import StaffSuccessModal from '../components/StaffSuccessModal.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -28,7 +27,7 @@ const form = ref({
   password: 'Password123!',
   phoneNumber: '',
   assignedGate: 1,
-  roleLevel: 2
+  roleLevel: 1
 })
 
 function checkUserRole() {
@@ -60,7 +59,8 @@ const isEmailVerified = ref(false)
 const verifiedEmail = ref('')
 const isSendingOtp = ref(false)
 const isVerifyingOtp = ref(false)
-const otpModalVisible = ref(false)
+const isOtpSent = ref(false)
+const otpCode = ref('')
 const otpError = ref<string | null>(null)
 const resendCountdown = ref(0)
 let resendTimer: any = null
@@ -71,6 +71,9 @@ const onEmailInput = () => {
   emailFieldError.value = null
   if (form.value.email.trim().toLowerCase() !== verifiedEmail.value.toLowerCase()) {
     isEmailVerified.value = false
+    isOtpSent.value = false
+    otpCode.value = ''
+    otpError.value = null
   }
 }
 
@@ -126,20 +129,21 @@ const handleSendOtp = async (isResend = false) => {
 
     const otpRes = await api.post('/auth/send-email-otp', { email })
     if (otpRes.data?.isSuccess === false) {
-      emailFieldError.value = otpRes.data?.message || 'Failed to dispatch verification code.'
+      const msg = otpRes.data?.message || 'Failed to dispatch verification code.'
+      emailFieldError.value = msg
+      otpError.value = msg
       isSendingOtp.value = false
       return
     }
 
-    otpModalVisible.value = true
+    isOtpSent.value = true
+    otpError.value = null
     startResendTimer()
   } catch (err: any) {
     console.error('Error sending email OTP:', err)
     const msg = err.response?.data?.message || 'Failed to dispatch verification code to this email address.'
     emailFieldError.value = msg
-    if (isResend) {
-      otpError.value = msg
-    }
+    otpError.value = msg
   } finally {
     isSendingOtp.value = false
   }
@@ -149,7 +153,7 @@ const handleVerifyOtp = async (code: string) => {
   otpError.value = null
   const email = form.value.email.trim()
 
-  if (code.length < 6) {
+  if (!code || code.length < 6) {
     otpError.value = 'Please enter the complete 6-digit verification code.'
     return
   }
@@ -165,7 +169,8 @@ const handleVerifyOtp = async (code: string) => {
     if (res.data?.isSuccess || res.status === 200) {
       isEmailVerified.value = true
       verifiedEmail.value = email
-      otpModalVisible.value = false
+      isOtpSent.value = false
+      otpCode.value = ''
       otpError.value = null
       emailFieldError.value = null
     } else {
@@ -189,10 +194,12 @@ const resetFormAndContinue = () => {
     password: 'Password123!',
     phoneNumber: '',
     assignedGate: 1,
-    roleLevel: 2
+    roleLevel: 1
   }
   isEmailVerified.value = false
   verifiedEmail.value = ''
+  isOtpSent.value = false
+  otpCode.value = ''
   otpError.value = null
   confirmModalVisible.value = false
   successModalVisible.value = false
@@ -277,12 +284,12 @@ const executeRegistration = async () => {
         profile: {
           firstName: form.value.firstName.trim(),
           lastName: form.value.lastName.trim(),
-          middleName: form.value.middleName?.trim() || undefined,
-          assignedGateNumber: form.value.assignedGate
-        }
+          middleName: form.value.middleName?.trim() || undefined
+        },
+        assignedGate: Number(form.value.assignedGate) || 1
       }
 
-      const response = await api.post('/guards', guardPayload)
+      const response = await api.post('/guards/create', guardPayload)
       if (response.data?.isSuccess || response.status === 200 || response.status === 201) {
         confirmModalVisible.value = false
         registeredUserEmail.value = form.value.email.trim()
@@ -293,16 +300,20 @@ const executeRegistration = async () => {
       }
     } else {
       const adminPayload = {
-        email: form.value.email.trim(),
-        password: form.value.password || undefined,
-        firstName: form.value.firstName.trim(),
-        lastName: form.value.lastName.trim(),
-        middleName: form.value.middleName?.trim() || undefined,
-        phoneNumber: form.value.phoneNumber.trim(),
-        roleLevel: form.value.roleLevel
+        account: {
+          email: form.value.email.trim(),
+          password: form.value.password || undefined,
+          phoneNumber: form.value.phoneNumber.trim()
+        },
+        profile: {
+          firstName: form.value.firstName.trim(),
+          lastName: form.value.lastName.trim(),
+          middleName: form.value.middleName?.trim() || undefined
+        },
+        roleLevel: form.value.roleLevel === 2 ? 1 : (form.value.roleLevel ?? 1)
       }
 
-      const response = await api.post('/users/staff', adminPayload)
+      const response = await api.post('/admin/register', adminPayload)
       if (response.data?.isSuccess || response.status === 200 || response.status === 201) {
         confirmModalVisible.value = false
         registeredUserEmail.value = form.value.email.trim()
@@ -349,18 +360,25 @@ const executeRegistration = async () => {
         @restricted="onRoleRestricted"
       />
 
-      <!-- Card 2: Personal Information -->
+      <!-- Card 2: Personal Information with Inline OTP -->
       <StaffPersonalInfoCard
         v-model:first-name="form.firstName"
         v-model:middle-name="form.middleName"
         v-model:last-name="form.lastName"
         v-model:email="form.email"
         v-model:phone-number="form.phoneNumber"
+        v-model:otp-code="otpCode"
         :is-email-verified="isEmailVerified"
         :is-sending-otp="isSendingOtp"
+        :is-otp-sent="isOtpSent"
+        :is-verifying-otp="isVerifyingOtp"
+        :resend-countdown="resendCountdown"
         :email-error="emailFieldError"
         :phone-error="phoneFieldError"
+        :otp-error="otpError"
         @send-otp="handleSendOtp(false)"
+        @resend-otp="handleSendOtp(true)"
+        @verify-otp="handleVerifyOtp"
         @email-input="onEmailInput"
       />
 
@@ -396,19 +414,6 @@ const executeRegistration = async () => {
         </UiButton>
       </div>
     </form>
-
-    <!-- Email OTP Verification Modal -->
-    <EmailOtpModal
-      :is-open="otpModalVisible"
-      :email="form.email"
-      :is-verifying="isVerifyingOtp"
-      :is-sending-otp="isSendingOtp"
-      :resend-countdown="resendCountdown"
-      :error="otpError"
-      @close="otpModalVisible = false"
-      @verify="handleVerifyOtp"
-      @resend="handleSendOtp(true)"
-    />
 
     <!-- Registration Confirmation Modal -->
     <StaffConfirmModal

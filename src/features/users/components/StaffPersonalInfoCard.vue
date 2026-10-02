@@ -13,6 +13,11 @@ const props = defineProps<{
   isSendingOtp: boolean
   emailError?: string | null
   phoneError?: string | null
+  isOtpSent?: boolean
+  isVerifyingOtp?: boolean
+  resendCountdown?: number
+  otpError?: string | null
+  otpCode?: string
 }>()
 
 const emit = defineEmits<{
@@ -21,13 +26,27 @@ const emit = defineEmits<{
   (e: 'update:lastName', val: string): void
   (e: 'update:email', val: string): void
   (e: 'update:phoneNumber', val: string): void
+  (e: 'update:otpCode', val: string): void
   (e: 'sendOtp'): void
+  (e: 'resendOtp'): void
+  (e: 'verifyOtp', code: string): void
   (e: 'emailInput'): void
 }>()
 
 function onPhoneInput(val: string | number) {
   const digits = String(val).replace(/\D/g, '').slice(0, 11)
   emit('update:phoneNumber', digits)
+}
+
+function onOtpInput(e: Event) {
+  const target = e.target as HTMLInputElement
+  const digits = target.value.replace(/\D/g, '').slice(0, 6)
+  emit('update:otpCode', digits)
+}
+function onVerifyClick() {
+  if (props.otpCode && props.otpCode.length === 6 && !props.isVerifyingOtp) {
+    emit('verifyOtp', props.otpCode.trim())
+  }
 }
 </script>
 
@@ -123,6 +142,83 @@ function onPhoneInput(val: string | number) {
             </template>
             <span>{{ isEmailVerified ? 'Verified' : 'Verify Email' }}</span>
           </UiButton>
+        </div>
+
+        <!-- Inline Email OTP Verification Input -->
+        <div
+          v-if="isOtpSent && !isEmailVerified"
+          class="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 space-y-3 mt-3"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              <span class="text-xs font-bold text-slate-800 dark:text-slate-200">
+                Email Verification Code Required
+              </span>
+            </div>
+            <span class="text-[11px] text-slate-500 dark:text-slate-400">
+              Code dispatched to <strong class="text-slate-700 dark:text-slate-300 font-mono">{{ email }}</strong>
+            </span>
+          </div>
+
+          <p class="text-xs text-slate-600 dark:text-slate-300 m-0">
+            Enter the 6-digit verification code below to authenticate this email address.
+          </p>
+
+          <div v-if="otpError" class="p-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs flex items-center gap-2">
+            <svg class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{{ otpError }}</span>
+          </div>
+
+          <div class="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+            <div class="relative flex-1">
+              <input
+                :value="otpCode"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="Enter 6-digit code"
+                class="w-full text-center text-lg tracking-widest font-mono py-2.5 px-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition box-border"
+                @input="onOtpInput"
+                @keydown.enter.prevent="onVerifyClick"
+              />
+            </div>
+
+            <UiButton
+              type="button"
+              variant="primary"
+              size="md"
+              :loading="isVerifyingOtp"
+              :disabled="!otpCode || otpCode.length < 6"
+              class="flex-shrink-0 font-semibold"
+              @click="onVerifyClick"
+            >
+              <template #icon>
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </template>
+              <span>Verify Code</span>
+            </UiButton>
+          </div>
+
+          <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-200/60 dark:border-slate-700/60">
+            <span class="text-slate-500 dark:text-slate-400">Didn't receive the code?</span>
+            <button
+              type="button"
+              class="font-semibold text-primary-600 dark:text-primary-400 hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer border-none bg-transparent p-0"
+              :disabled="(resendCountdown ?? 0) > 0 || isSendingOtp"
+              @click="emit('resendOtp')"
+            >
+              <span v-if="(resendCountdown ?? 0) > 0">Resend code in {{ resendCountdown }}s</span>
+              <span v-else-if="isSendingOtp">Sending...</span>
+              <span v-else>Resend Code</span>
+            </button>
+          </div>
         </div>
       </div>
 

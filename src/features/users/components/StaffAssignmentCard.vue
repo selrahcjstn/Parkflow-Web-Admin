@@ -24,7 +24,7 @@ const gateOptions = [
 ]
 
 const roleLevelOptions = [
-  { label: 'System Administrator (Standard Admin)', value: 2 }
+  { label: 'System Administrator (Standard Admin)', value: 1 }
 ]
 </script>
 
