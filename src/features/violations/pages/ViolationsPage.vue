@@ -171,7 +171,7 @@ const openPaymentModal = (v: Violation) => {
 
 const handlePaymentSubmit = async () => {
   const refCode = activePaymentViolation.value
-    ? activePaymentViolation.value.referenceNumber
+    ? (activePaymentViolation.value.referenceNumber || activePaymentViolation.value.plateNumber)
     : paymentReferenceInput.value.trim()
 
   if (!refCode) {
@@ -181,15 +181,42 @@ const handlePaymentSubmit = async () => {
 
   isProcessingPayment.value = true
   try {
-    const target = violations.value.find((v) => v.referenceNumber === refCode)
-    const idToSettle = target?.violationId || refCode
+    const target = violations.value.find(
+      (v) => v.referenceNumber === refCode || (activePaymentViolation.value && v.violationId === activePaymentViolation.value.violationId)
+    )
+    const refToSettle = activePaymentViolation.value?.referenceNumber || target?.referenceNumber || refCode
 
-    const response = await api.patch(`/violations/${idToSettle}/settle`, {
-      notes: 'Payment collected by administrator via web console.'
+    const response = await api.post('/violations/process-payment', {
+      referenceNumber: refToSettle
     })
 
-    if (response.data && response.data.isSuccess) {
-      showToast(`Violation ${refCode} marked as settled / paid!`, 'success')
+    if (response.data && (response.data.isSuccess || response.status === 200)) {
+      const receipt = response.data.data
+      const amountText = receipt?.penaltyFee != null ? ` ₱${Number(receipt.penaltyFee).toFixed(2)} received.` : ''
+      showToast(`Violation ${refToSettle} settled successfully!${amountText}`, 'success')
+
+      // Update local state
+      if (target) {
+        target.settlementStatus = 'Paid'
+        target.isPaid = true
+      }
+      if (activePaymentViolation.value) {
+        activePaymentViolation.value.settlementStatus = 'Paid'
+        activePaymentViolation.value.isPaid = true
+      }
+
+      // Update cache
+      if (cachedViolations.value) {
+        const idx = cachedViolations.value.findIndex(
+          (v: any) => v.referenceNumber === refToSettle || (target && v.violationId === target.violationId)
+        )
+        if (idx !== -1) {
+          cachedViolations.value[idx].settlementStatus = 'Paid'
+          cachedViolations.value[idx].isPaid = true
+          cachedViolations.value = [...cachedViolations.value]
+        }
+      }
+
       isPaymentOpen.value = false
       activePaymentViolation.value = null
       paymentReferenceInput.value = ''

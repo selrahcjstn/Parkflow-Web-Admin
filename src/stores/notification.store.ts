@@ -279,13 +279,13 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
 
       // 5. Fetch active unpaid violations
       try {
-        const resViolations = await api.get('/violations')
-        const items = resViolations.data?.data || (Array.isArray(resViolations.data) ? resViolations.data : [])
+        const resViolations = await api.get('/violations/history/page/1/50?unpaidOnly=true')
+        const items = resViolations.data?.data?.items || (Array.isArray(resViolations.data?.data) ? resViolations.data.data : (Array.isArray(resViolations.data) ? resViolations.data : []))
         if (Array.isArray(items)) {
-          const unpaid = items.filter((v: any) => !v.isPaid && (v.status === 'Active' || v.status === 'Pending' || v.status === 1))
+          const unpaid = items.filter((v: any) => !v.isPaid && v.settlementStatus !== 'Settled')
           unpaid.slice(0, 5).forEach((item: any) => {
-            const refCode = item.id || item.violationNumber || item.referenceNumber
-            const rawDate = item.createdAt || item.issuedAt || item.violationDate
+            const refCode = item.referenceNumber || item.violationId || item.id
+            const rawDate = item.issuedAt || item.createdAt
             addNotification({
               type: 'violation_issued',
               title: 'Active Overstay Violation Citation',

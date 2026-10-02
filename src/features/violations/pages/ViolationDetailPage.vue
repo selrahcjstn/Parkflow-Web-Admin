@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import { cachedViolations } from '@/stores/appCache'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 import type { Violation } from '../types'
 
 const route = useRoute()
@@ -125,8 +126,20 @@ const fetchViolationDetail = async () => {
   }
 }
 
+const notifStore = useAdminNotificationStore()
+let unsubscribeApprovalUpdates: (() => void) | null = null
+
 onMounted(() => {
   fetchViolationDetail()
+  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
+    fetchViolationDetail()
+  })
+})
+
+onUnmounted(() => {
+  if (unsubscribeApprovalUpdates) {
+    unsubscribeApprovalUpdates()
+  }
 })
 
 function goBack() {
@@ -170,26 +183,13 @@ const handlePaymentSubmit = async () => {
       }
 
       isPaymentOpen.value = false
+      await fetchViolationDetail()
     } else {
       showToast(response.data?.message || 'Failed to process settlement.', 'warning')
     }
   } catch (error: any) {
     console.error('Error processing settlement:', error)
-    // Fallback local update
-    violation.value.settlementStatus = 'Paid'
-    violation.value.isPaid = true
-    if (cachedViolations.value) {
-      const idx = cachedViolations.value.findIndex(
-        (v: any) => v.referenceNumber === refToSettle
-      )
-      if (idx !== -1) {
-        cachedViolations.value[idx].settlementStatus = 'Paid'
-        cachedViolations.value[idx].isPaid = true
-        cachedViolations.value = [...cachedViolations.value]
-      }
-    }
-    isPaymentOpen.value = false
-    showToast(`Violation ${refToSettle} marked as settled.`, 'info')
+    showToast(error.response?.data?.message || 'Failed to settle violation payment.', 'warning')
   } finally {
     isProcessingPayment.value = false
   }
