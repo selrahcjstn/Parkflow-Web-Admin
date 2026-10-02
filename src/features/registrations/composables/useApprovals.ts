@@ -72,11 +72,15 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
       const consumedCorIds = new Set<string>()
       const consumedVehIds = new Set<string>()
 
-      // Pass 1: Correlate newly registered users (having both COR and initial primary vehicle)
+      // Pass 1: Correlate newly registered users (initial onboarding package with pending COR and pending initial vehicle)
       rawCor.forEach((c: any) => {
         const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
         const cEmail = c.email ? c.email.toLowerCase() : ''
         const corGuid = c.id || c.guid || ''
+
+        const user = userMap.get(cUserId) || (cEmail ? userMap.get(cEmail) : null)
+        const userStatusStr = String(user?.status || '').toLowerCase()
+        const isUserActive = userStatusStr === 'active' || user?.status === 1
 
         // Find user's vehicles
         const userVehicles = rawVeh.filter((v: any) => {
@@ -96,42 +100,47 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
 
         if (initialVeh) {
           const vehGuid = initialVeh.id || initialVeh.guid || ''
-          consumedCorIds.add(corGuid)
-          consumedVehIds.add(vehGuid)
-
-          const user = userMap.get(cUserId) || (cEmail ? userMap.get(cEmail) : null)
-          const role = user?.role || user?.userRole || initialVeh.ownerRole || 'Student'
-          const fullName = c.fullName || initialVeh.ownerName || user?.fullName || 'Registered Client'
-          const email = c.email || initialVeh.ownerEmail || user?.email || '—'
-
           const corStatusNum = typeof c.verificationStatus === 'number' ? c.verificationStatus : (c.verificationStatus === 'Verified' ? 2 : (c.verificationStatus === 'Rejected' ? 3 : 1))
           const vehStatusNum = typeof initialVeh.verificationStatus === 'number' ? initialVeh.verificationStatus : (initialVeh.verificationStatus === 'Verified' ? 2 : (initialVeh.verificationStatus === 'Rejected' ? 3 : 1))
 
-          let unifiedStatusNum = 1
-          if (corStatusNum === 2 && vehStatusNum === 2) unifiedStatusNum = 2
-          else if (corStatusNum === 3 || vehStatusNum === 3) unifiedStatusNum = 3
+          // New User Registration applies ONLY to brand-new accounts (not Active, or with unverified initial vehicle).
+          // If the user is already Active or the vehicle is already Verified, this COR submission is a COR/schedule update.
+          const isInitialRegistration = !isUserActive && vehStatusNum !== 2
 
-          combinedList.push({
-            id: nextId++,
-            guid: corGuid || vehGuid,
-            corGuid,
-            vehicleGuid: vehGuid,
-            category: 'Registration',
-            fullName,
-            email,
-            role,
-            dateApplied: (c.createdAt || initialVeh.createdAt || new Date().toISOString()).split('T')[0],
-            academicTerm: c.academicTerm || 'AY 2026-2027',
-            vehiclePlate: initialVeh.plateNumber || c.vehiclePlate || '—',
-            vehicleType: initialVeh.vehicleType ?? c.vehicleType ?? 'Car',
-            brand: initialVeh.brand || c.brand || '—',
-            corUrl: formatDocUrl(c.corDocumentUrl, ''),
-            orcrUrl: formatDocUrl(initialVeh.orcrDocumentUrl || c.orcrDocumentUrl, ''),
-            motorPicUrl: formatDocUrl(initialVeh.vehiclePictureUrl || c.motorPictureUrl, ''),
-            schedules: c.schedules || [],
-            status: mapVerificationStatus(unifiedStatusNum),
-            verificationStatus: unifiedStatusNum
-          })
+          if (isInitialRegistration) {
+            consumedCorIds.add(corGuid)
+            consumedVehIds.add(vehGuid)
+
+            const role = user?.role || user?.userRole || initialVeh.ownerRole || 'Student'
+            const fullName = c.fullName || initialVeh.ownerName || user?.fullName || 'Registered Client'
+            const email = c.email || initialVeh.ownerEmail || user?.email || '—'
+
+            let unifiedStatusNum = 1
+            if (corStatusNum === 2 && vehStatusNum === 2) unifiedStatusNum = 2
+            else if (corStatusNum === 3 || vehStatusNum === 3) unifiedStatusNum = 3
+
+            combinedList.push({
+              id: nextId++,
+              guid: corGuid || vehGuid,
+              corGuid,
+              vehicleGuid: vehGuid,
+              category: 'Registration',
+              fullName,
+              email,
+              role,
+              dateApplied: (c.createdAt || initialVeh.createdAt || new Date().toISOString()).split('T')[0],
+              academicTerm: c.academicTerm || 'AY 2026-2027',
+              vehiclePlate: initialVeh.plateNumber || c.vehiclePlate || '—',
+              vehicleType: initialVeh.vehicleType ?? c.vehicleType ?? 'Car',
+              brand: initialVeh.brand || c.brand || '—',
+              corUrl: formatDocUrl(c.corDocumentUrl, ''),
+              orcrUrl: formatDocUrl(initialVeh.orcrDocumentUrl || c.orcrDocumentUrl, ''),
+              motorPicUrl: formatDocUrl(initialVeh.vehiclePictureUrl || c.motorPictureUrl, ''),
+              schedules: c.schedules || [],
+              status: mapVerificationStatus(unifiedStatusNum),
+              verificationStatus: unifiedStatusNum
+            })
+          }
         }
       })
 

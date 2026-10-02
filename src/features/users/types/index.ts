@@ -31,6 +31,12 @@ export interface GuardDetails {
   assignedGate: number
 }
 
+export interface UserScheduleItem {
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+}
+
 export interface UserWithDetails {
   id: string
   firstName: string
@@ -49,4 +55,7 @@ export interface UserWithDetails {
   personnel?: PersonnelDetails
   guard?: GuardDetails
   vehicles: VehicleInfo[]
+  corDocumentUrl?: string | null
+  academicTerm?: string | null
+  schedules?: UserScheduleItem[]
 }

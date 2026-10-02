@@ -12,6 +12,7 @@ import UserDetailHeroCard from '../components/UserDetailHeroCard.vue'
 import UserAccountInfoCard from '../components/UserAccountInfoCard.vue'
 import UserClassificationCard from '../components/UserClassificationCard.vue'
 import UserVehiclesCard from '../components/UserVehiclesCard.vue'
+import UserScheduleAndCorCard from '../components/UserScheduleAndCorCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -65,6 +66,13 @@ function mapRawUser(u: any): UserWithDetails {
     profilePictureUrl: u.profilePictureUrl || u.avatarUrl || u.photoUrl || '',
     createdAt: u.createdAt || new Date().toISOString(),
     corVerificationStatus: u.corVerificationStatus || (u.verificationStatus === 2 ? 'Verified' : u.verificationStatus === 3 ? 'Rejected' : u.verificationStatus === 1 ? 'Pending' : 'NotSubmitted'),
+    corDocumentUrl: u.corDocumentUrl || u.corUrl || null,
+    academicTerm: u.academicTerm || 'AY 2026-2027',
+    schedules: Array.isArray(u.schedules) ? u.schedules.map((s: any) => ({
+      dayOfWeek: Number(s.dayOfWeek),
+      startTime: String(s.startTime || ''),
+      endTime: String(s.endTime || '')
+    })) : [],
     student: u.student ? {
       studentNumber: u.student.studentNumber || '',
       course: u.student.course || '',
@@ -92,6 +100,35 @@ function mapRawUser(u: any): UserWithDetails {
   }
 }
 
+async function loadCorAndSchedulesFallback() {
+  if (!user.value) return
+  try {
+    const corRes = await api.get('/cor-submissions')
+    const rawCor = Array.isArray(corRes.data?.data) ? corRes.data.data : (Array.isArray(corRes.data) ? corRes.data : [])
+    const matchingCor = rawCor.find((c: any) =>
+      String(c.userAccountId).toLowerCase() === userId.value.toLowerCase() ||
+      (user.value?.email && c.email && c.email.toLowerCase() === user.value.email.toLowerCase())
+    )
+    if (matchingCor && user.value) {
+      if (!user.value.corDocumentUrl && matchingCor.corDocumentUrl) {
+        user.value.corDocumentUrl = matchingCor.corDocumentUrl
+      }
+      if (!user.value.academicTerm && matchingCor.academicTerm) {
+        user.value.academicTerm = matchingCor.academicTerm
+      }
+      if ((!user.value.schedules || user.value.schedules.length === 0) && matchingCor.schedules && matchingCor.schedules.length > 0) {
+        user.value.schedules = matchingCor.schedules.map((s: any) => ({
+          dayOfWeek: Number(s.dayOfWeek),
+          startTime: String(s.startTime || ''),
+          endTime: String(s.endTime || '')
+        }))
+      }
+    }
+  } catch (e) {
+    console.warn('Could not fetch fallback COR submissions:', e)
+  }
+}
+
 onMounted(async () => {
   isLoading.value = true
   errorMessage.value = null
@@ -100,6 +137,7 @@ onMounted(async () => {
   const stateUser = history.state?.user
   if (stateUser) {
     user.value = mapRawUser(stateUser)
+    await loadCorAndSchedulesFallback()
     isLoading.value = false
     return
   }
@@ -109,6 +147,7 @@ onMounted(async () => {
     const found = cachedUsers.value.find((x: any) => String(x.id) === userId.value)
     if (found) {
       user.value = mapRawUser(found)
+      await loadCorAndSchedulesFallback()
       isLoading.value = false
       return
     }
@@ -120,12 +159,14 @@ onMounted(async () => {
     const data = response.data?.isSuccess && response.data?.data ? response.data.data : response.data
     if (data) {
       user.value = mapRawUser(data)
+      await loadCorAndSchedulesFallback()
     } else {
       const listRes = await api.get('/users')
       const list = Array.isArray(listRes.data?.data) ? listRes.data.data : (Array.isArray(listRes.data) ? listRes.data : [])
       const match = list.find((u: any) => String(u.id) === userId.value)
       if (match) {
         user.value = mapRawUser(match)
+        await loadCorAndSchedulesFallback()
       } else {
         errorMessage.value = 'User record not found.'
       }
@@ -277,7 +318,15 @@ async function confirmStatusChange() {
         <UserClassificationCard :user="user" />
       </div>
 
-      <!-- 3. Registered Vehicles & Parking Passes -->
+      <!-- 3. Certificate of Registration & Approved Parking Schedule -->
+      <UserScheduleAndCorCard
+        :cor-url="user.corDocumentUrl"
+        :academic-term="user.academicTerm"
+        :cor-status="user.corVerificationStatus"
+        :schedules="user.schedules"
+      />
+
+      <!-- 4. Registered Vehicles & Parking Passes -->
       <UserVehiclesCard :vehicles="user.vehicles" />
     </div>
 
