@@ -88,7 +88,7 @@ const emit = defineEmits<{
         <input
           type="checkbox"
           :checked="showPasswordFields"
-          class="w-4 h-4 rounded text-bulsu-red focus:ring-bulsu-red/20 dark:bg-slate-900 dark:border-slate-700 cursor-pointer accent-bulsu-red"
+          class="w-4 h-4 rounded text-red-600 focus:ring-red-500/20 dark:bg-slate-900 dark:border-slate-700 cursor-pointer accent-red-600"
           @change="emit('update:showPasswordFields', ($event.target as HTMLInputElement).checked)"
         />
         <span>Manually Override / Enter Custom Password</span>
@@ -106,7 +106,7 @@ const emit = defineEmits<{
             :value="newPassword"
             :type="showNewPassword ? 'text' : 'password'"
             placeholder="Enter new password"
-            class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-bulsu-red/20 focus:border-bulsu-red transition"
+            class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition"
             @input="emit('update:newPassword', ($event.target as HTMLInputElement).value)"
           />
           <button
@@ -135,7 +135,7 @@ const emit = defineEmits<{
             :value="confirmPassword"
             :type="showConfirmPassword ? 'text' : 'password'"
             placeholder="Re-enter new password"
-            class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-bulsu-red/20 focus:border-bulsu-red transition"
+            class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition"
             @input="emit('update:confirmPassword', ($event.target as HTMLInputElement).value)"
           />
           <button

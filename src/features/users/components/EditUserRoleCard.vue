@@ -121,7 +121,7 @@ const gateOptions = [
             :class="[
               studentErrors?.course
                 ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
-                : 'border-slate-200 dark:border-slate-700 focus:ring-bulsu-red/20 focus:border-bulsu-red'
+                : 'border-slate-200 dark:border-slate-700 focus:ring-red-500/20 focus:border-red-500'
             ]"
             required
             @change="emit('update:course', ($event.target as HTMLSelectElement).value)"

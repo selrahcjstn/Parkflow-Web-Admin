@@ -16,7 +16,7 @@ const emit = defineEmits<{
     <div>
       <button
         type="button"
-        class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-bulsu-red dark:hover:text-rose-400 transition-colors cursor-pointer mb-2"
+        class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-rose-400 transition-colors cursor-pointer mb-2"
         @click="emit('back')"
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

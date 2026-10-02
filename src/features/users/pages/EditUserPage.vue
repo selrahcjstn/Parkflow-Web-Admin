@@ -109,7 +109,6 @@ const {
       <!-- 1. Photo & Profile Image Card -->
       <EditUserPhotoCard
         :photo-url="form.photoUrl"
-        :status="form.status"
         :initials="getInitials()"
         @select-photo="triggerPhotoSelect"
         @remove-photo="removePhoto"
