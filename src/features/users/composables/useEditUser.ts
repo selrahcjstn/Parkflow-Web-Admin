@@ -290,7 +290,10 @@ export function useEditUser(userId: ComputedRef<string>) {
     }
   }
 
-  async function handleSubmit() {
+  const isConfirmModalOpen = ref(false)
+  const hasPasswordChange = computed(() => Boolean(showPasswordFields.value && form.value.newPassword))
+
+  function validateForm(): boolean {
     studentFieldErrors.value = {
       studentNumber: null,
       course: null,
@@ -299,7 +302,7 @@ export function useEditUser(userId: ComputedRef<string>) {
 
     if (!form.value.firstName || !form.value.lastName || !form.value.email) {
       errorMessage.value = 'Please fill out all required personal information fields.'
-      return
+      return false
     }
 
     // Student specific validation
@@ -308,34 +311,56 @@ export function useEditUser(userId: ComputedRef<string>) {
       if (!sNum) {
         studentFieldErrors.value.studentNumber = 'Student Number is required.'
         errorMessage.value = 'Student Number is required.'
-        return
+        return false
       }
       if (!STUDENT_ID_REGEX.test(sNum)) {
         studentFieldErrors.value.studentNumber = 'Student Number must follow the official format (e.g. 2024-00001 or 7-10 digit student ID).'
         errorMessage.value = 'Student Number must follow the official format (e.g. 2024-00001 or 7-10 digit student ID).'
-        return
+        return false
       }
       if (!form.value.course || !form.value.course.trim()) {
         studentFieldErrors.value.course = 'Please select a Course / Degree Program.'
         errorMessage.value = 'Please select a Course / Degree Program.'
-        return
+        return false
       }
       if (!form.value.section || !form.value.section.trim()) {
         studentFieldErrors.value.section = 'Section is required (e.g. 3A).'
         errorMessage.value = 'Section is required (e.g. 3A).'
-        return
+        return false
       }
     }
 
     if (showPasswordFields.value && form.value.newPassword) {
       if (form.value.newPassword.length < 6) {
         errorMessage.value = 'New password must be at least 6 characters.'
-        return
+        return false
       }
       if (form.value.newPassword !== form.value.confirmPassword) {
         errorMessage.value = 'New passwords do not match.'
-        return
+        return false
       }
+    }
+
+    errorMessage.value = null
+    return true
+  }
+
+  function handleSubmit() {
+    if (validateForm()) {
+      isConfirmModalOpen.value = true
+    }
+  }
+
+  function closeConfirmModal() {
+    if (!isSubmitting.value) {
+      isConfirmModalOpen.value = false
+    }
+  }
+
+  async function confirmSubmit() {
+    if (!validateForm()) {
+      isConfirmModalOpen.value = false
+      return
     }
 
     isSubmitting.value = true
@@ -370,16 +395,19 @@ export function useEditUser(userId: ComputedRef<string>) {
 
       const res = await api.put(`/users/${userId.value}`, payload)
       if (res.status === 200 || res.data?.isSuccess) {
+        isConfirmModalOpen.value = false
         syncToCachedUsers()
         successToast.value = 'User account profile updated successfully!'
         setTimeout(() => {
           router.push('/users')
         }, 1200)
       } else {
+        isConfirmModalOpen.value = false
         errorMessage.value = res.data?.message || 'Failed to update user account profile.'
       }
     } catch (err: any) {
       console.error('Error updating user:', err)
+      isConfirmModalOpen.value = false
       errorMessage.value = err.response?.data?.message || 'Failed to update user account profile. Please check your inputs and try again.'
     } finally {
       isSubmitting.value = false
@@ -392,6 +420,8 @@ export function useEditUser(userId: ComputedRef<string>) {
     form,
     isLoading,
     isSubmitting,
+    isConfirmModalOpen,
+    hasPasswordChange,
     errorMessage,
     successToast,
     fileInput,
@@ -408,6 +438,8 @@ export function useEditUser(userId: ComputedRef<string>) {
     onStudentNumberInput,
     handleSendTempPassword,
     handleSubmit,
+    closeConfirmModal,
+    confirmSubmit,
     goBack
   }
 }

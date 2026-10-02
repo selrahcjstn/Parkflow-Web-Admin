@@ -9,6 +9,7 @@ import EditUserPhotoCard from '../components/EditUserPhotoCard.vue'
 import EditUserPersonalInfoCard from '../components/EditUserPersonalInfoCard.vue'
 import EditUserRoleCard from '../components/EditUserRoleCard.vue'
 import EditUserSecurityCard from '../components/EditUserSecurityCard.vue'
+import EditUserConfirmModal from '../components/EditUserConfirmModal.vue'
 
 const route = useRoute()
 const userId = computed(() => String(route.params.id || ''))
@@ -17,6 +18,8 @@ const {
   form,
   isLoading,
   isSubmitting,
+  isConfirmModalOpen,
+  hasPasswordChange,
   errorMessage,
   successToast,
   fileInput,
@@ -33,6 +36,8 @@ const {
   onStudentNumberInput,
   handleSendTempPassword,
   handleSubmit,
+  closeConfirmModal,
+  confirmSubmit,
   goBack
 } = useEditUser(userId)
 </script>
@@ -173,5 +178,16 @@ const {
         </UiButton>
       </div>
     </form>
+
+    <!-- Confirmation Modal on Save Changes -->
+    <EditUserConfirmModal
+      :is-open="isConfirmModalOpen"
+      :is-submitting="isSubmitting"
+      :form="form"
+      :initials="getInitials()"
+      :has-password-change="hasPasswordChange"
+      @close="closeConfirmModal"
+      @confirm="confirmSubmit"
+    />
   </div>
 </template>
