@@ -62,13 +62,11 @@ function selectRole(role: AccountType) {
         </div>
       </div>
 
-      <!-- System Administrator Option -->
+      <!-- System Administrator Option (SuperAdmin Only) -->
       <div
+        v-if="isSuperAdmin"
         class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-        :class="[
-          modelValue === 'Admin' ? 'border-purple-600 bg-purple-50/40 dark:bg-purple-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50',
-          !isSuperAdmin ? 'opacity-60 cursor-not-allowed' : ''
-        ]"
+        :class="modelValue === 'Admin' ? 'border-purple-600 bg-purple-50/40 dark:bg-purple-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
         @click="selectRole('Admin')"
       >
         <div class="flex items-center justify-between">

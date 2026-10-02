@@ -37,13 +37,23 @@ const emit = defineEmits<{
   (e: 'studentNumberInput', val: string | number): void
 }>()
 
-const roleOptions = [
-  { label: 'Student', value: 'Student' },
-  { label: 'Faculty Member', value: 'UniversityStaff' },
-  { label: 'University Staff', value: 'NonAcademicPersonnel' },
-  { label: 'Security Guard', value: 'Guard' },
-  { label: 'System Administrator', value: 'Admin' }
-]
+import { computed } from 'vue'
+import { isSuperAdminUser } from '@/utils/auth'
+
+const isSuperAdmin = computed(() => isSuperAdminUser())
+
+const roleOptions = computed(() => {
+  const options = [
+    { label: 'Student', value: 'Student' },
+    { label: 'Faculty Member', value: 'UniversityStaff' },
+    { label: 'University Staff', value: 'NonAcademicPersonnel' },
+    { label: 'Security Guard', value: 'Guard' }
+  ]
+  if (isSuperAdmin.value) {
+    options.push({ label: 'System Administrator', value: 'Admin' })
+  }
+  return options
+})
 
 const gateOptions = [
   { label: 'Gate 1 — Main Entrance', value: 1 },

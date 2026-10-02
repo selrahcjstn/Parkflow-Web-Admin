@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserWithDetails, UserRole } from '../types'
+import { isSuperAdminUser } from '@/utils/auth'
 import {
   collegeCourseGroups,
   YEAR_LEVEL_OPTIONS,
@@ -11,6 +12,7 @@ import {
 } from '@/constants/courses'
 
 const router = useRouter()
+const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const props = defineProps<{
   isOpen: boolean
@@ -259,7 +261,7 @@ const handleSubmit = () => {
                     <option value="UniversityStaff">Faculty Member</option>
                     <option value="NonAcademicPersonnel">University Staff</option>
                     <option value="Guard">Security Guard</option>
-                    <option value="Admin">Administrator</option>
+                    <option v-if="isSuperAdmin" value="Admin">Administrator</option>
                   </select>
                 </div>
                 <div v-if="userToEdit" class="space-y-1.5">
