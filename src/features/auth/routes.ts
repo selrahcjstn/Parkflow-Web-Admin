@@ -6,6 +6,12 @@ const authRoutes: RouteRecordRaw[] = [
     name: 'Login',
     component: () => import('./pages/LoginPage.vue'),
     meta: { requiresAuth: false }
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: () => import('./pages/ForgotPasswordPage.vue'),
+    meta: { requiresAuth: false }
   }
 ]
 

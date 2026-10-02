@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import ForgotPasswordModal from './ForgotPasswordModal.vue'
 
 const router = useRouter()
 
@@ -14,6 +15,16 @@ const showPassword = ref(false)
 const isLoading = ref(false)
 const alertMessage = ref('')
 const alertType = ref<'error' | 'success'>('error')
+const isForgotPasswordOpen = ref(false)
+
+function handlePasswordResetSuccess(resetEmail: string) {
+  if (resetEmail) {
+    email.value = resetEmail
+  }
+  password.value = ''
+  alertType.value = 'success'
+  alertMessage.value = 'Password reset successfully. Please log in with your new password.'
+}
 
 async function handleSubmit() {
   alertMessage.value = ''
@@ -208,12 +219,13 @@ async function handleSubmit() {
           />
           Remember me
         </label>
-        <a
-          href="#"
-          class="font-semibold text-[#D22730] dark:text-[#f87171] hover:underline transition-colors"
+        <button
+          type="button"
+          class="font-semibold text-[#D22730] dark:text-[#f87171] hover:underline transition-colors border-none bg-transparent cursor-pointer p-0 text-xs"
+          @click="isForgotPasswordOpen = true"
         >
           Forgot password?
-        </a>
+        </button>
       </div>
 
       <!-- Submit Button -->
@@ -229,5 +241,13 @@ async function handleSubmit() {
         </UiButton>
       </div>
     </form>
+
+    <!-- Forgot Password Modal -->
+    <ForgotPasswordModal
+      :is-open="isForgotPasswordOpen"
+      :initial-email="email"
+      @close="isForgotPasswordOpen = false"
+      @success="handlePasswordResetSuccess"
+    />
   </div>
 </template>
