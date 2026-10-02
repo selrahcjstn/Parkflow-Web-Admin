@@ -237,7 +237,7 @@ async function confirmStatusChange() {
 </script>
 
 <template>
-  <div class="max-w-6xl mx-auto space-y-6">
+  <div class="w-full space-y-6">
     <!-- Toast Notifications -->
     <div class="fixed bottom-7 right-7 z-50 flex flex-col gap-2.5 pointer-events-none">
       <TransitionGroup name="toast">
