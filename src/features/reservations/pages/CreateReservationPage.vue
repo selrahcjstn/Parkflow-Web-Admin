@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -24,22 +24,72 @@ const form = ref({
 const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
+const existingReservations = ref<any[]>([])
 
 const reservationTypeOptions = [
   { label: 'Special Schedule / Event Pass (Full Day Authorization)', value: 1 },
   { label: 'Standard Schedule Reservation', value: 0 }
 ]
 
+async function loadExistingReservations() {
+  try {
+    const res = await api.get('/parking-reservations/admin/all')
+    const items = res.data?.data || (Array.isArray(res.data) ? res.data : [])
+    if (Array.isArray(items)) {
+      existingReservations.value = items
+    }
+  } catch (e) {}
+}
+
+onMounted(() => {
+  loadExistingReservations()
+})
+
+const existingReservationForSelectedDate = computed(() => {
+  if (!form.value.reservationDate) return null
+  const selected = form.value.reservationDate
+  return existingReservations.value.find((r: any) => {
+    const rDate = (r.reservationDate || '').split('T')[0]
+    return (
+      rDate === selected &&
+      r.status !== 'Cancelled' &&
+      r.status !== 'Rejected' &&
+      r.status !== 2 &&
+      r.status !== 3
+    )
+  })
+})
+
+watch(
+  () => form.value.reservationDate,
+  (newDate) => {
+    if (newDate && existingReservationForSelectedDate.value) {
+      errorMessage.value = `A reservation already exists for ${newDate} (${existingReservationForSelectedDate.value.referenceNumber || 'Active'}). Only one reservation per day is allowed.`
+    } else {
+      if (errorMessage.value && errorMessage.value.includes('Only one reservation per day')) {
+        errorMessage.value = null
+      }
+    }
+  }
+)
+
 function goBack() {
   router.push('/reservations')
 }
 
 async function handleSubmit() {
+  if (isSubmitting.value) return
+
   errorMessage.value = null
   successMessage.value = null
 
   if (!form.value.reservationDate) {
     errorMessage.value = 'Please select a reservation date.'
+    return
+  }
+
+  if (existingReservationForSelectedDate.value) {
+    errorMessage.value = `You already have an active or pending reservation for ${form.value.reservationDate}. Only one reservation per day is allowed.`
     return
   }
 
