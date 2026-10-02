@@ -15,8 +15,11 @@ defineProps<{
 const emit = defineEmits<{
   (e: 'sendTempPassword'): void
   (e: 'update:showPasswordFields', val: boolean): void
+  (e: 'update:show-password-fields', val: boolean): void
   (e: 'update:newPassword', val: string): void
+  (e: 'update:new-password', val: string): void
   (e: 'update:confirmPassword', val: string): void
+  (e: 'update:confirm-password', val: string): void
   (e: 'toggleShowNewPassword'): void
   (e: 'toggleShowConfirmPassword'): void
 }>()
@@ -89,7 +92,7 @@ const emit = defineEmits<{
           type="checkbox"
           :checked="showPasswordFields"
           class="w-4 h-4 rounded text-red-600 focus:ring-red-500/20 dark:bg-slate-900 dark:border-slate-700 cursor-pointer accent-red-600"
-          @change="emit('update:showPasswordFields', ($event.target as HTMLInputElement).checked)"
+          @change="emit('update:showPasswordFields', ($event.target as HTMLInputElement).checked); emit('update:show-password-fields', ($event.target as HTMLInputElement).checked)"
         />
         <span>Manually Override / Enter Custom Password</span>
       </label>
@@ -107,7 +110,7 @@ const emit = defineEmits<{
             :type="showNewPassword ? 'text' : 'password'"
             placeholder="Enter new password"
             class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition"
-            @input="emit('update:newPassword', ($event.target as HTMLInputElement).value)"
+            @input="emit('update:newPassword', ($event.target as HTMLInputElement).value); emit('update:new-password', ($event.target as HTMLInputElement).value)"
           />
           <button
             type="button"
@@ -119,7 +122,7 @@ const emit = defineEmits<{
               <line x1="1" y1="1" x2="23" y2="23" />
             </svg>
             <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
@@ -136,7 +139,7 @@ const emit = defineEmits<{
             :type="showConfirmPassword ? 'text' : 'password'"
             placeholder="Re-enter new password"
             class="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition"
-            @input="emit('update:confirmPassword', ($event.target as HTMLInputElement).value)"
+            @input="emit('update:confirmPassword', ($event.target as HTMLInputElement).value); emit('update:confirm-password', ($event.target as HTMLInputElement).value)"
           />
           <button
             type="button"

@@ -291,7 +291,7 @@ export function useEditUser(userId: ComputedRef<string>) {
   }
 
   const isConfirmModalOpen = ref(false)
-  const hasPasswordChange = computed(() => Boolean(showPasswordFields.value && form.value.newPassword))
+  const hasPasswordChange = computed(() => Boolean(showPasswordFields.value && form.value.newPassword?.trim()))
 
   function validateForm(): boolean {
     studentFieldErrors.value = {
@@ -330,13 +330,24 @@ export function useEditUser(userId: ComputedRef<string>) {
       }
     }
 
-    if (showPasswordFields.value && form.value.newPassword) {
-      if (form.value.newPassword.length < 6) {
-        errorMessage.value = 'New password must be at least 6 characters.'
+    if (showPasswordFields.value) {
+      const newPw = form.value.newPassword ? form.value.newPassword.trim() : ''
+      const confirmPw = form.value.confirmPassword ? form.value.confirmPassword.trim() : ''
+
+      if (!newPw) {
+        errorMessage.value = 'Please enter a new password (minimum 6 characters).'
         return false
       }
-      if (form.value.newPassword !== form.value.confirmPassword) {
-        errorMessage.value = 'New passwords do not match.'
+      if (newPw.length < 6) {
+        errorMessage.value = 'New password must be at least 6 characters long.'
+        return false
+      }
+      if (!confirmPw) {
+        errorMessage.value = 'Please re-enter and confirm the new password.'
+        return false
+      }
+      if (newPw !== confirmPw) {
+        errorMessage.value = 'New password and confirmation password do not match.'
         return false
       }
     }
@@ -377,7 +388,7 @@ export function useEditUser(userId: ComputedRef<string>) {
         role: form.value.role,
         status: form.value.status,
         photoUrl: form.value.photoUrl || null,
-        password: showPasswordFields.value && form.value.newPassword ? form.value.newPassword : undefined,
+        password: showPasswordFields.value && form.value.newPassword?.trim() ? form.value.newPassword.trim() : undefined,
         student: form.value.role === 'Student' ? {
           studentNumber: form.value.studentNumber.trim(),
           course: form.value.course.trim(),
