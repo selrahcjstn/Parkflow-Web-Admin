@@ -313,7 +313,10 @@ const executeRegistration = async () => {
         roleLevel: form.value.roleLevel === 2 ? 1 : (form.value.roleLevel ?? 1)
       }
 
-      const response = await api.post('/admin/register', adminPayload)
+      const token = localStorage.getItem('parkflow_token')
+      const response = await api.post('/admin/register', adminPayload, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       if (response.data?.isSuccess || response.status === 200 || response.status === 201) {
         confirmModalVisible.value = false
         registeredUserEmail.value = form.value.email.trim()
