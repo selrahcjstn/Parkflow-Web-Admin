@@ -21,133 +21,20 @@ const emit = defineEmits<{
   (e: 'update:section', val: string): void
 }>()
 
-const isJuniorHigh = computed(() => props.yearLevel >= 7 && props.yearLevel <= 10)
+import {
+  collegeCourseGroups,
+  COLLEGE_COURSE_OPTIONS,
+  YEAR_LEVEL_OPTIONS,
+  isJuniorHigh as checkJuniorHigh
+} from '@/constants/courses'
 
-const collegeCourseGroups = [
-  {
-    college: 'College of Computer Studies & Information Technology',
-    courses: [
-      'BS Computer Science (BSCS)',
-      'BS Information Technology (BSIT)',
-      'BS Information Systems (BSIS)',
-      'BS Data Science and Analytics (BSDSA)',
-      'Associate in Computer Technology (ACT)'
-    ]
-  },
-  {
-    college: 'College of Engineering',
-    courses: [
-      'BS Civil Engineering (BSCE)',
-      'BS Computer Engineering (BSCpE)',
-      'BS Electrical Engineering (BSEE)',
-      'BS Electronics Engineering (BSECE)',
-      'BS Mechanical Engineering (BSME)',
-      'BS Industrial Engineering (BSIE)',
-      'BS Chemical Engineering (BSChE)',
-      'BS Environmental and Sanitary Engineering (BSESE)',
-      'BS Geodetic Engineering (BSGE)'
-    ]
-  },
-  {
-    college: 'College of Business, Accountancy & Management',
-    courses: [
-      'BS Accountancy (BSA)',
-      'BS Management Accounting (BSMA)',
-      'BS Accounting Information Systems (BSAIS)',
-      'BSBA - Major in Marketing Management (BSBA-MM)',
-      'BSBA - Major in Financial Management (BSBA-FM)',
-      'BSBA - Major in Human Resource Management (BSBA-HRM)',
-      'BSBA - Major in Operations Management (BSBA-OM)',
-      'BS Entrepreneurship (BSEntrep)',
-      'BS Hospitality Management (BSHM)',
-      'BS Tourism Management (BSTM)',
-      'BS Customs Administration (BSCA)',
-      'BS Real Estate Management (BSREM)'
-    ]
-  },
-  {
-    college: 'College of Arts, Sciences & Humanities',
-    courses: [
-      'BS Psychology (BSPsych)',
-      'BA Psychology (ABPsych)',
-      'BA Communication (BAComm)',
-      'BA Journalism (BAJourn)',
-      'BA Political Science (BAPolSci)',
-      'BA English Language Studies (BAELS)',
-      'BS Biology (BSBio)',
-      'BS Applied Mathematics (BSAM)',
-      'BS Chemistry (BSChem)',
-      'BS Social Work (BSSW)'
-    ]
-  },
-  {
-    college: 'College of Education',
-    courses: [
-      'Bachelor of Elementary Education (BEEd)',
-      'Bachelor of Secondary Education - Major in English (BSEd-Eng)',
-      'Bachelor of Secondary Education - Major in Mathematics (BSEd-Math)',
-      'Bachelor of Secondary Education - Major in Science (BSEd-Sci)',
-      'Bachelor of Secondary Education - Major in Social Studies (BSEd-SS)',
-      'Bachelor of Secondary Education - Major in Filipino (BSEd-Fil)',
-      'Bachelor of Physical Education (BPEd)',
-      'Bachelor of Special Needs Education (BSNEd)',
-      'Bachelor of Early Childhood Education (BECEd)'
-    ]
-  },
-  {
-    college: 'College of Nursing & Health Sciences',
-    courses: [
-      'BS Nursing (BSN)',
-      'BS Medical Laboratory Science / Medical Technology (BSMLS)',
-      'BS Pharmacy (BSPharm)',
-      'BS Physical Therapy (BSPT)',
-      'BS Radiologic Technology (BSRT)',
-      'BS Nutrition and Dietetics (BSND)',
-      'BS Respiratory Therapy (BSRTh)'
-    ]
-  },
-  {
-    college: 'College of Architecture & Fine Arts',
-    courses: [
-      'BS Architecture (BSArch)',
-      'Bachelor of Fine Arts (BFA)',
-      'BS Interior Design (BSID)'
-    ]
-  },
-  {
-    college: 'College of Criminology & Security',
-    courses: [
-      'BS Criminology (BSCrim)',
-      'BS Industrial Security Management (BSISM)'
-    ]
-  }
-]
-
-const courseOptions = computed(() => {
-  const list: { label: string; value: string }[] = []
-  collegeCourseGroups.forEach((group) => {
-    group.courses.forEach((c) => {
-      list.push({ label: `${c} — (${group.college.replace('College of ', '')})`, value: c })
-    })
-  })
-  return list
-})
-
-const yearLevelOptions = [
-  { label: 'Grade 7 (Junior High School)', value: 7 },
-  { label: 'Grade 8 (Junior High School)', value: 8 },
-  { label: 'Grade 9 (Junior High School)', value: 9 },
-  { label: 'Grade 10 (Junior High School)', value: 10 },
-  { label: '1st Year (Freshman)', value: 1 },
-  { label: '2nd Year (Sophomore)', value: 2 },
-  { label: '3rd Year (Junior)', value: 3 },
-  { label: '4th Year (Senior)', value: 4 },
-  { label: '5th Year (Senior Extended)', value: 5 }
-]
+const isJuniorHigh = computed(() => checkJuniorHigh(props.yearLevel))
+const courseOptions = computed(() => COLLEGE_COURSE_OPTIONS)
+const yearLevelOptions = YEAR_LEVEL_OPTIONS
 
 function onClientIdInput(val: string | number) {
-  const digits = String(val).replace(/\D/g, '').slice(0, 10)
-  emit('update:studentNumber', digits)
+  const formatted = String(val).replace(/[^\d-]/g, '').slice(0, 12)
+  emit('update:studentNumber', formatted)
 }
 
 function onSectionInput(val: string | number) {

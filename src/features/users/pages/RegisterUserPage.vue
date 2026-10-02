@@ -10,6 +10,7 @@ import PersonnelDetailsCard from '../components/PersonnelDetailsCard.vue'
 import EmailOtpModal from '../components/EmailOtpModal.vue'
 import RegisterConfirmModal from '../components/RegisterConfirmModal.vue'
 import RegisterSuccessModal from '../components/RegisterSuccessModal.vue'
+import { STUDENT_ID_REGEX } from '@/constants/courses'
 import UiButton from '@/components/ui/UiButton.vue'
 
 const router = useRouter()
@@ -272,9 +273,9 @@ const handleInitialSubmit = () => {
       errorMessage.value = 'Client ID is required.'
       return
     }
-    if (!/^\d{7,10}$/.test(studentNum)) {
-      clientIdFieldError.value = 'Client ID must contain only digits and be between 7 and 10 digits long (e.g. 202600123).'
-      errorMessage.value = 'Client ID must contain only digits and be between 7 and 10 digits long (e.g. 202600123).'
+    if (!STUDENT_ID_REGEX.test(studentNum)) {
+      clientIdFieldError.value = 'Client ID must follow the official student number format (e.g. 2024-00001 or 7-10 digit student ID).'
+      errorMessage.value = 'Client ID must follow the official student number format (e.g. 2024-00001 or 7-10 digit student ID).'
       return
     }
 

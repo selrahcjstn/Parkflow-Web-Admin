@@ -2,6 +2,13 @@
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserWithDetails, UserRole } from '../types'
+import {
+  collegeCourseGroups,
+  YEAR_LEVEL_OPTIONS,
+  STUDENT_ID_REGEX,
+  normalizeCourseName,
+  isCustomCourse
+} from '@/constants/courses'
 
 const router = useRouter()
 
@@ -14,6 +21,8 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'submit', form: any): void
 }>()
+
+const formError = ref<string | null>(null)
 
 const form = ref({
   id: '',
@@ -36,6 +45,7 @@ const form = ref({
 })
 
 const resetForm = () => {
+  formError.value = null
   form.value = {
     id: '',
     firstName: '',
@@ -59,6 +69,7 @@ const resetForm = () => {
 watch(
   () => props.isOpen,
   (newVal) => {
+    formError.value = null
     if (newVal) {
       if (props.userToEdit) {
         form.value = {
@@ -72,9 +83,9 @@ watch(
           status: props.userToEdit.status,
           newPassword: '',
           studentNumber: props.userToEdit.student?.studentNumber || '',
-          course: props.userToEdit.student?.course || '',
+          course: normalizeCourseName(props.userToEdit.student?.course || ''),
           section: props.userToEdit.student?.section || '',
-          yearLevel: props.userToEdit.student?.yearLevel || 1,
+          yearLevel: Number(props.userToEdit.student?.yearLevel) || 1,
           idCardNumber: props.userToEdit.personnel?.idCardNumber || '',
           department: props.userToEdit.personnel?.department || '',
           assignedGate: props.userToEdit.guard?.assignedGate || 1
@@ -99,8 +110,41 @@ const handleChangePassword = () => {
   })
 }
 
+function onStudentNumberInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  form.value.studentNumber = target.value.replace(/[^\d-]/g, '').slice(0, 12)
+  formError.value = null
+}
+
 const handleSubmit = () => {
-  emit('submit', { ...form.value })
+  formError.value = null
+
+  if (form.value.role === 'Student') {
+    const sNum = form.value.studentNumber.trim()
+    if (!sNum) {
+      formError.value = 'Student number is required.'
+      return
+    }
+    if (!STUDENT_ID_REGEX.test(sNum)) {
+      formError.value = 'Student number must follow format (e.g. 2024-00001 or 7-10 digits).'
+      return
+    }
+    if (!form.value.course || !form.value.course.trim()) {
+      formError.value = 'Please select a course/degree program.'
+      return
+    }
+    if (!form.value.section || !form.value.section.trim()) {
+      formError.value = 'Section is required.'
+      return
+    }
+  }
+
+  emit('submit', {
+    ...form.value,
+    studentNumber: form.value.studentNumber.trim(),
+    course: form.value.course.trim(),
+    section: form.value.section.trim()
+  })
 }
 </script>
 
@@ -135,6 +179,16 @@ const handleSubmit = () => {
 
           <form @submit.prevent="handleSubmit" class="flex flex-col flex-1 overflow-hidden">
             <div class="p-6 overflow-y-auto space-y-4 flex-1">
+              <!-- Error Banner -->
+              <div v-if="formError" class="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-xs font-medium flex items-center gap-2">
+                <svg class="w-4 h-4 flex-shrink-0 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <span>{{ formError }}</span>
+              </div>
+
               <!-- Basic Details -->
               <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="space-y-1.5">
@@ -249,39 +303,50 @@ const handleSubmit = () => {
                 <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Student Credentials</h4>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
-                    <label for="studentNum" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Client ID <span class="text-red-500">*</span></label>
+                    <label for="studentNum" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Student Number <span class="text-red-500">*</span></label>
                     <input
                       id="studentNum"
-                      v-model="form.studentNumber"
+                      :value="form.studentNumber"
                       type="text"
-                      placeholder="202X-XXXXX"
+                      placeholder="e.g. 2024-00001 or 202600123"
+                      maxlength="12"
                       class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                       required
+                      @input="onStudentNumberInput"
                     />
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Format: YYYY-NNNNN or 7-10 digit ID</p>
                   </div>
                   <div class="space-y-1.5">
-                    <label for="course" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Course <span class="text-red-500">*</span></label>
-                    <input
+                    <label for="course" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Course / Degree Program <span class="text-red-500">*</span></label>
+                    <select
                       id="course"
                       v-model="form.course"
-                      type="text"
-                      placeholder="BSCS, BSIT, etc."
                       class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                       required
-                    />
+                    >
+                      <option value="" disabled>Select College Degree Program</option>
+                      <option v-if="isCustomCourse(form.course)" :value="form.course">
+                        {{ form.course }} (Current)
+                      </option>
+                      <optgroup v-for="group in collegeCourseGroups" :key="group.college" :label="group.college">
+                        <option v-for="c in group.courses" :key="c" :value="c">
+                          {{ c }}
+                        </option>
+                      </optgroup>
+                    </select>
                   </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
-                    <label for="section" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Section (Letters Only) <span class="text-red-500">*</span></label>
+                    <label for="section" class="block text-xs font-semibold text-slate-700 dark:text-slate-300">Section <span class="text-red-500">*</span></label>
                     <input
                       id="section"
                       v-model="form.section"
                       type="text"
-                      placeholder="A"
+                      placeholder="e.g. 3A or 4B-G1"
+                      maxlength="10"
                       class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                       required
-                      @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').toUpperCase()"
                     />
                   </div>
                   <div class="space-y-1.5">
@@ -291,17 +356,9 @@ const handleSubmit = () => {
                       v-model.number="form.yearLevel"
                       class="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                     >
-                      <option :value="7">Grade 7</option>
-                      <option :value="8">Grade 8</option>
-                      <option :value="9">Grade 9</option>
-                      <option :value="10">Grade 10</option>
-                      <option :value="11">Grade 11</option>
-                      <option :value="12">Grade 12</option>
-                      <option :value="1">1st Year</option>
-                      <option :value="2">2nd Year</option>
-                      <option :value="3">3rd Year</option>
-                      <option :value="4">4th Year</option>
-                      <option :value="5">5th Year+</option>
+                      <option v-for="opt in YEAR_LEVEL_OPTIONS" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                      </option>
                     </select>
                   </div>
                 </div>

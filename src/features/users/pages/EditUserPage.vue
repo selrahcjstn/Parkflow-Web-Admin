@@ -3,6 +3,13 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { UserRole } from '../types'
 import api from '@/api/axios'
+import {
+  collegeCourseGroups,
+  YEAR_LEVEL_OPTIONS,
+  STUDENT_ID_REGEX,
+  normalizeCourseName,
+  isCustomCourse
+} from '@/constants/courses'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,6 +44,22 @@ const form = ref({
   newPassword: '',
   confirmPassword: ''
 })
+
+const studentFieldErrors = ref({
+  studentNumber: null as string | null,
+  course: null as string | null,
+  section: null as string | null
+})
+
+function onStudentNumberInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  const raw = target.value
+  const filtered = raw.replace(/[^\d-]/g, '').slice(0, 12)
+  form.value.studentNumber = filtered
+  if (studentFieldErrors.value.studentNumber) {
+    studentFieldErrors.value.studentNumber = null
+  }
+}
 
 const showPasswordFields = ref(false)
 const showNewPassword = ref(false)
@@ -155,9 +178,9 @@ function populateFormFromUser(u: any): boolean {
 
   if (u.student) {
     form.value.studentNumber = u.student.studentNumber || ''
-    form.value.course = u.student.course || ''
+    form.value.course = normalizeCourseName(u.student.course || '')
     form.value.section = u.student.section || ''
-    form.value.yearLevel = u.student.yearLevel || 1
+    form.value.yearLevel = Number(u.student.yearLevel) || 1
   }
   if (u.personnel) {
     form.value.idCardNumber = u.personnel.idCardNumber || ''
@@ -233,9 +256,9 @@ function syncToCachedUsers() {
       ? cachedUsers.value[existingIdx].corVerificationStatus
       : 'NotSubmitted',
     student: form.value.role === 'Student' ? {
-      studentNumber: form.value.studentNumber,
-      course: form.value.course,
-      section: form.value.section,
+      studentNumber: form.value.studentNumber.trim(),
+      course: form.value.course.trim(),
+      section: form.value.section.trim(),
       yearLevel: form.value.yearLevel
     } : null,
     personnel: (form.value.role === 'UniversityStaff' || form.value.role === 'NonAcademicPersonnel') ? {
@@ -258,9 +281,40 @@ function syncToCachedUsers() {
 }
 
 async function handleSubmit() {
+  studentFieldErrors.value = {
+    studentNumber: null,
+    course: null,
+    section: null
+  }
+
   if (!form.value.firstName || !form.value.lastName || !form.value.email) {
     errorMessage.value = 'Please fill out all required personal information fields.'
     return
+  }
+
+  // Student specific validation
+  if (form.value.role === 'Student') {
+    const sNum = form.value.studentNumber.trim()
+    if (!sNum) {
+      studentFieldErrors.value.studentNumber = 'Student Number is required.'
+      errorMessage.value = 'Student Number is required.'
+      return
+    }
+    if (!STUDENT_ID_REGEX.test(sNum)) {
+      studentFieldErrors.value.studentNumber = 'Student Number must follow the official format (e.g. 2024-00001 or 7-10 digit student ID).'
+      errorMessage.value = 'Student Number must follow the official format (e.g. 2024-00001 or 7-10 digit student ID).'
+      return
+    }
+    if (!form.value.course || !form.value.course.trim()) {
+      studentFieldErrors.value.course = 'Please select a Course / Degree Program.'
+      errorMessage.value = 'Please select a Course / Degree Program.'
+      return
+    }
+    if (!form.value.section || !form.value.section.trim()) {
+      studentFieldErrors.value.section = 'Section is required (e.g. 3A).'
+      errorMessage.value = 'Section is required (e.g. 3A).'
+      return
+    }
   }
 
   if (showPasswordFields.value && form.value.newPassword) {
@@ -290,9 +344,9 @@ async function handleSubmit() {
       photoUrl: form.value.photoUrl || null,
       password: showPasswordFields.value && form.value.newPassword ? form.value.newPassword : undefined,
       student: form.value.role === 'Student' ? {
-        studentNumber: form.value.studentNumber,
-        course: form.value.course,
-        section: form.value.section,
+        studentNumber: form.value.studentNumber.trim(),
+        course: form.value.course.trim(),
+        section: form.value.section.trim(),
         yearLevel: form.value.yearLevel
       } : null,
       personnel: (form.value.role === 'UniversityStaff' || form.value.role === 'NonAcademicPersonnel') ? {
@@ -502,28 +556,64 @@ async function handleSubmit() {
           <!-- Student Specific -->
           <template v-if="form.role === 'Student'">
             <div class="form-group">
-              <label class="form-label">Student Number</label>
-              <input v-model="form.studentNumber" type="text" class="form-input" placeholder="e.g. 2023-10921" />
+              <label class="form-label required">Student Number</label>
+              <input
+                :value="form.studentNumber"
+                type="text"
+                class="form-input"
+                :class="{ 'input-error': studentFieldErrors.studentNumber }"
+                placeholder="e.g. 2024-00001 or 202600123"
+                maxlength="12"
+                required
+                @input="onStudentNumberInput"
+              />
+              <span v-if="studentFieldErrors.studentNumber" class="field-error-text">{{ studentFieldErrors.studentNumber }}</span>
+              <span v-else class="field-hint-text">Format: YYYY-NNNNN or 7-10 digit student ID</span>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Course / Degree</label>
-              <input v-model="form.course" type="text" class="form-input" placeholder="e.g. BS Information Technology" />
+              <label class="form-label required">Course / Degree Program</label>
+              <select
+                v-model="form.course"
+                class="form-select"
+                :class="{ 'input-error': studentFieldErrors.course }"
+                required
+                @change="studentFieldErrors.course = null"
+              >
+                <option value="" disabled>Select College Degree Program</option>
+                <option v-if="isCustomCourse(form.course)" :value="form.course">
+                  {{ form.course }} (Current)
+                </option>
+                <optgroup v-for="group in collegeCourseGroups" :key="group.college" :label="group.college">
+                  <option v-for="c in group.courses" :key="c" :value="c">
+                    {{ c }}
+                  </option>
+                </optgroup>
+              </select>
+              <span v-if="studentFieldErrors.course" class="field-error-text">{{ studentFieldErrors.course }}</span>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Section</label>
-              <input v-model="form.section" type="text" class="form-input" placeholder="e.g. 3A" />
+              <label class="form-label required">Section</label>
+              <input
+                v-model="form.section"
+                type="text"
+                class="form-input"
+                :class="{ 'input-error': studentFieldErrors.section }"
+                placeholder="e.g. 3A or 4B-G1"
+                maxlength="10"
+                required
+                @input="studentFieldErrors.section = null"
+              />
+              <span v-if="studentFieldErrors.section" class="field-error-text">{{ studentFieldErrors.section }}</span>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Year Level</label>
-              <select v-model.number="form.yearLevel" class="form-select">
-                <option :value="1">1st Year</option>
-                <option :value="2">2nd Year</option>
-                <option :value="3">3rd Year</option>
-                <option :value="4">4th Year</option>
-                <option :value="5">5th Year+</option>
+              <label class="form-label required">Year / Grade Level</label>
+              <select v-model.number="form.yearLevel" class="form-select" required>
+                <option v-for="opt in YEAR_LEVEL_OPTIONS" :key="opt.value" :value="opt.value">
+                  {{ opt.label }}
+                </option>
               </select>
             </div>
           </template>
@@ -971,6 +1061,27 @@ async function handleSubmit() {
   outline: none;
   border-color: var(--color-primary, #D22730);
   box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.12);
+}
+
+.input-error {
+  border-color: #ef4444 !important;
+}
+
+.input-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+.field-error-text {
+  font-size: 11.5px;
+  color: #ef4444;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.field-hint-text {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 2px;
 }
 
 .password-toggle-row {
