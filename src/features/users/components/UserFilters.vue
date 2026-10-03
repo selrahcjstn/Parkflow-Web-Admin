@@ -29,10 +29,10 @@ const emit = defineEmits<{
 
 const statusOptions = [
   { label: 'All Statuses', value: 'all' },
-  { label: 'Pending Verification', value: 'Pending' },
-  { label: 'Approved / Verified', value: 'Verified' },
-  { label: 'Not Submitted', value: 'NotSubmitted' },
+  { label: 'Approved', value: 'Approved' },
+  { label: 'Pending', value: 'Pending' },
   { label: 'Rejected', value: 'Rejected' },
+  { label: 'Not Submitted', value: 'NotSubmitted' },
   { label: 'Suspended', value: 'Suspended' }
 ]
 

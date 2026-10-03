@@ -134,24 +134,33 @@ const stats = computed(() => {
   return list
 })
 
-const displayStatus = (user: UserWithDetails) => {
+const displayStatus = (user: UserWithDetails): string => {
   if (user.status === 'Suspended') return 'Suspended'
-  if (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin') return 'Active'
-  return user.corVerificationStatus || 'NotSubmitted'
+  if (user.role === 'Student') {
+    if (user.corVerificationStatus === 'Verified') return 'Approved'
+    if (user.corVerificationStatus === 'Pending') return 'Pending'
+    if (user.corVerificationStatus === 'Rejected') return 'Rejected'
+    if (user.corVerificationStatus === 'NotSubmitted') return 'NotSubmitted'
+  }
+  if (user.status === 'Active') return 'Approved'
+  if (user.status === 'PendingVerification') return 'Pending'
+  return user.status || 'Approved'
 }
 
-function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'Verified' || status === 'Active') return 'success'
+function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger' | 'neutral' {
+  if (!status) return 'neutral'
+  if (status === 'Verified' || status === 'Approved' || status === 'Active') return 'success'
   if (status === 'Pending' || status === 'PendingVerification') return 'warning'
   if (status === 'Suspended' || status === 'Rejected') return 'danger'
   return 'neutral'
 }
 
-function formatStatusText(status: string): string {
-  if (status === 'Verified') return 'Clearance Active'
-  if (status === 'Pending') return 'Pending COR'
-  if (status === 'NotSubmitted') return 'No COR Upload'
-  if (status === 'Rejected') return 'COR Rejected'
+function formatStatusText(status?: string): string {
+  if (!status) return 'Not Submitted'
+  if (status === 'Verified' || status === 'Approved' || status === 'Active') return 'Approved'
+  if (status === 'Pending' || status === 'PendingVerification') return 'Pending'
+  if (status === 'Rejected') return 'Rejected'
+  if (status === 'NotSubmitted' || status === 'Unverified') return 'Not Submitted'
   if (status === 'Suspended') return 'Suspended'
   return status
 }
@@ -213,9 +222,16 @@ const filteredUsers = computed(() => {
       selectedRole.value === 'all' ||
       user.role === selectedRole.value
 
+    const userStatus = displayStatus(user)
     const matchesStatus =
       selectedStatus.value === 'all' ||
-      displayStatus(user) === selectedStatus.value
+      userStatus === selectedStatus.value ||
+      (selectedStatus.value === 'Approved' && (userStatus === 'Approved' || user.corVerificationStatus === 'Verified' || user.status === 'Active')) ||
+      (selectedStatus.value === 'Verified' && (userStatus === 'Approved' || user.corVerificationStatus === 'Verified' || user.status === 'Active')) ||
+      (selectedStatus.value === 'Pending' && (userStatus === 'Pending' || user.corVerificationStatus === 'Pending' || user.status === 'PendingVerification')) ||
+      (selectedStatus.value === 'Rejected' && (userStatus === 'Rejected' || user.corVerificationStatus === 'Rejected')) ||
+      (selectedStatus.value === 'NotSubmitted' && (userStatus === 'NotSubmitted' || user.corVerificationStatus === 'NotSubmitted')) ||
+      (selectedStatus.value === 'Suspended' && (userStatus === 'Suspended' || user.status === 'Suspended'))
 
     const hasVehicles = user.vehicles && user.vehicles.length > 0
     const matchesVehicle =

@@ -8,7 +8,8 @@ const props = defineProps<{
 }>()
 
 function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'Active' || status === 'Verified') return 'success'
+  if (!status) return 'neutral'
+  if (status === 'Active' || status === 'Verified' || status === 'Approved') return 'success'
   if (status === 'PendingVerification' || status === 'Pending') return 'warning'
   if (status === 'Suspended' || status === 'Rejected') return 'danger'
   return 'neutral'
@@ -16,10 +17,10 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
 function formatStatusText(status?: string): string {
   if (!status) return 'Not Submitted'
-  if (status === 'Verified') return 'Clearance Active'
-  if (status === 'Pending' || status === 'PendingVerification') return 'Pending COR'
-  if (status === 'NotSubmitted' || status === 'Unverified') return 'No COR Upload'
-  if (status === 'Rejected') return 'COR Rejected'
+  if (status === 'Verified' || status === 'Approved' || status === 'Active') return 'Approved'
+  if (status === 'Pending' || status === 'PendingVerification') return 'Pending'
+  if (status === 'Rejected') return 'Rejected'
+  if (status === 'NotSubmitted' || status === 'Unverified') return 'Not Submitted'
   if (status === 'Suspended') return 'Suspended'
   return status
 }
@@ -75,10 +76,10 @@ function formatStatusText(status?: string): string {
       </div>
 
       <div class="flex flex-col gap-1.5">
-        <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Account Clearance Status</span>
+        <span class="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Account Status</span>
         <div>
           <UiBadge :variant="getStatusBadgeVariant(user.status)" size="xs">
-            {{ user.status }}
+            {{ formatStatusText(user.status) }}
           </UiBadge>
         </div>
       </div>

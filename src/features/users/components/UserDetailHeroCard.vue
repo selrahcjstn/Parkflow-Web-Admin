@@ -19,7 +19,8 @@ function getIdentifier(u?: UserWithDetails | null): string {
 }
 
 function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger' | 'neutral' {
-  if (status === 'Active' || status === 'Verified') return 'success'
+  if (!status) return 'neutral'
+  if (status === 'Active' || status === 'Verified' || status === 'Approved') return 'success'
   if (status === 'PendingVerification' || status === 'Pending') return 'warning'
   if (status === 'Suspended' || status === 'Rejected') return 'danger'
   return 'neutral'
@@ -27,10 +28,10 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
 function formatStatusText(status?: string): string {
   if (!status) return 'Not Submitted'
-  if (status === 'Verified') return 'Clearance Active'
-  if (status === 'Pending' || status === 'PendingVerification') return 'Pending COR'
-  if (status === 'NotSubmitted' || status === 'Unverified') return 'No COR Upload'
-  if (status === 'Rejected') return 'COR Rejected'
+  if (status === 'Verified' || status === 'Approved' || status === 'Active') return 'Approved'
+  if (status === 'Pending' || status === 'PendingVerification') return 'Pending'
+  if (status === 'Rejected') return 'Rejected'
+  if (status === 'NotSubmitted' || status === 'Unverified') return 'Not Submitted'
   if (status === 'Suspended') return 'Suspended'
   return status
 }
@@ -38,8 +39,15 @@ function formatStatusText(status?: string): string {
 function displayStatus(u?: UserWithDetails | null): string {
   if (!u) return 'NotSubmitted'
   if (u.status === 'Suspended') return 'Suspended'
-  if (u.role === 'Guard' || u.role === 'Admin' || (u.role as string) === 'SuperAdmin') return 'Active'
-  return u.corVerificationStatus || 'NotSubmitted'
+  if (u.role === 'Student') {
+    if (u.corVerificationStatus === 'Verified') return 'Approved'
+    if (u.corVerificationStatus === 'Pending') return 'Pending'
+    if (u.corVerificationStatus === 'Rejected') return 'Rejected'
+    if (u.corVerificationStatus === 'NotSubmitted') return 'NotSubmitted'
+  }
+  if (u.status === 'Active') return 'Approved'
+  if (u.status === 'PendingVerification') return 'Pending'
+  return u.status || 'Approved'
 }
 </script>
 

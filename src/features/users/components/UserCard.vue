@@ -21,26 +21,30 @@ const emit = defineEmits<{
 function displayStatus(u: UserWithDetails): string {
   if (u.status === 'Suspended') return 'Suspended'
   if (u.role === 'Student') {
-    if (u.corVerificationStatus === 'Verified') return 'Verified'
+    if (u.corVerificationStatus === 'Verified') return 'Approved'
     if (u.corVerificationStatus === 'Pending') return 'Pending'
     if (u.corVerificationStatus === 'Rejected') return 'Rejected'
     if (u.corVerificationStatus === 'NotSubmitted') return 'NotSubmitted'
   }
-  return u.status || 'Active'
+  if (u.status === 'Active') return 'Approved'
+  if (u.status === 'PendingVerification') return 'Pending'
+  return u.status || 'Approved'
 }
 
-function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
-  if (status === 'Verified' || status === 'Active') return 'success'
-  if (status === 'Pending') return 'warning'
+function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger' | 'neutral' | 'info' {
+  if (!status) return 'neutral'
+  if (status === 'Verified' || status === 'Approved' || status === 'Active') return 'success'
+  if (status === 'Pending' || status === 'PendingVerification') return 'warning'
   if (status === 'Suspended' || status === 'Rejected') return 'danger'
   return 'neutral'
 }
 
-function formatStatusText(status: string): string {
-  if (status === 'Verified') return 'Clearance Active'
-  if (status === 'Pending') return 'Pending COR'
-  if (status === 'NotSubmitted') return 'No COR Upload'
-  if (status === 'Rejected') return 'COR Rejected'
+function formatStatusText(status?: string): string {
+  if (!status) return 'Not Submitted'
+  if (status === 'Verified' || status === 'Approved' || status === 'Active') return 'Approved'
+  if (status === 'Pending' || status === 'PendingVerification') return 'Pending'
+  if (status === 'Rejected') return 'Rejected'
+  if (status === 'NotSubmitted' || status === 'Unverified') return 'Not Submitted'
   if (status === 'Suspended') return 'Suspended'
   return status
 }

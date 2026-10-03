@@ -42,9 +42,9 @@ function getVerificationBadgeVariant(status?: string | number): 'success' | 'war
 
 function formatVerificationText(status?: string | number): string {
   const str = String(status || '').toLowerCase()
-  if (str === 'verified' || str === 'approved' || str === '2') return 'Clearance Active'
-  if (str === 'pending' || str === '1') return 'Pending Verification'
-  if (str === 'rejected' || str === '3') return 'Verification Rejected'
+  if (str === 'verified' || str === 'approved' || str === '2') return 'Approved'
+  if (str === 'pending' || str === '1') return 'Pending'
+  if (str === 'rejected' || str === '3') return 'Rejected'
   return 'Not Submitted'
 }
 </script>

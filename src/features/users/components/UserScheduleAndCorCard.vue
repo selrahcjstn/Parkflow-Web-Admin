@@ -52,8 +52,8 @@ function getCorBadgeVariant(status?: string): 'success' | 'warning' | 'danger' |
 
 function getCorBadgeLabel(status?: string): string {
   const s = (status || '').toLowerCase()
-  if (s === 'verified' || s === 'approved') return 'Verified'
-  if (s === 'pending') return 'Pending Verification'
+  if (s === 'verified' || s === 'approved') return 'Approved'
+  if (s === 'pending') return 'Pending'
   if (s === 'rejected') return 'Rejected'
   return 'Not Submitted'
 }
