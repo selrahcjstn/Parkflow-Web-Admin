@@ -39,6 +39,8 @@ export function useEditUser(userId: ComputedRef<string>) {
   const errorMessage = ref<string | null>(null)
   const successToast = ref<string | null>(null)
   const fileInput = ref<HTMLInputElement | null>(null)
+  const selectedPhotoFile = ref<File | null>(null)
+  const isPhotoRemoved = ref(false)
 
   const form = ref<EditUserFormData>({
     id: '',
@@ -92,6 +94,8 @@ export function useEditUser(userId: ComputedRef<string>) {
         errorMessage.value = 'Photo size must be less than 5MB.'
         return
       }
+      selectedPhotoFile.value = file
+      isPhotoRemoved.value = false
       const reader = new FileReader()
       reader.onload = (e) => {
         form.value.photoUrl = e.target?.result as string
@@ -101,6 +105,8 @@ export function useEditUser(userId: ComputedRef<string>) {
   }
 
   function removePhoto() {
+    selectedPhotoFile.value = null
+    isPhotoRemoved.value = true
     form.value.photoUrl = ''
     if (fileInput.value) {
       fileInput.value.value = ''
@@ -379,6 +385,27 @@ export function useEditUser(userId: ComputedRef<string>) {
     successToast.value = null
 
     try {
+      let finalPhotoUrl = form.value.photoUrl
+
+      // If a new photo file was picked, upload it to Cloudinary first
+      if (selectedPhotoFile.value) {
+        const formData = new FormData()
+        formData.append('File', selectedPhotoFile.value)
+        formData.append('UserId', userId.value)
+        const uploadRes = await api.post('/files/upload/profile-picture', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        if (uploadRes.data?.isSuccess && uploadRes.data?.data?.url) {
+          finalPhotoUrl = uploadRes.data.data.url
+          form.value.photoUrl = finalPhotoUrl
+          selectedPhotoFile.value = null
+        } else {
+          throw new Error(uploadRes.data?.message || 'Failed to upload profile picture.')
+        }
+      } else if (isPhotoRemoved.value) {
+        finalPhotoUrl = ''
+      }
+
       const payload = {
         firstName: form.value.firstName,
         lastName: form.value.lastName,
@@ -387,7 +414,7 @@ export function useEditUser(userId: ComputedRef<string>) {
         phoneNumber: form.value.phoneNumber,
         role: form.value.role,
         status: form.value.status,
-        photoUrl: form.value.photoUrl || null,
+        photoUrl: finalPhotoUrl || null,
         password: showPasswordFields.value && form.value.newPassword?.trim() ? form.value.newPassword.trim() : undefined,
         student: form.value.role === 'Student' ? {
           studentNumber: form.value.studentNumber.trim(),
@@ -419,7 +446,7 @@ export function useEditUser(userId: ComputedRef<string>) {
     } catch (err: any) {
       console.error('Error updating user:', err)
       isConfirmModalOpen.value = false
-      errorMessage.value = err.response?.data?.message || 'Failed to update user account profile. Please check your inputs and try again.'
+      errorMessage.value = err.response?.data?.message || err.message || 'Failed to update user account profile. Please check your inputs and try again.'
     } finally {
       isSubmitting.value = false
     }
