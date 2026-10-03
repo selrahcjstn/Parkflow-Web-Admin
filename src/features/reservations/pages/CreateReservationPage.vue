@@ -9,10 +9,19 @@ import UiTextarea from '@/components/ui/UiTextarea.vue'
 
 const router = useRouter()
 
-const today = computed(() => new Date().toISOString().split('T')[0])
+const getTomorrowDateString = () => {
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const yyyy = tomorrow.getFullYear()
+  const mm = String(tomorrow.getMonth() + 1).padStart(2, '0')
+  const dd = String(tomorrow.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const minDate = computed(() => getTomorrowDateString())
 
 const form = ref({
-  reservationDate: new Date().toISOString().split('T')[0],
+  reservationDate: getTomorrowDateString(),
   startTime: '07:00',
   endTime: '23:59',
   reason: '',
@@ -60,13 +69,24 @@ const existingReservationForSelectedDate = computed(() => {
   })
 })
 
+const getTodayDateString = (): string => {
+  const now = new Date()
+  const yyyy = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 watch(
   () => form.value.reservationDate,
   (newDate) => {
-    if (newDate && existingReservationForSelectedDate.value) {
+    const todayStr = getTodayDateString()
+    if (newDate && newDate <= todayStr) {
+      errorMessage.value = 'Reservations must be booked at least 1 day in advance. Same-day reservations are not allowed.'
+    } else if (newDate && existingReservationForSelectedDate.value) {
       errorMessage.value = `A reservation already exists for ${newDate} (${existingReservationForSelectedDate.value.referenceNumber || 'Active'}). Only one reservation per day is allowed.`
     } else {
-      if (errorMessage.value && errorMessage.value.includes('Only one reservation per day')) {
+      if (errorMessage.value && (errorMessage.value.includes('Only one reservation per day') || errorMessage.value.includes('at least 1 day in advance'))) {
         errorMessage.value = null
       }
     }
@@ -85,6 +105,12 @@ async function handleSubmit() {
 
   if (!form.value.reservationDate) {
     errorMessage.value = 'Please select a reservation date.'
+    return
+  }
+
+  const todayStr = getTodayDateString()
+  if (form.value.reservationDate <= todayStr) {
+    errorMessage.value = 'Reservations must be booked at least 1 day in advance. Same-day reservations are not allowed.'
     return
   }
 
@@ -219,7 +245,7 @@ async function handleSubmit() {
               v-model="form.reservationDate"
               type="date"
               label="Reservation Date"
-              :min="today"
+              :min="minDate"
               required
             />
           </div>
