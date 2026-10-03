@@ -354,13 +354,30 @@ async function confirmApprove() {
   }
 }
 
-async function handleReject(item: ParkingReservationItem) {
+// Reject Modal State
+const isRejectModalOpen = ref(false)
+const reservationToReject = ref<ParkingReservationItem | null>(null)
+const isRejecting = ref(false)
+
+function openRejectModal(item: ParkingReservationItem) {
+  reservationToReject.value = item
+  isRejectModalOpen.value = true
+}
+
+async function confirmReject() {
+  if (!reservationToReject.value) return
+  isRejecting.value = true
   try {
+    const item = reservationToReject.value
     await api.post(`/parking-reservations/${item.id}/reject`, { notes: '' })
     item.status = 'Rejected'
     showToast(`Reservation ${item.referenceNumber} rejected.`, 'error')
+    isRejectModalOpen.value = false
+    reservationToReject.value = null
   } catch (error: any) {
     showToast(`Failed to reject reservation: ${error.response?.data?.message || error.message}`, 'error')
+  } finally {
+    isRejecting.value = false
   }
 }
 </script>
@@ -550,7 +567,7 @@ async function handleReject(item: ParkingReservationItem) {
             <button
               v-if="getStatusKey(item) === 'pending'"
               class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
-              @click="handleReject(item)"
+              @click="openRejectModal(item)"
               title="Decline Reservation"
             >
               Decline
@@ -607,6 +624,19 @@ async function handleReject(item: ParkingReservationItem) {
       :is-submitting="isApproving"
       @confirm="confirmApprove"
       @close="isApproveModalOpen = false"
+    />
+
+    <!-- Reject Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isRejectModalOpen"
+      title="Decline Parking Reservation"
+      :message="`Are you sure you want to decline the parking reservation for <strong>${reservationToReject?.userFullName || 'this applicant'}</strong> (${reservationToReject?.referenceNumber || ''}) on <strong>${formatReservationDate(reservationToReject?.reservationDate || '')}</strong>?`"
+      confirm-text="Decline Reservation"
+      cancel-text="Cancel"
+      variant="danger"
+      :is-submitting="isRejecting"
+      @confirm="confirmReject"
+      @close="isRejectModalOpen = false"
     />
   </div>
 </template>

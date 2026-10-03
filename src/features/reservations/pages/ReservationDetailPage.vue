@@ -211,6 +211,7 @@ async function fetchReservationDetail() {
 }
 
 const isApproveModalOpen = ref(false)
+const isRejectModalOpen = ref(false)
 
 async function handleApprove() {
   if (!reservation.value) return
@@ -236,6 +237,7 @@ async function handleReject() {
     reservation.value.status = 'Rejected'
     reservation.value.adminNotes = reviewNotes.value
     showToast(`Reservation ${reservation.value.referenceNumber} declined.`, 'error')
+    isRejectModalOpen.value = false
   } catch (err: any) {
     showToast(`Failed to decline: ${err.response?.data?.message || err.message}`, 'error')
   } finally {
@@ -464,7 +466,7 @@ onMounted(() => {
               type="button"
               class="btn-danger"
               :disabled="isSubmittingAction"
-              @click="handleReject"
+              @click="isRejectModalOpen = true"
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -536,6 +538,19 @@ onMounted(() => {
       :is-submitting="isSubmittingAction"
       @confirm="handleApprove"
       @close="isApproveModalOpen = false"
+    />
+
+    <!-- Reject Confirmation Modal -->
+    <ConfirmModal
+      :is-open="isRejectModalOpen"
+      title="Decline Parking Reservation"
+      :message="`Are you sure you want to decline the parking reservation request for <strong>${reservation?.userFullName || 'this applicant'}</strong> (${reservation?.referenceNumber || ''}) on <strong>${formatReservationDate(reservation?.reservationDate || '')}</strong>?`"
+      confirm-text="Decline Request"
+      cancel-text="Cancel"
+      variant="danger"
+      :is-submitting="isSubmittingAction"
+      @confirm="handleReject"
+      @close="isRejectModalOpen = false"
     />
   </div>
 </template>
