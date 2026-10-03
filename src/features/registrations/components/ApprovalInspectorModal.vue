@@ -106,73 +106,107 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         <template v-if="item.category === 'Registration'">
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'cor' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'cor'"
           >
-            1. COR Document
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <span>1. COR Document</span>
           </button>
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'schedule' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'schedule'"
           >
-            2. Class Schedule
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>2. Class Schedule</span>
           </button>
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'orcr' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'orcr'"
           >
-            3. Vehicle OR/CR
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+            </svg>
+            <span>3. Vehicle OR/CR</span>
           </button>
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'motorPic' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'motorPic'"
           >
-            4. Vehicle Photo
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            <span>4. Vehicle Photo</span>
           </button>
         </template>
 
         <template v-else-if="item.category === 'Schedule'">
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'schedule' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'schedule'"
           >
-            Class Access Schedule
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>Class Access Schedule</span>
           </button>
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'cor' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'cor'"
           >
-            COR Document
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            <span>COR Document</span>
           </button>
         </template>
 
         <template v-else-if="item.category === 'Vehicle'">
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'orcr' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'orcr'"
           >
-            OR/CR Document
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+            </svg>
+            <span>OR/CR Document</span>
           </button>
           <button
             type="button"
-            class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'motorPic' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'motorPic'"
           >
-            Vehicle Photo
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            <span>Vehicle Photo</span>
           </button>
         </template>
       </div>

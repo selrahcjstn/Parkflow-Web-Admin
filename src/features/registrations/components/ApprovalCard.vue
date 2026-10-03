@@ -103,27 +103,44 @@ function getStatusBadgeVariant(status: string): 'success' | 'warning' | 'danger'
     <div class="flex items-center gap-1.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex-wrap">
       <div
         v-if="item.corUrl"
-        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
       >
-        📄 COR
+        <svg class="w-3 h-3 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+        </svg>
+        <span>COR</span>
       </div>
       <div
         v-if="item.schedules && item.schedules.length > 0"
-        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
       >
-        ⏱ Schedule
+        <svg class="w-3 h-3 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span>Schedule</span>
       </div>
       <div
         v-if="item.orcrUrl"
-        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
       >
-        📋 OR/CR
+        <svg class="w-3 h-3 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+        </svg>
+        <span>OR/CR</span>
       </div>
       <div
         v-if="item.motorPicUrl"
-        class="px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
+        class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-50 dark:bg-slate-900 text-center border border-slate-200/60 dark:border-slate-800 text-[10.5px] font-semibold text-slate-700 dark:text-slate-300"
       >
-        🚗 Photo
+        <svg class="w-3 h-3 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        <span>Photo</span>
       </div>
     </div>
 
