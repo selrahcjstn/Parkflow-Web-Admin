@@ -51,6 +51,7 @@ const passwordLengthValid = computed(() => {
 })
 
 async function handleSendCode() {
+  if (isLoading.value) return
   errorMessage.value = null
   const trimmed = email.value.trim()
   if (!trimmed) {
@@ -67,6 +68,7 @@ async function handleSendCode() {
     const res = await api.post('/users/forgot-password', { email: trimmed })
     if (res.data?.isSuccess) {
       currentStep.value = 'code'
+      otpCode.value = ''
       startResendTimer(60)
     } else {
       errorMessage.value = res.data?.message || 'Unable to process password reset request.'
@@ -78,9 +80,33 @@ async function handleSendCode() {
   }
 }
 
+function onOtpInput(e: Event) {
+  const target = e.target as HTMLInputElement
+  const raw = target.value || ''
+  const digits = raw.replace(/\D/g, '').slice(0, 6)
+  otpCode.value = digits
+  target.value = digits
+}
+
+function onOtpPaste(e: ClipboardEvent) {
+  e.preventDefault()
+  const pastedText = e.clipboardData?.getData('text') || ''
+  const digits = pastedText.replace(/\D/g, '').slice(0, 6)
+  otpCode.value = digits
+  if (e.target) {
+    (e.target as HTMLInputElement).value = digits
+  }
+}
+
+function onEnterVerify() {
+  if (isLoading.value || otpCode.value.replace(/\D/g, '').length < 6) return
+  handleVerifyCode()
+}
+
 async function handleVerifyCode() {
+  if (isLoading.value) return
   errorMessage.value = null
-  const code = otpCode.value.trim()
+  const code = otpCode.value.replace(/\D/g, '')
   if (code.length < 6) {
     errorMessage.value = 'Please enter the complete 6-digit verification code.'
     return
@@ -107,6 +133,7 @@ async function handleVerifyCode() {
 }
 
 async function handleResetPassword() {
+  if (isLoading.value) return
   errorMessage.value = null
 
   if (!passwordLengthValid.value) {
@@ -195,7 +222,8 @@ function goToLogin() {
               placeholder="admin@parkflow.com"
               size="md"
               autocomplete="email"
-              @keydown.enter.prevent="handleSendCode"
+              :disabled="isLoading"
+              @keydown.enter.prevent="!isLoading && isEmailValid && handleSendCode()"
             >
               <template #prefix>
                 <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -212,7 +240,7 @@ function goToLogin() {
             size="lg"
             full-width
             :loading="isLoading"
-            :disabled="!isEmailValid"
+            :disabled="isLoading || !isEmailValid"
             @click="handleSendCode"
           >
             Send Reset Code
@@ -243,18 +271,21 @@ function goToLogin() {
               :value="otpCode"
               type="text"
               inputmode="numeric"
-              maxlength="6"
+              autocomplete="one-time-code"
               placeholder="123456"
+              :disabled="isLoading"
               class="w-full text-center text-2xl tracking-widest font-mono py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D22730]/20 focus:border-[#D22730] transition box-border"
-              @input="(e: any) => otpCode = e.target.value.replace(/\D/g, '').slice(0, 6)"
-              @keydown.enter.prevent="handleVerifyCode"
+              @input="onOtpInput"
+              @paste="onOtpPaste"
+              @keydown.enter.prevent="onEnterVerify"
             />
           </div>
 
           <div class="flex items-center justify-between text-xs pt-1">
             <button
               type="button"
-              class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:underline border-none bg-transparent p-0 cursor-pointer text-xs"
+              class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:underline border-none bg-transparent p-0 cursor-pointer text-xs disabled:opacity-50"
+              :disabled="isLoading"
               @click="currentStep = 'email'; errorMessage = null"
             >
               ← Change email
@@ -276,7 +307,7 @@ function goToLogin() {
             size="lg"
             full-width
             :loading="isLoading"
-            :disabled="otpCode.length < 6"
+            :disabled="isLoading || otpCode.replace(/\D/g, '').length < 6"
             @click="handleVerifyCode"
           >
             Verify Code
@@ -295,6 +326,7 @@ function goToLogin() {
               :type="showNewPassword ? 'text' : 'password'"
               placeholder="At least 8 characters"
               size="md"
+              :disabled="isLoading"
             >
               <template #prefix>
                 <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -332,7 +364,8 @@ function goToLogin() {
               :type="showConfirmPassword ? 'text' : 'password'"
               placeholder="Re-enter your new password"
               size="md"
-              @keydown.enter.prevent="handleResetPassword"
+              :disabled="isLoading"
+              @keydown.enter.prevent="!isLoading && passwordLengthValid && passwordMatch && handleResetPassword()"
             >
               <template #prefix>
                 <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -382,7 +415,7 @@ function goToLogin() {
             size="lg"
             full-width
             :loading="isLoading"
-            :disabled="!passwordLengthValid || !passwordMatch"
+            :disabled="isLoading || !passwordLengthValid || !passwordMatch"
             @click="handleResetPassword"
           >
             Update Password
