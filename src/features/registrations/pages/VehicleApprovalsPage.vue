@@ -2,7 +2,6 @@
 import { ref, computed } from 'vue'
 import { useApprovals } from '../composables/useApprovals'
 import type { ApprovalItem } from '../types'
-import ApprovalNavTabs from '../components/ApprovalNavTabs.vue'
 import ApprovalStatsBar from '../components/ApprovalStatsBar.vue'
 import ApprovalFilterBar from '../components/ApprovalFilterBar.vue'
 import ApprovalCard from '../components/ApprovalCard.vue'
@@ -122,9 +121,6 @@ async function handleConfirmReject() {
 
 <template>
   <div class="space-y-6">
-    <!-- Child Tabs Navigation -->
-    <ApprovalNavTabs />
-
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
