@@ -121,6 +121,9 @@ async function handleConfirmReject() {
 
 async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[]) {
   await saveSchedule(item, schedules)
+  if (inspectorItem.value && (inspectorItem.value.guid === item.guid || (inspectorItem.value.corGuid && inspectorItem.value.corGuid === item.corGuid))) {
+    inspectorItem.value.schedules = [...schedules]
+  }
 }
 </script>
 

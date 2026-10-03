@@ -11,6 +11,7 @@ export interface ApprovalItem {
   guid: string
   corGuid?: string
   vehicleGuid?: string
+  userId?: string
   category: ApprovalCategory
   fullName: string
   email: string

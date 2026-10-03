@@ -124,6 +124,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
               guid: corGuid || vehGuid,
               corGuid,
               vehicleGuid: vehGuid,
+              userId: cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
               category: 'Registration',
               fullName,
               email,
@@ -136,7 +137,11 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
               corUrl: formatDocUrl(c.corDocumentUrl, ''),
               orcrUrl: formatDocUrl(initialVeh.orcrDocumentUrl || c.orcrDocumentUrl, ''),
               motorPicUrl: formatDocUrl(initialVeh.vehiclePictureUrl || c.motorPictureUrl, ''),
-              schedules: c.schedules || [],
+              schedules: (c.schedules || []).map((s: any) => ({
+                dayOfWeek: typeof s.dayOfWeek === 'number' ? s.dayOfWeek : (['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0 ? ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) : Number(s.dayOfWeek) || 0),
+                startTime: s.startTime || '07:00:00',
+                endTime: s.endTime || '19:00:00'
+              })),
               status: mapVerificationStatus(unifiedStatusNum),
               verificationStatus: unifiedStatusNum
             })
@@ -157,6 +162,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           id: nextId++,
           guid: corGuid,
           corGuid,
+          userId: cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
           category: 'Schedule',
           fullName: c.fullName || user?.fullName || 'Client Applicant',
           email: c.email || user?.email || '—',
@@ -167,7 +173,11 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           vehicleType: c.vehicleType ?? 'Car',
           brand: c.brand || '—',
           corUrl: formatDocUrl(c.corDocumentUrl, ''),
-          schedules: c.schedules || [],
+          schedules: (c.schedules || []).map((s: any) => ({
+            dayOfWeek: typeof s.dayOfWeek === 'number' ? s.dayOfWeek : (['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0 ? ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) : Number(s.dayOfWeek) || 0),
+            startTime: s.startTime || '07:00:00',
+            endTime: s.endTime || '19:00:00'
+          })),
           status: mapVerificationStatus(c.verificationStatus),
           verificationStatus: typeof c.verificationStatus === 'number' ? c.verificationStatus : 1
         })
@@ -189,6 +199,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           id: nextId++,
           guid: vehGuid,
           vehicleGuid: vehGuid,
+          userId: vOwnerId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
           category: 'Vehicle',
           fullName: v.ownerName || user?.fullName || 'Vehicle Owner',
           email: v.ownerEmail || user?.email || '—',
@@ -315,9 +326,33 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
   // Action: Save updated schedule
   async function saveSchedule(item: ApprovalItem, updatedSchedules: ScheduleItem[]) {
     try {
-      const corId = item.corGuid || item.guid
+      const corId = item.corGuid || item.guid || item.userId
       await api.put(`/cor-submissions/${corId}/schedules`, updatedSchedules)
       item.schedules = [...updatedSchedules]
+
+      // Synchronize in-memory reactive list and cache
+      allApprovals.value.forEach((a) => {
+        if (
+          a.guid === item.guid ||
+          (item.corGuid && a.corGuid === item.corGuid) ||
+          (item.email && a.email && a.email.toLowerCase() === item.email.toLowerCase())
+        ) {
+          a.schedules = [...updatedSchedules]
+        }
+      })
+
+      if (cachedApprovals.value) {
+        cachedApprovals.value.forEach((a) => {
+          if (
+            a.guid === item.guid ||
+            (item.corGuid && a.corGuid === item.corGuid) ||
+            (item.email && a.email && a.email.toLowerCase() === item.email.toLowerCase())
+          ) {
+            a.schedules = [...updatedSchedules]
+          }
+        })
+      }
+
       actionSuccessMsg.value = `Schedule updated successfully for ${item.fullName}.`
       setTimeout(() => {
         actionSuccessMsg.value = null
