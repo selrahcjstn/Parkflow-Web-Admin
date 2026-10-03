@@ -6,6 +6,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
 import { useAdminNotificationStore } from '@/stores/notification.store'
+import { formatTimeRange12 } from '@/utils/formatTime'
 
 import { cachedReservations } from '@/stores/appCache'
 
@@ -465,7 +466,7 @@ function navigateToReservations() {
             <circle cx="12" cy="12" r="10" />
             <polyline points="12 6 12 12 16 14" />
           </svg>
-          <span>{{ item.startTime }}–{{ item.endTime }}</span>
+          <span>{{ formatTimeRange12(item.startTime, item.endTime, ' – ') }}</span>
         </div>
       </div>
     </div>

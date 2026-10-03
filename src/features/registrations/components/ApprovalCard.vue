@@ -4,6 +4,7 @@ import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
 import { getRoleLabel } from '@/utils/role'
+import { formatTimeRange12 } from '@/utils/formatTime'
 
 const props = defineProps<{
   item: ApprovalItem
@@ -22,8 +23,7 @@ function getScheduleSummary(schedules?: any[]): string {
   const dayAbbrs: Record<number, string> = { 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat', 0: 'Sun' }
   const activeDays = schedules.map(s => dayAbbrs[s.dayOfWeek] || '').filter(Boolean).join(', ')
   const firstTime = schedules[0]
-  const formatTime = (t: string) => t ? t.slice(0, 5) : ''
-  const timeStr = firstTime ? `${formatTime(firstTime.startTime)} - ${formatTime(firstTime.endTime)}` : ''
+  const timeStr = firstTime ? formatTimeRange12(firstTime.startTime, firstTime.endTime) : ''
   return activeDays ? `${activeDays}${timeStr ? ' • ' + timeStr : ''}` : 'No active days'
 }
 
