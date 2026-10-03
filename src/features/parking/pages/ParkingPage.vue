@@ -116,7 +116,7 @@ const fetchParkingData = async () => {
   try {
     const [activeRes, historyRes, settingsRes] = await Promise.allSettled([
       api.get(`/parking-logs/active-sessions?parkingCapacity=${totalCapacity.value}`),
-      api.get('/parking-logs/history/page/1/1000'),
+      api.get('/parking-history/all/page/1/1000').catch(() => api.get('/parking-logs/history/page/1/1000')),
       api.get('/system-settings')
     ])
 
@@ -132,14 +132,14 @@ const fetchParkingData = async () => {
         return {
           id: s.sessionId || s.id || s.plateNumber,
           vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
-          vehicleType: s.vehicleType || 'Car',
+          vehicleType: s.type || s.vehicleType || 'Car',
           brand: s.brand || '',
           ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
           email: s.email || s.ownerEmail || undefined,
-          role: s.role || 'Student',
+          role: s.roleName || s.role || 'Student',
           checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
-          duration: s.totalParkingHours ? `${s.totalParkingHours}` : '0h 0m',
-          amount: s.amount ?? 0,
+          duration: s.parkingDuration != null ? `${s.parkingDuration}h` : (s.totalParkingHours ? `${s.totalParkingHours}` : '0h 0m'),
+          amount: s.amount ?? s.penaltyFee ?? s.violationFee ?? 0,
           status: isOverstay ? 'Overstay' : (s.status || 'Parked'),
           maxAllowedHours: s.maxAllowedHours || 8,
           maximumExitTime: s.maximumExitTime,
@@ -153,19 +153,19 @@ const fetchParkingData = async () => {
     if (historyRes.status === 'fulfilled' && historyRes.value.data?.isSuccess) {
       const rawHistory = historyRes.value.data.data?.items || historyRes.value.data.data || []
       const mappedHistory: ParkingHistoryItem[] = rawHistory.map((s: any) => ({
-        id: s.sessionId || s.id,
+        id: s.sessionId || s.id || `${s.plateNumber}-${s.entryTime}`,
         vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
-        vehicleType: s.vehicleType || 'Car',
+        vehicleType: s.type || s.vehicleType || 'Car',
         brand: s.brand || '',
-        ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
+        ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Client Driver'),
         email: s.email || s.ownerEmail || undefined,
-        role: s.role || 'Student',
+        role: s.roleName || s.role || 'Student',
         checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
         checkOutTime: s.exitTime || s.checkOutTime || new Date().toISOString(),
-        duration: s.totalParkingHours ? `${s.totalParkingHours}` : '0h',
-        amount: s.penaltyFee ?? s.amount ?? 0,
-        method: s.entryMethod || 'QrCode',
-        status: (s.overstayHours != null && Number(s.overstayHours) > 0) || String(s.status || '').toLowerCase().includes('over') ? 'Overdue' : 'Completed'
+        duration: s.parkingDuration != null ? `${s.parkingDuration}h` : (s.totalParkingHours ? `${s.totalParkingHours}h` : '0h'),
+        amount: s.penaltyFee ?? s.violationFee ?? s.amount ?? 0,
+        method: s.entryMethod || s.method || 'QrCode',
+        status: (s.overstayHours != null && Number(s.overstayHours) > 0) || s.hasViolation || String(s.status || '').toLowerCase().includes('over') ? 'Overdue' : 'Completed'
       }))
       historySessions.value = mappedHistory
       cachedHistorySessions.value = mappedHistory
