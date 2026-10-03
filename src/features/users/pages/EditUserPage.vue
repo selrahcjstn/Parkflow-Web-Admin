@@ -22,6 +22,8 @@ const {
   hasPasswordChange,
   errorMessage,
   successToast,
+  toasts,
+  showToast,
   fileInput,
   studentFieldErrors,
   showPasswordFields,
@@ -44,36 +46,24 @@ const {
 
 <template>
   <div class="w-full space-y-6">
+    <!-- Toast Notifications (Top-Right Popup Strip) -->
+    <TransitionGroup name="fade">
+      <div
+        v-for="toast in toasts"
+        :key="toast.id"
+        class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
+        :class="toast.type === 'error' ? 'bg-rose-600' : toast.type === 'warning' ? 'bg-amber-600' : toast.type === 'info' ? 'bg-blue-600' : 'bg-emerald-600'"
+      >
+        <span>{{ toast.message }}</span>
+      </div>
+    </TransitionGroup>
+
     <!-- Header & Navigation -->
     <EditUserHeader
       :is-submitting="isSubmitting"
       @back="goBack"
       @submit="handleSubmit"
     />
-
-    <!-- Error Banner -->
-    <div
-      v-if="errorMessage"
-      class="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 flex items-center gap-3 text-rose-700 dark:text-rose-300 text-sm font-medium shadow-sm"
-    >
-      <svg class="w-5 h-5 flex-shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-      <span>{{ errorMessage }}</span>
-    </div>
-
-    <!-- Success Toast Notification -->
-    <div
-      v-if="successToast"
-      class="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 flex items-center gap-3 text-emerald-800 dark:text-emerald-200 text-sm font-semibold shadow-sm"
-    >
-      <svg class="w-5 h-5 flex-shrink-0 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <polyline points="20 6 9 17 4 12" />
-      </svg>
-      <span>{{ successToast }}</span>
-    </div>
 
     <!-- Loading Skeleton State -->
     <div v-if="isLoading" class="space-y-6 animate-pulse">
@@ -191,3 +181,16 @@ const {
     />
   </div>
 </template>
+
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>
+

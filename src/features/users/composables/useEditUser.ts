@@ -31,6 +31,12 @@ export interface EditUserFormData {
   confirmPassword: string
 }
 
+export interface ToastNotification {
+  id: number
+  message: string
+  type: 'success' | 'error' | 'warning' | 'info'
+}
+
 export function useEditUser(userId: ComputedRef<string>) {
   const router = useRouter()
 
@@ -38,6 +44,17 @@ export function useEditUser(userId: ComputedRef<string>) {
   const isSubmitting = ref(false)
   const errorMessage = ref<string | null>(null)
   const successToast = ref<string | null>(null)
+  const toasts = ref<ToastNotification[]>([])
+  let nextToastId = 1
+
+  function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success') {
+    const id = nextToastId++
+    toasts.value.push({ id, message, type })
+    setTimeout(() => {
+      toasts.value = toasts.value.filter((t) => t.id !== id)
+    }, 3500)
+  }
+
   const fileInput = ref<HTMLInputElement | null>(null)
   const selectedPhotoFile = ref<File | null>(null)
   const isPhotoRemoved = ref(false)
@@ -91,7 +108,7 @@ export function useEditUser(userId: ComputedRef<string>) {
     if (target.files && target.files[0]) {
       const file = target.files[0]
       if (file.size > 5 * 1024 * 1024) {
-        errorMessage.value = 'Photo size must be less than 5MB.'
+        showToast('Photo size must be less than 5MB.', 'error')
         return
       }
       selectedPhotoFile.value = file
@@ -134,7 +151,7 @@ export function useEditUser(userId: ComputedRef<string>) {
 
   async function handleSendTempPassword() {
     if (!form.value.email) {
-      errorMessage.value = 'User email address is required to dispatch a temporary password.'
+      showToast('User email address is required to dispatch a temporary password.', 'error')
       return
     }
 
@@ -154,17 +171,18 @@ export function useEditUser(userId: ComputedRef<string>) {
       const res = await api.post('/users/send-temp-password', payload)
       if (res.status === 200 || res.data?.isSuccess) {
         tempPwSuccessMessage.value = `Temporary password "${tempPw}" has been generated and emailed to ${form.value.email}. The user can use this to log in immediately.`
+        showToast('Temporary password generated and emailed successfully.', 'success')
         showPasswordFields.value = true
         showNewPassword.value = true
         showConfirmPassword.value = true
         form.value.newPassword = tempPw
         form.value.confirmPassword = tempPw
       } else {
-        errorMessage.value = res.data?.message || 'Failed to dispatch temporary password email.'
+        showToast(res.data?.message || 'Failed to dispatch temporary password email.', 'error')
       }
     } catch (err: any) {
       console.error('Error sending temp password:', err)
-      errorMessage.value = err.response?.data?.message || 'Failed to dispatch temporary password email. Please verify user email address and network.'
+      showToast(err.response?.data?.message || 'Failed to dispatch temporary password email. Please verify user email address and network.', 'error')
     } finally {
       isSendingTempPw.value = false
     }
@@ -237,7 +255,7 @@ export function useEditUser(userId: ComputedRef<string>) {
       }
     } catch (err: any) {
       console.error('Error fetching user for edit:', err)
-      errorMessage.value = 'Failed to load user profile information.'
+      showToast('Failed to load user profile information.', 'error')
     } finally {
       isLoading.value = false
     }
@@ -307,7 +325,7 @@ export function useEditUser(userId: ComputedRef<string>) {
     }
 
     if (!form.value.firstName || !form.value.lastName || !form.value.email) {
-      errorMessage.value = 'Please fill out all required personal information fields.'
+      showToast('Please fill out all required personal information fields.', 'error')
       return false
     }
 
@@ -316,22 +334,22 @@ export function useEditUser(userId: ComputedRef<string>) {
       const sNum = form.value.studentNumber.trim()
       if (!sNum) {
         studentFieldErrors.value.studentNumber = 'Student Number is required.'
-        errorMessage.value = 'Student Number is required.'
+        showToast('Student Number is required.', 'error')
         return false
       }
       if (!STUDENT_ID_REGEX.test(sNum)) {
         studentFieldErrors.value.studentNumber = 'Student Number must follow the official format (e.g. 2024-00001 or 7-10 digit student ID).'
-        errorMessage.value = 'Student Number must follow the official format (e.g. 2024-00001 or 7-10 digit student ID).'
+        showToast('Student Number must follow the official format (e.g. 2024-00001 or 7-10 digit student ID).', 'error')
         return false
       }
       if (!form.value.course || !form.value.course.trim()) {
         studentFieldErrors.value.course = 'Please select a Course / Degree Program.'
-        errorMessage.value = 'Please select a Course / Degree Program.'
+        showToast('Please select a Course / Degree Program.', 'error')
         return false
       }
       if (!form.value.section || !form.value.section.trim()) {
         studentFieldErrors.value.section = 'Section is required (e.g. 3A).'
-        errorMessage.value = 'Section is required (e.g. 3A).'
+        showToast('Section is required (e.g. 3A).', 'error')
         return false
       }
     }
@@ -341,19 +359,19 @@ export function useEditUser(userId: ComputedRef<string>) {
       const confirmPw = form.value.confirmPassword ? form.value.confirmPassword.trim() : ''
 
       if (!newPw) {
-        errorMessage.value = 'Please enter a new password (minimum 6 characters).'
+        showToast('Please enter a new password (minimum 6 characters).', 'error')
         return false
       }
       if (newPw.length < 6) {
-        errorMessage.value = 'New password must be at least 6 characters long.'
+        showToast('New password must be at least 6 characters long.', 'error')
         return false
       }
       if (!confirmPw) {
-        errorMessage.value = 'Please re-enter and confirm the new password.'
+        showToast('Please re-enter and confirm the new password.', 'error')
         return false
       }
       if (newPw !== confirmPw) {
-        errorMessage.value = 'New password and confirmation password do not match.'
+        showToast('New password and confirmation password do not match.', 'error')
         return false
       }
     }
@@ -435,18 +453,18 @@ export function useEditUser(userId: ComputedRef<string>) {
       if (res.status === 200 || res.data?.isSuccess) {
         isConfirmModalOpen.value = false
         syncToCachedUsers()
-        successToast.value = 'User account profile updated successfully!'
+        showToast('User account profile updated successfully!', 'success')
         setTimeout(() => {
           router.push('/users')
         }, 1200)
       } else {
         isConfirmModalOpen.value = false
-        errorMessage.value = res.data?.message || 'Failed to update user account profile.'
+        showToast(res.data?.message || 'Failed to update user account profile.', 'error')
       }
     } catch (err: any) {
       console.error('Error updating user:', err)
       isConfirmModalOpen.value = false
-      errorMessage.value = err.response?.data?.message || err.message || 'Failed to update user account profile. Please check your inputs and try again.'
+      showToast(err.response?.data?.message || err.message || 'Failed to update user account profile. Please check your inputs and try again.', 'error')
     } finally {
       isSubmitting.value = false
     }
@@ -462,6 +480,8 @@ export function useEditUser(userId: ComputedRef<string>) {
     hasPasswordChange,
     errorMessage,
     successToast,
+    toasts,
+    showToast,
     fileInput,
     studentFieldErrors,
     showPasswordFields,
