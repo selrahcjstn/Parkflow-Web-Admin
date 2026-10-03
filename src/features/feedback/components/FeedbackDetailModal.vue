@@ -109,7 +109,10 @@ const formatDate = (dateString?: string) => {
 
       <!-- Email Notification Banner -->
       <div class="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 text-xs text-blue-700 dark:text-blue-300 leading-relaxed">
-        <span class="text-base flex-shrink-0">📧</span>
+        <svg class="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+          <polyline points="22,6 12,13 2,6" />
+        </svg>
         <div>
           <strong>Automated Email Notification:</strong> Submitting this response will automatically email <strong>{{ getUserEmail(feedback) }}</strong>.
         </div>

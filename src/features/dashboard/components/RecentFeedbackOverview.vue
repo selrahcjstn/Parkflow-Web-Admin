@@ -61,11 +61,16 @@ function getTimeAgo(dateStr?: string): string {
   if (!dateStr) return 'Recently'
   try {
     const created = new Date(dateStr).getTime()
+    if (isNaN(created)) return 'Recently'
     const now = new Date().getTime()
-    const diffHours = (now - created) / (1000 * 60 * 60)
-    if (diffHours < 1) return 'Just now'
-    if (diffHours < 24) return `${Math.round(diffHours)}h ago`
-    const diffDays = Math.round(diffHours / 24)
+    const diffMs = Math.max(0, now - created)
+    const diffMin = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+    if (diffMin < 1) return 'Just now'
+    if (diffMin < 60) return `${diffMin}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
     return `${diffDays}d ago`
   } catch {
     return 'Recently'

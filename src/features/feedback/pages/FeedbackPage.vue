@@ -93,12 +93,29 @@ const getNormalizedCategory = (category?: string): string => {
   return 'General'
 }
 
-const getHoursElapsed = (createdAt?: string) => {
-  if (!createdAt) return 0
+const formatSlaElapsed = (createdAt?: string): string => {
+  if (!createdAt) return 'Just now'
   const created = new Date(createdAt).getTime()
+  if (isNaN(created)) return 'Just now'
+  const now = new Date().getTime()
+  const diffMs = Math.max(0, now - created)
+  const diffMin = Math.floor(diffMs / (1000 * 60))
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffMin < 1) return 'Just now'
+  if (diffMin < 60) return `${diffMin}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  return `${diffDays}d ago`
+}
+
+const isWithinSla = (createdAt?: string): boolean => {
+  if (!createdAt) return true
+  const created = new Date(createdAt).getTime()
+  if (isNaN(created)) return true
   const now = new Date().getTime()
   const diffHours = (now - created) / (1000 * 60 * 60)
-  return Math.max(0, Math.round(diffHours * 10) / 10)
+  return diffHours <= 24
 }
 
 const formatDate = (dateString?: string) => {
@@ -318,8 +335,11 @@ const handleSendReply = async () => {
             <p class="text-xs text-slate-700 dark:text-slate-300 truncate m-0" :title="getMessageText(item)">
               {{ getMessageText(item) }}
             </p>
-            <span v-if="item.adminReplyMessage" class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-              💬 Replied: "{{ item.adminReplyMessage }}"
+            <span v-if="item.adminReplyMessage" class="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
+              <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span class="truncate">Replied: "{{ item.adminReplyMessage }}"</span>
             </span>
           </div>
         </template>
@@ -327,8 +347,15 @@ const handleSendReply = async () => {
         <template #cell-sla="{ item }">
           <div class="flex flex-col">
             <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ formatDate(item.createdAt) }}</span>
-            <span class="text-[10.5px] font-semibold" :class="getHoursElapsed(item.createdAt) <= 24 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'">
-              ⏱ {{ getHoursElapsed(item.createdAt) }}h ago
+            <span
+              class="text-[10.5px] font-semibold flex items-center gap-1"
+              :class="isWithinSla(item.createdAt) ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+            >
+              <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              <span>{{ formatSlaElapsed(item.createdAt) }}</span>
             </span>
           </div>
         </template>
