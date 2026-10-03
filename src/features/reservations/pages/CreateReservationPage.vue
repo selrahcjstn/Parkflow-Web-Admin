@@ -340,8 +340,6 @@ async function handleSubmit() {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 820px;
-  margin: 0 auto;
   width: 100%;
 }
 
