@@ -58,9 +58,7 @@ const props = defineProps<{
     <div class="border-b-2 border-[#D22730] pb-4 mb-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-xl bg-[#D22730] text-white flex items-center justify-center font-black text-xl tracking-wider">
-            PF
-          </div>
+          <img src="/parkflow.png" alt="ParkFlow Logo" class="w-12 h-12 object-contain rounded-xl border border-slate-100" />
           <div>
             <h1 class="text-lg font-extrabold text-[#D22730] uppercase tracking-wide leading-tight m-0">
               Bulacan State University

@@ -156,12 +156,8 @@ const userInitials = computed(() => {
         class="flex items-center gap-3 px-4 py-3.5 min-h-[68px] border-b border-slate-100 dark:border-slate-800/80 flex-shrink-0"
         :class="collapsed ? 'lg:justify-center lg:px-0' : 'justify-start'"
       >
-        <div class="w-9 h-9 min-w-[36px] rounded-xl bg-[#D22730] flex items-center justify-center flex-shrink-0">
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
-            <rect x="3" y="10" width="4" height="7" rx="1" fill="white" />
-            <rect x="8" y="6" width="4" height="11" rx="1" fill="white" opacity="0.85" />
-            <rect x="13" y="3" width="4" height="14" rx="1" fill="white" opacity="0.6" />
-          </svg>
+        <div class="w-9 h-9 min-w-[36px] rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-xs border border-slate-100 dark:border-slate-800">
+          <img src="/parkflow.png" alt="ParkFlow Logo" class="w-8 h-8 object-contain" />
         </div>
         <div
           class="flex flex-col gap-0.5 whitespace-nowrap transition-all duration-200 overflow-hidden"
