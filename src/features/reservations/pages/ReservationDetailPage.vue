@@ -590,7 +590,7 @@ onMounted(() => {
 }
 
 .back-btn:hover {
-  color: var(--color-primary, #D22730);
+  color: var(--color-primary, #7B1113);
 }
 
 .header-main-row {
@@ -699,8 +699,8 @@ onMounted(() => {
 }
 
 .card-icon-badge--blue {
-  background: rgba(210, 39, 48, 0.08);
-  color: var(--color-primary, #D22730);
+  background: rgba(123, 17, 19, 0.08);
+  color: var(--color-primary, #7B1113);
 }
 
 .card-icon-badge--purple {
@@ -760,7 +760,7 @@ onMounted(() => {
   margin-top: 4px;
   padding: 12px 16px;
   background: #f8fafc;
-  border-left: 3px solid var(--color-primary, #D22730);
+  border-left: 3px solid var(--color-primary, #7B1113);
   border-radius: 0 8px 8px 0;
   font-size: 13px;
   color: #334155;
@@ -799,8 +799,8 @@ onMounted(() => {
 }
 
 .form-textarea:focus {
-  border-color: var(--color-primary, #D22730);
-  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.15);
+  border-color: var(--color-primary, #7B1113);
+  box-shadow: 0 0 0 3px rgba(123, 17, 19, 0.15);
 }
 
 .form-textarea:disabled {
@@ -824,7 +824,7 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   padding: 9px 18px;
-  background: var(--btn-primary-bg, #D22730);
+  background: var(--btn-primary-bg, #7B1113);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -835,7 +835,7 @@ onMounted(() => {
 }
 
 .btn-primary:hover {
-  background: var(--btn-primary-hover, #B81E26);
+  background: var(--btn-primary-hover, #6C0F11);
 }
 
 .btn-success {

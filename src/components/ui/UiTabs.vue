@@ -25,7 +25,7 @@ defineEmits<{
       :class="[
         'flex items-center gap-2 px-3.5 py-1.5 rounded-[7px] text-xs transition-all cursor-pointer border-none whitespace-nowrap',
         modelValue === tab.key
-          ? 'bg-[#D22730] text-white shadow-md shadow-[#D22730]/25 font-bold'
+          ? 'bg-[#7B1113] text-white shadow-md shadow-[#7B1113]/25 font-bold'
           : 'text-[#475569] dark:text-slate-300 hover:text-[#1e293b] dark:hover:text-white bg-transparent font-semibold'
       ]"
     >

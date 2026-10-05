@@ -165,7 +165,7 @@ const userInitials = computed(() => {
         >
           <div class="flex items-center gap-1.5">
             <span class="text-[15px] font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">ParkFlow</span>
-            <span class="text-[9px] font-extrabold text-[#D22730] bg-[#D22730]/10 border border-[#D22730]/20 tracking-wider px-1.5 py-0.5 rounded leading-none">ADMIN</span>
+            <span class="text-[9px] font-extrabold text-[#7B1113] bg-[#7B1113]/10 border border-[#7B1113]/20 tracking-wider px-1.5 py-0.5 rounded leading-none">ADMIN</span>
           </div>
           <span class="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-none">Parking Management System</span>
         </div>
@@ -193,7 +193,7 @@ const userInitials = computed(() => {
               class="group relative flex items-center gap-2.5 h-[38px] my-0.5 mx-2.5 rounded-lg text-xs font-medium transition-all border-none w-[calc(100%-20px)] whitespace-nowrap text-left cursor-pointer no-underline"
               :class="[
                 collapsed ? 'lg:justify-center lg:px-0 px-3' : 'px-3',
-                isGroupActive(item) ? 'bg-[#D22730] text-white font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white bg-transparent'
+                isGroupActive(item) ? 'bg-[#7B1113] text-white font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white bg-transparent'
               ]"
               @click="(e) => {
                 navigate(e);
@@ -289,7 +289,7 @@ const userInitials = computed(() => {
               class="group relative flex items-center gap-2.5 h-[38px] my-0.5 mx-2.5 rounded-lg text-xs font-medium transition-all border-none w-[calc(100%-20px)] whitespace-nowrap text-left cursor-pointer"
               :class="[
                 collapsed ? 'lg:justify-center lg:px-0 px-3' : 'px-3',
-                isGroupActive(item) ? 'bg-[#D22730] text-white font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white bg-transparent'
+                isGroupActive(item) ? 'bg-[#7B1113] text-white font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white bg-transparent'
               ]"
               @click="toggleDropdown(item.key)"
             >
@@ -350,7 +350,7 @@ const userInitials = computed(() => {
                   class="flex items-center gap-2 h-8 px-2.5 my-0.5 rounded-md text-[12.5px] font-medium transition-all no-underline cursor-pointer"
                   :class="[
                     isSubActive(sub.path)
-                      ? 'text-[#D22730] dark:text-[#f87171] bg-[#D22730]/10 font-semibold'
+                      ? 'text-[#7B1113] dark:text-[#E25C65] bg-[#7B1113]/10 font-semibold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                   ]"
                   @click="(e) => { navigate(e); appStore.closeMobileSidebar(); }"
@@ -389,7 +389,7 @@ const userInitials = computed(() => {
         class="flex items-center gap-2.5 px-3.5 py-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-900/50 flex-shrink-0 min-h-[58px]"
         :class="collapsed ? 'lg:justify-center lg:px-0' : 'justify-start'"
       >
-        <div class="w-8 h-8 min-w-[32px] rounded-full bg-[#D22730] flex items-center justify-center text-xs font-extrabold text-white flex-shrink-0 tracking-wider">
+        <div class="w-8 h-8 min-w-[32px] rounded-full bg-[#7B1113] flex items-center justify-center text-xs font-extrabold text-white flex-shrink-0 tracking-wider">
           {{ userInitials }}
         </div>
         <div

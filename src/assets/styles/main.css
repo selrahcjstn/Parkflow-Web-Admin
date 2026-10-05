@@ -54,7 +54,7 @@ body {
   height: 42px;
   padding: 0 38px 0 14px;
   background-color: var(--color-surface);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23D22730' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%237B1113' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 14px center;
   background-size: 16px 16px;
@@ -69,13 +69,13 @@ body {
 }
 
 .form-select:hover {
-  border-color: rgba(210, 39, 48, 0.4);
+  border-color: rgba(123, 17, 19, 0.4);
 }
 
 .form-select:focus,
 .form-select:active {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(210, 39, 48, 0.1);
+  box-shadow: 0 0 0 3px rgba(123, 17, 19, 0.1);
 }
 
 .form-select option {
@@ -133,7 +133,7 @@ body {
 .add-entry-btn,
 .add-user-btn,
 .btn-submit {
-  background: var(--btn-primary-bg, #D22730) !important;
+  background: var(--btn-primary-bg, #7B1113) !important;
   color: var(--btn-primary-text, #ffffff) !important;
   border: none !important;
   border-radius: 8px !important;
@@ -145,7 +145,7 @@ body {
   align-items: center !important;
   justify-content: center !important;
   gap: 8px !important;
-  box-shadow: var(--btn-primary-shadow, 0 4px 12px rgba(210, 39, 48, 0.25)) !important;
+  box-shadow: var(--btn-primary-shadow, 0 4px 12px rgba(123, 17, 19, 0.25)) !important;
   transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease !important;
   text-decoration: none !important;
   box-sizing: border-box !important;
@@ -155,9 +155,9 @@ body {
 .add-entry-btn:hover:not(:disabled),
 .add-user-btn:hover:not(:disabled),
 .btn-submit:hover:not(:disabled) {
-  background: var(--btn-primary-hover, #B81E26) !important;
+  background: var(--btn-primary-hover, #6C0F11) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 6px 16px rgba(210, 39, 48, 0.35) !important;
+  box-shadow: 0 6px 16px rgba(123, 17, 19, 0.35) !important;
 }
 
 .btn-primary:active:not(:disabled),

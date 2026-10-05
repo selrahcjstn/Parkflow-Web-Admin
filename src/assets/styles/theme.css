@@ -2,20 +2,20 @@
 
 :root {
   /* ── BulSU Brand ──────────────────────────────── */
-  --color-primary: #D22730;
-  --color-primary-dark: #A81D24;
-  --color-primary-hover: #B81E26;
-  --color-primary-light: rgba(210, 39, 48, 0.08);
-  --color-primary-lighter: rgba(210, 39, 48, 0.04);
+  --color-primary: #7B1113;
+  --color-primary-dark: #5F0D0E;
+  --color-primary-hover: #6C0F11;
+  --color-primary-light: rgba(123, 17, 19, 0.08);
+  --color-primary-lighter: rgba(123, 17, 19, 0.04);
   --color-gold: #FDB813;
   --color-gold-dark: #E5A611;
   --color-accent: #334155;
 
   /* ── Unified Button Theme ──────────────────────── */
-  --btn-primary-bg: #D22730;
-  --btn-primary-hover: #B81E26;
+  --btn-primary-bg: #7B1113;
+  --btn-primary-hover: #6C0F11;
   --btn-primary-text: #ffffff;
-  --btn-primary-shadow: 0 4px 12px rgba(210, 39, 48, 0.25);
+  --btn-primary-shadow: 0 4px 12px rgba(123, 17, 19, 0.25);
   --btn-secondary-bg: #ffffff;
   --btn-secondary-hover: #f8fafc;
   --btn-secondary-border: #cbd5e1;
@@ -57,7 +57,7 @@
   --color-overlay-dark: rgba(0, 0, 0, 0.78);
 
   /* ── Glows ────────────────────────────────────── */
-  --color-glow: rgba(210, 39, 48, 0.06);
+  --color-glow: rgba(123, 17, 19, 0.06);
 
   /* ── Sidebar (Clean Modern Light) ───────────────── */
   --color-sidebar-bg: #ffffff;
@@ -65,7 +65,7 @@
   --color-sidebar-text: #475569;
   --color-sidebar-text-active: #ffffff;
   --color-sidebar-hover: #f1f5f9;
-  --color-sidebar-active-bg: #D22730;
+  --color-sidebar-active-bg: #7B1113;
   --color-sidebar-section-label: #94a3b8;
   --color-sidebar-icon-active: #ffffff;
   --color-sidebar-divider: #eef2f6;

@@ -789,7 +789,7 @@ const executeManualCheckout = async () => {
 }
 
 .back-btn:hover {
-  color: var(--color-primary, #D22730);
+  color: var(--color-primary, #7B1113);
 }
 
 .header-content {
@@ -827,7 +827,7 @@ const executeManualCheckout = async () => {
 }
 
 .checkout-action-btn {
-  background: var(--btn-primary-bg, #D22730);
+  background: var(--btn-primary-bg, #7B1113);
   color: #ffffff;
   border: none;
   border-radius: var(--radius-button, 8px);
@@ -838,12 +838,12 @@ const executeManualCheckout = async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.2);
+  box-shadow: 0 4px 12px rgba(123, 17, 19, 0.2);
   transition: all 150ms ease;
 }
 
 .checkout-action-btn:hover {
-  background: var(--btn-primary-hover, #B81E26);
+  background: var(--btn-primary-hover, #6C0F11);
   transform: translateY(-1px);
 }
 
@@ -988,7 +988,7 @@ const executeManualCheckout = async () => {
   flex-shrink: 0;
 }
 
-.card-icon-badge--blue   { background: rgba(210, 39, 48, 0.08);  color: var(--color-primary, #D22730); }
+.card-icon-badge--blue   { background: rgba(123, 17, 19, 0.08);  color: var(--color-primary, #7B1113); }
 .card-icon-badge--purple { background: rgba(147, 51, 234, 0.1); color: #9333ea; }
 .card-icon-badge--orange { background: rgba(245, 158, 11, 0.1); color: #d97706; }
 .card-icon-badge--green  { background: rgba(5, 150, 105, 0.1);  color: #059669; }

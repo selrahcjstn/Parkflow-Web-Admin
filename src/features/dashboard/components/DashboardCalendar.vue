@@ -324,7 +324,7 @@ const avatarGradients = [
 ]
 
 function getAvatarColor(idx: number): string {
-  return avatarGradients[idx % avatarGradients.length] || 'linear-gradient(135deg, #D22730, #991b1b)'
+  return avatarGradients[idx % avatarGradients.length] || 'linear-gradient(135deg, #7B1113, #991b1b)'
 }
 
 function navigateToReservations() {

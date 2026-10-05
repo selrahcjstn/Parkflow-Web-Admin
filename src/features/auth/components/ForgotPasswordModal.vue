@@ -208,7 +208,7 @@ function handleDone() {
   >
     <template #header>
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-[#D22730]/10 text-[#D22730] flex items-center justify-center flex-shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-[#7B1113]/10 text-[#7B1113] flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="11" width="18" height="11" rx="3" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -282,7 +282,7 @@ function handleDone() {
             autocomplete="one-time-code"
             placeholder="123456"
             :disabled="isLoading"
-            class="w-full text-center text-2xl tracking-widest font-mono py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D22730]/20 focus:border-[#D22730] transition box-border"
+            class="w-full text-center text-2xl tracking-widest font-mono py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7B1113]/20 focus:border-[#7B1113] transition box-border"
             @input="onOtpInput"
             @paste="onOtpPaste"
             @keydown.enter.prevent="onEnterVerify"
@@ -300,7 +300,7 @@ function handleDone() {
           </button>
           <button
             type="button"
-            class="font-semibold text-[#D22730] dark:text-[#f87171] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer border-none bg-transparent p-0 text-xs"
+            class="font-semibold text-[#7B1113] dark:text-[#E25C65] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer border-none bg-transparent p-0 text-xs"
             :disabled="resendCountdown > 0 || isLoading"
             @click="handleSendCode"
           >

@@ -188,7 +188,7 @@ const iconBadgeClass = computed(() => {
 .confirm-icon--primary {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: var(--color-primary, #D22730);
+  color: var(--color-primary, #7B1113);
 }
 
 .confirm-icon--success {

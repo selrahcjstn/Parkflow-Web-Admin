@@ -75,7 +75,7 @@ defineProps<{
             Breakdown of campus parking load factor across operational windows
           </p>
         </div>
-        <span class="text-xs font-bold text-[#D22730] bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900">
+        <span class="text-xs font-bold text-[#7B1113] bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-lg border border-red-200 dark:border-red-900">
           Capacity: {{ totalCampusCapacity }} Slots
         </span>
       </div>
@@ -98,7 +98,7 @@ defineProps<{
                   <div class="w-28 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                     <div
                       class="h-full rounded-full transition-all duration-500"
-                      :class="item.loadPercent >= 85 ? 'bg-[#D22730]' : item.loadPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'"
+                      :class="item.loadPercent >= 85 ? 'bg-[#7B1113]' : item.loadPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'"
                       :style="{ width: `${item.loadPercent}%` }"
                     ></div>
                   </div>
@@ -108,11 +108,11 @@ defineProps<{
               <td class="py-3 px-3">
                 <span
                   class="inline-flex items-center gap-1.5 font-bold"
-                  :class="item.loadPercent >= 85 ? 'text-[#D22730]' : item.loadPercent >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'"
+                  :class="item.loadPercent >= 85 ? 'text-[#7B1113]' : item.loadPercent >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'"
                 >
                   <span
                     class="w-1.5 h-1.5 rounded-full"
-                    :class="item.loadPercent >= 85 ? 'bg-[#D22730]' : item.loadPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'"
+                    :class="item.loadPercent >= 85 ? 'bg-[#7B1113]' : item.loadPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'"
                   ></span>
                   {{ item.loadPercent >= 85 ? 'Heavy Peak Load' : item.loadPercent >= 60 ? 'Moderate Demand' : 'Normal Operations' }}
                 </span>

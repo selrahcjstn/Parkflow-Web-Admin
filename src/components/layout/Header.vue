@@ -114,7 +114,7 @@ onBeforeUnmount(() => {
           aria-label="User menu"
           @click="toggleDropdown"
         >
-          <span class="w-7 h-7 rounded-full bg-[#D22730] flex items-center justify-center text-[11px] font-bold text-white tracking-wide select-none">
+          <span class="w-7 h-7 rounded-full bg-[#7B1113] flex items-center justify-center text-[11px] font-bold text-white tracking-wide select-none">
             {{ userInitials }}
           </span>
           <svg
@@ -137,7 +137,7 @@ onBeforeUnmount(() => {
           >
             <!-- User info header -->
             <div class="flex items-center gap-3 p-4 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
-              <div class="w-10 h-10 rounded-full bg-[#D22730] flex items-center justify-center text-xs font-bold text-white tracking-wide flex-shrink-0">
+              <div class="w-10 h-10 rounded-full bg-[#7B1113] flex items-center justify-center text-xs font-bold text-white tracking-wide flex-shrink-0">
                 {{ userInitials }}
               </div>
               <div class="flex flex-col min-w-0">

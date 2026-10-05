@@ -121,7 +121,7 @@ const xLabelPositions = computed(() =>
       <!-- Legend -->
       <div class="flex items-center gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
         <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#D22730] inline-block" />
+          <span class="w-2.5 h-2.5 rounded-full bg-[#7B1113] inline-block" />
           <span>Check-in</span>
         </div>
         <div class="flex items-center gap-1.5">
@@ -140,8 +140,8 @@ const xLabelPositions = computed(() =>
       >
         <defs>
           <linearGradient id="checkinGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#D22730" stop-opacity="0.25" />
-            <stop offset="100%" stop-color="#D22730" stop-opacity="0" />
+            <stop offset="0%" stop-color="#7B1113" stop-opacity="0.25" />
+            <stop offset="100%" stop-color="#7B1113" stop-opacity="0" />
           </linearGradient>
           <linearGradient id="checkoutGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#10b981" stop-opacity="0.15" />
@@ -219,7 +219,7 @@ const xLabelPositions = computed(() =>
         <path
           :d="checkInLine"
           fill="none"
-          stroke="#D22730"
+          stroke="#7B1113"
           stroke-width="2.5"
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -239,7 +239,7 @@ const xLabelPositions = computed(() =>
             :cx="point.x"
             :cy="point.y"
             r="4"
-            fill="#D22730"
+            fill="#7B1113"
             stroke="#ffffff"
             stroke-width="2"
             class="transition-all duration-300 ease-out group-hover/dot:r-6"

@@ -235,7 +235,7 @@ const getRoleLabel = (role: string) => {
 }
 
 .status--unpaid {
-  background: rgba(210, 39, 48, 0.1);
+  background: rgba(123, 17, 19, 0.1);
   color: var(--color-danger);
 }
 

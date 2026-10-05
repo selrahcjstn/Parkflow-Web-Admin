@@ -178,7 +178,7 @@ function getTypeBg(type: string): string {
     case 'reservation_pending':
       return 'bg-purple-600 text-white'
     case 'violation_issued':
-      return 'bg-[#D22730] text-white'
+      return 'bg-[#7B1113] text-white'
     case 'session_activity':
       return 'bg-sky-600 text-white'
     case 'payment_processed':
@@ -195,7 +195,7 @@ function getTypeBg(type: string): string {
     <button
       type="button"
       class="relative flex items-center justify-center w-9 h-9 rounded-full border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:border-slate-300 transition-all cursor-pointer shadow-xs"
-      :class="{ 'ring-2 ring-[#D22730]/20 border-[#D22730] text-[#D22730]': isOpen }"
+      :class="{ 'ring-2 ring-[#7B1113]/20 border-[#7B1113] text-[#7B1113]': isOpen }"
       aria-label="Notifications"
       @click="toggleDropdown"
     >
@@ -205,7 +205,7 @@ function getTypeBg(type: string): string {
       </svg>
       <span
         v-if="notifStore.unreadCount > 0"
-        class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#D22730] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white shadow-sm leading-none pointer-events-none"
+        class="absolute -top-1 -right-1 min-w-[17px] h-[17px] px-1 rounded-full bg-[#7B1113] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-white shadow-sm leading-none pointer-events-none"
       >
         {{ notifStore.unreadCount > 99 ? '99+' : notifStore.unreadCount }}
       </span>
@@ -223,7 +223,7 @@ function getTypeBg(type: string): string {
             <h3 class="text-base font-extrabold text-slate-900 tracking-tight m-0">Notifications</h3>
             <span
               v-if="notifStore.unreadCount > 0"
-              class="text-[11px] font-bold text-[#D22730] bg-red-50 border border-red-200/60 px-2 py-0.5 rounded-full"
+              class="text-[11px] font-bold text-[#7B1113] bg-red-50 border border-red-200/60 px-2 py-0.5 rounded-full"
             >
               {{ notifStore.unreadCount }} new
             </span>
@@ -232,7 +232,7 @@ function getTypeBg(type: string): string {
           <button
             v-if="notifStore.unreadCount > 0"
             type="button"
-            class="text-xs font-semibold text-[#D22730] hover:text-[#b91c1c] transition-colors cursor-pointer bg-transparent border-none p-1"
+            class="text-xs font-semibold text-[#7B1113] hover:text-[#b91c1c] transition-colors cursor-pointer bg-transparent border-none p-1"
             @click="notifStore.markAllAsRead"
           >
             Mark all as read
@@ -333,7 +333,7 @@ function getTypeBg(type: string): string {
                 <div class="flex items-center gap-2 mt-1">
                   <span
                     class="text-[11px]"
-                    :class="item.isUnread ? 'text-[#D22730] font-bold' : 'text-slate-500 font-medium'"
+                    :class="item.isUnread ? 'text-[#7B1113] font-bold' : 'text-slate-500 font-medium'"
                   >
                     {{ formatRelativeTime(item) }}
                   </span>
@@ -347,7 +347,7 @@ function getTypeBg(type: string): string {
               <div class="flex items-center flex-shrink-0 self-center">
                 <span
                   v-if="item.isUnread"
-                  class="w-2.5 h-2.5 rounded-full bg-[#D22730]"
+                  class="w-2.5 h-2.5 rounded-full bg-[#7B1113]"
                   title="Unread"
                 ></span>
               </div>

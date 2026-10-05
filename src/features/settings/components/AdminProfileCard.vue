@@ -30,7 +30,7 @@ const props = defineProps<{
 
     <!-- Identity Summary Box -->
     <div class="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
-      <div class="w-12 h-12 rounded-full bg-[#D22730] text-white font-black text-sm flex items-center justify-center tracking-wider flex-shrink-0">
+      <div class="w-12 h-12 rounded-full bg-[#7B1113] text-white font-black text-sm flex items-center justify-center tracking-wider flex-shrink-0">
         {{ avatarInitials }}
       </div>
       <div class="flex-1 min-w-0">

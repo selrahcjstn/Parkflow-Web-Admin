@@ -539,7 +539,7 @@ function openZoom(url: string) {
       <button
         type="button"
         class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
-        :class="selectedCategoryFilter === 'Registration' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedCategoryFilter === 'Registration' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="selectCategory('Registration')"
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -553,7 +553,7 @@ function openZoom(url: string) {
       <button
         type="button"
         class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
-        :class="selectedCategoryFilter === 'Schedule' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedCategoryFilter === 'Schedule' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="selectCategory('Schedule')"
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -568,7 +568,7 @@ function openZoom(url: string) {
       <button
         type="button"
         class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
-        :class="selectedCategoryFilter === 'Vehicle' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedCategoryFilter === 'Vehicle' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="selectCategory('Vehicle')"
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -584,7 +584,7 @@ function openZoom(url: string) {
       <button
         type="button"
         class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2"
-        :class="selectedCategoryFilter === 'all' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedCategoryFilter === 'all' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="selectCategory('all')"
       >
         <span>All Requests ({{ totalCount }})</span>
@@ -649,7 +649,7 @@ function openZoom(url: string) {
       >
         <template #cell-applicant="{ item }">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full bg-[#D22730] text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+            <div class="w-8 h-8 rounded-full bg-[#7B1113] text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
               {{ item.fullName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() }}
             </div>
             <div class="flex flex-col min-w-0">
@@ -679,7 +679,7 @@ function openZoom(url: string) {
           <div class="inline-flex items-center gap-1.5" @click.stop>
             <button
               type="button"
-              class="px-2.5 py-1 rounded-lg bg-[#D22730] hover:bg-[#B81E26] text-white font-semibold text-xs transition-colors cursor-pointer border-none"
+              class="px-2.5 py-1 rounded-lg bg-[#7B1113] hover:bg-[#6C0F11] text-white font-semibold text-xs transition-colors cursor-pointer border-none"
               @click="openInspector(item)"
             >
               Inspect

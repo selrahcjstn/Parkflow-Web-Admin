@@ -446,7 +446,7 @@ const stats = computed(() => [
     value: peakOccupancyFormatted.value,
     subtitle: 'Highest capacity utilization',
     icon: 'peak',
-    gradient: 'linear-gradient(135deg, #D22730, #ef4444)'
+    gradient: 'linear-gradient(135deg, #7B1113, #ef4444)'
   },
   {
     title: 'Average Duration',
@@ -625,7 +625,7 @@ const vehicleTypeScopeLabel = computed(() => {
         v-for="toast in toasts"
         :key="toast.id"
         class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
-        :class="toast.type === 'warning' ? 'bg-amber-600' : toast.type === 'info' ? 'bg-[#D22730]' : 'bg-emerald-600'"
+        :class="toast.type === 'warning' ? 'bg-amber-600' : toast.type === 'info' ? 'bg-[#7B1113]' : 'bg-emerald-600'"
       >
         <span>{{ toast.message }}</span>
       </div>

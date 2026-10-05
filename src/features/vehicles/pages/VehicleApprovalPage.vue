@@ -665,7 +665,7 @@ function closeZoom() {
 
 .refresh-btn:hover {
   background: var(--color-surface-muted);
-  color: var(--color-primary, #d22730);
+  color: var(--color-primary, #7B1113);
 }
 
 .notice-bar {
@@ -830,7 +830,7 @@ function closeZoom() {
   width: 32px;
   height: 32px;
   border: 3px solid var(--color-border);
-  border-top-color: var(--color-primary, #d22730);
+  border-top-color: var(--color-primary, #7B1113);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 12px;

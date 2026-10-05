@@ -30,7 +30,7 @@ function formatStatusText(status?: string): string {
   <UiCard class="p-6 space-y-6">
     <!-- Header -->
     <div class="flex items-center gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800">
-      <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#D22730] flex items-center justify-center flex-shrink-0">
+      <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 text-[#7B1113] flex items-center justify-center flex-shrink-0">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
           <circle cx="12" cy="7" r="4" />

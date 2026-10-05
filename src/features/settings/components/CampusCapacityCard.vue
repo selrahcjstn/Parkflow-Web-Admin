@@ -51,7 +51,7 @@ const formattedResetDate = computed(() => {
     <!-- Header with BulSU Red Badge -->
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center text-[#D22730] dark:text-[#f87171]">
+        <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center text-[#7B1113] dark:text-[#E25C65]">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
             <line x1="16" y1="2" x2="16" y2="6" />
@@ -76,7 +76,7 @@ const formattedResetDate = computed(() => {
       </div>
       <div class="flex flex-col">
         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Term</span>
-        <span class="font-bold text-[#D22730] dark:text-[#f87171]">{{ settings.currentSemester || '1st Semester' }}</span>
+        <span class="font-bold text-[#7B1113] dark:text-[#E25C65]">{{ settings.currentSemester || '1st Semester' }}</span>
       </div>
       <div class="flex flex-col">
         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bay Capacity</span>

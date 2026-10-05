@@ -80,7 +80,7 @@ const emit = defineEmits<{
 
       <button
         type="button"
-        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#D22730] hover:bg-[#b91c1c] text-white shadow-sm transition-colors cursor-pointer"
+        class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-[#7B1113] hover:bg-[#b91c1c] text-white shadow-sm transition-colors cursor-pointer"
         @click="emit('edit')"
       >
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -67,7 +67,7 @@ function getCorBadgeLabel(status?: string): string {
         <!-- Header -->
         <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-[#D22730] flex items-center justify-center flex-shrink-0">
+            <div class="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-[#7B1113] flex items-center justify-center flex-shrink-0">
               <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                 <polyline points="14 2 14 8 20 8" />
@@ -148,7 +148,7 @@ function getCorBadgeLabel(status?: string): string {
           :href="formatDocUrl(corUrl)"
           target="_blank"
           rel="noopener noreferrer"
-          class="px-3 py-1.5 rounded-lg bg-[#D22730] hover:bg-[#B81E26] text-white text-xs font-semibold transition-colors no-underline inline-flex items-center gap-1.5"
+          class="px-3 py-1.5 rounded-lg bg-[#7B1113] hover:bg-[#6C0F11] text-white text-xs font-semibold transition-colors no-underline inline-flex items-center gap-1.5"
         >
           <span>Open Full View</span>
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

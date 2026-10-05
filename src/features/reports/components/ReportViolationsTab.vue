@@ -103,7 +103,7 @@ const formatDate = (dateStr?: string) => {
         empty-text="No infraction citations recorded matching criteria."
       >
         <template #cell-referenceNumber="{ item }">
-          <span class="font-mono font-bold text-[#D22730]">{{ item.referenceNumber || 'N/A' }}</span>
+          <span class="font-mono font-bold text-[#7B1113]">{{ item.referenceNumber || 'N/A' }}</span>
         </template>
         <template #cell-plateNumber="{ item }">
           <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.plateNumber || '—' }}</span>

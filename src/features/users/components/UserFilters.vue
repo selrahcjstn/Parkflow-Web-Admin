@@ -61,7 +61,7 @@ const roleOptions = [
       <button
         type="button"
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'all' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedRole === 'all' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="emit('update:selectedRole', 'all')"
       >
         All Accounts ({{ totalCount }})
@@ -70,7 +70,7 @@ const roleOptions = [
       <button
         type="button"
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'Student' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedRole === 'Student' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="emit('update:selectedRole', 'Student')"
       >
         Students ({{ studentCount }})
@@ -79,7 +79,7 @@ const roleOptions = [
       <button
         type="button"
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'UniversityStaff' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedRole === 'UniversityStaff' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="emit('update:selectedRole', 'UniversityStaff')"
       >
         Faculty Member ({{ facultyCount }})
@@ -88,7 +88,7 @@ const roleOptions = [
       <button
         type="button"
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'NonAcademicPersonnel' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedRole === 'NonAcademicPersonnel' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="emit('update:selectedRole', 'NonAcademicPersonnel')"
       >
         University Staff ({{ staffCount }})
@@ -98,7 +98,7 @@ const roleOptions = [
         v-if="isSuperAdmin"
         type="button"
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-        :class="selectedRole === 'Guard' ? 'bg-[#D22730] text-white border-[#D22730] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
+        :class="selectedRole === 'Guard' ? 'bg-[#7B1113] text-white border-[#7B1113] shadow-sm' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'"
         @click="emit('update:selectedRole', 'Guard')"
       >
         Security Guards ({{ guardCount }})

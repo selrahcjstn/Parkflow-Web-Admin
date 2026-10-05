@@ -55,12 +55,12 @@ const props = defineProps<{
 <template>
   <div class="print-document font-sans text-slate-900 bg-white p-8 max-w-[850px] mx-auto">
     <!-- Institutional Header -->
-    <div class="border-b-2 border-[#D22730] pb-4 mb-6">
+    <div class="border-b-2 border-[#7B1113] pb-4 mb-6">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <img src="/parkflow.png" alt="ParkFlow Logo" class="w-12 h-12 object-contain rounded-xl border border-slate-100" />
           <div>
-            <h1 class="text-lg font-extrabold text-[#D22730] uppercase tracking-wide leading-tight m-0">
+            <h1 class="text-lg font-extrabold text-[#7B1113] uppercase tracking-wide leading-tight m-0">
               Bulacan State University
             </h1>
             <h2 class="text-xs font-bold text-slate-600 uppercase tracking-wider m-0">
@@ -99,7 +99,7 @@ const props = defineProps<{
     <!-- Section 1: Executive KPI Metrics -->
     <div class="mb-6">
       <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 pb-1.5 mb-2.5 border-b border-slate-200 flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-[#D22730]"></span>
+        <span class="w-2 h-2 rounded-full bg-[#7B1113]"></span>
         1. Executive Performance Summary
       </h3>
 
@@ -112,7 +112,7 @@ const props = defineProps<{
 
         <div class="p-3 bg-white border border-slate-200 rounded-lg">
           <span class="text-[10px] text-slate-500 uppercase font-semibold block">Peak Bay Occupancy</span>
-          <span class="text-lg font-black text-[#D22730] block mt-0.5">{{ summary.peakOccupancy }}</span>
+          <span class="text-lg font-black text-[#7B1113] block mt-0.5">{{ summary.peakOccupancy }}</span>
           <span class="text-[10px] text-slate-500 font-medium">Recorded Mid-Day</span>
         </div>
 
@@ -188,7 +188,7 @@ const props = defineProps<{
           <tbody>
             <tr v-for="h in hourlyTraffic.slice(0, 4)" :key="h.timeSlot" class="border-b border-slate-100">
               <td class="py-1.5 px-2 font-medium">{{ h.timeSlot }}</td>
-              <td class="py-1.5 px-2 text-center font-bold text-[#D22730]">{{ h.loadPercent }}%</td>
+              <td class="py-1.5 px-2 text-center font-bold text-[#7B1113]">{{ h.loadPercent }}%</td>
               <td class="py-1.5 px-2 text-right font-medium text-slate-600">{{ h.status }}</td>
             </tr>
           </tbody>
@@ -199,7 +199,7 @@ const props = defineProps<{
     <!-- Section 3: Recent Citations & Revenue Ledger -->
     <div class="mb-6">
       <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 pb-1.5 mb-2.5 border-b border-slate-200 flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-[#D22730]"></span>
+        <span class="w-2 h-2 rounded-full bg-[#7B1113]"></span>
         4. Citations & Overstay Ledger Audit
       </h3>
       <table class="w-full text-xs border-collapse">

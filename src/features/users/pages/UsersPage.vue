@@ -499,7 +499,7 @@ const handleFormSubmit = async (formData: any) => {
               {{ stat.title }}
             </span>
           </div>
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-[#D22730] dark:text-[#f87171] bg-red-50 dark:bg-red-950/40">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-[#7B1113] dark:text-[#E25C65] bg-red-50 dark:bg-red-950/40">
             <svg v-if="stat.icon === 'people'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round" />
               <circle cx="9" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round" />

@@ -41,7 +41,7 @@ const gateNames: Record<number, string> = {
   >
     <template #header>
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/50 text-[#D22730] flex items-center justify-center flex-shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/50 text-[#7B1113] flex items-center justify-center flex-shrink-0">
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
           </svg>
@@ -65,7 +65,7 @@ const gateNames: Record<number, string> = {
 
         <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
           <span class="text-slate-500 dark:text-slate-400 font-medium">Account Role</span>
-          <span class="font-semibold" :class="form.accountType === 'Guard' ? 'text-[#D22730]' : 'text-purple-600 dark:text-purple-400'">
+          <span class="font-semibold" :class="form.accountType === 'Guard' ? 'text-[#7B1113]' : 'text-purple-600 dark:text-purple-400'">
             {{ form.accountType === 'Guard' ? 'Campus Security Guard' : 'System Administrator' }}
           </span>
         </div>

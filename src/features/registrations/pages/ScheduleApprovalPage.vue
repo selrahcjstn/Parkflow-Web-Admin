@@ -786,8 +786,8 @@ watch(selectedSubmission, () => {
   width: fit-content;
   max-width: max-content;
   gap: 6px;
-  background: rgba(210, 39, 48, 0.1);
-  color: var(--color-primary, #d22730);
+  background: rgba(123, 17, 19, 0.1);
+  color: var(--color-primary, #7B1113);
   padding: 4px 12px;
   border-radius: 20px;
   font-size: 11px;
@@ -826,7 +826,7 @@ watch(selectedSubmission, () => {
 
 .refresh-btn:hover {
   background: var(--color-surface-muted);
-  color: var(--color-primary, #d22730);
+  color: var(--color-primary, #7B1113);
 }
 
 .notice-bar {
@@ -1005,7 +1005,7 @@ watch(selectedSubmission, () => {
   width: 32px;
   height: 32px;
   border: 3px solid var(--color-border);
-  border-top-color: var(--color-primary, #d22730);
+  border-top-color: var(--color-primary, #7B1113);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   margin: 0 auto 12px;
@@ -1064,12 +1064,12 @@ watch(selectedSubmission, () => {
 }
 
 .applicant-card:hover {
-  border-color: var(--color-primary, #d22730);
+  border-color: var(--color-primary, #7B1113);
 }
 
 .applicant-card.active {
-  background: rgba(210, 39, 48, 0.08);
-  border-color: var(--color-primary, #d22730);
+  background: rgba(123, 17, 19, 0.08);
+  border-color: var(--color-primary, #7B1113);
   border-left-width: 4px;
 }
 
@@ -1250,7 +1250,7 @@ watch(selectedSubmission, () => {
   gap: 6px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  color: var(--color-primary, #d22730);
+  color: var(--color-primary, #7B1113);
   padding: 4px 10px;
   border-radius: 6px;
   font-size: 11px;
@@ -1260,7 +1260,7 @@ watch(selectedSubmission, () => {
 }
 
 .edit-schedule-btn:hover {
-  background: rgba(210, 39, 48, 0.08);
+  background: rgba(123, 17, 19, 0.08);
 }
 
 .editing-badge {
@@ -1304,9 +1304,9 @@ watch(selectedSubmission, () => {
 }
 
 .preset-btn:hover {
-  background: var(--color-primary, #d22730);
+  background: var(--color-primary, #7B1113);
   color: #ffffff;
-  border-color: var(--color-primary, #d22730);
+  border-color: var(--color-primary, #7B1113);
 }
 
 .preset-btn.btn--outline {
@@ -1418,7 +1418,7 @@ watch(selectedSubmission, () => {
 }
 
 .day-checkbox {
-  accent-color: var(--color-primary, #d22730);
+  accent-color: var(--color-primary, #7B1113);
   cursor: pointer;
 }
 
@@ -1435,7 +1435,7 @@ watch(selectedSubmission, () => {
 }
 
 .time-picker-input:focus {
-  border-color: var(--color-primary, #d22730);
+  border-color: var(--color-primary, #7B1113);
 }
 
 .day-chip {
@@ -1470,7 +1470,7 @@ watch(selectedSubmission, () => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--color-primary, #d22730);
+  background: var(--color-primary, #7B1113);
   border: none;
   color: #ffffff;
   padding: 6px 14px;

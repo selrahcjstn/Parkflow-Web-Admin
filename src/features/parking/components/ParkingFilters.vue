@@ -65,7 +65,7 @@ const methodOptions = [
         <button
           type="button"
           class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-          :class="currentTab === 'active' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+          :class="currentTab === 'active' ? 'bg-[#7B1113] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
           @click="emit('update:currentTab', 'active')"
         >
           Active
@@ -73,7 +73,7 @@ const methodOptions = [
         <button
           type="button"
           class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border-none whitespace-nowrap"
-          :class="currentTab === 'history' ? 'bg-[#D22730] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
+          :class="currentTab === 'history' ? 'bg-[#7B1113] text-white shadow-sm font-bold' : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-transparent'"
           @click="emit('update:currentTab', 'history')"
         >
           History

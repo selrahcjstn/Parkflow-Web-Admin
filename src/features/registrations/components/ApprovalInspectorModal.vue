@@ -107,7 +107,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'cor' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'cor' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'cor'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -119,7 +119,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'schedule' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'schedule' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'schedule'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -131,7 +131,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'orcr' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'orcr' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'orcr'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -143,7 +143,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'motorPic' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'motorPic' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'motorPic'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -159,7 +159,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'schedule' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'schedule' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'schedule'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -171,7 +171,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'cor' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'cor' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'cor'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -186,7 +186,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'orcr' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'orcr' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'orcr'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -198,7 +198,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'motorPic' ? 'bg-[#D22730] text-white border-[#D22730]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            :class="activeDocType === 'motorPic' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'motorPic'"
           >
             <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -233,7 +233,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
                 :href="activeDocType === 'cor' ? item.corUrl : item.orcrUrl"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="px-3 py-1.5 rounded-lg bg-[#D22730] hover:bg-[#B81E26] text-white text-xs font-semibold transition-colors no-underline"
+                class="px-3 py-1.5 rounded-lg bg-[#7B1113] hover:bg-[#6C0F11] text-white text-xs font-semibold transition-colors no-underline"
               >
                 Open in New Tab
               </a>

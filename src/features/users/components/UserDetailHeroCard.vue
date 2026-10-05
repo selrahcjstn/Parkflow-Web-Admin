@@ -66,7 +66,7 @@ function displayStatus(u?: UserWithDetails | null): string {
             <h2 class="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight truncate">
               {{ user.fullName }}
             </h2>
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-[#D22730]/10 text-[#D22730] border border-[#D22730]/20">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-[#7B1113]/10 text-[#7B1113] border border-[#7B1113]/20">
               {{ getRoleLabel(user.role) }}
             </span>
           </div>

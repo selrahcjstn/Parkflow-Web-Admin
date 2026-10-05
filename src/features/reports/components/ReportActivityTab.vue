@@ -136,7 +136,7 @@ const formatEntryMethod = (method: any): string => {
         <template #cell-duration="{ item }">
           <span
             class="font-medium text-xs"
-            :class="item.isOverstay ? 'text-[#D22730] font-bold' : 'text-slate-700 dark:text-slate-300'"
+            :class="item.isOverstay ? 'text-[#7B1113] font-bold' : 'text-slate-700 dark:text-slate-300'"
           >
             {{ item.duration }}
           </span>

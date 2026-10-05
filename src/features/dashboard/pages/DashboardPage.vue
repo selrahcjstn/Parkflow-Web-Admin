@@ -70,8 +70,8 @@ const stats = computed(() => {
       subtitle: 'Unsettled parking fines',
       trend: '-3.4%',
       trendUp: false,
-      accentColor: '#D22730',
-      badgeBg: 'rgba(210, 39, 48, 0.12)'
+      accentColor: '#7B1113',
+      badgeBg: 'rgba(123, 17, 19, 0.12)'
     }
   ]
 })

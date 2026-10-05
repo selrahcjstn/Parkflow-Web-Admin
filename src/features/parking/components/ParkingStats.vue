@@ -68,8 +68,8 @@ const emit = defineEmits<{
         subtitle="Exceeded scheduled access time"
         :trend="overstayCount > 0 ? 'Exceeded Schedule' : 'Normal'"
         :trend-up="overstayCount === 0"
-        accent-color="#d22730"
-        badge-bg="rgba(210, 39, 48, 0.12)"
+        accent-color="#7B1113"
+        badge-bg="rgba(123, 17, 19, 0.12)"
         class="cursor-pointer"
         @click="emit('clickOverstay')"
       >

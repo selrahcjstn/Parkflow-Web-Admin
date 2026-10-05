@@ -173,17 +173,17 @@ function handleClick(event: MouseEvent) {
 /* ── Variants ── */
 /* Primary (BulSU Red Theme) */
 .ui-btn--primary {
-  background: var(--btn-primary-bg, #D22730);
+  background: var(--btn-primary-bg, #7B1113);
   color: var(--btn-primary-text, #ffffff);
-  border-color: var(--btn-primary-bg, #D22730);
-  --ring-color: rgba(210, 39, 48, 0.35);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(210, 39, 48, 0.15);
+  border-color: var(--btn-primary-bg, #7B1113);
+  --ring-color: rgba(123, 17, 19, 0.35);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(123, 17, 19, 0.15);
 }
 .ui-btn--primary:hover:not(:disabled) {
-  background: var(--btn-primary-hover, #B81E26);
-  border-color: var(--btn-primary-hover, #B81E26);
+  background: var(--btn-primary-hover, #6C0F11);
+  border-color: var(--btn-primary-hover, #6C0F11);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(210, 39, 48, 0.25);
+  box-shadow: 0 4px 12px rgba(123, 17, 19, 0.25);
 }
 .ui-btn--primary:active:not(:disabled) {
   background: #9E1B22;
@@ -283,16 +283,16 @@ function handleClick(event: MouseEvent) {
 /* Outline */
 .ui-btn--outline {
   background: transparent;
-  color: var(--color-primary, #D22730);
+  color: var(--color-primary, #7B1113);
   border-color: #fca5a5;
-  --ring-color: rgba(210, 39, 48, 0.25);
+  --ring-color: rgba(123, 17, 19, 0.25);
 }
 .ui-btn--outline:hover:not(:disabled) {
-  background: rgba(210, 39, 48, 0.06);
+  background: rgba(123, 17, 19, 0.06);
   border-color: #ef4444;
 }
 .ui-btn--outline:active:not(:disabled) {
-  background: rgba(210, 39, 48, 0.12);
+  background: rgba(123, 17, 19, 0.12);
 }
 
 /* ── Disabled & Loading States ── */

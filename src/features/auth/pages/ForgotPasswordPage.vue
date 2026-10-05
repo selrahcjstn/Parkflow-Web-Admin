@@ -270,7 +270,7 @@ function goToLogin() {
               autocomplete="one-time-code"
               placeholder="123456"
               :disabled="isLoading"
-              class="w-full text-center text-2xl tracking-widest font-mono py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#D22730]/20 focus:border-[#D22730] transition box-border"
+              class="w-full text-center text-2xl tracking-widest font-mono py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#7B1113]/20 focus:border-[#7B1113] transition box-border"
               @input="onOtpInput"
               @paste="onOtpPaste"
               @keydown.enter.prevent="onEnterVerify"
@@ -288,7 +288,7 @@ function goToLogin() {
             </button>
             <button
               type="button"
-              class="font-semibold text-[#D22730] dark:text-[#f87171] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer border-none bg-transparent p-0 text-xs"
+              class="font-semibold text-[#7B1113] dark:text-[#E25C65] hover:underline disabled:opacity-50 disabled:no-underline cursor-pointer border-none bg-transparent p-0 text-xs"
               :disabled="resendCountdown > 0 || isLoading"
               @click="handleSendCode"
             >

@@ -25,7 +25,7 @@ function selectRole(role: AccountType) {
 <template>
   <UiCard class="p-6 space-y-6">
     <div class="flex items-center gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
-      <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/50 text-[#D22730] flex items-center justify-center flex-shrink-0">
+      <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/50 text-[#7B1113] flex items-center justify-center flex-shrink-0">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
@@ -40,18 +40,18 @@ function selectRole(role: AccountType) {
       <!-- Campus Guard Option -->
       <div
         class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
-        :class="modelValue === 'Guard' ? 'border-[#D22730] bg-red-50/40 dark:bg-red-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
+        :class="modelValue === 'Guard' ? 'border-[#7B1113] bg-red-50/40 dark:bg-red-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
         @click="selectRole('Guard')"
       >
         <div class="flex items-center justify-between">
-          <div class="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/40 text-[#D22730] flex items-center justify-center">
+          <div class="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/40 text-[#7B1113] flex items-center justify-center">
             <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
           </div>
           <div
             class="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors"
-            :class="modelValue === 'Guard' ? 'border-[#D22730] bg-[#D22730]' : 'border-slate-300 dark:border-slate-600'"
+            :class="modelValue === 'Guard' ? 'border-[#7B1113] bg-[#7B1113]' : 'border-slate-300 dark:border-slate-600'"
           >
             <div v-if="modelValue === 'Guard'" class="w-2 h-2 rounded-full bg-white"></div>
           </div>
