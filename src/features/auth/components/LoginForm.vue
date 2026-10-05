@@ -125,44 +125,58 @@ async function handleSubmit() {
 
 <template>
   <div class="space-y-5">
-    <!-- Alert -->
-    <div
-      v-if="alertMessage"
-      class="flex items-center gap-2.5 rounded-xl px-4 py-3 text-xs font-semibold"
-      :class="[
-        alertType === 'error'
-          ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900'
-          : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900'
-      ]"
+    <!-- Alert Notification -->
+    <transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="opacity-0 -translate-y-1"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-1"
     >
-      <svg v-if="alertType === 'error'" class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="15" y1="9" x2="9" y2="15" />
-        <line x1="9" y1="9" x2="15" y2="15" />
-      </svg>
-      <svg v-else class="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-        <polyline points="22 4 12 14.01 9 11.01" />
-      </svg>
-      <span>{{ alertMessage }}</span>
-    </div>
+      <div
+        v-if="alertMessage"
+        class="flex items-start gap-3 rounded-2xl px-4 py-3.5 text-xs font-semibold shadow-xs"
+        :class="[
+          alertType === 'error'
+            ? 'bg-rose-50/90 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60'
+            : 'bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900/60'
+        ]"
+      >
+        <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" :class="alertType === 'error' ? 'bg-rose-100 dark:bg-rose-900/50 text-rose-600' : 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600'">
+          <svg v-if="alertType === 'error'" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <svg v-else class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M20 6L9 17l-5-5" />
+          </svg>
+        </div>
+        <div class="flex-1 leading-relaxed">
+          <p class="font-bold mb-0.5">{{ alertType === 'error' ? 'Authentication Notice' : 'Success' }}</p>
+          <p class="font-normal opacity-90">{{ alertMessage }}</p>
+        </div>
+      </div>
+    </transition>
 
-    <!-- Form -->
-    <form @submit.prevent="handleSubmit" class="space-y-4">
-      <!-- Email -->
+    <!-- Main Login Form -->
+    <form @submit.prevent="handleSubmit" class="space-y-4.5">
+      <!-- Email Field -->
       <div>
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-          Email Address
+        <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 mb-1.5 tracking-wide">
+          Administrator Email
         </label>
         <UiInput
           v-model="email"
           type="email"
-          placeholder="admin@parkflow.com"
+          placeholder="admin@bulsu.edu.ph"
           size="md"
           autocomplete="email"
+          :disabled="isLoading"
         >
           <template #prefix>
-            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <svg class="w-4 h-4 text-slate-400 group-focus-within:text-[#7B1113]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="4" width="20" height="16" rx="3" />
               <path d="M22 7l-10 6L2 7" />
             </svg>
@@ -170,20 +184,30 @@ async function handleSubmit() {
         </UiInput>
       </div>
 
-      <!-- Password -->
+      <!-- Password Field -->
       <div>
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-          Password
-        </label>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-xs font-bold text-slate-700 dark:text-slate-200 tracking-wide">
+            Password
+          </label>
+          <button
+            type="button"
+            class="text-[11px] font-bold text-[#7B1113] dark:text-[#E25C65] hover:text-[#5F0D0E] dark:hover:text-[#FDB813] transition-colors border-none bg-transparent cursor-pointer p-0"
+            @click="isForgotPasswordOpen = true"
+          >
+            Forgot password?
+          </button>
+        </div>
         <UiInput
           v-model="password"
           :type="showPassword ? 'text' : 'password'"
-          placeholder="Enter your password"
+          placeholder="••••••••••••"
           size="md"
           autocomplete="current-password"
+          :disabled="isLoading"
         >
           <template #prefix>
-            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="11" width="18" height="11" rx="3" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
@@ -191,15 +215,16 @@ async function handleSubmit() {
           <template #suffix>
             <button
               type="button"
-              class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors p-1"
+              class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 rounded-md focus:outline-none"
               @click="showPassword = !showPassword"
-              title="Toggle password visibility"
+              :title="showPassword ? 'Hide password' : 'Show password'"
+              aria-label="Toggle password visibility"
             >
-              <svg v-if="!showPassword" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <svg v-if="!showPassword" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
                 <circle cx="12" cy="12" r="3" />
               </svg>
-              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
                 <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
                 <line x1="1" y1="1" x2="23" y2="23" />
@@ -209,36 +234,54 @@ async function handleSubmit() {
         </UiInput>
       </div>
 
-      <!-- Remember / Forgot -->
-      <div class="flex items-center justify-between text-xs pt-1">
+      <!-- Remember Me & Security Prompt -->
+      <div class="flex items-center justify-between text-xs pt-0.5">
         <label class="flex items-center gap-2 font-medium text-slate-600 dark:text-slate-400 cursor-pointer select-none">
           <input
             v-model="rememberMe"
             type="checkbox"
-            class="w-4 h-4 rounded border-slate-300 text-[#7B1113] focus:ring-[#7B1113] cursor-pointer"
+            class="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-[#7B1113] focus:ring-[#7B1113] accent-[#7B1113] cursor-pointer"
           />
-          Remember me
+          <span class="text-xs">Remember this device</span>
         </label>
-        <button
-          type="button"
-          class="font-semibold text-[#7B1113] dark:text-[#E25C65] hover:underline transition-colors border-none bg-transparent cursor-pointer p-0 text-xs"
-          @click="isForgotPasswordOpen = true"
-        >
-          Forgot password?
-        </button>
+        <span class="text-[11px] text-slate-400 dark:text-slate-500 font-medium">Session: 8 hrs</span>
       </div>
 
-      <!-- Submit Button -->
+      <!-- Primary Submit Button -->
       <div class="pt-2">
-        <UiButton
+        <button
           type="submit"
-          variant="primary"
-          size="lg"
-          full-width
-          :loading="isLoading"
+          :disabled="isLoading"
+          class="w-full flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#7B1113] to-[#5F0D0E] hover:from-[#8C1316] hover:to-[#6C0F11] active:scale-[0.99] shadow-lg shadow-[#7B1113]/25 transition-all duration-150 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
         >
-          {{ isLoading ? 'Signing in...' : 'Sign In to Dashboard' }}
-        </UiButton>
+          <svg
+            v-if="isLoading"
+            class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            />
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          <span v-if="isLoading">Authenticating Credentials...</span>
+          <span v-else class="flex items-center gap-1.5">
+            Sign In to Admin Portal
+            <svg class="w-4 h-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </span>
+        </button>
       </div>
     </form>
 
