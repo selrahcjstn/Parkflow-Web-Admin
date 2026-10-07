@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { refreshAdminData } from '@/api/axios'
 import { ref, computed } from 'vue'
 import { useApprovals } from '../composables/useApprovals'
 import type { ApprovalItem, ScheduleItem } from '../types'
@@ -18,7 +19,7 @@ const {
   fetchApprovals,
   approveItem,
   rejectItem,
-  saveSchedule
+  saveSchedule,
 } = useApprovals('Registration')
 
 // Filter and View State
@@ -69,7 +70,9 @@ const filteredApprovals = computed(() => {
   })
 })
 
-const totalPages = computed(() => Math.ceil(filteredApprovals.value.length / itemsPerPage.value) || 1)
+const totalPages = computed(
+  () => Math.ceil(filteredApprovals.value.length / itemsPerPage.value) || 1,
+)
 
 const paginatedApprovals = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
@@ -118,9 +121,17 @@ async function handleConfirmReject() {
 
 async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[]) {
   await saveSchedule(item, schedules)
-  if (inspectorItem.value && (inspectorItem.value.guid === item.guid || (inspectorItem.value.corGuid && inspectorItem.value.corGuid === item.corGuid))) {
+  if (
+    inspectorItem.value &&
+    (inspectorItem.value.guid === item.guid ||
+      (inspectorItem.value.corGuid && inspectorItem.value.corGuid === item.corGuid))
+  ) {
     inspectorItem.value.schedules = [...schedules]
   }
+}
+function handleRefresh() {
+  refreshAdminData()
+  void fetchApprovals()
 }
 </script>
 
@@ -133,7 +144,8 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
           New User Approvals
         </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Review 3-in-1 initial registration packages (COR, Class Schedule, and Vehicle OR/CR) for new accounts with one-tap dual verification.
+          Review 3-in-1 initial registration packages (COR, Class Schedule, and Vehicle OR/CR) for
+          new accounts with one-tap dual verification.
         </p>
       </div>
     </div>
@@ -144,8 +156,18 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
       class="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm font-medium flex items-center justify-between transition-all"
     >
       <div class="flex items-center gap-2">
-        <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        <svg
+          class="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 13l4 4L19 7"
+          />
         </svg>
         <span>{{ actionSuccessMsg }}</span>
       </div>
@@ -163,8 +185,18 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
       class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm font-medium flex items-center justify-between"
     >
       <div class="flex items-center gap-2">
-        <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        <svg
+          class="w-5 h-5 text-amber-600 flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
         </svg>
         <span>{{ apiErrorNotice }}</span>
       </div>
@@ -178,7 +210,6 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
     </div>
 
     <!-- Stats Overview -->
-    
 
     <!-- Filter Bar -->
     <ApprovalFilterBar
@@ -190,21 +221,38 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
       :rejected-count="rejectedCount"
       :is-loading="isLoading"
       show-role-filter
-      @refresh="fetchApprovals"
+      @refresh="handleRefresh"
     />
 
     <!-- Main Content Area -->
-    <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <SkeletonLoader v-for="n in 6" :key="n" type="card" height="240px" />
+    <div v-if="isLoading" class="space-y-3">
+      <div
+        v-for="n in 6"
+        :key="n"
+        class="h-12 animate-pulse rounded-button bg-(--color-surface-muted) motion-reduce:animate-none"
+        aria-hidden="true"
+      />
     </div>
 
-    <div v-else-if="filteredApprovals.length === 0" class="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
-      <div class="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 text-slate-400">
+    <div
+      v-else-if="filteredApprovals.length === 0"
+      class="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+    >
+      <div
+        class="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 text-slate-400"
+      >
         <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+          />
         </svg>
       </div>
-      <h3 class="text-base font-bold text-slate-900 dark:text-white">No New User Registrations Found</h3>
+      <h3 class="text-base font-bold text-slate-900 dark:text-white">
+        No New User Registrations Found
+      </h3>
       <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
         There are currently no new registration applications matching your current filter criteria.
       </p>
@@ -244,10 +292,7 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
     />
 
     <!-- Document Image Zoom Modal -->
-    <DocumentZoomModal
-      :image-url="selectedZoomImage"
-      @close="selectedZoomImage = null"
-    />
+    <DocumentZoomModal :image-url="selectedZoomImage" @close="selectedZoomImage = null" />
 
     <!-- Approve Confirmation Dialog -->
     <ConfirmModal

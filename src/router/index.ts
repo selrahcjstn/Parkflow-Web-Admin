@@ -1,3 +1,4 @@
+import { syncCacheOwner } from '@/stores/appCache'
 import { createRouter, createWebHistory } from 'vue-router'
 import authRoutes from '@/features/auth/routes'
 import dashboardRoutes from '@/features/dashboard/routes'
@@ -30,17 +31,21 @@ const router = createRouter({
         ...feedbackRoutes,
         ...reportsRoutes,
         ...settingsRoutes,
-      ]
+      ],
     },
-    { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
-  ]
+    { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
+  ],
 })
 
 import { isSuperAdminUser } from '@/utils/auth'
 
 router.beforeEach((to, from, next) => {
+  syncCacheOwner(localStorage.getItem('parkflow_token'))
   const rawToken = localStorage.getItem('parkflow_token')
-  const token = rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken.trim() !== '' ? rawToken.trim() : null
+  const token =
+    rawToken && rawToken !== 'undefined' && rawToken !== 'null' && rawToken.trim() !== ''
+      ? rawToken.trim()
+      : null
 
   if (!token && rawToken) {
     localStorage.removeItem('parkflow_token')

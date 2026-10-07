@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { isAxiosError } from 'axios'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import UiInput from '@/components/ui/UiInput.vue'
@@ -15,6 +16,10 @@ const isLoading = ref(false)
 const alertMessage = ref('')
 const alertType = ref<'error' | 'success'>('error')
 const isForgotPasswordOpen = ref(false)
+const emailError = ref('')
+const passwordError = ref('')
+const emailInput = ref<InstanceType<typeof UiInput> | null>(null)
+const passwordInput = ref<InstanceType<typeof UiInput> | null>(null)
 
 function handlePasswordResetSuccess(resetEmail: string) {
   if (resetEmail) {
@@ -28,16 +33,22 @@ function handlePasswordResetSuccess(resetEmail: string) {
 async function handleSubmit() {
   if (isLoading.value) return
   alertMessage.value = ''
+  emailError.value = ''
+  passwordError.value = ''
 
   if (!email.value.trim()) {
-    alertMessage.value = 'Please enter your email address.'
-    alertType.value = 'error'
-    return
+    emailError.value = 'Please enter your email address.'
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim())) {
+    emailError.value = 'Please enter a valid email address.'
   }
 
   if (!password.value) {
-    alertMessage.value = 'Please enter your password.'
-    alertType.value = 'error'
+    passwordError.value = 'Please enter your password.'
+  }
+
+  if (emailError.value || passwordError.value) {
+    if (emailError.value) emailInput.value?.focus()
+    else passwordInput.value?.focus()
     return
   }
 
@@ -52,7 +63,7 @@ async function handleSubmit() {
 
     if (response.data?.isSuccess) {
       const data = response.data.data
-      const token = typeof data === 'string' ? data : (data?.token || '')
+      const token = typeof data === 'string' ? data : data?.token || ''
       if (token) {
         localStorage.setItem('parkflow_token', token)
       }
@@ -74,11 +85,22 @@ async function handleSubmit() {
           const parts = token.split('.')
           if (parts[1]) {
             const payload = JSON.parse(window.atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')))
-            const userId = payload.user_id || payload.sub || payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] || payload.nameid || payload.id
+            const userId =
+              payload.user_id ||
+              payload.sub ||
+              payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
+              payload.nameid ||
+              payload.id
             if (userId) {
               localStorage.setItem('parkflow_user_id', String(userId))
             }
-            const role = payload.role || payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || payload.Role || payload.userRole || payload.UserRole || payload.profile_type
+            const role =
+              payload.role ||
+              payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] ||
+              payload.Role ||
+              payload.userRole ||
+              payload.UserRole ||
+              payload.profile_type
             if (role) {
               localStorage.setItem('parkflow_user_role', String(role))
             }
@@ -94,13 +116,17 @@ async function handleSubmit() {
         router.push('/dashboard')
       }, 600)
     } else {
-      alertMessage.value = response.data?.message || 'Invalid email or password.'
+      alertMessage.value = response.data?.message || 'Email or password is incorrect.'
       alertType.value = 'error'
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Login error:', error)
-    
-    alertMessage.value = error.response?.data?.message || 'Connection error. Please check if backend API is running.'
+    const failure = isAxiosError<{ message?: string }>(error) ? error : null
+
+    alertMessage.value =
+      failure?.response?.status === 401
+        ? 'Email or password is incorrect.'
+        : failure?.response?.data?.message || 'Unable to sign in right now. Please try again.'
     alertType.value = 'error'
   } finally {
     isLoading.value = false
@@ -109,29 +135,87 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <form class="space-y-5" @submit.prevent="handleSubmit">
-    <p v-if="alertMessage" role="alert" class="rounded-button border border-border bg-surface p-3 text-sm"
-       :class="alertType === 'error' ? 'text-(--color-danger)' : 'text-(--color-success)'">{{ alertMessage }}</p>
-    <UiInput v-model="email" label="Email address" type="email" placeholder="Enter your email address"
-      size="lg" autocomplete="email" :disabled="isLoading" />
-    <UiInput v-model="password" label="Password" :type="showPassword ? 'text' : 'password'"
-      placeholder="Enter your password" size="lg" autocomplete="current-password" :disabled="isLoading">
+  <form class="space-y-5" novalidate :aria-busy="isLoading" @submit.prevent="handleSubmit">
+    <p
+      v-if="alertMessage"
+      role="alert"
+      class="rounded-button border p-3 text-sm leading-5"
+      :class="
+        alertType === 'error'
+          ? 'border-danger/20 bg-danger-bg text-text'
+          : 'border-success/20 bg-success-bg text-text'
+      "
+    >
+      {{ alertMessage }}
+    </p>
+    <UiInput
+      ref="emailInput"
+      v-model="email"
+      name="email"
+      label="Email address"
+      type="email"
+      placeholder="Enter your email address"
+      size="lg"
+      autocomplete="email"
+      :error="emailError"
+      :disabled="isLoading"
+      @update:model-value="emailError = ''"
+    />
+    <UiInput
+      ref="passwordInput"
+      v-model="password"
+      name="password"
+      label="Password"
+      :type="showPassword ? 'text' : 'password'"
+      placeholder="Enter your password"
+      size="lg"
+      autocomplete="current-password"
+      :error="passwordError"
+      :disabled="isLoading"
+      @update:model-value="passwordError = ''"
+    >
       <template #suffix>
-        <button type="button" class="flex size-11 items-center justify-center rounded-button text-muted focus-visible:outline-2 focus-visible:outline-primary"
-          :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword"
-          @click="showPassword = !showPassword">
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>
+        <button
+          type="button"
+          class="flex size-11 items-center justify-center rounded-button text-muted focus-visible:outline-2 focus-visible:outline-primary"
+          :aria-label="showPassword ? 'Hide password' : 'Show password'"
+          :aria-pressed="showPassword"
+          :disabled="isLoading"
+          @click="showPassword = !showPassword"
+        >
+          <svg
+            class="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" />
+            <circle cx="12" cy="12" r="3" />
+            <path v-if="showPassword" d="m3 3 18 18" />
           </svg>
         </button>
       </template>
     </UiInput>
     <div class="text-right">
-      <button type="button" class="min-h-11 text-sm font-medium text-primary hover:underline"
-        :disabled="isLoading" @click="isForgotPasswordOpen = true">Forgot password?</button>
+      <button
+        type="button"
+        class="min-h-11 rounded-button text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50"
+        :disabled="isLoading"
+        @click="isForgotPasswordOpen = true"
+      >
+        Forgot password?
+      </button>
     </div>
-    <UiButton type="submit" size="lg" block :loading="isLoading">{{ isLoading ? 'Signing in…' : 'Sign In' }}</UiButton>
-    <ForgotPasswordModal :is-open="isForgotPasswordOpen" :initial-email="email"
-      @close="isForgotPasswordOpen = false" @success="handlePasswordResetSuccess" />
+    <UiButton type="submit" size="lg" block :loading="isLoading">{{
+      isLoading ? 'Signing in…' : 'Sign In'
+    }}</UiButton>
+    <ForgotPasswordModal
+      :is-open="isForgotPasswordOpen"
+      :initial-email="email"
+      @close="isForgotPasswordOpen = false"
+      @success="handlePasswordResetSuccess"
+    />
   </form>
 </template>

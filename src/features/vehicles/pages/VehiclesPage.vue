@@ -7,9 +7,8 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import VehicleStats from '../components/VehicleStats.vue'
 import VehicleFilters from '../components/VehicleFilters.vue'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import { cachedVehicleApprovals, cachedVehicles } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 
@@ -22,7 +21,7 @@ const vehicleColumns: TableColumn[] = [
   { key: 'owner', label: 'Owner Name' },
   { key: 'role', label: 'Role' },
   { key: 'vstatus', label: 'Status' },
-  { key: 'actions', label: 'Actions', align: 'right' }
+  { key: 'actions', label: 'Actions', align: 'right' },
 ]
 
 // Toast type
@@ -46,13 +45,13 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
 const notifStore = useAdminNotificationStore()
 let unsubscribeApprovalUpdates: (() => void) | null = null
 
-const isLoading = ref(!cachedVehicles.value || cachedVehicles.value.length === 0)
+const isLoading = ref(cachedVehicles.value === null)
 
 // Vehicles list with reactive cache
 const vehicles = ref<Vehicle[]>(cachedVehicles.value || [])
 
 const fetchVehicles = async () => {
-  if (!cachedVehicles.value || cachedVehicles.value.length === 0) {
+  if (cachedVehicles.value === null) {
     isLoading.value = true
   }
   try {
@@ -60,9 +59,13 @@ const fetchVehicles = async () => {
     const rawData = response.data
     const items = Array.isArray(rawData)
       ? rawData
-      : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
+      : rawData?.isSuccess && Array.isArray(rawData?.data)
+        ? rawData.data
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : null
 
-    if (items && items.length > 0) {
+    if (items) {
       cachedVehicleApprovals.value = items
       const mapped = items.map((v: any, index: number) => {
         const rawId = v.id ?? v.vehicleId ?? v.guid ?? v.vehicleGuid
@@ -73,14 +76,28 @@ const fetchVehicles = async () => {
           plateNumber: v.plateNumber || 'N/A',
           brand: v.brand || 'N/A',
           qrCodeHash: v.qrCodeHash || `QR-${safeId.slice(0, 6).toUpperCase()}`,
-          vehicleType: v.vehicleType === 0 ? 'Motorcycle' : v.vehicleType === 1 ? 'ElectricBike' : v.vehicleType === 2 ? 'Car' : (v.vehicleType || 'Motorcycle'),
+          vehicleType:
+            v.vehicleType === 0
+              ? 'Motorcycle'
+              : v.vehicleType === 1
+                ? 'ElectricBike'
+                : v.vehicleType === 2
+                  ? 'Car'
+                  : v.vehicleType || 'Motorcycle',
           status: 'Active',
           isPrimary: Boolean(v.isPrimary),
-          ownerName: cleanOwnerName(v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned'),
+          ownerName: cleanOwnerName(
+            v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned',
+          ),
           ownerRole: v.ownerRole || 'Student',
-          verificationStatus: typeof v.verificationStatus === 'number'
-            ? v.verificationStatus
-            : (v.verificationStatus === 'Approved' || v.verificationStatus === 'Verified' ? 2 : v.verificationStatus === 'Rejected' ? 3 : 1)
+          verificationStatus:
+            typeof v.verificationStatus === 'number'
+              ? v.verificationStatus
+              : v.verificationStatus === 'Approved' || v.verificationStatus === 'Verified'
+                ? 2
+                : v.verificationStatus === 'Rejected'
+                  ? 3
+                  : 1,
         }
       })
       vehicles.value = mapped
@@ -121,8 +138,12 @@ const filterType = ref<string>('all')
 // Stats computations
 const totalCount = computed(() => vehicles.value.length)
 const carsCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 'Car').length)
-const motoCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 'Motorcycle').length)
-const ebikesCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 'ElectricBike').length)
+const motoCount = computed(
+  () => vehicles.value.filter((v) => v.vehicleType === 'Motorcycle').length,
+)
+const ebikesCount = computed(
+  () => vehicles.value.filter((v) => v.vehicleType === 'ElectricBike').length,
+)
 
 // Filtered Vehicles
 const filteredVehicles = computed(() => {
@@ -162,64 +183,28 @@ const openDeleteConfirm = (vehicle: Vehicle) => {
 }
 
 const confirmDeleteVehicle = async () => {
-  if (!vehicleToDelete.value) return
+  if (!vehicleToDelete.value || isDeletingVehicle.value) return
   const target = vehicleToDelete.value
-  const targetRawId = (target as any).rawId || target.id
+  const targetId = target.rawId || target.id
   isDeletingVehicle.value = true
-
-  // Immediately remove from local list for 0ms instant UI response
-  vehicles.value = vehicles.value.filter((v) => v.id !== target.id && v.plateNumber !== target.plateNumber)
-  cachedVehicles.value = [...vehicles.value]
-  if (cachedVehicleApprovals.value && Array.isArray(cachedVehicleApprovals.value)) {
-    cachedVehicleApprovals.value = cachedVehicleApprovals.value.filter(
-      (v: any) => v.id !== target.id && v.id !== targetRawId && v.plateNumber !== target.plateNumber && v.guid !== target.id && v.guid !== targetRawId
-    )
-  }
-  isDeleteConfirmOpen.value = false
-
   try {
-    let deletedOnBackend = false
-
-    if (targetRawId && !targetRawId.startsWith('veh-')) {
-      try {
-        const res = await api.delete(`/vehicles/${targetRawId}`)
-        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
-          deletedOnBackend = true
-        }
-      } catch (e) {
-        console.warn('DELETE /vehicles/{rawId} endpoint note:', e)
-      }
-    }
-
-    if (!deletedOnBackend && target.id && !target.id.startsWith('veh-')) {
-      try {
-        const res = await api.delete(`/vehicles/${target.id}`)
-        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
-          deletedOnBackend = true
-        }
-      } catch (e) {
-        console.warn('DELETE /vehicles/{id} endpoint note:', e)
-      }
-    }
-
-    if (!deletedOnBackend && target.plateNumber) {
-      try {
-        const res = await api.delete(`/vehicles/plate/${encodeURIComponent(target.plateNumber)}`)
-        if (res.status === 200 || res.status === 204 || res.data?.isSuccess) {
-          deletedOnBackend = true
-        }
-      } catch (e) {
-        console.warn('DELETE /vehicles/plate/{plate} endpoint note:', e)
-      }
-    }
-
-    showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'success')
+    const response = await api.delete(`/vehicles/${encodeURIComponent(targetId)}`)
+    if (response.data?.isSuccess === false)
+      throw new Error(response.data.message || 'Could not remove vehicle.')
+    vehicles.value = vehicles.value.filter((vehicle) => vehicle.id !== target.id)
+    cachedVehicles.value = [...vehicles.value]
+    isDeleteConfirmOpen.value = false
+    vehicleToDelete.value = null
+    showToast(`Vehicle ${target.plateNumber} removed.`, 'success')
   } catch (error: any) {
-    console.error('Error deleting vehicle:', error)
-    showToast(`Vehicle ${target.plateNumber} has been removed from directory.`, 'info')
+    showToast(
+      error.response?.data?.message ||
+        error.message ||
+        'Could not remove vehicle. Please try again.',
+      'warning',
+    )
   } finally {
     isDeletingVehicle.value = false
-    vehicleToDelete.value = null
   }
 }
 
@@ -235,17 +220,32 @@ const getVehicleTypeLabel = (type: string) => {
   if (type === 'ElectricBike') return 'E-Bike'
   return type
 }
+function handleRefresh() {
+  refreshAdminData()
+  void fetchVehicles()
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Toast Notifications -->
-    <TransitionGroup name="fade">
+    <TransitionGroup
+      enter-active-class="transition-opacity duration-200"
+      leave-active-class="transition-opacity duration-150"
+      enter-from-class="opacity-0"
+      leave-to-class="opacity-0"
+    >
       <div
         v-for="toast in toasts"
         :key="toast.id"
         class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
-        :class="toast.type === 'warning' ? 'bg-amber-600' : toast.type === 'info' ? 'bg-blue-600' : 'bg-emerald-600'"
+        :class="
+          toast.type === 'warning'
+            ? 'bg-amber-600'
+            : toast.type === 'info'
+              ? 'bg-blue-600'
+              : 'bg-emerald-600'
+        "
       >
         <span>{{ toast.message }}</span>
       </div>
@@ -258,42 +258,38 @@ const getVehicleTypeLabel = (type: string) => {
           Registered Vehicle Directory
         </h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Inspect active vehicle plate records, pass statuses, and owner profiles across campus gates.
+          Inspect active vehicle plate records, pass statuses, and owner profiles across campus
+          gates.
         </p>
       </div>
 
-      <div class="flex items-center gap-3">
-        <UiButton
-          variant="secondary"
-          :loading="isLoading"
-          @click="fetchVehicles"
-        >
-          <template #prefix>
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </template>
-          Refresh
-        </UiButton>
-      </div>
+      <div class="flex items-center gap-3"></div>
     </div>
 
     <!-- Stats Grid -->
-    <VehicleStats
-      :is-loading="isLoading"
-      :total-count="totalCount"
-      :cars-count="carsCount"
-      :moto-count="motoCount"
-      :ebikes-count="ebikesCount"
-    />
 
     <!-- Filters Bar (Frameless / Borderless) -->
-    <VehicleFilters
-      v-model:search-query="searchQuery"
-      v-model:filter-type="filterType"
-    />
+    <div class="flex flex-col items-stretch gap-3 xl:flex-row xl:items-end">
+      <div class="min-w-0 flex-1">
+        <VehicleFilters v-model:search-query="searchQuery" v-model:filter-type="filterType" />
+      </div>
+      <UiButton variant="secondary" :loading="isLoading" @click="handleRefresh">
+        <template #prefix>
+          <svg
+            class="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </template>
+        Refresh
+      </UiButton>
+    </div>
 
     <!-- Vehicles Table Card -->
     <UiCard custom-class="p-0 overflow-hidden">
@@ -306,33 +302,60 @@ const getVehicleTypeLabel = (type: string) => {
       >
         <template #cell-vehicle="{ item }">
           <div class="flex items-center gap-3">
-            <div class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0">
-              <svg v-if="item.vehicleType === 'Car'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div
+              class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0"
+            >
+              <svg
+                v-if="item.vehicleType === 'Car'"
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="3" y="11" width="18" height="6" rx="2" />
                 <path d="M5 17h14" />
                 <circle cx="7" cy="17" r="2" />
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <svg v-else-if="item.vehicleType === 'Motorcycle'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                v-else-if="item.vehicleType === 'Motorcycle'"
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="5" cy="18" r="3" />
                 <circle cx="19" cy="18" r="3" />
                 <path d="M12 18V8h4" />
                 <path d="M5 18h14" opacity="0.3" />
               </svg>
-              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                v-else
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="6" cy="19" r="3" />
                 <circle cx="17" cy="19" r="3" />
                 <path d="M17 19h-7V10h4" />
                 <path d="M12 10L9 7h4" />
               </svg>
             </div>
-            <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.plateNumber }}</span>
+            <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{
+              item.plateNumber
+            }}</span>
           </div>
         </template>
 
         <template #cell-vehicleType="{ item }">
-          <span class="text-xs text-slate-700 dark:text-slate-300 font-medium">{{ getVehicleTypeLabel(item.vehicleType) }}</span>
+          <span class="text-xs text-slate-700 dark:text-slate-300 font-medium">{{
+            getVehicleTypeLabel(item.vehicleType)
+          }}</span>
         </template>
 
         <template #cell-brand="{ item }">
@@ -340,13 +363,18 @@ const getVehicleTypeLabel = (type: string) => {
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[160px] inline-block" :title="item.ownerName">
+          <span
+            class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[160px] inline-block"
+            :title="item.ownerName"
+          >
             {{ item.ownerName }}
           </span>
         </template>
 
         <template #cell-role="{ item }">
-          <span class="text-xs text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.ownerRole) }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{
+            getRoleLabel(item.ownerRole)
+          }}</span>
         </template>
 
         <template #cell-vstatus="{ item }">
@@ -362,12 +390,7 @@ const getVehicleTypeLabel = (type: string) => {
           >
             Rejected
           </span>
-          <span
-            v-else
-            class="text-xs font-bold text-amber-600 dark:text-amber-400"
-          >
-            Pending
-          </span>
+          <span v-else class="text-xs font-bold text-amber-600 dark:text-amber-400"> Pending </span>
         </template>
 
         <template #cell-actions="{ item }">
@@ -411,15 +434,3 @@ const getVehicleTypeLabel = (type: string) => {
     />
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-</style>

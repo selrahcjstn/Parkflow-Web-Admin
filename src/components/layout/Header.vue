@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { refreshAdminData } from '@/api/axios'
+import { useAdminNotificationStore } from '@/stores/notification.store'
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app.store'
@@ -50,6 +52,8 @@ function openLogoutConfirm() {
 }
 
 function confirmLogout() {
+  refreshAdminData()
+  useAdminNotificationStore().disconnect()
   localStorage.removeItem('parkflow_token')
   localStorage.removeItem('parkflow_user_email')
   localStorage.removeItem('parkflow_user_id')
@@ -80,7 +84,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 flex items-center justify-between h-[60px] px-6 bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 flex-shrink-0 transition-colors">
+  <header
+    class="sticky top-0 z-30 flex items-center justify-between h-[60px] px-6 bg-white/75 dark:bg-slate-900/75 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 flex-shrink-0 transition-colors"
+  >
     <!-- Left side -->
     <div class="flex items-center gap-3">
       <!-- Mobile hamburger -->
@@ -89,7 +95,16 @@ onBeforeUnmount(() => {
         @click="appStore.toggleMobileSidebar"
         aria-label="Toggle sidebar"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
           <line x1="3" y1="6" x2="21" y2="6" />
           <line x1="3" y1="12" x2="17" y2="12" />
           <line x1="3" y1="18" x2="21" y2="18" />
@@ -97,7 +112,9 @@ onBeforeUnmount(() => {
       </button>
 
       <div>
-        <h1 class="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-none">{{ pageTitle }}</h1>
+        <h1 class="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-none">
+          {{ pageTitle }}
+        </h1>
       </div>
     </div>
 
@@ -114,7 +131,9 @@ onBeforeUnmount(() => {
           aria-label="User menu"
           @click="toggleDropdown"
         >
-          <span class="w-7 h-7 rounded-full bg-[#7B1113] flex items-center justify-center text-[11px] font-bold text-white tracking-wide select-none">
+          <span
+            class="w-7 h-7 rounded-full bg-[#7B1113] flex items-center justify-center text-[11px] font-bold text-white tracking-wide select-none"
+          >
             {{ userInitials }}
           </span>
           <svg
@@ -136,8 +155,12 @@ onBeforeUnmount(() => {
             class="absolute right-0 top-full mt-2 w-64 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden z-50"
           >
             <!-- User info header -->
-            <div class="flex items-center gap-3 p-4 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800">
-              <div class="w-10 h-10 rounded-full bg-[#7B1113] flex items-center justify-center text-xs font-bold text-white tracking-wide flex-shrink-0">
+            <div
+              class="flex items-center gap-3 p-4 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800"
+            >
+              <div
+                class="w-10 h-10 rounded-full bg-[#7B1113] flex items-center justify-center text-xs font-bold text-white tracking-wide flex-shrink-0"
+              >
                 {{ userInitials }}
               </div>
               <div class="flex flex-col min-w-0">
@@ -156,9 +179,17 @@ onBeforeUnmount(() => {
                 class="flex items-center gap-2.5 w-full h-9 px-3 rounded-lg text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer text-left border-none"
                 @click="handleGoToSettings"
               >
-                <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <svg
+                  class="w-4 h-4 text-slate-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                >
                   <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  />
                 </svg>
                 Account Settings
               </button>
@@ -169,7 +200,13 @@ onBeforeUnmount(() => {
                 class="flex items-center gap-2.5 w-full h-9 px-3 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer text-left border-none"
                 @click="openLogoutConfirm"
               >
-                <svg class="w-4 h-4 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <svg
+                  class="w-4 h-4 text-rose-500"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                >
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                   <polyline points="16 17 21 12 16 7" />
                   <line x1="21" y1="12" x2="9" y2="12" />
@@ -199,7 +236,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .dropdown-slide-enter-active,
 .dropdown-slide-leave-active {
-  transition: opacity 160ms ease, transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    opacity 160ms ease,
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 .dropdown-slide-enter-from,
 .dropdown-slide-leave-to {

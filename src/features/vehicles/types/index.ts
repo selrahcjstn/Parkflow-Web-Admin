@@ -2,6 +2,7 @@ export type VehicleType = 'Car' | 'Motorcycle' | 'ElectricBike'
 
 export interface Vehicle {
   id: string
+  rawId?: string
   plateNumber: string
   brand: string
   qrCodeHash: string

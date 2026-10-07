@@ -1,272 +1,166 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import UiCard from '@/components/ui/UiCard.vue'
-
-const mounted = ref(false)
-
-onMounted(() => {
-  requestAnimationFrame(() => {
-    mounted.value = true
-  })
-})
-
+import UiSelect from '@/components/ui/UiSelect.vue'
 const props = defineProps<{
   activityData?: { day: string; checkIns: number; checkOuts: number }[]
 }>()
-
-const chartData = computed(() => {
-  if (props.activityData && props.activityData.length > 0) {
-    return {
-      checkIns: props.activityData.map((a) => a.checkIns),
-      checkOuts: props.activityData.map((a) => a.checkOuts),
-      days: props.activityData.map((a) => a.day),
-    }
-  }
-  return {
-    checkIns: [0, 0, 0, 0, 0, 0, 0],
-    checkOuts: [0, 0, 0, 0, 0, 0, 0],
-    days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  }
+const mode = ref('bar')
+const showEntries = ref(true)
+const showExits = ref(true)
+const showValues = ref(false)
+const rows = computed(() => props.activityData || [])
+const maximum = computed(() => {
+  const values = rows.value.flatMap((row) => [
+    showEntries.value ? row.checkIns : 0,
+    showExits.value ? row.checkOuts : 0,
+  ])
+  return Math.max(4, Math.ceil(Math.max(0, ...values) / 4) * 4)
 })
-
-const maxY = computed(() => {
-  const maxVal = Math.max(...chartData.value.checkIns, ...chartData.value.checkOuts)
-  return maxVal > 0 ? Math.ceil((maxVal + 5) / 10) * 10 : 60
-})
-
-const yLabels = computed(() => {
-  const step = maxY.value / 4
-  return [0, Math.round(step), Math.round(step * 2), Math.round(step * 3), maxY.value]
-})
-
-const chartPadding = { top: 20, right: 30, bottom: 30, left: 40 }
-const chartWidth = 700
-const chartHeight = 220
-const plotWidth = chartWidth - chartPadding.left - chartPadding.right
-const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom
-
-function dataToPoints(data: number[]): { x: number; y: number }[] {
-  return data.map((val, i) => ({
-    x: chartPadding.left + (i / (data.length - 1)) * plotWidth,
-    y: chartPadding.top + plotHeight - (val / maxY.value) * plotHeight,
-  }))
+const ticks = computed(() => Array.from({ length: 5 }, (_, i) => (maximum.value * i) / 4))
+function x(index: number) {
+  return 50 + ((index + 0.5) * 600) / Math.max(1, rows.value.length)
 }
-
-function smoothPath(points: { x: number; y: number }[]): string {
-  if (points.length < 2) return ''
-  const firstPoint = points[0]
-  if (!firstPoint) return ''
-  let d = `M ${firstPoint.x},${firstPoint.y}`
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[Math.max(i - 1, 0)]
-    const p1 = points[i]
-    const p2 = points[i + 1]
-    const p3 = points[Math.min(i + 2, points.length - 1)]
-    if (!p0 || !p1 || !p2 || !p3) continue
-    const tension = 0.3
-    const cp1x = p1.x + ((p2.x - p0.x) * tension)
-    const cp1y = p1.y + ((p2.y - p0.y) * tension)
-    const cp2x = p2.x - ((p3.x - p1.x) * tension)
-    const cp2y = p2.y - ((p3.y - p1.y) * tension)
-    d += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y}`
-  }
-  return d
+function y(value: number) {
+  return 190 - (Math.max(0, value) / maximum.value) * 160
 }
-
-function areaPath(points: { x: number; y: number }[]): string {
-  const linePath = smoothPath(points)
-  const bottomY = chartPadding.top + plotHeight
-  const firstPoint = points[0]
-  const lastPoint = points[points.length - 1]
-  if (!firstPoint || !lastPoint) return ''
-  return `${linePath} L ${lastPoint.x},${bottomY} L ${firstPoint.x},${bottomY} Z`
+function points(field: 'checkIns' | 'checkOuts') {
+  return rows.value.map((row, i) => `${x(i)},${y(row[field])}`).join(' ')
 }
-
-const checkInPoints = computed(() => dataToPoints(chartData.value.checkIns))
-const checkOutPoints = computed(() => dataToPoints(chartData.value.checkOuts))
-
-const checkInLine = computed(() => smoothPath(checkInPoints.value))
-const checkOutLine = computed(() => smoothPath(checkOutPoints.value))
-const checkInArea = computed(() => areaPath(checkInPoints.value))
-const checkOutArea = computed(() => areaPath(checkOutPoints.value))
-
-const totalLineLength = 1200
-
-const gridLines = computed(() =>
-  yLabels.value.map((val) => ({
-    label: val,
-    y: chartPadding.top + plotHeight - (val / maxY.value) * plotHeight,
-  }))
-)
-
-const xLabelPositions = computed(() =>
-  chartData.value.days.map((day, i) => ({
-    label: day,
-    x: chartPadding.left + (i / (chartData.value.days.length - 1)) * plotWidth,
-  }))
-)
 </script>
 
 <template>
   <UiCard>
-    <!-- Header Row -->
-    <div class="flex items-start justify-between mb-5">
-      <div class="flex flex-col gap-0.5">
-        <h3 class="text-base font-bold text-slate-900 dark:text-white tracking-tight m-0">
-          Parking Activity
-        </h3>
-        <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">Last 7 days</span>
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="text-base font-semibold text-text">Parking activity</h2>
+        <p class="mt-1 text-sm text-muted">Entries and exits over the last 7 days</p>
       </div>
-
-      <!-- Legend -->
-      <div class="flex items-center gap-4 text-xs font-semibold text-slate-600 dark:text-slate-300">
-        <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-[#7B1113] inline-block" />
-          <span>Check-in</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-          <span>Check-out</span>
-        </div>
-      </div>
+      <UiSelect
+        class="w-32"
+        aria-label="Chart format"
+        :placeholder="''"
+        v-model="mode"
+        :options="[
+          { label: 'Bar chart', value: 'bar' },
+          { label: 'Line chart', value: 'line' },
+        ]"
+      />
     </div>
-
-    <!-- Chart SVG -->
-    <div class="w-full overflow-hidden">
-      <svg
-        :viewBox="`0 0 ${chartWidth} ${chartHeight}`"
-        class="w-full h-auto block"
-        preserveAspectRatio="xMidYMid meet"
+    <div class="mb-4 flex flex-wrap items-center gap-5 text-sm">
+      <label class="flex min-h-10 cursor-pointer items-center gap-2 text-primary"
+        ><input v-model="showEntries" type="checkbox" class="size-4 accent-primary" />Entries</label
       >
-        <defs>
-          <linearGradient id="checkinGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#7B1113" stop-opacity="0.25" />
-            <stop offset="100%" stop-color="#7B1113" stop-opacity="0" />
-          </linearGradient>
-          <linearGradient id="checkoutGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#10b981" stop-opacity="0.15" />
-            <stop offset="100%" stop-color="#10b981" stop-opacity="0" />
-          </linearGradient>
-        </defs>
-
-        <!-- Grid lines -->
-        <line
-          v-for="line in gridLines"
-          :key="'grid-' + line.label"
-          :x1="chartPadding.left"
-          :y1="line.y"
-          :x2="chartWidth - chartPadding.right"
-          :y2="line.y"
-          stroke="#e2e8f0"
-          stroke-dasharray="4 4"
-        />
-
-        <!-- Y-axis labels -->
-        <text
-          v-for="line in gridLines"
-          :key="'ylabel-' + line.label"
-          :x="chartPadding.left - 12"
-          :y="line.y + 4"
-          text-anchor="end"
-          fill="#94a3b8"
-          font-size="11"
-          font-weight="500"
-        >
-          {{ line.label }}
+      <label class="flex min-h-10 cursor-pointer items-center gap-2 text-muted"
+        ><input v-model="showExits" type="checkbox" class="size-4 accent-primary" />Exits</label
+      >
+      <button
+        type="button"
+        class="ml-auto min-h-10 text-primary hover:underline"
+        :aria-expanded="showValues"
+        @click="showValues = !showValues"
+      >
+        {{ showValues ? 'Hide data' : 'View data' }}
+      </button>
+    </div>
+    <p v-if="!rows.length" class="py-12 text-center text-sm text-muted">
+      No parking activity available.
+    </p>
+    <p v-else-if="!showEntries && !showExits" class="py-12 text-center text-sm text-muted">
+      Select Entries or Exits to show activity.
+    </p>
+    <svg
+      v-else
+      viewBox="0 0 700 225"
+      class="block w-full"
+      role="img"
+      aria-label="Parking entries and exits for the last seven days"
+    >
+      <g v-for="tick in ticks" :key="tick">
+        <line x1="50" x2="650" :y1="y(tick)" :y2="y(tick)" class="stroke-border" />
+        <text x="38" :y="y(tick) + 4" text-anchor="end" class="fill-muted text-xs">{{ tick }}</text>
+      </g>
+      <g v-for="(row, index) in rows" :key="index">
+        <text :x="x(index)" y="215" text-anchor="middle" class="fill-muted text-xs">
+          {{ row.day }}
         </text>
-
-        <!-- X-axis labels -->
-        <text
-          v-for="pos in xLabelPositions"
-          :key="'xlabel-' + pos.label"
-          :x="pos.x"
-          :y="chartHeight - 6"
-          text-anchor="middle"
-          fill="#94a3b8"
-          font-size="11"
-          font-weight="500"
-        >
-          {{ pos.label }}
-        </text>
-
-        <!-- Area fills -->
-        <path
-          :d="checkInArea"
-          fill="url(#checkinGradient)"
-          class="transition-opacity duration-700 ease-out"
-          :class="mounted ? 'opacity-100' : 'opacity-0'"
-        />
-        <path
-          :d="checkOutArea"
-          fill="url(#checkoutGradient)"
-          class="transition-opacity duration-700 ease-out"
-          :class="mounted ? 'opacity-100' : 'opacity-0'"
-        />
-
-        <!-- Check-out line -->
-        <path
-          :d="checkOutLine"
-          fill="none"
-          stroke="#10b981"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="transition-all duration-1000 ease-out"
-          :style="{ strokeDasharray: totalLineLength, strokeDashoffset: mounted ? 0 : totalLineLength }"
-        />
-
-        <!-- Check-in line -->
-        <path
-          :d="checkInLine"
-          fill="none"
-          stroke="#7B1113"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="transition-all duration-1000 ease-out"
-          :style="{ strokeDasharray: totalLineLength, strokeDashoffset: mounted ? 0 : totalLineLength }"
-        />
-
-        <!-- Check-in data points -->
-        <g v-for="(point, i) in checkInPoints" :key="'ci-dot-' + i" class="group/dot cursor-pointer">
+        <template v-if="mode === 'bar'">
+          <rect
+            v-if="showEntries"
+            :x="x(index) - 18"
+            :y="y(row.checkIns)"
+            width="16"
+            :height="190 - y(row.checkIns)"
+            rx="2"
+            class="fill-primary"
+          >
+            <title>{{ row.day }}: {{ row.checkIns }} entries</title>
+          </rect>
+          <rect
+            v-if="showExits"
+            :x="x(index) + 2"
+            :y="y(row.checkOuts)"
+            width="16"
+            :height="190 - y(row.checkOuts)"
+            rx="2"
+            class="fill-muted"
+          >
+            <title>{{ row.day }}: {{ row.checkOuts }} exits</title>
+          </rect>
+        </template>
+        <template v-else>
           <circle
-            :cx="point.x"
-            :cy="point.y"
-            r="12"
-            fill="transparent"
-          />
-          <circle
-            :cx="point.x"
-            :cy="point.y"
+            v-if="showEntries"
+            :cx="x(index)"
+            :cy="y(row.checkIns)"
             r="4"
-            fill="#7B1113"
-            stroke="#ffffff"
-            stroke-width="2"
-            class="transition-all duration-300 ease-out group-hover/dot:r-6"
-            :class="mounted ? 'opacity-100' : 'opacity-0'"
-          />
-        </g>
-
-        <!-- Check-out data points -->
-        <g v-for="(point, i) in checkOutPoints" :key="'co-dot-' + i" class="group/dot cursor-pointer">
-          <circle
-            :cx="point.x"
-            :cy="point.y"
-            r="12"
-            fill="transparent"
-          />
-          <circle
-            :cx="point.x"
-            :cy="point.y"
-            r="4"
-            fill="#10b981"
-            stroke="#ffffff"
-            stroke-width="2"
-            class="transition-all duration-300 ease-out group-hover/dot:r-6"
-            :class="mounted ? 'opacity-100' : 'opacity-0'"
-          />
-        </g>
-      </svg>
+            class="fill-primary"
+          >
+            <title>{{ row.day }}: {{ row.checkIns }} entries</title>
+          </circle>
+          <circle v-if="showExits" :cx="x(index)" :cy="y(row.checkOuts)" r="4" class="fill-muted">
+            <title>{{ row.day }}: {{ row.checkOuts }} exits</title>
+          </circle>
+        </template>
+      </g>
+      <template v-if="mode === 'line'">
+        <polyline
+          v-if="showEntries"
+          :points="points('checkIns')"
+          fill="none"
+          stroke-width="2"
+          class="stroke-primary"
+        />
+        <polyline
+          v-if="showExits"
+          :points="points('checkOuts')"
+          fill="none"
+          stroke-width="2"
+          stroke-dasharray="5 4"
+          class="stroke-muted"
+        />
+      </template>
+    </svg>
+    <div v-if="showValues" class="mt-5 overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <caption class="sr-only">
+          Parking activity data
+        </caption>
+        <thead class="border-b border-border text-muted">
+          <tr>
+            <th scope="col" class="py-3 font-medium">Day</th>
+            <th scope="col" class="py-3 font-medium">Entries</th>
+            <th scope="col" class="py-3 font-medium">Exits</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, index) in rows" :key="index" class="border-b border-border">
+            <th scope="row" class="py-3 font-medium">{{ row.day }}</th>
+            <td>{{ row.checkIns }}</td>
+            <td>{{ row.checkOuts }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </UiCard>
 </template>

@@ -7,12 +7,19 @@ import { useAdminNotificationStore } from '@/stores/notification.store'
 
 export function useApprovals(categoryFilter?: ApprovalCategory) {
   const allApprovals = ref<ApprovalItem[]>(cachedApprovals.value || [])
-  const isLoading = ref(!cachedApprovals.value || cachedApprovals.value.length === 0)
+  const isLoading = ref(cachedApprovals.value === null)
   const apiErrorNotice = ref<string | null>(null)
   const actionSuccessMsg = ref<string | null>(null)
 
   function mapVerificationStatus(status: any): 'pending' | 'approved' | 'rejected' {
-    if (status === 2 || status === '2' || status === 'Verified' || status === 'verified' || status === 'Approved' || status === 'approved') {
+    if (
+      status === 2 ||
+      status === '2' ||
+      status === 'Verified' ||
+      status === 'verified' ||
+      status === 'Approved' ||
+      status === 'approved'
+    ) {
       return 'approved'
     }
     if (status === 3 || status === '3' || status === 'Rejected' || status === 'rejected') {
@@ -22,25 +29,16 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
   }
 
   async function fetchApprovals() {
-    if (!cachedApprovals.value || cachedApprovals.value.length === 0) {
+    if (cachedApprovals.value === null) {
       isLoading.value = true
     }
     apiErrorNotice.value = null
 
     try {
       const [corRes, vehRes, userRes] = await Promise.all([
-        api.get('/cor-submissions').catch((err) => {
-          console.warn('Could not fetch COR submissions:', err)
-          return { data: [] }
-        }),
-        api.get('/vehicles').catch((err) => {
-          console.warn('Could not fetch vehicles:', err)
-          return { data: [] }
-        }),
-        api.get('/users').catch((err) => {
-          console.warn('Could not fetch users list:', err)
-          return { data: [] }
-        })
+        api.get('/cor-submissions'),
+        api.get('/vehicles'),
+        api.get('/users'),
       ])
 
       const rawCor = Array.isArray(corRes.data)
@@ -76,9 +74,14 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
       const userHasRejectedCor = new Set<string>()
       rawCor.forEach((c: any) => {
         const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
-        const corStatusNum = typeof c.verificationStatus === 'number'
-          ? c.verificationStatus
-          : (c.verificationStatus === 'Verified' ? 2 : (c.verificationStatus === 'Rejected' ? 3 : 1))
+        const corStatusNum =
+          typeof c.verificationStatus === 'number'
+            ? c.verificationStatus
+            : c.verificationStatus === 'Verified'
+              ? 2
+              : c.verificationStatus === 'Rejected'
+                ? 3
+                : 1
         if (cUserId && corStatusNum === 3) {
           userHasRejectedCor.add(cUserId)
         }
@@ -95,9 +98,14 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         const cEmail = c.email ? c.email.toLowerCase() : ''
         const corGuid = c.id || c.guid || ''
 
-        const corStatusNum = typeof c.verificationStatus === 'number'
-          ? c.verificationStatus
-          : (c.verificationStatus === 'Verified' ? 2 : (c.verificationStatus === 'Rejected' ? 3 : 1))
+        const corStatusNum =
+          typeof c.verificationStatus === 'number'
+            ? c.verificationStatus
+            : c.verificationStatus === 'Verified'
+              ? 2
+              : c.verificationStatus === 'Rejected'
+                ? 3
+                : 1
 
         if (corStatusNum !== 1) return
         if (cUserId && userHasRejectedCor.has(cUserId)) return
@@ -111,23 +119,37 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         const userVehicles = rawVeh.filter((v: any) => {
           const vOwnerId = v.ownerId ? String(v.ownerId).toLowerCase() : ''
           const vEmail = v.ownerEmail ? v.ownerEmail.toLowerCase() : ''
-          return (cUserId && vOwnerId && cUserId === vOwnerId) || (cEmail && vEmail && cEmail === vEmail)
+          return (
+            (cUserId && vOwnerId && cUserId === vOwnerId) || (cEmail && vEmail && cEmail === vEmail)
+          )
         })
 
         // Pick ONLY a strictly Pending initial vehicle
-        const initialVeh = userVehicles.find((v: any) => {
-          const vGuid = v.id || v.guid || ''
-          const vehStatusNum = typeof v.verificationStatus === 'number'
-            ? v.verificationStatus
-            : (v.verificationStatus === 'Verified' ? 2 : (v.verificationStatus === 'Rejected' ? 3 : 1))
-          return !consumedVehIds.has(vGuid) && v.isPrimary && vehStatusNum === 1
-        }) || userVehicles.find((v: any) => {
-          const vGuid = v.id || v.guid || ''
-          const vehStatusNum = typeof v.verificationStatus === 'number'
-            ? v.verificationStatus
-            : (v.verificationStatus === 'Verified' ? 2 : (v.verificationStatus === 'Rejected' ? 3 : 1))
-          return !consumedVehIds.has(vGuid) && vehStatusNum === 1
-        })
+        const initialVeh =
+          userVehicles.find((v: any) => {
+            const vGuid = v.id || v.guid || ''
+            const vehStatusNum =
+              typeof v.verificationStatus === 'number'
+                ? v.verificationStatus
+                : v.verificationStatus === 'Verified'
+                  ? 2
+                  : v.verificationStatus === 'Rejected'
+                    ? 3
+                    : 1
+            return !consumedVehIds.has(vGuid) && v.isPrimary && vehStatusNum === 1
+          }) ||
+          userVehicles.find((v: any) => {
+            const vGuid = v.id || v.guid || ''
+            const vehStatusNum =
+              typeof v.verificationStatus === 'number'
+                ? v.verificationStatus
+                : v.verificationStatus === 'Verified'
+                  ? 2
+                  : v.verificationStatus === 'Rejected'
+                    ? 3
+                    : 1
+            return !consumedVehIds.has(vGuid) && vehStatusNum === 1
+          })
 
         if (initialVeh) {
           const vehGuid = initialVeh.id || initialVeh.guid || ''
@@ -135,7 +157,8 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           consumedVehIds.add(vehGuid)
 
           const role = user?.role || user?.userRole || initialVeh.ownerRole || 'Student'
-          const fullName = c.fullName || initialVeh.ownerName || user?.fullName || 'Registered Client'
+          const fullName =
+            c.fullName || initialVeh.ownerName || user?.fullName || 'Registered Client'
           const email = c.email || initialVeh.ownerEmail || user?.email || '—'
 
           combinedList.push({
@@ -143,12 +166,15 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
             guid: corGuid || vehGuid,
             corGuid,
             vehicleGuid: vehGuid,
-            userId: cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
+            userId:
+              cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
             category: 'Registration',
             fullName,
             email,
             role,
-            dateApplied: (c.createdAt || initialVeh.createdAt || new Date().toISOString()).split('T')[0],
+            dateApplied: (c.createdAt || initialVeh.createdAt || new Date().toISOString()).split(
+              'T',
+            )[0],
             academicTerm: c.academicTerm || 'AY 2026-2027',
             vehiclePlate: initialVeh.plateNumber || c.vehiclePlate || '—',
             vehicleType: initialVeh.vehicleType ?? c.vehicleType ?? 'Car',
@@ -157,12 +183,33 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
             orcrUrl: formatDocUrl(initialVeh.orcrDocumentUrl || c.orcrDocumentUrl, ''),
             motorPicUrl: formatDocUrl(initialVeh.vehiclePictureUrl || c.motorPictureUrl, ''),
             schedules: (c.schedules || []).map((s: any) => ({
-              dayOfWeek: typeof s.dayOfWeek === 'number' ? s.dayOfWeek : (['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0 ? ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) : Number(s.dayOfWeek) || 0),
+              dayOfWeek:
+                typeof s.dayOfWeek === 'number'
+                  ? s.dayOfWeek
+                  : [
+                        'sunday',
+                        'monday',
+                        'tuesday',
+                        'wednesday',
+                        'thursday',
+                        'friday',
+                        'saturday',
+                      ].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0
+                    ? [
+                        'sunday',
+                        'monday',
+                        'tuesday',
+                        'wednesday',
+                        'thursday',
+                        'friday',
+                        'saturday',
+                      ].indexOf(String(s.dayOfWeek).toLowerCase())
+                    : Number(s.dayOfWeek) || 0,
               startTime: s.startTime || '07:00:00',
-              endTime: s.endTime || '19:00:00'
+              endTime: s.endTime || '19:00:00',
             })),
             status: 'pending',
-            verificationStatus: 1
+            verificationStatus: 1,
           })
         }
       })
@@ -180,7 +227,8 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           id: nextId++,
           guid: corGuid,
           corGuid,
-          userId: cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
+          userId:
+            cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
           category: 'Schedule',
           fullName: c.fullName || user?.fullName || 'Client Applicant',
           email: c.email || user?.email || '—',
@@ -192,12 +240,33 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           brand: c.brand || '—',
           corUrl: formatDocUrl(c.corDocumentUrl, ''),
           schedules: (c.schedules || []).map((s: any) => ({
-            dayOfWeek: typeof s.dayOfWeek === 'number' ? s.dayOfWeek : (['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0 ? ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(String(s.dayOfWeek).toLowerCase()) : Number(s.dayOfWeek) || 0),
+            dayOfWeek:
+              typeof s.dayOfWeek === 'number'
+                ? s.dayOfWeek
+                : [
+                      'sunday',
+                      'monday',
+                      'tuesday',
+                      'wednesday',
+                      'thursday',
+                      'friday',
+                      'saturday',
+                    ].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0
+                  ? [
+                      'sunday',
+                      'monday',
+                      'tuesday',
+                      'wednesday',
+                      'thursday',
+                      'friday',
+                      'saturday',
+                    ].indexOf(String(s.dayOfWeek).toLowerCase())
+                  : Number(s.dayOfWeek) || 0,
             startTime: s.startTime || '07:00:00',
-            endTime: s.endTime || '19:00:00'
+            endTime: s.endTime || '19:00:00',
           })),
           status: mapVerificationStatus(c.verificationStatus),
-          verificationStatus: typeof c.verificationStatus === 'number' ? c.verificationStatus : 1
+          verificationStatus: typeof c.verificationStatus === 'number' ? c.verificationStatus : 1,
         })
       })
 
@@ -217,7 +286,8 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           id: nextId++,
           guid: vehGuid,
           vehicleGuid: vehGuid,
-          userId: vOwnerId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
+          userId:
+            vOwnerId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
           category: 'Vehicle',
           fullName: v.ownerName || user?.fullName || 'Vehicle Owner',
           email: v.ownerEmail || user?.email || '—',
@@ -229,7 +299,14 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           orcrUrl: formatDocUrl(orcr, ''),
           motorPicUrl: formatDocUrl(motorPic, ''),
           status: mapVerificationStatus(v.verificationStatus),
-          verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : (v.verificationStatus === 'Verified' ? 2 : (v.verificationStatus === 'Rejected' ? 3 : 1))
+          verificationStatus:
+            typeof v.verificationStatus === 'number'
+              ? v.verificationStatus
+              : v.verificationStatus === 'Verified'
+                ? 2
+                : v.verificationStatus === 'Rejected'
+                  ? 3
+                  : 1,
         })
       })
 
@@ -276,10 +353,14 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
       if (item.category === 'Registration') {
         const promises: Promise<any>[] = []
         if (item.corGuid) {
-          promises.push(api.patch(`/cor-submissions/${item.corGuid}/validate`, { verificationStatus: 2 }))
+          promises.push(
+            api.patch(`/cor-submissions/${item.corGuid}/validate`, { verificationStatus: 2 }),
+          )
         }
         if (item.vehicleGuid) {
-          promises.push(api.patch(`/vehicles/${item.vehicleGuid}/validate`, { verificationStatus: 2 }))
+          promises.push(
+            api.patch(`/vehicles/${item.vehicleGuid}/validate`, { verificationStatus: 2 }),
+          )
         }
         await Promise.all(promises)
       } else if (item.category === 'Schedule') {
@@ -314,15 +395,28 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
       if (item.category === 'Registration') {
         const promises: Promise<any>[] = []
         if (item.corGuid) {
-          promises.push(api.patch(`/cor-submissions/${item.corGuid}/validate`, { verificationStatus: 3, feedback: reason }))
+          promises.push(
+            api.patch(`/cor-submissions/${item.corGuid}/validate`, {
+              verificationStatus: 3,
+              feedback: reason,
+            }),
+          )
         }
         if (item.vehicleGuid) {
-          promises.push(api.patch(`/vehicles/${item.vehicleGuid}/validate`, { verificationStatus: 3, feedback: reason }))
+          promises.push(
+            api.patch(`/vehicles/${item.vehicleGuid}/validate`, {
+              verificationStatus: 3,
+              feedback: reason,
+            }),
+          )
         }
         await Promise.all(promises)
       } else if (item.category === 'Schedule') {
         const corId = item.corGuid || item.guid
-        await api.patch(`/cor-submissions/${corId}/validate`, { verificationStatus: 3, feedback: reason })
+        await api.patch(`/cor-submissions/${corId}/validate`, {
+          verificationStatus: 3,
+          feedback: reason,
+        })
       } else if (item.category === 'Vehicle') {
         const vehId = item.vehicleGuid || item.guid
         await api.patch(`/vehicles/${vehId}/validate`, { verificationStatus: 3, feedback: reason })
@@ -394,6 +488,6 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
     fetchApprovals,
     approveItem,
     rejectItem,
-    saveSchedule
+    saveSchedule,
   }
 }

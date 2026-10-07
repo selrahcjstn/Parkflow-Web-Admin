@@ -9,7 +9,7 @@ import UiCard from '@/components/ui/UiCard.vue'
 import FeedbackStats from '../components/FeedbackStats.vue'
 import FeedbackFilters from '../components/FeedbackFilters.vue'
 import FeedbackDetailModal from '../components/FeedbackDetailModal.vue'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import { cachedFeedbacks } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 
@@ -20,7 +20,7 @@ const feedColumns: TableColumn[] = [
   { key: 'message', label: 'Feedback Message' },
   { key: 'sla', label: 'Inquiry SLA' },
   { key: 'status', label: 'Status' },
-  { key: 'actions', label: 'Action', align: 'right' }
+  { key: 'actions', label: 'Action', align: 'right' },
 ]
 
 interface Toast {
@@ -32,7 +32,10 @@ interface Toast {
 const toasts = ref<Toast[]>([])
 const nextToastId = ref(1)
 
-const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'danger' = 'success') => {
+const showToast = (
+  message: string,
+  type: 'success' | 'info' | 'warning' | 'danger' = 'success',
+) => {
   const id = nextToastId.value++
   toasts.value.push({ id, message, type })
   setTimeout(() => {
@@ -45,7 +48,7 @@ let unsubscribeApprovalUpdates: (() => void) | null = null
 
 // State with reactive cache initialization
 const feedbacks = ref<FeedbackItem[]>(cachedFeedbacks.value || [])
-const isLoading = ref(!cachedFeedbacks.value || cachedFeedbacks.value.length === 0)
+const isLoading = ref(cachedFeedbacks.value === null)
 const searchQuery = ref('')
 const selectedCategory = ref('All')
 const selectedStatus = ref<string>('All')
@@ -70,7 +73,12 @@ const getMessageText = (f: FeedbackItem) => f.description || f.message || ''
 
 const getInitials = (name: string, email: string) => {
   if (name && name !== 'Anonymous User') {
-    return name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase()
   }
   if (email && email !== 'N/A') {
     return email.slice(0, 2).toUpperCase()
@@ -125,18 +133,18 @@ const formatDate = (dateString?: string) => {
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric'
+    year: 'numeric',
   }).format(date)
 }
 
 // Fetch Feedback items from API
 const fetchFeedbacks = async () => {
-  if (!cachedFeedbacks.value || cachedFeedbacks.value.length === 0) {
+  if (cachedFeedbacks.value === null) {
     isLoading.value = true
   }
   try {
     const res = await api.get<any>('/feedbacks')
-    const rawData = Array.isArray(res.data) ? res.data : (res.data?.data || [])
+    const rawData = Array.isArray(res.data) ? res.data : res.data?.data || []
     const items = Array.isArray(rawData) ? rawData : []
     feedbacks.value = items
     cachedFeedbacks.value = [...items]
@@ -163,9 +171,15 @@ onUnmounted(() => {
 
 // KPI Computations
 const totalCount = computed(() => feedbacks.value.length)
-const pendingCount = computed(() => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Pending').length)
-const reviewedCount = computed(() => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Reviewed').length)
-const resolvedCount = computed(() => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Resolved').length)
+const pendingCount = computed(
+  () => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Pending').length,
+)
+const reviewedCount = computed(
+  () => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Reviewed').length,
+)
+const resolvedCount = computed(
+  () => feedbacks.value.filter((f) => getNormalizedStatus(f) === 'Resolved').length,
+)
 
 const averageRating = computed(() => {
   if (feedbacks.value.length === 0) return '0.0'
@@ -229,7 +243,7 @@ const handleSendReply = async () => {
   try {
     await api.post(`/feedbacks/${targetId}/reply`, {
       replyMessage: replyMessage.value.trim() || undefined,
-      status: targetStatus === 'Resolved' ? 3 : targetStatus === 'Reviewed' ? 2 : 1
+      status: targetStatus === 'Resolved' ? 3 : targetStatus === 'Reviewed' ? 2 : 1,
     })
 
     showToast('Reply dispatched and notification email sent to user!', 'success')
@@ -242,6 +256,10 @@ const handleSendReply = async () => {
     isSendingReply.value = false
   }
 }
+function handleRefresh() {
+  refreshAdminData()
+  void fetchFeedbacks()
+}
 </script>
 
 <template>
@@ -249,7 +267,9 @@ const handleSendReply = async () => {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
+        <h1
+          class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0"
+        >
           Feedback & Inquiries
         </h1>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 mb-0 max-w-2xl">
@@ -257,24 +277,7 @@ const handleSendReply = async () => {
         </p>
       </div>
 
-      <div class="flex items-center gap-3">
-        <UiButton
-          variant="secondary"
-          size="md"
-          :loading="isLoading"
-          @click="fetchFeedbacks"
-          title="Refresh Feedbacks"
-        >
-          <template #prefix>
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </template>
-          Refresh
-        </UiButton>
-      </div>
+      <div class="flex items-center gap-3"></div>
     </div>
 
     <!-- Stats Grid Component -->
@@ -288,12 +291,38 @@ const handleSendReply = async () => {
     />
 
     <!-- Filters Bar Component -->
-    <FeedbackFilters
-      v-model:search-query="searchQuery"
-      v-model:selected-category="selectedCategory"
-      v-model:selected-status="selectedStatus"
-      v-model:selected-rating="selectedRating"
-    />
+    <div class="flex flex-col items-stretch gap-3 xl:flex-row xl:items-end">
+      <div class="min-w-0 flex-1">
+        <FeedbackFilters
+          v-model:search-query="searchQuery"
+          v-model:selected-category="selectedCategory"
+          v-model:selected-status="selectedStatus"
+          v-model:selected-rating="selectedRating"
+        />
+      </div>
+      <UiButton
+        variant="secondary"
+        size="md"
+        :loading="isLoading"
+        @click="handleRefresh"
+        title="Refresh Feedbacks"
+      >
+        <template #prefix>
+          <svg
+            class="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </template>
+        Refresh
+      </UiButton>
+    </div>
 
     <!-- Data Table Container -->
     <UiCard custom-class="p-0 overflow-hidden">
@@ -305,12 +334,18 @@ const handleSendReply = async () => {
       >
         <template #cell-user="{ item }">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs flex-shrink-0">
+            <div
+              class="w-8 h-8 rounded-full bg-indigo-600 text-white font-bold flex items-center justify-center text-xs flex-shrink-0"
+            >
               {{ getInitials(getUserName(item), getUserEmail(item)) }}
             </div>
             <div class="flex flex-col min-w-0">
-              <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ getUserName(item) }}</span>
-              <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ getUserEmail(item) }}</span>
+              <span class="font-semibold text-slate-900 dark:text-white text-xs">{{
+                getUserName(item)
+              }}</span>
+              <span class="text-[11px] text-slate-500 dark:text-slate-400">{{
+                getUserEmail(item)
+              }}</span>
             </div>
           </div>
         </template>
@@ -323,7 +358,11 @@ const handleSendReply = async () => {
 
         <template #cell-rating="{ item }">
           <div class="flex items-center gap-1 text-amber-400 text-xs">
-            <span v-for="star in 5" :key="star" :class="star <= (item.rating || 0) ? 'opacity-100' : 'opacity-30'">
+            <span
+              v-for="star in 5"
+              :key="star"
+              :class="star <= (item.rating || 0) ? 'opacity-100' : 'opacity-30'"
+            >
               ★
             </span>
             <span class="text-slate-400 text-[11px] ml-1">({{ item.rating }})</span>
@@ -332,11 +371,23 @@ const handleSendReply = async () => {
 
         <template #cell-message="{ item }">
           <div class="flex flex-col gap-1 max-w-sm">
-            <p class="text-xs text-slate-700 dark:text-slate-300 truncate m-0" :title="getMessageText(item)">
+            <p
+              class="text-xs text-slate-700 dark:text-slate-300 truncate m-0"
+              :title="getMessageText(item)"
+            >
               {{ getMessageText(item) }}
             </p>
-            <span v-if="item.adminReplyMessage" class="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1">
-              <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <span
+              v-if="item.adminReplyMessage"
+              class="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1"
+            >
+              <svg
+                class="w-3 h-3 flex-shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
               <span class="truncate">Replied: "{{ item.adminReplyMessage }}"</span>
@@ -346,12 +397,24 @@ const handleSendReply = async () => {
 
         <template #cell-sla="{ item }">
           <div class="flex flex-col">
-            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ formatDate(item.createdAt) }}</span>
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{
+              formatDate(item.createdAt)
+            }}</span>
             <span
               class="text-[10.5px] font-semibold flex items-center gap-1"
-              :class="isWithinSla(item.createdAt) ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'"
+              :class="
+                isWithinSla(item.createdAt)
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-rose-600 dark:text-rose-400'
+              "
             >
-              <svg class="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                class="w-3 h-3 flex-shrink-0"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="12 6 12 12 16 14" />
               </svg>
@@ -362,7 +425,13 @@ const handleSendReply = async () => {
 
         <template #cell-status="{ item }">
           <UiStatusText
-            :variant="getNormalizedStatus(item) === 'Resolved' ? 'success' : getNormalizedStatus(item) === 'Reviewed' ? 'info' : 'warning'"
+            :variant="
+              getNormalizedStatus(item) === 'Resolved'
+                ? 'success'
+                : getNormalizedStatus(item) === 'Reviewed'
+                  ? 'info'
+                  : 'warning'
+            "
             size="xs"
           >
             {{ getNormalizedStatus(item) }}
@@ -410,7 +479,9 @@ const handleSendReply = async () => {
           :key="toast.id"
           class="px-4.5 py-3 rounded-xl text-sm font-semibold backdrop-blur-md shadow-lg pointer-events-auto max-w-xs transition-all"
           :class="[
-            toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+            toast.type === 'success'
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30',
           ]"
         >
           {{ toast.message }}

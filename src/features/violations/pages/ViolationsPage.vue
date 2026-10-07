@@ -7,10 +7,9 @@ import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCard from '@/components/ui/UiCard.vue'
-import ViolationStats from '../components/ViolationStats.vue'
 import ViolationFilters from '../components/ViolationFilters.vue'
 import PaymentModal from '../components/PaymentModal.vue'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import { cachedViolations } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 
@@ -25,7 +24,7 @@ const violColumns: TableColumn[] = [
   { key: 'fine', label: 'Penalty Fine' },
   { key: 'issuedAt', label: 'Issued At' },
   { key: 'status', label: 'Status' },
-  { key: 'actions', label: 'Actions', align: 'right' }
+  { key: 'actions', label: 'Actions', align: 'right' },
 ]
 
 // Toast type
@@ -49,11 +48,11 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
 const notifStore = useAdminNotificationStore()
 let unsubscribeApprovalUpdates: (() => void) | null = null
 
-const isLoading = ref(!cachedViolations.value || cachedViolations.value.length === 0)
+const isLoading = ref(cachedViolations.value === null)
 const violations = ref<Violation[]>(cachedViolations.value || [])
 
 const fetchViolations = async () => {
-  if (!cachedViolations.value || cachedViolations.value.length === 0) {
+  if (cachedViolations.value === null) {
     isLoading.value = true
   }
   try {
@@ -65,7 +64,7 @@ const fetchViolations = async () => {
         referenceNumber: item.referenceNumber,
         violationType: item.violationType,
         penaltyFee: item.penaltyFee,
-        settlementStatus: (item.settlementStatus === 'Settled' || item.isPaid) ? 'Paid' : 'Unpaid',
+        settlementStatus: item.settlementStatus === 'Settled' || item.isPaid ? 'Paid' : 'Unpaid',
         isPaid: item.settlementStatus === 'Settled' || item.isPaid,
         firstName: item.firstName,
         lastName: item.lastName,
@@ -76,7 +75,7 @@ const fetchViolations = async () => {
         vehicleType: item.vehicleType,
         entryTime: item.entryTime,
         exitTime: item.exitTime,
-        issuedAt: item.issuedAt
+        issuedAt: item.issuedAt,
       }))
       violations.value = mapped
       cachedViolations.value = [...mapped]
@@ -118,8 +117,12 @@ const itemsPerPage = ref(10)
 
 // Stats computation
 const totalCount = computed(() => violations.value.length)
-const unpaidCount = computed(() => violations.value.filter((v) => v.settlementStatus === 'Unpaid').length)
-const paidCount = computed(() => violations.value.filter((v) => v.settlementStatus === 'Paid').length)
+const unpaidCount = computed(
+  () => violations.value.filter((v) => v.settlementStatus === 'Unpaid').length,
+)
+const paidCount = computed(
+  () => violations.value.filter((v) => v.settlementStatus === 'Paid').length,
+)
 const totalCollection = computed(() => {
   return violations.value
     .filter((v) => v.settlementStatus === 'Paid')
@@ -142,8 +145,7 @@ const filteredViolations = computed(() => {
       filterViolationType.value === 'all' ||
       v.violationType.toLowerCase().includes(filterViolationType.value.toLowerCase())
 
-    const matchesStatus =
-      filterStatus.value === 'all' || v.settlementStatus === filterStatus.value
+    const matchesStatus = filterStatus.value === 'all' || v.settlementStatus === filterStatus.value
 
     return matchesQuery && matchesType && matchesStatus
   })
@@ -171,7 +173,7 @@ const openPaymentModal = (v: Violation) => {
 
 const handlePaymentSubmit = async () => {
   const refCode = activePaymentViolation.value
-    ? (activePaymentViolation.value.referenceNumber || activePaymentViolation.value.plateNumber)
+    ? activePaymentViolation.value.referenceNumber || activePaymentViolation.value.plateNumber
     : paymentReferenceInput.value.trim()
 
   if (!refCode) {
@@ -182,17 +184,22 @@ const handlePaymentSubmit = async () => {
   isProcessingPayment.value = true
   try {
     const target = violations.value.find(
-      (v) => v.referenceNumber === refCode || (activePaymentViolation.value && v.violationId === activePaymentViolation.value.violationId)
+      (v) =>
+        v.referenceNumber === refCode ||
+        (activePaymentViolation.value &&
+          v.violationId === activePaymentViolation.value.violationId),
     )
-    const refToSettle = activePaymentViolation.value?.referenceNumber || target?.referenceNumber || refCode
+    const refToSettle =
+      activePaymentViolation.value?.referenceNumber || target?.referenceNumber || refCode
 
     const response = await api.post('/violations/process-payment', {
-      referenceNumber: refToSettle
+      referenceNumber: refToSettle,
     })
 
     if (response.data && (response.data.isSuccess || response.status === 200)) {
       const receipt = response.data.data
-      const amountText = receipt?.penaltyFee != null ? ` ₱${Number(receipt.penaltyFee).toFixed(2)} received.` : ''
+      const amountText =
+        receipt?.penaltyFee != null ? ` ₱${Number(receipt.penaltyFee).toFixed(2)} received.` : ''
       showToast(`Violation ${refToSettle} settled successfully!${amountText}`, 'success')
 
       // Update local state
@@ -208,7 +215,8 @@ const handlePaymentSubmit = async () => {
       // Update cache
       if (cachedViolations.value) {
         const idx = cachedViolations.value.findIndex(
-          (v: any) => v.referenceNumber === refToSettle || (target && v.violationId === target.violationId)
+          (v: any) =>
+            v.referenceNumber === refToSettle || (target && v.violationId === target.violationId),
         )
         if (idx !== -1) {
           cachedViolations.value[idx].settlementStatus = 'Paid'
@@ -238,6 +246,10 @@ const getRoleLabel = (role?: string) => {
   if (role === 'NonAcademicPersonnel') return 'Staff'
   return role
 }
+function handleRefresh() {
+  refreshAdminData()
+  void fetchViolations()
+}
 </script>
 
 <template>
@@ -245,7 +257,9 @@ const getRoleLabel = (role?: string) => {
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
+        <h1
+          class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0"
+        >
           Collections & Violation Logs
         </h1>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 mb-0 max-w-2xl">
@@ -253,41 +267,43 @@ const getRoleLabel = (role?: string) => {
         </p>
       </div>
 
-      <div class="flex items-center gap-3">
-        <UiButton
-          variant="secondary"
-          size="md"
-          :loading="isLoading"
-          @click="fetchViolations"
-          title="Refresh Data"
-        >
-          <template #prefix>
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </template>
-          Refresh
-        </UiButton>
-      </div>
+      <div class="flex items-center gap-3"></div>
     </div>
 
     <!-- Stats Grid Component -->
-    <ViolationStats
-      :is-loading="isLoading"
-      :total-count="totalCount"
-      :unpaid-count="unpaidCount"
-      :paid-count="paidCount"
-      :total-collection="totalCollection"
-    />
 
     <!-- Filters Bar Component -->
-    <ViolationFilters
-      v-model:search-query="searchQuery"
-      v-model:filter-violation-type="filterViolationType"
-      v-model:filter-status="filterStatus"
-    />
+    <div class="flex flex-col items-stretch gap-3 xl:flex-row xl:items-end">
+      <div class="min-w-0 flex-1">
+        <ViolationFilters
+          v-model:search-query="searchQuery"
+          v-model:filter-violation-type="filterViolationType"
+          v-model:filter-status="filterStatus"
+        />
+      </div>
+      <UiButton
+        variant="secondary"
+        size="md"
+        :loading="isLoading"
+        @click="handleRefresh"
+        title="Refresh Data"
+      >
+        <template #prefix>
+          <svg
+            class="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </template>
+        Refresh
+      </UiButton>
+    </div>
 
     <!-- Table Container -->
     <UiCard custom-class="p-0 overflow-hidden">
@@ -306,13 +322,19 @@ const getRoleLabel = (role?: string) => {
 
         <template #cell-vehicle="{ item }">
           <div class="flex flex-col">
-            <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.plateNumber }}</span>
-            <span class="text-xs text-slate-500 dark:text-slate-400">{{ item.brand || 'Unknown' }}</span>
+            <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{
+              item.plateNumber
+            }}</span>
+            <span class="text-xs text-slate-500 dark:text-slate-400">{{
+              item.brand || 'Unknown'
+            }}</span>
           </div>
         </template>
 
         <template #cell-owner="{ item }">
-          <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ item.firstName }} {{ item.lastName }}</span>
+          <span class="font-semibold text-slate-900 dark:text-white text-xs"
+            >{{ item.firstName }} {{ item.lastName }}</span
+          >
         </template>
 
         <template #cell-role="{ item }">
@@ -326,13 +348,19 @@ const getRoleLabel = (role?: string) => {
         </template>
 
         <template #cell-fine="{ item }">
-          <span class="font-bold text-slate-900 dark:text-white text-xs">₱{{ item.penaltyFee.toFixed(2) }}</span>
+          <span class="font-bold text-slate-900 dark:text-white text-xs"
+            >₱{{ item.penaltyFee.toFixed(2) }}</span
+          >
         </template>
 
         <template #cell-issuedAt="{ item }">
           <div class="flex flex-col">
-            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ new Date(item.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-            <span class="text-[11px] text-slate-400">{{ new Date(item.issuedAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{
+              new Date(item.issuedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }}</span>
+            <span class="text-[11px] text-slate-400">{{
+              new Date(item.issuedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })
+            }}</span>
           </div>
         </template>
 
@@ -350,10 +378,18 @@ const getRoleLabel = (role?: string) => {
             <button
               type="button"
               class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer border-none bg-transparent"
+              aria-label="View details"
               title="View Details"
               @click="openDetails(item)"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="16" x2="12" y2="12" />
                 <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -362,11 +398,19 @@ const getRoleLabel = (role?: string) => {
             <button
               v-if="item.settlementStatus === 'Unpaid'"
               type="button"
-              class="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
+              class="order-first p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
+              aria-label="Process settlement"
               title="Process Settlement"
               @click="openPaymentModal(item)"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </button>
@@ -400,7 +444,9 @@ const getRoleLabel = (role?: string) => {
           :key="toast.id"
           class="px-4.5 py-3 rounded-xl text-sm font-semibold backdrop-blur-md shadow-lg pointer-events-auto max-w-xs transition-all"
           :class="[
-            toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+            toast.type === 'success'
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30',
           ]"
         >
           {{ toast.message }}

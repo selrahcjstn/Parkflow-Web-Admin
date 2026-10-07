@@ -8,9 +8,8 @@ import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import ParkingStats from '../components/ParkingStats.vue'
 import ParkingFilters from '../components/ParkingFilters.vue'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import { cachedActiveSessions, cachedHistorySessions } from '@/stores/appCache'
 
 const activeColumns: TableColumn[] = [
@@ -22,7 +21,7 @@ const activeColumns: TableColumn[] = [
   { key: 'duration', label: 'Duration' },
   { key: 'fee', label: 'Estimated Fee' },
   { key: 'status', label: 'Status' },
-  { key: 'actions', label: 'Actions', align: 'right' }
+  { key: 'actions', label: 'Actions', align: 'right' },
 ]
 
 const historyColumns: TableColumn[] = [
@@ -34,7 +33,7 @@ const historyColumns: TableColumn[] = [
   { key: 'fee', label: 'Fee' },
   { key: 'method', label: 'Method' },
   { key: 'status', label: 'Status' },
-  { key: 'actions', label: 'Actions', align: 'right' }
+  { key: 'actions', label: 'Actions', align: 'right' },
 ]
 
 const router = useRouter()
@@ -75,14 +74,13 @@ const getLoggedInUserId = (): string => {
     if (!base64Url) return ''
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
     const payload = JSON.parse(window.atob(base64))
-    const userId = (
+    const userId =
       payload.user_id ||
       payload.sub ||
       payload['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'] ||
       payload.nameid ||
       payload.id ||
       ''
-    )
     if (userId) {
       localStorage.setItem('parkflow_user_id', userId)
     }
@@ -98,14 +96,16 @@ const isToday = (dateStr?: string) => {
   const date = new Date(dateStr)
   if (isNaN(date.getTime())) return false
   const today = new Date()
-  return date.getDate() === today.getDate() &&
-         date.getMonth() === today.getMonth() &&
-         date.getFullYear() === today.getFullYear()
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  )
 }
 
 const updateTodaysEntriesCount = () => {
-  const activeToday = activeSessions.value.filter(s => isToday(s.checkInTime)).length
-  const historyToday = historySessions.value.filter(s => isToday(s.checkInTime)).length
+  const activeToday = activeSessions.value.filter((s) => isToday(s.checkInTime)).length
+  const historyToday = historySessions.value.filter((s) => isToday(s.checkInTime)).length
   todaysEntriesCount.value = activeToday + historyToday
 }
 
@@ -116,34 +116,49 @@ const fetchParkingData = async () => {
   try {
     const [activeRes, historyRes, settingsRes] = await Promise.allSettled([
       api.get(`/parking-logs/active-sessions?parkingCapacity=${totalCapacity.value}`),
-      api.get('/parking-history/all/page/1/1000').catch(() => api.get('/parking-logs/history/page/1/1000')),
-      api.get('/system-settings')
+      api
+        .get('/parking-history/all/page/1/1000')
+        .catch(() => api.get('/parking-logs/history/page/1/1000')),
+      api.get('/system-settings'),
     ])
 
-    if (settingsRes.status === 'fulfilled' && settingsRes.value.data?.isSuccess && settingsRes.value.data?.data?.totalCapacity) {
+    if (
+      settingsRes.status === 'fulfilled' &&
+      settingsRes.value.data?.isSuccess &&
+      settingsRes.value.data?.data?.totalCapacity
+    ) {
       totalCapacity.value = settingsRes.value.data.data.totalCapacity
     }
 
     if (activeRes.status === 'fulfilled' && activeRes.value.data?.isSuccess) {
       const rawActive = activeRes.value.data.data || []
       const mappedActive: ActiveSession[] = rawActive.map((s: any) => {
-        const isOverstay = (s.overstayHours != null && Number(s.overstayHours) > 0) ||
+        const isOverstay =
+          (s.overstayHours != null && Number(s.overstayHours) > 0) ||
           String(s.status || '').toLowerCase() === 'overstay'
         return {
           id: s.sessionId || s.id || s.plateNumber,
           vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
           vehicleType: s.type || s.vehicleType || 'Car',
           brand: s.brand || '',
-          ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Unknown Driver'),
+          ownerName:
+            s.firstName && s.lastName
+              ? `${s.firstName} ${s.lastName}`
+              : s.ownerName || 'Unknown Driver',
           email: s.email || s.ownerEmail || undefined,
           role: s.roleName || s.role || 'Student',
           checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
-          duration: s.parkingDuration != null ? `${s.parkingDuration}h` : (s.totalParkingHours ? `${s.totalParkingHours}` : '0h 0m'),
+          duration:
+            s.parkingDuration != null
+              ? `${s.parkingDuration}h`
+              : s.totalParkingHours
+                ? `${s.totalParkingHours}`
+                : '0h 0m',
           amount: s.amount ?? s.penaltyFee ?? s.violationFee ?? 0,
-          status: isOverstay ? 'Overstay' : (s.status || 'Parked'),
+          status: isOverstay ? 'Overstay' : s.status || 'Parked',
           maxAllowedHours: s.maxAllowedHours || 8,
           maximumExitTime: s.maximumExitTime,
-          overstayHours: s.overstayHours
+          overstayHours: s.overstayHours,
         }
       })
       activeSessions.value = mappedActive
@@ -157,15 +172,30 @@ const fetchParkingData = async () => {
         vehiclePlate: s.plateNumber || s.vehiclePlate || 'N/A',
         vehicleType: s.type || s.vehicleType || 'Car',
         brand: s.brand || '',
-        ownerName: s.firstName && s.lastName ? `${s.firstName} ${s.lastName}` : (s.ownerName || 'Client Driver'),
+        ownerName:
+          s.firstName && s.lastName
+            ? `${s.firstName} ${s.lastName}`
+            : s.ownerName || 'Client Driver',
         email: s.email || s.ownerEmail || undefined,
         role: s.roleName || s.role || 'Student',
         checkInTime: s.entryTime || s.checkInTime || new Date().toISOString(),
         checkOutTime: s.exitTime || s.checkOutTime || new Date().toISOString(),
-        duration: s.parkingDuration != null ? `${s.parkingDuration}h` : (s.totalParkingHours ? `${s.totalParkingHours}h` : '0h'),
+        duration:
+          s.parkingDuration != null
+            ? `${s.parkingDuration}h`
+            : s.totalParkingHours
+              ? `${s.totalParkingHours}h`
+              : '0h',
         amount: s.penaltyFee ?? s.violationFee ?? s.amount ?? 0,
         method: s.entryMethod || s.method || 'QrCode',
-        status: (s.overstayHours != null && Number(s.overstayHours) > 0) || s.hasViolation || String(s.status || '').toLowerCase().includes('over') ? 'Overdue' : 'Completed'
+        status:
+          (s.overstayHours != null && Number(s.overstayHours) > 0) ||
+          s.hasViolation ||
+          String(s.status || '')
+            .toLowerCase()
+            .includes('over')
+            ? 'Overdue'
+            : 'Completed',
       }))
       historySessions.value = mappedHistory
       cachedHistorySessions.value = mappedHistory
@@ -199,7 +229,9 @@ function getDuration(item: ActiveSession | ParkingHistoryItem): string {
     return item.duration
   }
   const checkIn = new Date(item.checkInTime)
-  const exit = (item as ParkingHistoryItem).checkOutTime ? new Date((item as ParkingHistoryItem).checkOutTime) : new Date()
+  const exit = (item as ParkingHistoryItem).checkOutTime
+    ? new Date((item as ParkingHistoryItem).checkOutTime)
+    : new Date()
   const diffMs = exit.getTime() - checkIn.getTime()
   if (diffMs <= 0) return '0m'
   const hours = Math.floor(diffMs / 3600000)
@@ -213,16 +245,24 @@ function getMustExitByParts(item: ActiveSession): { time: string; date: string }
     if (!isNaN(maxExitDate.getTime())) {
       return {
         time: maxExitDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        date: maxExitDate.toLocaleDateString([], { month: 'short', day: 'numeric' })
+        date: maxExitDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
       }
     }
   }
   const checkIn = new Date(item.checkInTime)
-  const maxAllowed = item.maxAllowedHours || (item.role === 'Student' ? 4 : item.role === 'UniversityStaff' || item.role === 'Faculty' || item.role === 'NonAcademicPersonnel' ? 8 : 4)
+  const maxAllowed =
+    item.maxAllowedHours ||
+    (item.role === 'Student'
+      ? 4
+      : item.role === 'UniversityStaff' ||
+          item.role === 'Faculty' ||
+          item.role === 'NonAcademicPersonnel'
+        ? 8
+        : 4)
   const mustExitDate = new Date(checkIn.getTime() + maxAllowed * 3600 * 1000)
   return {
     time: mustExitDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    date: mustExitDate.toLocaleDateString([], { month: 'short', day: 'numeric' })
+    date: mustExitDate.toLocaleDateString([], { month: 'short', day: 'numeric' }),
   }
 }
 
@@ -243,8 +283,12 @@ const filterMethod = ref<string>('all')
 
 // Stats computations
 const occupancyCount = computed(() => activeSessions.value.length)
-const occupancyRate = computed(() => totalCapacity.value > 0 ? Math.round((occupancyCount.value / totalCapacity.value) * 100) : 0)
-const overstayCount = computed(() => activeSessions.value.filter((s) => s.status === 'Overstay').length)
+const occupancyRate = computed(() =>
+  totalCapacity.value > 0 ? Math.round((occupancyCount.value / totalCapacity.value) * 100) : 0,
+)
+const overstayCount = computed(
+  () => activeSessions.value.filter((s) => s.status === 'Overstay').length,
+)
 
 // Filtered sessions computation
 const filteredActiveSessions = computed(() => {
@@ -254,7 +298,8 @@ const filteredActiveSessions = computed(() => {
       session.ownerName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       (session.brand && session.brand.toLowerCase().includes(searchQuery.value.toLowerCase()))
 
-    const matchesVehicle = filterVehicleType.value === 'all' || session.vehicleType === filterVehicleType.value
+    const matchesVehicle =
+      filterVehicleType.value === 'all' || session.vehicleType === filterVehicleType.value
     const matchesStatus = filterStatus.value === 'all' || session.status === filterStatus.value
 
     return matchesSearch && matchesVehicle && matchesStatus
@@ -268,7 +313,8 @@ const filteredHistorySessions = computed(() => {
       session.ownerName.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
       (session.brand && session.brand.toLowerCase().includes(searchQuery.value.toLowerCase()))
 
-    const matchesVehicle = filterVehicleType.value === 'all' || session.vehicleType === filterVehicleType.value
+    const matchesVehicle =
+      filterVehicleType.value === 'all' || session.vehicleType === filterVehicleType.value
     const matchesMethod = filterMethod.value === 'all' || session.method === filterMethod.value
 
     return matchesSearch && matchesVehicle && matchesMethod
@@ -308,12 +354,18 @@ const isCheckingOut = ref(false)
 
 const checkoutConfirmMessage = computed(() => {
   if (!checkoutTargetSession.value) return 'Are you sure you want to checkout this vehicle?'
-  const plate = checkoutTargetSession.value.vehiclePlate || (checkoutTargetSession.value as any).plateNumber || 'Unknown'
-  const owner = checkoutTargetSession.value.ownerName ? ` (${checkoutTargetSession.value.ownerName})` : ''
-  const amount = (checkoutTargetSession.value as any).amount
-  const feeText = amount != null && Number(amount) > 0
-    ? `<br/><span style="display:inline-block; margin-top:8px; font-size:13px;" class="text-amber-600 dark:text-amber-400 font-semibold">Estimated Overstay / Parking Fee: ₱${Number(amount).toFixed(2)}</span>`
+  const plate =
+    checkoutTargetSession.value.vehiclePlate ||
+    (checkoutTargetSession.value as any).plateNumber ||
+    'Unknown'
+  const owner = checkoutTargetSession.value.ownerName
+    ? ` (${checkoutTargetSession.value.ownerName})`
     : ''
+  const amount = (checkoutTargetSession.value as any).amount
+  const feeText =
+    amount != null && Number(amount) > 0
+      ? `<br/><span style="display:inline-block; margin-top:8px; font-size:13px;" class="text-amber-600 dark:text-amber-400 font-semibold">Estimated Overstay / Parking Fee: ₱${Number(amount).toFixed(2)}</span>`
+      : ''
   return `Are you sure you want to manually checkout vehicle <strong class="font-mono text-slate-900 dark:text-white font-bold">${plate}</strong>${owner}?<br/><span class="text-xs text-slate-500">This will record the vehicle's exit at the campus gate and finalize the active parking session.</span>${feeText}`
 })
 
@@ -337,13 +389,14 @@ const executeManualCheckout = async () => {
   try {
     const response = await api.patch('/parking-logs/manual-exit', {
       plateNumber: plate,
-      userId: loggedInUserId || undefined
+      userId: loggedInUserId || undefined,
     })
 
     if (response.data && response.data.isSuccess) {
-      const fee = response.data.data?.penaltyFee != null && response.data.data.penaltyFee > 0
-        ? `₱${response.data.data.penaltyFee.toFixed(2)}`
-        : 'Free'
+      const fee =
+        response.data.data?.penaltyFee != null && response.data.data.penaltyFee > 0
+          ? `₱${response.data.data.penaltyFee.toFixed(2)}`
+          : 'Free'
       showToast(`Vehicle ${plate} checked out successfully. Fee: ${fee}`, 'success')
       isConfirmCheckoutOpen.value = false
       checkoutTargetSession.value = null
@@ -370,17 +423,32 @@ const getRoleLabel = (role: string) => {
   if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role
 }
+function handleRefresh() {
+  refreshAdminData()
+  void fetchParkingData()
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Toast Notifications -->
-    <TransitionGroup name="fade">
+    <TransitionGroup
+      enter-active-class="transition-opacity duration-200"
+      leave-active-class="transition-opacity duration-150"
+      enter-from-class="opacity-0"
+      leave-to-class="opacity-0"
+    >
       <div
         v-for="toast in toasts"
         :key="toast.id"
         class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
-        :class="toast.type === 'warning' ? 'bg-amber-600' : toast.type === 'info' ? 'bg-blue-600' : 'bg-emerald-600'"
+        :class="
+          toast.type === 'warning'
+            ? 'bg-amber-600'
+            : toast.type === 'info'
+              ? 'bg-blue-600'
+              : 'bg-emerald-600'
+        "
       >
         <span>{{ toast.message }}</span>
       </div>
@@ -397,44 +465,43 @@ const getRoleLabel = (role: string) => {
         </p>
       </div>
 
-      <div class="flex items-center gap-3">
-        <UiButton
-          variant="secondary"
-          :loading="isLoading"
-          @click="fetchParkingData"
-        >
-          <template #prefix>
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </template>
-          Refresh
-        </UiButton>
-      </div>
+      <div class="flex items-center gap-3"></div>
     </div>
 
     <!-- Stats Grid Component -->
-    <ParkingStats
-      :is-loading="isLoading"
-      :occupancy-count="occupancyCount"
-      :total-capacity="totalCapacity"
-      :occupancy-rate="occupancyRate"
-      :todays-entries-count="todaysEntriesCount"
-      :overstay-count="overstayCount"
-      @click-today="currentTab = 'active'"
-      @click-overstay="currentTab = 'active'; filterStatus = 'Overstay'"
-    />
 
     <!-- Filters Bar (Frameless / Borderless) -->
-    <ParkingFilters
-      v-model:search-query="searchQuery"
-      v-model:current-tab="currentTab"
-      v-model:filter-vehicle-type="filterVehicleType"
-      v-model:filter-status="filterStatus"
-      v-model:filter-method="filterMethod"
-    />
+    <div class="flex flex-col items-stretch gap-3 xl:flex-row xl:items-end">
+      <div class="min-w-0 flex-1">
+        <ParkingFilters
+          v-model:search-query="searchQuery"
+          v-model:current-tab="currentTab"
+          v-model:filter-vehicle-type="filterVehicleType"
+          v-model:filter-status="filterStatus"
+          v-model:filter-method="filterMethod"
+        />
+      </div>
+      <UiButton
+        variant="secondary"
+        :loading="isLoading"
+        @click="handleRefresh"
+      >
+        <template #prefix>
+          <svg
+            class="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </template>
+        Refresh
+      </UiButton>
+    </div>
 
     <!-- Tables Container Card -->
     <UiCard custom-class="p-0 overflow-hidden">
@@ -449,15 +516,31 @@ const getRoleLabel = (role: string) => {
       >
         <template #cell-vehicle="{ item }">
           <div class="flex items-center gap-3">
-            <div class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0">
-              <svg v-if="item.vehicleType === 'Car'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div
+              class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0"
+            >
+              <svg
+                v-if="item.vehicleType === 'Car'"
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="3" y="11" width="18" height="6" rx="2" />
                 <path d="M5 17h14" />
                 <circle cx="7" cy="17" r="2" />
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                v-else
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="5" cy="18" r="3" />
                 <circle cx="19" cy="18" r="3" />
                 <path d="M12 18V8h4" />
@@ -465,27 +548,48 @@ const getRoleLabel = (role: string) => {
               </svg>
             </div>
             <div class="flex flex-col">
-              <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.vehiclePlate }}</span>
-              <span class="text-[11px] text-slate-400 dark:text-slate-500">{{ item.brand || 'Unknown' }}</span>
+              <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{
+                item.vehiclePlate
+              }}</span>
+              <span class="text-[11px] text-slate-400 dark:text-slate-500">{{
+                item.brand || 'Unknown'
+              }}</span>
             </div>
           </div>
         </template>
 
         <template #cell-owner="{ item }">
           <div class="flex flex-col">
-            <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
-            <span v-if="item.email" class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[140px] inline-block" :title="item.email">{{ item.email }}</span>
+            <span
+              class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block"
+              >{{ item.ownerName }}</span
+            >
+            <span
+              v-if="item.email"
+              class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[140px] inline-block"
+              :title="item.email"
+              >{{ item.email }}</span
+            >
           </div>
         </template>
 
         <template #cell-role="{ item }">
-          <span class="text-xs text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{
+            getRoleLabel(item.role)
+          }}</span>
         </template>
 
         <template #cell-entryTime="{ item }">
           <div class="flex flex-col">
-            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
-            <span class="text-[11px] text-slate-400">{{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+            <span class="font-semibold text-slate-900 dark:text-white text-xs">{{
+              new Date(item.checkInTime).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            }}</span>
+            <span class="text-[11px] text-slate-400">{{
+              new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' })
+            }}</span>
           </div>
         </template>
 
@@ -493,13 +597,21 @@ const getRoleLabel = (role: string) => {
           <div class="flex flex-col">
             <span
               class="text-xs font-semibold"
-              :class="item.status === 'Overstay' ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-slate-900 dark:text-white'"
+              :class="
+                item.status === 'Overstay'
+                  ? 'text-rose-600 dark:text-rose-400 font-bold'
+                  : 'text-slate-900 dark:text-white'
+              "
             >
               {{ getMustExitByParts(item).time }}
             </span>
             <span
               class="text-[11px]"
-              :class="item.status === 'Overstay' ? 'text-rose-400 dark:text-rose-500 font-medium' : 'text-slate-400'"
+              :class="
+                item.status === 'Overstay'
+                  ? 'text-rose-400 dark:text-rose-500 font-medium'
+                  : 'text-slate-400'
+              "
             >
               {{ getMustExitByParts(item).date }}
             </span>
@@ -507,7 +619,9 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-duration="{ item }">
-          <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ getDuration(item) }}</span>
+          <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{
+            getDuration(item)
+          }}</span>
         </template>
 
         <template #cell-fee="{ item }">
@@ -553,15 +667,31 @@ const getRoleLabel = (role: string) => {
       >
         <template #cell-vehicle="{ item }">
           <div class="flex items-center gap-3">
-            <div class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0">
-              <svg v-if="item.vehicleType === 'Car'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div
+              class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0"
+            >
+              <svg
+                v-if="item.vehicleType === 'Car'"
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="3" y="11" width="18" height="6" rx="2" />
                 <path d="M5 17h14" />
                 <circle cx="7" cy="17" r="2" />
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                v-else
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="5" cy="18" r="3" />
                 <circle cx="19" cy="18" r="3" />
                 <path d="M12 18V8h4" />
@@ -569,7 +699,9 @@ const getRoleLabel = (role: string) => {
               </svg>
             </div>
             <div class="flex flex-col">
-              <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{ item.vehiclePlate }}</span>
+              <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{
+                item.vehiclePlate
+              }}</span>
               <span class="text-[11px] text-slate-400">{{ item.brand || 'Unknown' }}</span>
             </div>
           </div>
@@ -577,26 +709,52 @@ const getRoleLabel = (role: string) => {
 
         <template #cell-owner="{ item }">
           <div class="flex flex-col">
-            <span class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block">{{ item.ownerName }}</span>
-            <span v-if="item.email" class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[140px] inline-block" :title="item.email">{{ item.email }}</span>
+            <span
+              class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[140px] inline-block"
+              >{{ item.ownerName }}</span
+            >
+            <span
+              v-if="item.email"
+              class="text-[11px] text-slate-400 dark:text-slate-500 truncate max-w-[140px] inline-block"
+              :title="item.email"
+              >{{ item.email }}</span
+            >
           </div>
         </template>
 
         <template #cell-role="{ item }">
-          <span class="text-xs text-slate-600 dark:text-slate-400">{{ getRoleLabel(item.role) }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{
+            getRoleLabel(item.role)
+          }}</span>
         </template>
 
         <template #cell-timeSlot="{ item }">
           <div class="flex flex-col">
             <span class="font-semibold text-slate-900 dark:text-white text-xs">
-              {{ new Date(item.checkInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }} → {{ new Date(item.checkOutTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+              {{
+                new Date(item.checkInTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              }}
+              →
+              {{
+                new Date(item.checkOutTime).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              }}
             </span>
-            <span class="text-[11px] text-slate-400">{{ new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' }) }}</span>
+            <span class="text-[11px] text-slate-400">{{
+              new Date(item.checkInTime).toLocaleDateString([], { month: 'short', day: 'numeric' })
+            }}</span>
           </div>
         </template>
 
         <template #cell-duration="{ item }">
-          <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{ getDuration(item) }}</span>
+          <span class="text-xs font-medium text-slate-700 dark:text-slate-300">{{
+            getDuration(item)
+          }}</span>
         </template>
 
         <template #cell-fee="{ item }">
@@ -606,7 +764,9 @@ const getRoleLabel = (role: string) => {
         </template>
 
         <template #cell-method="{ item }">
-          <span class="text-xs text-slate-600 dark:text-slate-400">{{ item.method === 'QrCode' ? 'QR Gate Pass' : 'Manual Entry' }}</span>
+          <span class="text-xs text-slate-600 dark:text-slate-400">{{
+            item.method === 'QrCode' ? 'QR Gate Pass' : 'Manual Entry'
+          }}</span>
         </template>
 
         <template #cell-status="{ item }">
@@ -657,15 +817,3 @@ const getRoleLabel = (role: string) => {
     />
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-</style>

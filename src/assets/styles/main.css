@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './theme.css';
 
 * {
   box-sizing: border-box;
@@ -103,12 +104,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    #e2e8f0 25%,
-    #f1f5f9 37%,
-    #e2e8f0 63%
-  );
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 37%, #e2e8f0 63%);
   background-size: 800px 100%;
   animation: shimmer 1.6s ease-in-out infinite;
   border-radius: 8px;
@@ -133,7 +129,7 @@ body {
 .add-entry-btn,
 .add-user-btn,
 .btn-submit {
-  background: var(--btn-primary-bg, #7B1113) !important;
+  background: var(--btn-primary-bg, #7b1113) !important;
   color: var(--btn-primary-text, #ffffff) !important;
   border: none !important;
   border-radius: 8px !important;
@@ -146,7 +142,10 @@ body {
   justify-content: center !important;
   gap: 8px !important;
   box-shadow: var(--btn-primary-shadow, 0 4px 12px rgba(123, 17, 19, 0.25)) !important;
-  transition: background 150ms ease, transform 150ms ease, box-shadow 150ms ease !important;
+  transition:
+    background 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease !important;
   text-decoration: none !important;
   box-sizing: border-box !important;
 }
@@ -155,7 +154,7 @@ body {
 .add-entry-btn:hover:not(:disabled),
 .add-user-btn:hover:not(:disabled),
 .btn-submit:hover:not(:disabled) {
-  background: var(--btn-primary-hover, #6C0F11) !important;
+  background: var(--btn-primary-hover, #6c0f11) !important;
   transform: translateY(-1px) !important;
   box-shadow: 0 6px 16px rgba(123, 17, 19, 0.35) !important;
 }
@@ -228,4 +227,3 @@ body {
   color: #0f172a !important;
   border-color: #94a3b8 !important;
 }
-

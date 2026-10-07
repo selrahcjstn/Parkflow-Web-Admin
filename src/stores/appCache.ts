@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, customRef } from 'vue'
 
 export interface DashboardStatsCache {
   totalUsers: number
@@ -56,19 +56,53 @@ export interface FeedbackOverviewCacheItem {
   status: string
 }
 
-// Global persistent reactive cache stores for all application modules
-export const cachedStatsData = ref<DashboardStatsCache | null>(null)
-export const cachedActivityData = ref<ActivityDataItem[] | null>(null)
-export const cachedRegistrations = ref<PendingRegistrationCacheItem[] | null>(null)
+// Short-lived, account-scoped snapshots. Empty arrays are valid cached results.
+let cacheOwner: string | null = null
+const resets = new Set<() => void>()
+function snapshot<T>(initial: T) {
+  let value = initial
+  let expiresAt = 0
+  return customRef<T>((track, trigger) => {
+    resets.add(() => {
+      value = initial
+      expiresAt = 0
+      trigger()
+    })
+    return {
+      get() {
+        track()
+        return expiresAt > Date.now() ? value : initial
+      },
+      set(next) {
+        value = next
+        expiresAt = Date.now() + 60_000
+        trigger()
+      },
+    }
+  })
+}
+export function resetAppCache() {
+  resets.forEach((reset) => reset())
+  cachedSubmissionGuids.value = {}
+}
+export function syncCacheOwner(token: string | null) {
+  if (cacheOwner !== token) {
+    cacheOwner = token
+    resetAppCache()
+  }
+}
+export const cachedStatsData = snapshot<DashboardStatsCache | null>(null)
+export const cachedActivityData = snapshot<ActivityDataItem[] | null>(null)
+export const cachedRegistrations = snapshot<PendingRegistrationCacheItem[] | null>(null)
 export const cachedSubmissionGuids = ref<Record<number, string>>({})
-export const cachedParkingLogs = ref<ParkingLogCacheItem[] | null>(null)
-export const cachedReservations = ref<ReservationCacheItem[] | null>(null)
-export const cachedFeedbacks = ref<any[] | null>(null)
-export const cachedUsers = ref<any[] | null>(null)
-export const cachedApprovals = ref<any[] | null>(null)
-export const cachedScheduleSubmissions = ref<any[] | null>(null)
-export const cachedVehicleApprovals = ref<any[] | null>(null)
-export const cachedActiveSessions = ref<any[] | null>(null)
-export const cachedHistorySessions = ref<any[] | null>(null)
-export const cachedViolations = ref<any[] | null>(null)
-export const cachedVehicles = ref<any[] | null>(null)
+export const cachedParkingLogs = snapshot<ParkingLogCacheItem[] | null>(null)
+export const cachedReservations = snapshot<ReservationCacheItem[] | null>(null)
+export const cachedFeedbacks = snapshot<any[] | null>(null)
+export const cachedUsers = snapshot<any[] | null>(null)
+export const cachedApprovals = snapshot<any[] | null>(null)
+export const cachedScheduleSubmissions = snapshot<any[] | null>(null)
+export const cachedVehicleApprovals = snapshot<any[] | null>(null)
+export const cachedActiveSessions = snapshot<any[] | null>(null)
+export const cachedHistorySessions = snapshot<any[] | null>(null)
+export const cachedViolations = snapshot<any[] | null>(null)
+export const cachedVehicles = snapshot<any[] | null>(null)

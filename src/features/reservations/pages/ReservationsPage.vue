@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import ReservationStats from '../components/ReservationStats.vue'
 import ReservationFilters from '../components/ReservationFilters.vue'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
@@ -21,7 +20,7 @@ const resColumns: TableColumn[] = [
   { key: 'schedule', label: 'Date & Time Slot', width: '170px' },
   { key: 'purpose', label: 'Purpose / Reason' },
   { key: 'status', label: 'Status', width: '110px' },
-  { key: 'actions', label: 'Actions', align: 'right', width: '200px' }
+  { key: 'actions', label: 'Actions', align: 'right', width: '200px' },
 ]
 
 const reservations = ref<ParkingReservationItem[]>([])
@@ -83,14 +82,22 @@ function isReservationDone(item: ParkingReservationItem): boolean {
   if (!item) return false
   const rawStatus = String(item.status ?? '').toLowerCase()
   if (rawStatus === 'done' || rawStatus === 'completed' || item.status === 4) return true
-  if (rawStatus === 'rejected' || rawStatus === 'cancelled' || item.status === 2 || item.status === 3) return false
+  if (
+    rawStatus === 'rejected' ||
+    rawStatus === 'cancelled' ||
+    item.status === 2 ||
+    item.status === 3
+  )
+    return false
 
   const endDateTime = parseReservationEndDateTime(item.reservationDate, item.endTime)
   if (!endDateTime) return false
   return new Date() > endDateTime
 }
 
-function getItemEffectiveStatus(item: ParkingReservationItem): 'Done' | 'Approved' | 'Pending' | 'Rejected' | 'Cancelled' | 'Expired' {
+function getItemEffectiveStatus(
+  item: ParkingReservationItem,
+): 'Done' | 'Approved' | 'Pending' | 'Rejected' | 'Cancelled' | 'Expired' {
   const raw = formatStatus(item.status)
   if (raw === 'Rejected' || raw === 'Cancelled') return raw as any
   if (isReservationDone(item)) {
@@ -104,7 +111,12 @@ function formatStatus(status: ReservationStatusType): string {
   if (status === 1 || String(status).toLowerCase() === 'approved') return 'Approved'
   if (status === 2 || String(status).toLowerCase() === 'rejected') return 'Rejected'
   if (status === 3 || String(status).toLowerCase() === 'cancelled') return 'Cancelled'
-  if (status === 4 || String(status).toLowerCase() === 'done' || String(status).toLowerCase() === 'completed') return 'Done'
+  if (
+    status === 4 ||
+    String(status).toLowerCase() === 'done' ||
+    String(status).toLowerCase() === 'completed'
+  )
+    return 'Done'
   if (String(status).toLowerCase() === 'expired') return 'Expired'
   return String(status || 'Pending')
 }
@@ -169,7 +181,10 @@ onMounted(() => {
   notifStore.initSignalRConnection()
 
   const handleLiveUpdate = (data: any) => {
-    console.log('[ReservationsPage] Live reservation update received via SignalR -> refreshing...', data)
+    console.log(
+      '[ReservationsPage] Live reservation update received via SignalR -> refreshing...',
+      data,
+    )
     fetchReservations(true)
   }
 
@@ -206,10 +221,23 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
 
 // Stats computations
 const totalCount = computed(() => reservations.value.length)
-const pendingCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'pending').length)
-const approvedCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'approved').length)
-const doneCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'done' || getStatusKey(r) === 'expired').length)
-const rejectedCount = computed(() => reservations.value.filter(r => getStatusKey(r) === 'rejected' || getStatusKey(r) === 'cancelled').length)
+const pendingCount = computed(
+  () => reservations.value.filter((r) => getStatusKey(r) === 'pending').length,
+)
+const approvedCount = computed(
+  () => reservations.value.filter((r) => getStatusKey(r) === 'approved').length,
+)
+const doneCount = computed(
+  () =>
+    reservations.value.filter((r) => getStatusKey(r) === 'done' || getStatusKey(r) === 'expired')
+      .length,
+)
+const rejectedCount = computed(
+  () =>
+    reservations.value.filter(
+      (r) => getStatusKey(r) === 'rejected' || getStatusKey(r) === 'cancelled',
+    ).length,
+)
 
 const counts = computed(() => ({
   total: totalCount.value,
@@ -221,14 +249,20 @@ const counts = computed(() => ({
 
 // Filtered list
 const filteredReservations = computed(() => {
-  return reservations.value.filter(item => {
+  return reservations.value.filter((item) => {
     const statusKey = getStatusKey(item)
-    
+
     // Tab filter
     if (selectedStatusTab.value === 'pending' && statusKey !== 'pending') return false
     if (selectedStatusTab.value === 'approved' && statusKey !== 'approved') return false
-    if (selectedStatusTab.value === 'done' && statusKey !== 'done' && statusKey !== 'expired') return false
-    if (selectedStatusTab.value === 'rejected' && statusKey !== 'rejected' && statusKey !== 'cancelled') return false
+    if (selectedStatusTab.value === 'done' && statusKey !== 'done' && statusKey !== 'expired')
+      return false
+    if (
+      selectedStatusTab.value === 'rejected' &&
+      statusKey !== 'rejected' &&
+      statusKey !== 'cancelled'
+    )
+      return false
 
     // Date filter
     if (selectedDateFilter.value) {
@@ -283,7 +317,7 @@ function formatReservationDate(dateStr: string): string {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
     })
   } catch {
     return dateStr
@@ -307,14 +341,19 @@ function formatTimeSlot(start: string, end: string): string {
 
 function getInitials(name: string): string {
   if (!name) return 'PF'
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
 }
 
 const avatarGradients = [
   'linear-gradient(135deg, #6366f1, #8b5cf6)',
   'linear-gradient(135deg, #f59e0b, #ef4444)',
   'linear-gradient(135deg, #10b981, #059669)',
-  'linear-gradient(135deg, #3b82f6, #1d4ed8)'
+  'linear-gradient(135deg, #3b82f6, #1d4ed8)',
 ]
 
 function getAvatarGradient(index: number): string {
@@ -324,7 +363,7 @@ function getAvatarGradient(index: number): string {
 function getNotifyEmailFromNotes(notes?: string | null): string | null {
   if (!notes) return null
   const match = notes.match(/\[NotifyEmail:(.*?)\]/)
-  return (match && match[1]) ? match[1].trim() : null
+  return match && match[1] ? match[1].trim() : null
 }
 
 // Approve Modal State
@@ -348,7 +387,10 @@ async function confirmApprove() {
     isApproveModalOpen.value = false
     reservationToApprove.value = null
   } catch (error: any) {
-    showToast(`Failed to approve reservation: ${error.response?.data?.message || error.message}`, 'error')
+    showToast(
+      `Failed to approve reservation: ${error.response?.data?.message || error.message}`,
+      'error',
+    )
   } finally {
     isApproving.value = false
   }
@@ -375,18 +417,34 @@ async function confirmReject() {
     isRejectModalOpen.value = false
     reservationToReject.value = null
   } catch (error: any) {
-    showToast(`Failed to reject reservation: ${error.response?.data?.message || error.message}`, 'error')
+    showToast(
+      `Failed to reject reservation: ${error.response?.data?.message || error.message}`,
+      'error',
+    )
   } finally {
     isRejecting.value = false
   }
+}
+function handleRefresh() {
+  refreshAdminData()
+  void fetchReservations()
 }
 </script>
 
 <template>
   <div class="space-y-6 w-full max-w-full">
     <!-- API Error Banner -->
-    <div v-if="fetchError" class="flex items-center gap-3 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-sm">
-      <svg class="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <div
+      v-if="fetchError"
+      class="flex items-center gap-3 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 text-sm"
+    >
+      <svg
+        class="w-5 h-5 flex-shrink-0"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="8" x2="12" y2="12" />
         <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -395,7 +453,12 @@ async function confirmReject() {
         <strong class="font-semibold">Failed to load reservations:</strong>
         <span class="ml-1 opacity-90">{{ fetchError }}</span>
       </div>
-      <UiButton size="xs" variant="secondary" @click="fetchReservations()">Retry</UiButton>
+      <UiButton
+        size="xs"
+        variant="secondary"
+        @click="handleRefresh"
+        >Retry</UiButton
+      >
     </div>
 
     <!-- Notification Toast -->
@@ -405,11 +468,27 @@ async function confirmReject() {
         class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
         :class="notificationToast.type === 'success' ? 'bg-emerald-600' : 'bg-rose-600'"
       >
-        <svg v-if="notificationToast.type === 'success'" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <svg
+          v-if="notificationToast.type === 'success'"
+          class="w-4 h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
           <polyline points="20 6 9 17 4 12" />
         </svg>
-        <svg v-else class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+        <svg
+          v-else
+          class="w-4 h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+        >
+          <path
+            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+          />
           <line x1="12" y1="9" x2="12" y2="13" />
           <line x1="12" y1="17" x2="12.01" y2="17" />
         </svg>
@@ -424,33 +503,20 @@ async function confirmReject() {
           Parking Reservations & Schedule Management
         </h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Review user parking schedule requests, approve date passes, and reserve parking slots for campus events.
+          Review user parking schedule requests, approve date passes, and reserve parking slots for
+          campus events.
         </p>
       </div>
       <div class="flex items-center gap-3">
-        <UiButton
-          variant="secondary"
-          size="md"
-          :loading="isLoading"
-          @click="fetchReservations(false)"
-          title="Refresh Data"
-        >
+        <UiButton variant="primary" @click="router.push('/reservations/create')">
           <template #prefix>
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="23 4 23 10 17 10" />
-              <polyline points="1 20 1 14 7 14" />
-              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-            </svg>
-          </template>
-          Refresh
-        </UiButton>
-
-        <UiButton
-          variant="primary"
-          @click="router.push('/reservations/create')"
-        >
-          <template #prefix>
-            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              class="w-4 h-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" />
               <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" />
             </svg>
@@ -461,22 +527,40 @@ async function confirmReject() {
     </div>
 
     <!-- Stats Cards Grid -->
-    <ReservationStats
-      :is-loading="isLoading"
-      :total-count="totalCount"
-      :pending-count="pendingCount"
-      :approved-count="approvedCount"
-      :done-count="doneCount"
-      :rejected-count="rejectedCount"
-    />
 
     <!-- Controls Bar (Frameless / Borderless) -->
-    <ReservationFilters
-      v-model:search-query="searchQuery"
-      v-model:selected-status-tab="selectedStatusTab"
-      v-model:selected-date-filter="selectedDateFilter"
-      :counts="counts"
-    />
+    <div class="flex flex-col items-stretch gap-3 xl:flex-row xl:items-end">
+      <div class="min-w-0 flex-1">
+        <ReservationFilters
+          v-model:search-query="searchQuery"
+          v-model:selected-status-tab="selectedStatusTab"
+          v-model:selected-date-filter="selectedDateFilter"
+          :counts="counts"
+        />
+      </div>
+      <UiButton
+        variant="secondary"
+        size="md"
+        :loading="isLoading"
+        @click="handleRefresh"
+        title="Refresh Data"
+      >
+        <template #prefix>
+          <svg
+            class="w-4 h-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+        </template>
+        Refresh
+      </UiButton>
+    </div>
 
     <!-- Table Container -->
     <UiCard custom-class="p-0 overflow-hidden w-full max-w-full">
@@ -531,7 +615,10 @@ async function confirmReject() {
 
         <template #cell-purpose="{ item }">
           <div class="min-w-[140px] max-w-[220px] lg:max-w-xs xl:max-w-md whitespace-normal">
-            <span class="text-xs text-slate-700 dark:text-slate-300 line-clamp-2" :title="item.reason">
+            <span
+              class="text-xs text-slate-700 dark:text-slate-300 line-clamp-2"
+              :title="item.reason"
+            >
               {{ item.reason }}
             </span>
           </div>
@@ -543,10 +630,10 @@ async function confirmReject() {
               getStatusKey(item) === 'approved'
                 ? 'success'
                 : getStatusKey(item) === 'done' || getStatusKey(item) === 'expired'
-                ? 'neutral'
-                : getStatusKey(item) === 'rejected' || getStatusKey(item) === 'cancelled'
-                ? 'danger'
-                : 'warning'
+                  ? 'neutral'
+                  : getStatusKey(item) === 'rejected' || getStatusKey(item) === 'cancelled'
+                    ? 'danger'
+                    : 'warning'
             "
             size="xs"
           >
@@ -584,7 +671,14 @@ async function confirmReject() {
               v-if="getStatusKey(item) === 'done'"
               class="inline-flex items-center gap-1 text-[11px] font-medium text-slate-400 dark:text-slate-500 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800"
             >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               Concluded
@@ -640,15 +734,3 @@ async function confirmReject() {
     />
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-</style>

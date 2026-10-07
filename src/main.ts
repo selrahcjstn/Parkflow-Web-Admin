@@ -4,7 +4,6 @@ import App from './App.vue'
 import router from './router'
 
 import './assets/styles/main.css'
-import './assets/styles/theme.css'
 
 import '@fontsource/inter/400.css'
 import '@fontsource/inter/500.css'

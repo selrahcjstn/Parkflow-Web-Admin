@@ -3,7 +3,6 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
 import UserFormModal from '../components/UserFormModal.vue'
-import UserCard from '../components/UserCard.vue'
 import UserFilters from '../components/UserFilters.vue'
 import UserStatusModal from '../components/UserStatusModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
@@ -14,7 +13,7 @@ import UiAvatar from '@/components/ui/UiAvatar.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import UiButton from '@/components/ui/UiButton.vue'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import { cachedUsers } from '@/stores/appCache'
 
 import { isSuperAdminUser } from '@/utils/auth'
@@ -34,21 +33,8 @@ const fetchUsers = async () => {
     const response = await api.get('/users')
     if (response.data && response.data.isSuccess && Array.isArray(response.data.data)) {
       const fetched: UserWithDetails[] = response.data.data
-      if (cachedUsers.value && cachedUsers.value.length > 0) {
-        users.value = fetched.map((f: UserWithDetails) => {
-          const cached = cachedUsers.value?.find((c: any) => String(c.id) === String(f.id))
-          return cached ? { ...cached, ...f } : f
-        })
-        cachedUsers.value.forEach((c: any) => {
-          if (!users.value.some((u) => String(u.id) === String(c.id))) {
-            users.value.push(c)
-          }
-        })
-        cachedUsers.value = [...users.value]
-      } else {
-        users.value = fetched
-        cachedUsers.value = fetched
-      }
+      users.value = fetched
+      cachedUsers.value = fetched
     } else if (cachedUsers.value) {
       users.value = cachedUsers.value
     }
@@ -84,13 +70,16 @@ const searchQuery = ref('')
 const selectedRole = ref<string>('all')
 const selectedStatus = ref<string>('all')
 const selectedVehicleFilter = ref<string>('all')
-const viewMode = ref<'grid' | 'table'>('grid')
 
 const studentCount = computed(() => users.value.filter((u) => u.role === 'Student').length)
 const facultyCount = computed(() => users.value.filter((u) => u.role === 'UniversityStaff').length)
-const staffCount = computed(() => users.value.filter((u) => u.role === 'NonAcademicPersonnel').length)
+const staffCount = computed(
+  () => users.value.filter((u) => u.role === 'NonAcademicPersonnel').length,
+)
 const guardCount = computed(() => users.value.filter((u) => u.role === 'Guard').length)
-const adminCount = computed(() => users.value.filter((u) => u.role === 'Admin' || (u.role as string) === 'SuperAdmin').length)
+const adminCount = computed(
+  () => users.value.filter((u) => u.role === 'Admin' || (u.role as string) === 'SuperAdmin').length,
+)
 
 // Dynamic Header Properties
 const headerTitle = computed(() => {
@@ -103,15 +92,25 @@ const headerTitle = computed(() => {
 })
 
 const headerSubtitle = computed(() => {
-  if (selectedRole.value === 'Student') return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
-  if (selectedRole.value === 'UniversityStaff') return 'Manage faculty member accounts, department assignments, and vehicle clearance.'
-  if (selectedRole.value === 'NonAcademicPersonnel') return 'Manage university staff accounts, administrative departments, and vehicle clearance.'
-  if (selectedRole.value === 'Guard') return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
-  if (selectedRole.value === 'Admin') return 'Manage system administrators and elevated system privileges.'
+  if (selectedRole.value === 'Student')
+    return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
+  if (selectedRole.value === 'UniversityStaff')
+    return 'Manage faculty member accounts, department assignments, and vehicle clearance.'
+  if (selectedRole.value === 'NonAcademicPersonnel')
+    return 'Manage university staff accounts, administrative departments, and vehicle clearance.'
+  if (selectedRole.value === 'Guard')
+    return 'Manage active gate security guards, assigned gates, and RFID scanner permissions.'
+  if (selectedRole.value === 'Admin')
+    return 'Manage system administrators and elevated system privileges.'
   return 'Manage registered client accounts, pending COR registrations, and system privileges.'
 })
 
-const isAdminStaffView = computed(() => selectedRole.value === 'AdminStaff' || selectedRole.value === 'Guard' || selectedRole.value === 'Admin')
+const isAdminStaffView = computed(
+  () =>
+    selectedRole.value === 'AdminStaff' ||
+    selectedRole.value === 'Guard' ||
+    selectedRole.value === 'Admin',
+)
 
 const stats = computed(() => {
   const total = users.value.length
@@ -124,7 +123,7 @@ const stats = computed(() => {
     { title: 'Total Registered', value: total, icon: 'people' },
     { title: 'Students', value: students, icon: 'student' },
     { title: 'Faculty', value: faculty, icon: 'briefcase' },
-    { title: 'Staff (Non-Academic)', value: staff, icon: 'briefcase' }
+    { title: 'Staff (Non-Academic)', value: staff, icon: 'briefcase' },
   ]
 
   if (isSuperAdmin.value) {
@@ -193,12 +192,12 @@ const userColumns = computed<TableColumn[]>(() => {
   const cols: TableColumn[] = [
     { key: 'client', label: isAdminStaffView.value ? 'Staff Member' : 'Client' },
     { key: 'identifier', label: 'Client ID' },
-    { key: 'role', label: 'Classification' }
+    { key: 'role', label: 'Classification' },
   ]
   if (!isAdminStaffView.value) {
     cols.push(
       { key: 'vehicles', label: 'Vehicles' },
-      { key: 'status', label: 'Registration Status' }
+      { key: 'status', label: 'Registration Status' },
     )
   }
   cols.push({ key: 'actions', label: 'Actions', align: 'right' })
@@ -207,7 +206,10 @@ const userColumns = computed<TableColumn[]>(() => {
 
 const filteredUsers = computed(() => {
   return users.value.filter((user) => {
-    if (!isSuperAdmin.value && (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin')) {
+    if (
+      !isSuperAdmin.value &&
+      (user.role === 'Guard' || user.role === 'Admin' || (user.role as string) === 'SuperAdmin')
+    ) {
       return false
     }
 
@@ -218,20 +220,30 @@ const filteredUsers = computed(() => {
       (user.student?.studentNumber || '').toLowerCase().includes(searchLower) ||
       (user.personnel?.idCardNumber || '').toLowerCase().includes(searchLower)
 
-    const matchesRole =
-      selectedRole.value === 'all' ||
-      user.role === selectedRole.value
+    const matchesRole = selectedRole.value === 'all' || user.role === selectedRole.value
 
     const userStatus = displayStatus(user)
     const matchesStatus =
       selectedStatus.value === 'all' ||
       userStatus === selectedStatus.value ||
-      (selectedStatus.value === 'Approved' && (userStatus === 'Approved' || user.corVerificationStatus === 'Verified' || user.status === 'Active')) ||
-      (selectedStatus.value === 'Verified' && (userStatus === 'Approved' || user.corVerificationStatus === 'Verified' || user.status === 'Active')) ||
-      (selectedStatus.value === 'Pending' && (userStatus === 'Pending' || user.corVerificationStatus === 'Pending' || user.status === 'PendingVerification')) ||
-      (selectedStatus.value === 'Rejected' && (userStatus === 'Rejected' || user.corVerificationStatus === 'Rejected')) ||
-      (selectedStatus.value === 'NotSubmitted' && (userStatus === 'NotSubmitted' || user.corVerificationStatus === 'NotSubmitted')) ||
-      (selectedStatus.value === 'Suspended' && (userStatus === 'Suspended' || user.status === 'Suspended'))
+      (selectedStatus.value === 'Approved' &&
+        (userStatus === 'Approved' ||
+          user.corVerificationStatus === 'Verified' ||
+          user.status === 'Active')) ||
+      (selectedStatus.value === 'Verified' &&
+        (userStatus === 'Approved' ||
+          user.corVerificationStatus === 'Verified' ||
+          user.status === 'Active')) ||
+      (selectedStatus.value === 'Pending' &&
+        (userStatus === 'Pending' ||
+          user.corVerificationStatus === 'Pending' ||
+          user.status === 'PendingVerification')) ||
+      (selectedStatus.value === 'Rejected' &&
+        (userStatus === 'Rejected' || user.corVerificationStatus === 'Rejected')) ||
+      (selectedStatus.value === 'NotSubmitted' &&
+        (userStatus === 'NotSubmitted' || user.corVerificationStatus === 'NotSubmitted')) ||
+      (selectedStatus.value === 'Suspended' &&
+        (userStatus === 'Suspended' || user.status === 'Suspended'))
 
     const hasVehicles = user.vehicles && user.vehicles.length > 0
     const matchesVehicle =
@@ -278,14 +290,14 @@ const showToast = (message: string, type: 'success' | 'error' = 'success') => {
   const id = nextToastId.value++
   toasts.value.push({ id, message, type })
   setTimeout(() => {
-    toasts.value = toasts.value.filter(t => t.id !== id)
+    toasts.value = toasts.value.filter((t) => t.id !== id)
   }, 4000)
 }
 
 function openDetails(user: UserWithDetails) {
   router.push({
     path: `/users/${user.id}`,
-    state: { user: JSON.parse(JSON.stringify(user)) }
+    state: { user: JSON.parse(JSON.stringify(user)) },
   })
 }
 
@@ -311,8 +323,8 @@ function handleChangePassword(user: UserWithDetails) {
       id: user.id,
       name: user.fullName,
       email: user.email,
-      role: getRoleLabel(user.role)
-    }
+      role: getRoleLabel(user.role),
+    },
   })
 }
 
@@ -336,7 +348,7 @@ const handleDeleteUser = async () => {
   } catch (error) {
     console.warn('Delete API error, removing locally:', error)
   }
-  users.value = users.value.filter(u => u.id !== user.id)
+  users.value = users.value.filter((u) => u.id !== user.id)
   cachedUsers.value = [...users.value]
   showToast(`Client "${user.fullName}" has been deleted.`, 'success')
   userToDelete.value = null
@@ -379,13 +391,19 @@ const handleApproveUser = (user: UserWithDetails) => {
 }
 
 const handleRejectUser = async (user: UserWithDetails) => {
-  const reason = window.prompt(`Enter rejection reason for ${user.fullName} (optional):`, 'Registration documents or information were rejected by admin.')
+  const reason = window.prompt(
+    `Enter rejection reason for ${user.fullName} (optional):`,
+    'Registration documents or information were rejected by admin.',
+  )
   if (reason === null) return
 
   try {
     user.corVerificationStatus = 'Rejected'
     user.status = 'PendingVerification'
-    const res = await api.patch(`/cor-submissions/${user.id}/validate`, { verificationStatus: 3, rejectionReason: reason })
+    const res = await api.patch(`/cor-submissions/${user.id}/validate`, {
+      verificationStatus: 3,
+      rejectionReason: reason,
+    })
     if (res.data?.isSuccess) {
       showToast(`${user.fullName} rejected successfully.`, 'error')
     } else {
@@ -398,29 +416,31 @@ const handleRejectUser = async (user: UserWithDetails) => {
 }
 
 const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
-  const targetIndex = users.value.findIndex(u => String(u.id) === String(userId))
-  if (targetIndex !== -1 && users.value[targetIndex]) {
-    const updatedUser = {
-      ...users.value[targetIndex],
-      status: newStatus
-    }
-    users.value[targetIndex] = updatedUser
-    cachedUsers.value = [...users.value]
-  }
-
   try {
     const response = await api.put(`/users/${userId}/status`, { status: newStatus })
-    if (response.data && response.data.isSuccess) {
-      showToast(`Account clearance for user set to ${newStatus}.`, newStatus === 'Active' ? 'success' : 'error')
-    }
-  } catch (error) {
-    console.warn('Status update API error, updated locally:', error)
-    showToast(`Account clearance set to ${newStatus}.`, newStatus === 'Active' ? 'success' : 'error')
+    if (!response.data?.isSuccess)
+      throw new Error(response.data?.message || 'Could not update account.')
+    const index = users.value.findIndex((user) => String(user.id) === String(userId))
+    if (index !== -1 && users.value[index])
+      users.value[index] = { ...users.value[index], status: newStatus }
+    cachedUsers.value = [...users.value]
+    showToast(`Account status updated to ${newStatus}.`, 'success')
+  } catch (error: any) {
+    showToast(
+      error.response?.data?.message ||
+        error.message ||
+        'Could not update account. Please try again.',
+      'error',
+    )
   }
 }
 
 const handleFormSubmit = async (formData: any) => {
   isFormOpen.value = false
+}
+function handleRefresh() {
+  refreshAdminData()
+  void fetchUsers()
 }
 </script>
 
@@ -432,7 +452,9 @@ const handleFormSubmit = async (formData: any) => {
         <div
           :class="[
             'px-4.5 py-3 rounded-xl text-sm font-semibold backdrop-blur-md shadow-lg pointer-events-auto max-w-xs transition-all',
-            toast.type === 'success' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+            toast.type === 'success'
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
+              : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30',
           ]"
         >
           {{ toast.message }}
@@ -443,7 +465,9 @@ const handleFormSubmit = async (formData: any) => {
     <!-- Header & Register Button -->
     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
       <div class="flex flex-col gap-1">
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
+        <h1
+          class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0"
+        >
           {{ headerTitle }}
         </h1>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400 m-0 max-w-2xl">
@@ -458,7 +482,14 @@ const handleFormSubmit = async (formData: any) => {
           @click="router.push('/users/create')"
         >
           <template #icon>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <line x1="12" y1="5" x2="12" y2="19" stroke-linecap="round" stroke-linejoin="round" />
               <line x1="5" y1="12" x2="19" y2="12" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
@@ -473,7 +504,14 @@ const handleFormSubmit = async (formData: any) => {
           @click="router.push('/users/create-staff')"
         >
           <template #icon>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <line x1="12" y1="8" x2="12" y2="16" />
               <line x1="8" y1="12" x2="16" y2="12" />
@@ -487,10 +525,21 @@ const handleFormSubmit = async (formData: any) => {
     <!-- Overview Stats Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       <template v-if="isLoading">
-        <SkeletonLoader v-for="i in 4" :key="'stat-skel-'+i" variant="rect" height="110px" style="border-radius: 16px;" />
+        <SkeletonLoader
+          v-for="i in 4"
+          :key="'stat-skel-' + i"
+          variant="rect"
+          height="110px"
+          style="border-radius: 16px"
+        />
       </template>
       <template v-else>
-        <UiCard v-for="stat in stats" :key="stat.title" hover custom-class="flex items-center justify-between p-5">
+        <UiCard
+          v-for="stat in stats"
+          :key="stat.title"
+          hover
+          custom-class="flex items-center justify-between p-5"
+        >
           <div class="flex flex-col gap-1">
             <span class="text-2xl font-extrabold text-slate-900 dark:text-white leading-none">
               {{ stat.value }}
@@ -499,23 +548,86 @@ const handleFormSubmit = async (formData: any) => {
               {{ stat.title }}
             </span>
           </div>
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-[#7B1113] dark:text-[#E25C65] bg-red-50 dark:bg-red-950/40">
-            <svg v-if="stat.icon === 'people'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round" />
+          <div
+            class="w-12 h-12 rounded-xl flex items-center justify-center text-[#7B1113] dark:text-[#E25C65] bg-red-50 dark:bg-red-950/40"
+          >
+            <svg
+              v-if="stat.icon === 'people'"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
               <circle cx="9" cy="7" r="4" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke-linecap="round" stroke-linejoin="round" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
-            <svg v-if="stat.icon === 'student'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 10v6M2 10l10-5 10 5-10 5z" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" stroke-linecap="round" stroke-linejoin="round" />
+            <svg
+              v-if="stat.icon === 'student'"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M22 10v6M2 10l10-5 10 5-10 5z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
-            <svg v-if="stat.icon === 'briefcase'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke-linecap="round" stroke-linejoin="round" />
+            <svg
+              v-if="stat.icon === 'briefcase'"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect
+                x="2"
+                y="7"
+                width="20"
+                height="14"
+                rx="2"
+                ry="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
-            <svg v-if="stat.icon === 'shield'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round" />
+            <svg
+              v-if="stat.icon === 'shield'"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
             </svg>
           </div>
         </UiCard>
@@ -528,7 +640,6 @@ const handleFormSubmit = async (formData: any) => {
       v-model:selected-role="selectedRole"
       v-model:selected-status="selectedStatus"
       v-model:selected-vehicle-filter="selectedVehicleFilter"
-      v-model:view-mode="viewMode"
       :total-count="users.length"
       :student-count="studentCount"
       :faculty-count="facultyCount"
@@ -537,43 +648,11 @@ const handleFormSubmit = async (formData: any) => {
       :admin-count="adminCount"
       :is-super-admin="isSuperAdmin"
       :is-loading="isLoading"
-      @refresh="fetchUsers"
+      @refresh="handleRefresh"
     />
 
-    <!-- Grid View Mode -->
-    <template v-if="viewMode === 'grid'">
-      <div v-if="isLoading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <SkeletonLoader v-for="i in 6" :key="'grid-skel-'+i" variant="card" style="height: 200px; border-radius: 16px;" />
-      </div>
-      <div v-else-if="filteredUsers.length === 0" class="py-12 text-center text-slate-500 dark:text-slate-400 font-medium bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8">
-        No records match your criteria.
-      </div>
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        <UserCard
-          v-for="user in paginatedUsers"
-          :key="'card-'+user.id"
-          :user="user"
-          @view-profile="openDetails"
-          @edit="openEditUser"
-          @approve="handleApproveUser"
-          @reject="handleRejectUser"
-          @toggle-status="openStatusConfirm"
-          @change-password="handleChangePassword"
-          @delete="openDeleteConfirm"
-        />
-      </div>
-
-      <!-- Pagination Footer for Grid Mode -->
-      <TablePagination
-        v-if="!isLoading"
-        :total-items="filteredUsers.length"
-        v-model:current-page="currentPage"
-        v-model:items-per-page="itemsPerPage"
-      />
-    </template>
-
     <!-- Table List View Mode -->
-    <UiCard v-else custom-class="p-0 overflow-hidden">
+    <UiCard custom-class="p-0 overflow-hidden">
       <UiTable
         :columns="userColumns"
         :data="paginatedUsers"
@@ -606,7 +685,9 @@ const handleFormSubmit = async (formData: any) => {
         </template>
 
         <template #cell-vehicles="{ item }">
-          <span v-if="(item.vehicles || []).length === 0" class="text-slate-400 dark:text-slate-500">None</span>
+          <span v-if="(item.vehicles || []).length === 0" class="text-slate-400 dark:text-slate-500"
+            >None</span
+          >
           <span v-else :title="(item.vehicles || []).map((v: any) => v.plateNumber).join(', ')">
             {{ item.vehicles.length }} {{ item.vehicles.length === 1 ? 'Vehicle' : 'Vehicles' }}
           </span>
@@ -621,7 +702,10 @@ const handleFormSubmit = async (formData: any) => {
         <template #cell-actions="{ item }">
           <div class="inline-flex items-center gap-1.5" @click.stop>
             <!-- Quick Approve / Reject for Student Pending -->
-            <div v-if="item.role === 'Student' && displayStatus(item) === 'Pending'" class="flex items-center gap-1 mr-1">
+            <div
+              v-if="item.role === 'Student' && displayStatus(item) === 'Pending'"
+              class="flex items-center gap-1 mr-1"
+            >
               <button
                 type="button"
                 title="Approve Registration"
@@ -647,8 +731,19 @@ const handleFormSubmit = async (formData: any) => {
               @click="openEditUser(item)"
               class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white transition-colors cursor-pointer border-none bg-transparent"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round" />
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </button>
 
@@ -660,9 +755,23 @@ const handleFormSubmit = async (formData: any) => {
               @click="openStatusConfirm(item, 'Suspended')"
               class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round" />
-                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" stroke-linecap="round" stroke-linejoin="round" />
+                <line
+                  x1="4.93"
+                  y1="4.93"
+                  x2="19.07"
+                  y2="19.07"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </button>
             <button
@@ -672,7 +781,14 @@ const handleFormSubmit = async (formData: any) => {
               @click="openStatusConfirm(item, 'Active')"
               class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </button>
@@ -684,7 +800,14 @@ const handleFormSubmit = async (formData: any) => {
               @click="handleChangePassword(item)"
               class="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer border-none bg-transparent"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
@@ -697,11 +820,26 @@ const handleFormSubmit = async (formData: any) => {
               @click="openDeleteConfirm(item)"
               class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/60 transition-colors cursor-pointer border-none bg-transparent"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <polyline points="3 6 5 6 21 6" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-linecap="round" stroke-linejoin="round" />
+                <path
+                  d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
                 <path d="M10 11v6M14 11v6" stroke-linecap="round" stroke-linejoin="round" />
-                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke-linecap="round" stroke-linejoin="round" />
+                <path
+                  d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
               </svg>
             </button>
           </div>

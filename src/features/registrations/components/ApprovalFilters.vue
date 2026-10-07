@@ -70,7 +70,7 @@ const statusOptions = computed(() => [
             :model-value="selectedCategoryFilter"
             :options="categoryOptions"
             size="sm"
-            @update:model-value="emit('update:selectedCategoryFilter', $event)"
+            @update:model-value="emit('update:selectedCategoryFilter', $event as typeof props.selectedCategoryFilter)"
           />
         </div>
 
@@ -79,7 +79,7 @@ const statusOptions = computed(() => [
             :model-value="selectedStatusTab"
             :options="statusOptions"
             size="sm"
-            @update:model-value="emit('update:selectedStatusTab', $event)"
+            @update:model-value="emit('update:selectedStatusTab', $event as typeof props.selectedStatusTab)"
           />
         </div>
       </div>

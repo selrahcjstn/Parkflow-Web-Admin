@@ -1,18 +1,18 @@
-@theme {
+@theme static {
   --font-sans: 'Inter', sans-serif;
   /* ── BulSU Brand ──────────────────────────────── */
-  --color-primary: #7B1113;
-  --color-primary-dark: #5F0D0E;
-  --color-primary-hover: #6C0F11;
+  --color-primary: #7b1113;
+  --color-primary-dark: #5f0d0e;
+  --color-primary-hover: #6c0f11;
   --color-primary-light: rgba(123, 17, 19, 0.08);
   --color-primary-lighter: rgba(123, 17, 19, 0.04);
-  --color-gold: #FDB813;
-  --color-gold-dark: #E5A611;
+  --color-gold: #fdb813;
+  --color-gold-dark: #e5a611;
   --color-accent: #334155;
 
   /* ── Unified Button Theme ──────────────────────── */
-  --btn-primary-bg: #7B1113;
-  --btn-primary-hover: #6C0F11;
+  --btn-primary-bg: #7b1113;
+  --btn-primary-hover: #6c0f11;
   --btn-primary-text: #ffffff;
   --btn-primary-shadow: 0 4px 12px rgba(123, 17, 19, 0.25);
   --btn-secondary-bg: #ffffff;
@@ -64,7 +64,7 @@
   --color-sidebar-text: #475569;
   --color-sidebar-text-active: #ffffff;
   --color-sidebar-hover: #f1f5f9;
-  --color-sidebar-active-bg: #7B1113;
+  --color-sidebar-active-bg: #7b1113;
   --color-sidebar-section-label: #94a3b8;
   --color-sidebar-icon-active: #ffffff;
   --color-sidebar-divider: #eef2f6;

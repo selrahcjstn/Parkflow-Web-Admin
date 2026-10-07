@@ -92,7 +92,7 @@ const formatDate = (dateString?: string) => {
           label="Workflow Status"
           :options="statusOptions"
           size="sm"
-          @update:model-value="emit('update:status', $event)"
+          @update:model-value="emit('update:status', $event as typeof props.status)"
         />
       </div>
 
