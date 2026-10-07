@@ -2,9 +2,7 @@
 import { ref, computed } from 'vue'
 import { useApprovals } from '../composables/useApprovals'
 import type { ApprovalItem, ScheduleItem } from '../types'
-import ApprovalStatsBar from '../components/ApprovalStatsBar.vue'
 import ApprovalFilterBar from '../components/ApprovalFilterBar.vue'
-import ApprovalCard from '../components/ApprovalCard.vue'
 import ApprovalTable from '../components/ApprovalTable.vue'
 import ApprovalInspectorModal from '../components/ApprovalInspectorModal.vue'
 import DocumentZoomModal from '../components/DocumentZoomModal.vue'
@@ -27,7 +25,6 @@ const {
 const searchQuery = ref('')
 const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>('pending')
 const selectedRole = ref('all')
-const viewMode = ref<'grid' | 'table'>('grid')
 
 // Pagination State
 const currentPage = ref(1)
@@ -179,20 +176,12 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
     </div>
 
     <!-- Stats Overview -->
-    <ApprovalStatsBar
-      :total-count="totalCount"
-      :pending-count="pendingCount"
-      :approved-count="approvedCount"
-      :rejected-count="rejectedCount"
-      :is-loading="isLoading"
-    />
+    
 
     <!-- Filter Bar -->
     <ApprovalFilterBar
       v-model:search-query="searchQuery"
-      v-model:selected-status-tab="selectedStatusTab"
       v-model:selected-role="selectedRole"
-      v-model:view-mode="viewMode"
       :total-count="totalCount"
       :pending-count="pendingCount"
       :approved-count="approvedCount"
@@ -220,22 +209,8 @@ async function handleSaveSchedule(item: ApprovalItem, schedules: ScheduleItem[])
     </div>
 
     <div v-else>
-      <!-- Grid Cards View -->
-      <div v-if="viewMode === 'grid'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <ApprovalCard
-          v-for="(item, idx) in paginatedApprovals"
-          :key="item.guid || idx"
-          :item="item"
-          :index="idx"
-          @inspect="openInspector(item)"
-          @approve="promptApprove(item)"
-          @reject="promptReject(item)"
-          @zoom-image="selectedZoomImage = $event"
-        />
-      </div>
-
       <!-- Table View -->
-      <div v-else>
+      <div>
         <ApprovalTable
           :items="paginatedApprovals"
           @inspect="openInspector"

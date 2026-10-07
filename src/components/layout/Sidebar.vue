@@ -108,6 +108,7 @@ const filteredNavItems = computed(() => {
     },
     { key: 'divider-2', label: 'Operations', icon: '', section: true },
     { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
+    { key: 'visitors', label: 'Visitors', path: '/visitors', icon: 'visitor' },
     { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
     { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
     { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
@@ -235,6 +236,13 @@ const userInitials = computed(() => {
                 <svg v-else-if="item.icon === 'parking'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3" y="3" width="18" height="18" rx="3" />
                   <path d="M10 16V8h3a3 3 0 0 1 0 6h-3" />
+                </svg>
+                <!-- Visitor icon -->
+                <svg v-else-if="item.icon === 'visitor'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
                 <!-- Calendar / Reservations icon -->
                 <svg v-else-if="item.icon === 'calendar'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">

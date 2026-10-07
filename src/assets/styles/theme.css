@@ -1,6 +1,5 @@
-@import 'tailwindcss';
-
-:root {
+@theme {
+  --font-sans: 'Inter', sans-serif;
   /* ── BulSU Brand ──────────────────────────────── */
   --color-primary: #7B1113;
   --color-primary-dark: #5F0D0E;
