@@ -172,7 +172,7 @@ const handlePasswordChange = async () => {
 </script>
 
 <template>
-  <div class="space-y-6 max-w-2xl mx-auto">
+  <div class="space-y-6">
     <!-- Header -->
     <div class="space-y-2">
       <router-link
