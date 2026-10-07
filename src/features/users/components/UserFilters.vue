@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
@@ -42,7 +43,7 @@ const vehicleOptions = [
   { label: 'No Vehicle Registered', value: 'no-vehicle' },
 ]
 
-const roleOptions = [
+const roleOptions = computed(() => [
   { label: `All Account Types (${props.totalCount})`, value: 'all' },
   { label: `Student (${props.studentCount})`, value: 'Student' },
   { label: `Faculty Member (${props.facultyCount})`, value: 'UniversityStaff' },
@@ -53,7 +54,7 @@ const roleOptions = [
         { label: `Administrators (${props.adminCount})`, value: 'Admin' },
       ]
     : []),
-]
+])
 </script>
 
 <template>

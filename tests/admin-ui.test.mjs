@@ -43,6 +43,37 @@ test('Visitors keeps search left and pushes campus status and refresh right', ()
   assert.match(source, /class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end"/)
 })
 const Button = component('src/components/ui/UiButton.vue')
+test('role filter counts and administrator options update after accounts load', () => {
+  const Filters = component('src/features/users/components/UserFilters.vue', {
+    '@/components/ui/UiButton.vue': { default: Button },
+    '@/components/ui/UiInput.vue': { default: component('src/components/ui/UiInput.vue') },
+    '@/components/ui/UiSelect.vue': { default: component('src/components/ui/UiSelect.vue') },
+  })
+  const props = vue.reactive({
+    searchQuery: '', selectedRole: 'all', selectedStatus: 'all', selectedVehicleFilter: 'all',
+    totalCount: 0, studentCount: 0, facultyCount: 0, staffCount: 0, guardCount: 0, adminCount: 0,
+    isSuperAdmin: false,
+  })
+  // Keep the same component instance, just as when the API fills initially empty counts.
+  const render = Filters.setup(props, { expose() {}, emit() {} })
+  function roleLabels() {
+    let options
+    function visit(node) {
+      if (Array.isArray(node)) return node.forEach(visit)
+      if (node?.props?.label === 'Role') options = node.props.options
+      if (node?.children) visit(node.children)
+    }
+    visit(render({}, []))
+    return Array.from(options, item => item.label)
+  }
+  assert.deepEqual(roleLabels(), ['All Account Types (0)', 'Student (0)', 'Faculty Member (0)', 'University Staff (0)'])
+  Object.assign(props, { totalCount: 92, studentCount: 64, facultyCount: 22, staffCount: 6 })
+  assert.deepEqual(roleLabels(), ['All Account Types (92)', 'Student (64)', 'Faculty Member (22)', 'University Staff (6)'])
+  Object.assign(props, { isSuperAdmin: true, guardCount: 3, adminCount: 2 })
+  assert.deepEqual(roleLabels().slice(-2), ['Security Guards (3)', 'Administrators (2)'])
+  props.studentCount = 65
+  assert.equal(roleLabels()[1], 'Student (65)')
+})
 const SettingsCard = component('src/features/settings/components/OverstayFeeCard.vue', {
   '@/components/ui/UiButton.vue': { default: Button },
   '@/components/ui/UiCard.vue': { default: component('src/components/ui/UiCard.vue') },
