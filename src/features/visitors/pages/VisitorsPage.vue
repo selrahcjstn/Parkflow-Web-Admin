@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiTable from '@/components/ui/UiTable.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
+import UiStatusText from '@/components/ui/UiStatusText.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
 
 type Visitor = {
   id: string
@@ -20,7 +24,6 @@ type Visitor = {
   totalVisits: number
   isInside: boolean
 }
-
 type Visit = {
   id: string
   entryTime: string
@@ -33,136 +36,145 @@ type Visit = {
   exitGate?: string
   status: string
 }
-
 const route = useRoute()
-const id = computed(() => typeof route.params.id === 'string' ? route.params.id : '')
-
+const id = computed(() => (typeof route.params.id === 'string' ? route.params.id : ''))
 const visitors = ref<Visitor[]>([])
 const detail = ref<Visitor | null>(null)
 const visits = ref<Visit[]>([])
 const search = ref('')
 const term = ref('')
-const statusFilter = ref<'all' | 'inside' | 'outside'>('all')
+const statusFilter = ref('all')
 const page = ref(1)
-const hasMore = ref(false)
+const pageSize = ref(10)
 const totalCount = ref(0)
 const loading = ref(false)
 const error = ref('')
-
 let controller: AbortController | null = null
 let request = 0
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 const statusOptions = [
-  { label: 'All Statuses', value: 'all' },
-  { label: 'Currently Inside', value: 'inside' },
-  { label: 'Outside Campus', value: 'outside' },
+  { label: 'All statuses', value: 'all' },
+  { label: 'On campus', value: 'inside' },
+  { label: 'Outside campus', value: 'outside' },
 ]
-
-const date = (value?: string) => value ? new Date(value).toLocaleString('en-PH', { timeZone: 'Asia/Manila' }) : '—'
-
-const getVehicleTypeLabel = (type: number) => {
-  switch (type) {
-    case 0: return 'Motorcycle'
-    case 1: return 'Electric Bike'
-    case 2: return 'Car'
-    default: return 'Vehicle'
-  }
+const date = (value?: string) => {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime())
+    ? '—'
+    : parsed.toLocaleString('en-PH', {
+        timeZone: 'Asia/Manila',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      })
 }
-
 const columns = [
-  { key: 'fullName', label: 'Visitor Name' },
-  { key: 'plateNumber', label: 'Plate Number' },
+  { key: 'fullName', label: 'Visitor' },
+  { key: 'plateNumber', label: 'Plate number' },
   { key: 'vehicle', label: 'Vehicle' },
-  { key: 'contactNumber', label: 'Contact' },
-  { key: 'lastVisit', label: 'Last Visit' },
-  { key: 'totalVisits', label: 'Total Visits' },
-  { key: 'isInside', label: 'Status' },
+  { key: 'contactNumber', label: 'Contact number' },
+  { key: 'lastVisit', label: 'Last visit' },
+  { key: 'totalVisits', label: 'Visits' },
+  { key: 'isInside', label: 'Campus status' },
   { key: 'action', label: 'Action' },
 ]
-
 const historyColumns = [
-  { key: 'entryTime', label: 'Entry Time' },
-  { key: 'exitTime', label: 'Exit Time' },
+  { key: 'entryTime', label: 'Entry' },
+  { key: 'exitTime', label: 'Exit' },
+  { key: 'purpose', label: 'Purpose / destination' },
   { key: 'gate', label: 'Gates' },
-  { key: 'guards', label: 'Processed By' },
+  { key: 'guards', label: 'Processed by' },
   { key: 'status', label: 'Status' },
 ]
 
 async function load() {
   controller?.abort()
-  controller = new AbortController()
+  const activeController = new AbortController()
+  controller = activeController
   const current = ++request
   loading.value = true
   error.value = ''
-
   try {
-    const params: Record<string, any> = {
-      page: page.value,
-      pageSize: 20,
-      search: term.value,
-    }
-
-    if (statusFilter.value === 'inside') {
-      params.onlyInside = true
-    } else if (statusFilter.value === 'outside') {
-      params.onlyInside = false
-    }
-
-    const response = await api.get(id.value ? '/visitors/' + encodeURIComponent(id.value) : '/visitors', {
-      params,
-      signal: controller.signal,
-    })
-
+    const response = await api.get(
+      id.value ? '/visitors/' + encodeURIComponent(id.value) : '/visitors',
+      {
+        params: {
+          page: page.value,
+          pageSize: pageSize.value,
+          ...(!id.value
+            ? {
+                search: term.value || undefined,
+                onlyInside:
+                  statusFilter.value === 'all' ? undefined : statusFilter.value === 'inside',
+              }
+            : {}),
+        },
+        signal: activeController.signal,
+      },
+    )
     if (current !== request) return
-    if (!response.data?.isSuccess) throw new Error('Unable to load visitors.')
-
+    if (!response.data?.isSuccess || !response.data.data) throw new Error('Visitors unavailable')
     const data = response.data.data
     if (id.value) {
       detail.value = data.visitor
       visits.value = data.visits || []
+      totalCount.value = data.totalCount ?? data.visitor?.totalVisits ?? 0
     } else {
       visitors.value = data.items || []
       totalCount.value = data.totalCount || 0
-      hasMore.value = data.hasMore
     }
+    const lastPage = Math.max(1, Math.ceil(totalCount.value / pageSize.value))
+    if (page.value > lastPage) page.value = lastPage
   } catch {
-    if (current === request && !controller?.signal.aborted) {
-      error.value = 'Unable to load records. Please try Refresh.'
-    }
+    if (current === request && !activeController.signal.aborted)
+      error.value = id.value
+        ? 'Could not load this visitor record. Please try again.'
+        : 'Could not load visitors. Please try again.'
   } finally {
     if (current === request) loading.value = false
   }
 }
-
+watch(search, () => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    term.value = search.value.trim()
+  }, 350)
+})
 function searchVisitors() {
-  page.value = 1
-  term.value = search.value.trim()
+  clearTimeout(searchTimer)
+  if (term.value === search.value.trim()) void load()
+  else term.value = search.value.trim()
+}
+watch(
+  [id, page, pageSize, term, statusFilter],
+  ([nextId, , size, query, status], [oldId, , oldSize, oldQuery, oldStatus]) => {
+    if (nextId !== oldId) {
+      detail.value = null
+      visitors.value = []
+      visits.value = []
+      totalCount.value = 0
+    }
+    if (nextId !== oldId || size !== oldSize || query !== oldQuery || status !== oldStatus) {
+      if (page.value !== 1) {
+        page.value = 1
+        return
+      }
+    }
+    void load()
+  },
+)
+function handleRefresh() {
+  refreshAdminData()
   void load()
 }
-
-watch(statusFilter, () => {
-  page.value = 1
-  void load()
-})
-
-watch(id, () => {
-  page.value = 1
-  detail.value = null
-  visits.value = []
-  void load()
-})
-
-function changePage(delta: number) {
-  page.value += delta
-  void load()
-}
-
 function refreshOnFocus() {
-  if (!loading.value) void load()
+  if (!loading.value && document.visibilityState === 'visible') handleRefresh()
 }
-
 let unsubscribeApproval: (() => void) | undefined
-
 onMounted(() => {
   void load()
   window.addEventListener('focus', refreshOnFocus)
@@ -170,8 +182,8 @@ onMounted(() => {
   void notifications.initSignalRConnection()
   unsubscribeApproval = notifications.onApprovalUpdate(refreshOnFocus)
 })
-
 onUnmounted(() => {
+  clearTimeout(searchTimer)
   unsubscribeApproval?.()
   request++
   controller?.abort()
@@ -180,158 +192,201 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6 text-[var(--color-text)]">
-    <RouterLink v-if="id" to="/visitors" class="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[var(--color-primary)] hover:underline">
-      ← Back to Visitors Directory
+  <div class="space-y-6 text-text">
+    <RouterLink
+      v-if="id"
+      to="/visitors"
+      class="inline-flex min-h-10 items-center gap-2 text-sm font-medium text-muted hover:text-primary"
+    >
+      ← Back to Visitors
     </RouterLink>
-
-    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <header class="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
       <div>
-        <h1 class="text-2xl font-bold tracking-tight">{{ id ? 'Visitor Profile & History' : 'Visitors Directory' }}</h1>
-        <p class="mt-1 text-sm text-[var(--color-muted)]">
-          {{ id ? 'View reusable visitor information and complete campus visit history.' : 'Monitor guest campus visitors, active visit sessions, and vehicle records.' }}
+        <h1 class="text-2xl font-bold tracking-tight">
+          {{ id ? 'Visitor Record Details' : 'Visitors' }}
+        </h1>
+        <p class="mt-1 text-sm leading-6 text-muted">
+          {{
+            id
+              ? 'Saved visitor information and campus visit history.'
+              : 'Visitor records, vehicles, and campus entry and exit history.'
+          }}
         </p>
       </div>
-
-      <div v-if="!id && totalCount > 0" class="flex items-center gap-2">
-        <span class="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-          {{ totalCount }} Total Registered Visitors
-        </span>
-      </div>
+      <UiButton v-if="id" variant="secondary" :loading="loading" @click="handleRefresh">
+        <template #prefix>
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M20 7a9 9 0 0 0-15-2L2 8m0-5v5h5M4 17a9 9 0 0 0 15 2l3-3m0 5v-5h-5" />
+          </svg>
+        </template>
+        Refresh
+      </UiButton>
     </header>
 
-    <!-- Search & Filters -->
-    <form v-if="!id" class="flex flex-wrap items-end gap-3" @submit.prevent="searchVisitors">
-      <div class="w-full sm:max-w-xs">
-        <label for="visitor-search" class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Search Name, Plate, Brand</label>
-        <UiInput id="visitor-search" v-model="search" placeholder="Search by name or plate..." />
+    <form
+      v-if="!id"
+      class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end"
+      @submit.prevent="searchVisitors"
+    >
+      <div class="min-w-0 flex-1 sm:max-w-md">
+        <UiInput
+          v-model="search"
+          label="Search"
+          placeholder="Search name, plate, or brand…"
+          clearable
+        />
       </div>
-
-      <div class="w-full sm:w-48">
-        <label for="status-filter" class="mb-1.5 block text-xs font-medium text-[var(--color-muted)]">Campus Status</label>
-        <UiSelect id="status-filter" v-model="statusFilter" :options="statusOptions" />
+      <div class="min-w-0 sm:ml-auto sm:w-52 sm:shrink-0">
+        <UiSelect v-model="statusFilter" label="Campus status" :options="statusOptions" />
       </div>
-
-      <UiButton type="submit" :disabled="loading">Search</UiButton>
-      <UiButton variant="outline" :loading="loading" @click="load">Refresh</UiButton>
+      <UiButton variant="secondary" :loading="loading" @click="handleRefresh">
+        <template #prefix>
+          <svg
+            class="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M20 7a9 9 0 0 0-15-2L2 8m0-5v5h5M4 17a9 9 0 0 0 15 2l3-3m0 5v-5h-5" />
+          </svg>
+        </template>
+        Refresh
+      </UiButton>
     </form>
 
-    <p v-if="error" role="alert" class="rounded-lg bg-rose-500/10 p-3 text-sm text-[var(--color-danger)]">{{ error }}</p>
-
-    <!-- VISITOR DETAIL CARD -->
-    <UiCard v-if="id && detail" custom-class="p-6">
+    <div
+      v-if="error"
+      role="alert"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-button border border-danger/20 bg-danger-bg p-4 text-sm text-danger"
+    >
+      <span>{{ error }}</span>
+      <UiButton variant="secondary" :loading="loading" @click="handleRefresh">Try again</UiButton>
+    </div>
+    <UiCard v-if="id && loading && !detail">
+      <SkeletonLoader variant="rect" height="120px" />
+    </UiCard>
+    <UiCard v-else-if="id && detail">
       <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-3">
-            <h2 class="text-xl font-bold">{{ detail.fullName }}</h2>
-            <span
-              class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold"
-              :class="detail.isInside ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' : 'bg-slate-500/15 text-slate-600 dark:text-slate-400'"
-            >
-              {{ detail.isInside ? 'Currently Inside Campus' : 'Outside Campus' }}
-            </span>
-          </div>
-          <p class="mt-1 text-xs text-[var(--color-muted)]">Reusable Visitor Profile</p>
+        <div class="min-w-0">
+          <h2 class="break-words text-xl font-semibold">{{ detail.fullName }}</h2>
+          <p class="mt-1 text-sm text-muted">Saved details are reused on return visits.</p>
         </div>
+        <UiStatusText :variant="detail.isInside ? 'success' : 'neutral'">{{
+          detail.isInside ? 'On campus' : 'Outside campus'
+        }}</UiStatusText>
       </div>
-
-      <dl class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 border-t border-[var(--color-border)] pt-5">
-        <div>
-          <dt class="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Plate Number</dt>
-          <dd class="mt-1 font-bold text-base text-[var(--color-text)]">{{ detail.plateNumber }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Vehicle & Type</dt>
-          <dd class="mt-1 font-medium text-sm text-[var(--color-text)]">{{ detail.brand }} · {{ getVehicleTypeLabel(detail.vehicleType) }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Contact Number</dt>
-          <dd class="mt-1 font-medium text-sm text-[var(--color-text)]">{{ detail.contactNumber || 'None provided' }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Total Campus Visits</dt>
-          <dd class="mt-1 font-bold text-sm text-[var(--color-text)]">{{ detail.totalVisits }} visits</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-semibold text-[var(--color-muted)] uppercase tracking-wider">Last Visit Date</dt>
-          <dd class="mt-1 text-sm text-[var(--color-text)]">{{ date(detail.lastVisit) }}</dd>
+      <dl class="mt-5 grid gap-5 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          v-for="field in [
+            { label: 'Plate number', value: detail.plateNumber },
+            {
+              label: 'Vehicle',
+              value: detail.brand + ' · ' + getVehicleTypeLabel(detail.vehicleType),
+            },
+            { label: 'Contact number', value: detail.contactNumber || 'Not provided' },
+            { label: 'Total visits', value: detail.totalVisits },
+            { label: 'Last visit', value: date(detail.lastVisit) },
+          ]"
+          :key="field.label"
+        >
+          <dt class="text-sm text-muted">{{ field.label }}</dt>
+          <dd class="mt-1 break-words text-sm font-medium">{{ field.value }}</dd>
         </div>
       </dl>
     </UiCard>
 
-    <!-- DIRECTORY TABLE / VISIT HISTORY TABLE -->
-    <UiCard>
-      <div v-if="id" class="p-4 border-b border-[var(--color-border)] flex items-center justify-between">
-        <h2 class="font-bold text-base">Visit History (Newest First)</h2>
-        <span class="text-xs text-[var(--color-muted)]">{{ visits.length }} recorded session(s)</span>
+    <UiCard v-if="!id || detail || loading" custom-class="p-0 overflow-hidden">
+      <div v-if="id" class="border-b border-border px-5 py-4">
+        <h2 class="text-base font-semibold">Visit history</h2>
+        <p class="mt-1 text-sm text-muted">Most recent visits first.</p>
       </div>
-
-      <!-- Visitor Directory Table -->
-      <UiTable v-if="!id" :columns="columns" :data="visitors" :is-loading="loading && !visitors.length" empty-text="No visitors found.">
-        <template #cell-fullName="{ item }">
-          <span class="font-bold text-[var(--color-text)]">{{ item.fullName }}</span>
-        </template>
-        <template #cell-plateNumber="{ item }">
-          <span class="font-mono font-bold text-sm">{{ item.plateNumber }}</span>
-        </template>
+      <UiTable
+        v-if="!id"
+        :columns="columns"
+        :data="visitors"
+        :is-loading="loading"
+        empty-text="No visitors match your search."
+      >
+        <template #cell-fullName="{ item }"
+          ><span class="font-semibold text-text">{{ item.fullName }}</span></template
+        >
+        <template #cell-plateNumber="{ item }"
+          ><span class="font-semibold text-text">{{ item.plateNumber }}</span></template
+        >
         <template #cell-vehicle="{ item }">
-          <span class="text-sm">{{ item.brand }} <span class="text-xs text-[var(--color-muted)]">({{ getVehicleTypeLabel(item.vehicleType) }})</span></span>
+          <div class="text-text">{{ item.brand }}</div>
+          <div class="mt-1 text-muted">{{ getVehicleTypeLabel(item.vehicleType) }}</div>
         </template>
-        <template #cell-contactNumber="{ item }">
-          <span class="text-sm">{{ item.contactNumber || '—' }}</span>
-        </template>
-        <template #cell-lastVisit="{ item }">
-          <span class="text-xs">{{ date(item.lastVisit) }}</span>
-        </template>
-        <template #cell-totalVisits="{ item }">
-          <span class="font-semibold text-xs">{{ item.totalVisits }}</span>
-        </template>
+        <template #cell-contactNumber="{ item }">{{ item.contactNumber || '—' }}</template>
+        <template #cell-lastVisit="{ item }">{{ date(item.lastVisit) }}</template>
         <template #cell-isInside="{ item }">
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold"
-            :class="item.isInside ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-slate-500/15 text-slate-500 dark:text-slate-400'"
-          >
-            {{ item.isInside ? 'Inside' : 'Outside' }}
-          </span>
+          <UiStatusText :variant="item.isInside ? 'success' : 'neutral'">{{
+            item.isInside ? 'On campus' : 'Outside campus'
+          }}</UiStatusText>
         </template>
         <template #cell-action="{ item }">
-          <RouterLink :to="'/visitors/' + item.id" class="inline-flex min-h-11 items-center font-semibold text-xs text-[var(--color-primary)] hover:underline">
-            View Details →
-          </RouterLink>
+          <RouterLink
+            :to="'/visitors/' + item.id"
+            class="inline-flex min-h-10 items-center font-semibold text-primary hover:underline"
+            :aria-label="'View visitor record for ' + item.fullName"
+            >View details</RouterLink
+          >
         </template>
       </UiTable>
-
-      <!-- Visitor History Detail Table -->
-      <UiTable v-else :columns="historyColumns" :data="visits" :is-loading="loading && !visits.length" empty-text="No visits recorded for this visitor.">
-        <template #cell-entryTime="{ item }">
-          <span class="text-xs font-medium">{{ date(item.entryTime) }}</span>
-        </template>
+      <UiTable
+        v-else
+        :columns="historyColumns"
+        :data="visits"
+        :is-loading="loading"
+        empty-text="No campus visits recorded."
+      >
+        <template #cell-entryTime="{ item }">{{ date(item.entryTime) }}</template>
         <template #cell-exitTime="{ item }">
-          <span class="text-xs" :class="item.exitTime ? '' : 'font-bold text-emerald-600 dark:text-emerald-400'">
-            {{ item.exitTime ? date(item.exitTime) : 'Currently Inside' }}
-          </span>
+          <span :class="item.status === 'Inside' ? 'text-success' : 'text-text'">{{
+            item.exitTime ? date(item.exitTime) : item.status === 'Inside' ? 'On campus' : '—'
+          }}</span>
+        </template>
+        <template #cell-purpose="{ item }">
+          <div>{{ item.purpose || '—' }}</div>
+          <div v-if="item.destination" class="mt-1 text-muted">{{ item.destination }}</div>
         </template>
         <template #cell-gate="{ item }">
-          <span class="text-xs text-[var(--color-muted)]">{{ item.entryGate || 'Gate 1' }}{{ item.exitGate ? ' → ' + item.exitGate : '' }}</span>
+          <div>Entry: {{ item.entryGate || 'Not recorded' }}</div>
+          <div v-if="item.exitTime" class="mt-1 text-muted">
+            Exit: {{ item.exitGate || 'Not recorded' }}
+          </div>
         </template>
         <template #cell-guards="{ item }">
-          <span class="text-xs text-[var(--color-muted)]">{{ item.entryGuardName || 'Security' }}</span>
+          <div>Entry: {{ item.entryGuardName || 'Not recorded' }}</div>
+          <div v-if="item.exitTime" class="mt-1 text-muted">
+            Exit: {{ item.exitGuardName || 'Not recorded' }}
+          </div>
         </template>
         <template #cell-status="{ item }">
-          <span
-            class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold"
-            :class="item.status === 'Inside' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-slate-500/15 text-slate-600'"
-          >
-            {{ item.status }}
-          </span>
+          <UiStatusText :variant="item.status === 'Inside' ? 'success' : 'neutral'">{{
+            item.status === 'Inside'
+              ? 'On campus'
+              : item.status === 'Cancelled'
+                ? 'Cancelled'
+                : 'Completed'
+          }}</UiStatusText>
         </template>
       </UiTable>
-
-      <div v-if="!id" class="flex items-center justify-between gap-3 border-t border-[var(--color-border)] p-4">
-        <UiButton variant="outline" :disabled="page === 1 || loading" @click="changePage(-1)">Previous</UiButton>
-        <span class="text-xs text-[var(--color-muted)] font-medium">Page {{ page }}</span>
-        <UiButton variant="outline" :disabled="!hasMore || loading" @click="changePage(1)">Next</UiButton>
-      </div>
+      <TablePagination
+        v-model:current-page="page"
+        v-model:items-per-page="pageSize"
+        :total-items="totalCount"
+        :disabled="loading"
+      />
     </UiCard>
   </div>
 </template>

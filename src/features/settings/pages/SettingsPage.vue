@@ -16,6 +16,8 @@ const router = useRouter()
 interface SystemSettings {
   violationRatePerHour: number
   feeCalculationMode: 'per_hour' | 'per_day' | 'one_time' | 'one_time_hourly' | 'no_fee'
+  personnelFreeParkingStart: string
+  personnelFreeParkingEnd: string
   baseFee: number
   isGracePeriodEnabled: boolean
   gracePeriodMinutes: number
@@ -39,6 +41,8 @@ const settings = ref<SystemSettings>({
   violationRatePerHour: 100,
   feeCalculationMode: 'per_hour',
   baseFee: 50,
+  personnelFreeParkingStart: '05:00',
+  personnelFreeParkingEnd: '21:00',
   isGracePeriodEnabled: true,
   gracePeriodMinutes: 15,
   isEarlyParkingAllowed: true,
@@ -49,7 +53,7 @@ const settings = ref<SystemSettings>({
   maxVehiclesPerUser: 5,
   maintenanceMode: false,
   rfidInstantScanEnabled: true,
-  autoApproveVerification: false
+  autoApproveVerification: false,
 })
 
 const isLoading = ref(true)
@@ -75,7 +79,7 @@ async function loadSettings() {
     if (response.data?.isSuccess && response.data?.data) {
       settings.value = {
         ...settings.value,
-        ...response.data.data
+        ...response.data.data,
       }
     }
   } catch (error) {
@@ -94,7 +98,7 @@ async function saveSettings() {
       if (response.data.data) {
         settings.value = {
           ...settings.value,
-          ...response.data.data
+          ...response.data.data,
         }
       }
     } else {
@@ -102,14 +106,17 @@ async function saveSettings() {
     }
   } catch (error: any) {
     console.error('Error saving settings:', error)
-    const errorMsg = error.response?.data?.message || error.message || 'Failed to save system settings'
+    const errorMsg =
+      error.response?.data?.message || error.message || 'Failed to save system settings'
     showNotification(errorMsg, 'error')
   } finally {
     isSaving.value = false
   }
 }
 
-async function toggleFeature(key: 'maintenanceMode' | 'rfidInstantScanEnabled' | 'autoApproveVerification') {
+async function toggleFeature(
+  key: 'maintenanceMode' | 'rfidInstantScanEnabled' | 'autoApproveVerification',
+) {
   settings.value[key] = !settings.value[key]
   await saveSettings()
 }
@@ -120,7 +127,10 @@ async function confirmResetStudentSchedules() {
     const response = await api.post('/system-settings/reset-student-schedules')
     showResetModal.value = false
     if (response.data?.isSuccess) {
-      showNotification('All student schedules & COR verification statuses have been reset for the new semester!', 'success')
+      showNotification(
+        'All student schedules & COR verification statuses have been reset for the new semester!',
+        'success',
+      )
       await loadSettings()
     } else {
       showNotification(response.data?.message || 'Reset completed.', 'success')
@@ -149,7 +159,7 @@ const announcement = ref<SystemAnnouncement>({
   title: '',
   message: '',
   iconType: 'info',
-  isActive: true
+  isActive: true,
 })
 const isAnnouncementSaving = ref(false)
 
@@ -179,7 +189,7 @@ async function saveAnnouncement() {
       title: (announcement.value.title || '').trim(),
       message: announcement.value.message.trim(),
       iconType: announcement.value.iconType,
-      isActive: announcement.value.isActive
+      isActive: announcement.value.isActive,
     })
     if (res.data?.isSuccess) {
       showNotification('System announcement published successfully!', 'success')
@@ -221,7 +231,7 @@ const settingsTabs: TabItem[] = [
   { key: 'capacity', label: 'Campus Capacity & Cycle' },
   { key: 'billing', label: 'Rates & Billing Policy' },
   { key: 'announcements', label: 'System Announcements' },
-  { key: 'features', label: 'Feature Flags & Controls' }
+  { key: 'features', label: 'Feature Flags & Controls' },
 ]
 
 function exportBackupConfig() {
@@ -230,7 +240,10 @@ function exportBackupConfig() {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.setAttribute('href', url)
-  link.setAttribute('download', `ParkFlow_System_Settings_${new Date().toISOString().split('T')[0]}.json`)
+  link.setAttribute(
+    'download',
+    `ParkFlow_System_Settings_${new Date().toISOString().split('T')[0]}.json`,
+  )
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -261,16 +274,24 @@ onMounted(() => {
     </Transition>
 
     <!-- Access Denied Card (if non super-admin) -->
-    <div v-if="!isSuperAdmin" class="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-w-lg mx-auto mt-12">
-      <div class="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center text-rose-600 dark:text-rose-400">
+    <div
+      v-if="!isSuperAdmin"
+      class="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 max-w-lg mx-auto mt-12"
+    >
+      <div
+        class="w-16 h-16 rounded-full bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center text-rose-600 dark:text-rose-400"
+      >
         <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>
       </div>
-      <h2 class="text-xl font-black text-slate-900 dark:text-white">SuperAdmin Access Restricted</h2>
+      <h2 class="text-xl font-black text-slate-900 dark:text-white">
+        SuperAdmin Access Restricted
+      </h2>
       <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md">
-        System configurations, rate settings, and semester resets are restricted exclusively to <strong>Super Administrators</strong>.
+        System configurations, rate settings, and semester resets are restricted exclusively to
+        <strong>Super Administrators</strong>.
       </p>
       <UiButton variant="primary" @click="router.push('/dashboard')">
         Return to Dashboard
@@ -286,16 +307,13 @@ onMounted(() => {
             System Settings & Customization
           </h1>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage campus capacity, semester transitions, violation billing policies, and feature toggles.
+            Manage campus capacity, semester transitions, violation billing policies, and feature
+            toggles.
           </p>
         </div>
 
         <div class="flex items-center gap-3">
-          <UiButton
-            variant="primary"
-            :loading="isSaving"
-            @click="saveSettings"
-          >
+          <UiButton variant="primary" :loading="isSaving" @click="saveSettings">
             Save All Settings
           </UiButton>
         </div>
@@ -303,10 +321,7 @@ onMounted(() => {
 
       <!-- Navigation Tabs -->
       <div class="flex items-center justify-start">
-        <UiTabs
-          v-model="activeTab"
-          :tabs="settingsTabs"
-        />
+        <UiTabs v-model="activeTab" :tabs="settingsTabs" />
       </div>
 
       <!-- Separated Tab Contents -->
@@ -326,6 +341,7 @@ onMounted(() => {
           <OverstayFeeCard
             :settings="settings"
             :is-saving="isSaving"
+            @update:personnel-hours="Object.assign(settings, $event)"
             @save="saveSettings"
           />
         </div>
@@ -370,7 +386,9 @@ onMounted(() => {
 <style scoped>
 .fade-enter-active,
 .fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
 }
 .fade-enter-from,
 .fade-leave-to {

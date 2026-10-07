@@ -11,6 +11,7 @@ import registrationsRoutes from '@/features/registrations/routes'
 import reservationsRoutes from '@/features/reservations/routes'
 import settingsRoutes from '@/features/settings/routes'
 import feedbackRoutes from '@/features/feedback/routes'
+import visitorsRoutes from '@/features/visitors/routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,6 +29,7 @@ const router = createRouter({
         ...parkingRoutes,
         ...violationsRoutes,
         ...vehiclesRoutes,
+        ...visitorsRoutes,
         ...feedbackRoutes,
         ...reportsRoutes,
         ...settingsRoutes,

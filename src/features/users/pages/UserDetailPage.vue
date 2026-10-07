@@ -6,6 +6,7 @@ import { cachedUsers } from '@/stores/appCache'
 import type { UserWithDetails, AccountStatus } from '../types'
 import { getRoleLabel } from '@/utils/role'
 import UiCard from '@/components/ui/UiCard.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UserDetailHeader from '../components/UserDetailHeader.vue'
 import UserDetailHeroCard from '../components/UserDetailHeroCard.vue'
@@ -39,7 +40,7 @@ function showToast(message: string, type: 'success' | 'error' = 'success') {
   const id = nextToastId++
   toasts.value.push({ id, message, type })
   setTimeout(() => {
-    toasts.value = toasts.value.filter(t => t.id !== id)
+    toasts.value = toasts.value.filter((t) => t.id !== id)
   }, 4000)
 }
 
@@ -65,38 +66,56 @@ function mapRawUser(u: any): UserWithDetails {
     authProvider: u.authProvider || 'Manual',
     profilePictureUrl: u.profilePictureUrl || u.avatarUrl || u.photoUrl || '',
     createdAt: u.createdAt || new Date().toISOString(),
-    corVerificationStatus: u.corVerificationStatus || (u.verificationStatus === 2 ? 'Verified' : u.verificationStatus === 3 ? 'Rejected' : u.verificationStatus === 1 ? 'Pending' : 'NotSubmitted'),
+    corVerificationStatus:
+      u.corVerificationStatus ||
+      (u.verificationStatus === 2
+        ? 'Verified'
+        : u.verificationStatus === 3
+          ? 'Rejected'
+          : u.verificationStatus === 1
+            ? 'Pending'
+            : 'NotSubmitted'),
     corDocumentUrl: u.corDocumentUrl || u.corUrl || null,
     academicTerm: u.academicTerm || 'AY 2026-2027',
-    schedules: Array.isArray(u.schedules) ? u.schedules.map((s: any) => ({
-      dayOfWeek: Number(s.dayOfWeek),
-      startTime: String(s.startTime || ''),
-      endTime: String(s.endTime || '')
-    })) : [],
-    student: u.student ? {
-      studentNumber: u.student.studentNumber || '',
-      course: u.student.course || '',
-      section: u.student.section || '',
-      yearLevel: u.student.yearLevel || 1
-    } : undefined,
-    personnel: u.personnel ? {
-      idCardNumber: u.personnel.idCardNumber || '',
-      department: u.personnel.department || ''
-    } : undefined,
-    guard: u.guard ? {
-      assignedGate: u.guard.assignedGate || 1
-    } : undefined,
-    vehicles: Array.isArray(u.vehicles) ? u.vehicles.map((v: any) => ({
-      id: String(v.id || v.vehicleId || ''),
-      plateNumber: v.plateNumber || '',
-      brand: v.brand || '',
-      vehicleType: v.vehicleType || 'Car',
-      isPrimary: Boolean(v.isPrimary),
-      vehiclePictureUrl: v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || null,
-      orcrDocumentUrl: v.orcrDocumentUrl || v.orcrUrl || v.documentUrl || null,
-      verificationStatus: v.verificationStatus || 'Pending',
-      rejectionReason: v.rejectionReason || null
-    })) : []
+    schedules: Array.isArray(u.schedules)
+      ? u.schedules.map((s: any) => ({
+          dayOfWeek: Number(s.dayOfWeek),
+          startTime: String(s.startTime || ''),
+          endTime: String(s.endTime || ''),
+        }))
+      : [],
+    student: u.student
+      ? {
+          studentNumber: u.student.studentNumber || '',
+          course: u.student.course || '',
+          section: u.student.section || '',
+          yearLevel: u.student.yearLevel || 1,
+        }
+      : undefined,
+    personnel: u.personnel
+      ? {
+          idCardNumber: u.personnel.idCardNumber || '',
+          department: u.personnel.department || '',
+        }
+      : undefined,
+    guard: u.guard
+      ? {
+          assignedGate: u.guard.assignedGate || 1,
+        }
+      : undefined,
+    vehicles: Array.isArray(u.vehicles)
+      ? u.vehicles.map((v: any) => ({
+          id: String(v.id || v.vehicleId || ''),
+          plateNumber: v.plateNumber || '',
+          brand: v.brand || '',
+          vehicleType: v.vehicleType || 'Car',
+          isPrimary: Boolean(v.isPrimary),
+          vehiclePictureUrl: v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || null,
+          orcrDocumentUrl: v.orcrDocumentUrl || v.orcrUrl || v.documentUrl || null,
+          verificationStatus: v.verificationStatus || 'Pending',
+          rejectionReason: v.rejectionReason || null,
+        }))
+      : [],
   }
 }
 
@@ -104,10 +123,15 @@ async function loadCorAndSchedulesFallback() {
   if (!user.value) return
   try {
     const corRes = await api.get('/cor-submissions')
-    const rawCor = Array.isArray(corRes.data?.data) ? corRes.data.data : (Array.isArray(corRes.data) ? corRes.data : [])
-    const matchingCor = rawCor.find((c: any) =>
-      String(c.userAccountId).toLowerCase() === userId.value.toLowerCase() ||
-      (user.value?.email && c.email && c.email.toLowerCase() === user.value.email.toLowerCase())
+    const rawCor = Array.isArray(corRes.data?.data)
+      ? corRes.data.data
+      : Array.isArray(corRes.data)
+        ? corRes.data
+        : []
+    const matchingCor = rawCor.find(
+      (c: any) =>
+        String(c.userAccountId).toLowerCase() === userId.value.toLowerCase() ||
+        (user.value?.email && c.email && c.email.toLowerCase() === user.value.email.toLowerCase()),
     )
     if (matchingCor && user.value) {
       if (!user.value.corDocumentUrl && matchingCor.corDocumentUrl) {
@@ -116,11 +140,15 @@ async function loadCorAndSchedulesFallback() {
       if (!user.value.academicTerm && matchingCor.academicTerm) {
         user.value.academicTerm = matchingCor.academicTerm
       }
-      if ((!user.value.schedules || user.value.schedules.length === 0) && matchingCor.schedules && matchingCor.schedules.length > 0) {
+      if (
+        (!user.value.schedules || user.value.schedules.length === 0) &&
+        matchingCor.schedules &&
+        matchingCor.schedules.length > 0
+      ) {
         user.value.schedules = matchingCor.schedules.map((s: any) => ({
           dayOfWeek: Number(s.dayOfWeek),
           startTime: String(s.startTime || ''),
-          endTime: String(s.endTime || '')
+          endTime: String(s.endTime || ''),
         }))
       }
     }
@@ -156,13 +184,18 @@ onMounted(async () => {
   // 3. Fallback API Request
   try {
     const response = await api.get(`/users/${userId.value}`)
-    const data = response.data?.isSuccess && response.data?.data ? response.data.data : response.data
+    const data =
+      response.data?.isSuccess && response.data?.data ? response.data.data : response.data
     if (data) {
       user.value = mapRawUser(data)
       await loadCorAndSchedulesFallback()
     } else {
       const listRes = await api.get('/users')
-      const list = Array.isArray(listRes.data?.data) ? listRes.data.data : (Array.isArray(listRes.data) ? listRes.data : [])
+      const list = Array.isArray(listRes.data?.data)
+        ? listRes.data.data
+        : Array.isArray(listRes.data)
+          ? listRes.data
+          : []
       const match = list.find((u: any) => String(u.id) === userId.value)
       if (match) {
         user.value = mapRawUser(match)
@@ -197,8 +230,8 @@ function openChangePassword() {
         id: user.value.id,
         email: user.value.email,
         name: user.value.fullName,
-        role: getRoleLabel(user.value.role)
-      }
+        role: getRoleLabel(user.value.role),
+      },
     })
   }
 }
@@ -224,7 +257,10 @@ async function confirmStatusChange() {
       }
     }
 
-    showToast(`Account status updated to ${newStatus}.`, newStatus === 'Active' ? 'success' : 'error')
+    showToast(
+      `Account status updated to ${newStatus}.`,
+      newStatus === 'Active' ? 'success' : 'error',
+    )
   } catch (err: any) {
     console.warn('Status update API error, updating state locally:', err)
     user.value.status = newStatus
@@ -240,15 +276,20 @@ async function confirmStatusChange() {
   <div class="w-full space-y-6">
     <!-- Toast Notifications -->
     <div class="fixed bottom-7 right-7 z-50 flex flex-col gap-2.5 pointer-events-none">
-      <TransitionGroup name="toast">
+      <TransitionGroup
+        enter-active-class="transition-opacity duration-150"
+        leave-active-class="transition-opacity duration-150"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
         <div
           v-for="toast in toasts"
           :key="toast.id"
           :class="[
-            'px-4 py-3 rounded-xl text-sm font-semibold backdrop-blur-md shadow-lg pointer-events-auto max-w-xs transition-all',
+            'px-4 py-3 rounded-xl text-sm font-semibold shadow-soft pointer-events-auto max-w-xs transition-all',
             toast.type === 'success'
-              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
-              : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+              ? 'bg-surface text-success border border-success'
+              : 'bg-surface text-danger border border-danger',
           ]"
         >
           {{ toast.message }}
@@ -269,23 +310,28 @@ async function confirmStatusChange() {
     <!-- Loading Skeleton -->
     <div v-if="isLoading" class="space-y-6 animate-pulse">
       <UiCard class="p-6">
-        <div class="h-20 bg-slate-200 dark:bg-slate-800 rounded-xl"></div>
+        <div class="h-20 bg-surface-muted rounded-xl"></div>
       </UiCard>
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <UiCard class="p-6 space-y-3">
-          <div class="h-6 w-1/3 bg-slate-200 dark:bg-slate-800 rounded"></div>
-          <div class="h-32 bg-slate-100 dark:bg-slate-800/60 rounded"></div>
+          <div class="h-6 w-1/3 bg-surface-muted rounded"></div>
+          <div class="h-32 bg-surface-muted rounded"></div>
         </UiCard>
         <UiCard class="p-6 space-y-3">
-          <div class="h-6 w-1/3 bg-slate-200 dark:bg-slate-800 rounded"></div>
-          <div class="h-32 bg-slate-100 dark:bg-slate-800/60 rounded"></div>
+          <div class="h-6 w-1/3 bg-surface-muted rounded"></div>
+          <div class="h-32 bg-surface-muted rounded"></div>
         </UiCard>
       </div>
     </div>
 
     <!-- Error State -->
-    <UiCard v-else-if="!user || errorMessage" class="p-12 text-center flex flex-col items-center gap-4">
-      <div class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center">
+    <UiCard
+      v-else-if="!user || errorMessage"
+      class="p-12 text-center flex flex-col items-center gap-4"
+    >
+      <div
+        class="w-14 h-14 rounded-full bg-surface-muted text-subtle flex items-center justify-center"
+      >
         <svg class="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10" />
           <line x1="12" y1="8" x2="12" y2="12" />
@@ -293,18 +339,12 @@ async function confirmStatusChange() {
         </svg>
       </div>
       <div>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">User Record Not Found</h3>
-        <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <h3 class="text-base font-bold text-text">User Record Not Found</h3>
+        <p class="text-xs sm:text-sm text-muted mt-1">
           {{ errorMessage || 'The requested user profile could not be found or has been removed.' }}
         </p>
       </div>
-      <button
-        type="button"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-slate-900 text-white dark:bg-white dark:text-slate-900 hover:bg-slate-800 transition-colors cursor-pointer mt-2"
-        @click="goBack"
-      >
-        Return to Client Directory
-      </button>
+      <UiButton variant="secondary" @click="goBack">Return to Client Directory</UiButton>
     </UiCard>
 
     <!-- Main Content -->
@@ -333,10 +373,14 @@ async function confirmStatusChange() {
     <!-- Status Change Confirmation Modal -->
     <ConfirmModal
       :is-open="isStatusConfirmOpen"
-      :title="targetStatusToApply === 'Suspended' ? 'Suspend Client Account' : 'Activate Client Account'"
-      :message="targetStatusToApply === 'Suspended'
-        ? `Are you sure you want to suspend account clearance for <strong>${user?.fullName || 'this user'}</strong>? They will be restricted from gate entry.`
-        : `Are you sure you want to reactivate clearance for <strong>${user?.fullName || 'this user'}</strong>?`"
+      :title="
+        targetStatusToApply === 'Suspended' ? 'Suspend Client Account' : 'Activate Client Account'
+      "
+      :message="
+        targetStatusToApply === 'Suspended'
+          ? `Are you sure you want to suspend account clearance for <strong>${user?.fullName || 'this user'}</strong>? They will be restricted from gate entry.`
+          : `Are you sure you want to reactivate clearance for <strong>${user?.fullName || 'this user'}</strong>?`
+      "
       :confirm-text="targetStatusToApply === 'Suspended' ? 'Suspend Account' : 'Activate Account'"
       :confirm-variant="targetStatusToApply === 'Suspended' ? 'danger' : 'primary'"
       :is-loading="isUpdatingStatus"
@@ -345,15 +389,3 @@ async function confirmStatusChange() {
     />
   </div>
 </template>
-
-<style scoped>
-.toast-enter-active,
-.toast-leave-active {
-  transition: all 0.25s ease;
-}
-.toast-enter-from,
-.toast-leave-to {
-  opacity: 0;
-  transform: translateY(10px);
-}
-</style>

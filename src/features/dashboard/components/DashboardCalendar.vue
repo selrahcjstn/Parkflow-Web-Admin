@@ -222,20 +222,28 @@ async function fetchReservationsData() {
     if (version !== requestVersion) return
     if (!res.data?.isSuccess || !res.data.data) throw new Error('Reservations unavailable')
     const data = res.data.data
-    reservations.value = (data.items || []).map((item: {
-          id: string; userFullName: string; plateNumber?: string; reservationDate: string;
-          startTime: string; endTime: string; status: string | number; type: string | number
-        }) => ({
-      id: item.id,
-      userName: item.userFullName || 'Visitor',
-      userRole: '',
-      plateNumber: item.plateNumber || 'Not assigned',
-      date: item.reservationDate.split('T')[0],
-      startTime: item.startTime.slice(0, 5),
-      endTime: item.endTime.slice(0, 5),
-      status: String(item.status),
-      type: String(item.type),
-    }))
+    reservations.value = (data.items || []).map(
+      (item: {
+        id: string
+        userFullName: string
+        plateNumber?: string
+        reservationDate: string
+        startTime: string
+        endTime: string
+        status: string | number
+        type: string | number
+      }) => ({
+        id: item.id,
+        userName: item.userFullName || 'Visitor',
+        userRole: '',
+        plateNumber: item.plateNumber || 'Not assigned',
+        date: item.reservationDate.split('T')[0],
+        startTime: item.startTime.slice(0, 5),
+        endTime: item.endTime.slice(0, 5),
+        status: String(item.status),
+        type: String(item.type),
+      }),
+    )
     calendarTotal.value = data.totalCount
     dateCounts.value = data.dateCounts || {}
   } catch {
@@ -284,14 +292,14 @@ function navigateToReservations() {
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <div class="flex items-center gap-2.5">
-        <h3 class="text-base font-bold text-slate-900 dark:text-white tracking-tight m-0">
+        <h3 class="text-base font-bold text-text tracking-tight m-0">
           {{ currentMonthLabel }}
         </h3>
         <button
           v-if="selectedDate !== formatDateToKey(today)"
           type="button"
           @click="goToToday"
-          class="text-[11px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white dark:bg-rose-950/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800 px-2 py-0.5 rounded-md cursor-pointer transition-all"
+          class="text-[11px] font-bold text-primary bg-primary-light hover:bg-primary hover:text-text-inverse border border-primary/20 px-2 py-0.5 rounded-md cursor-pointer transition-all"
         >
           Today
         </button>
@@ -302,7 +310,7 @@ function navigateToReservations() {
           type="button"
           aria-label="Previous month"
           @click="prevMonth"
-          class="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white flex items-center justify-center cursor-pointer transition-all"
+          class="w-9 h-9 rounded-button border border-border bg-surface text-muted hover:bg-surface-muted hover:text-text flex items-center justify-center cursor-pointer transition-all"
         >
           <svg
             width="16"
@@ -321,7 +329,7 @@ function navigateToReservations() {
           type="button"
           aria-label="Next month"
           @click="nextMonth"
-          class="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 bg-transparent text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white flex items-center justify-center cursor-pointer transition-all"
+          class="w-9 h-9 rounded-button border border-border bg-surface text-muted hover:bg-surface-muted hover:text-text flex items-center justify-center cursor-pointer transition-all"
         >
           <svg
             width="16"
@@ -340,11 +348,11 @@ function navigateToReservations() {
     </div>
 
     <!-- Weekday Header Row -->
-    <div class="grid grid-cols-7 gap-1 mb-2 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-1.5">
+    <div class="grid grid-cols-7 gap-1 mb-2 bg-surface-lighter rounded-xl p-1.5">
       <span
-        v-for="w in ['S', 'M', 'T', 'W', 'T', 'F', 'S']"
-        :key="w"
-        class="text-center text-[11.5px] font-semibold text-slate-500 dark:text-slate-400 uppercase"
+        v-for="(w, index) in ['S', 'M', 'T', 'W', 'T', 'F', 'S']"
+        :key="index"
+        class="text-center text-[11.5px] font-semibold text-muted uppercase"
       >
         {{ w }}
       </span>
@@ -357,7 +365,7 @@ function navigateToReservations() {
         :key="`skel-grid-${i}`"
         variant="rect"
         height="38px"
-        style="border-radius: 10px"
+        class="rounded-button"
       />
     </div>
     <div v-else class="grid grid-cols-7 gap-1">
@@ -366,41 +374,45 @@ function navigateToReservations() {
         :key="`day-${idx}-${day.dateKey}`"
         type="button"
         @click="selectDay(day)"
+        :aria-pressed="day.isSelected"
+        :aria-current="day.isToday ? 'date' : undefined"
+        :aria-label="
+          day.date.toLocaleDateString('en-PH', { dateStyle: 'full' }) +
+          (day.eventsCount ? ', ' + day.eventsCount + ' reservations' : '')
+        "
         :class="[
-          'relative flex flex-col items-center justify-center h-9 rounded-xl border-none cursor-pointer text-xs font-medium transition-all p-0.5',
-          !day.isCurrentMonth
-            ? 'text-slate-400 opacity-45 dark:text-slate-500'
-            : 'text-slate-800 dark:text-slate-200',
-          day.isToday && !day.isSelected
-            ? 'bg-(--color-primary-light) text-primary font-semibold'
-            : '',
+          'relative flex min-h-10 flex-col items-center justify-center rounded-button p-1 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
           day.isSelected
-            ? 'bg-primary text-(--color-text-inverse) font-semibold'
-            : 'hover:bg-slate-100 dark:hover:bg-slate-800',
+            ? 'bg-primary text-text-inverse font-semibold'
+            : !day.isCurrentMonth
+              ? 'text-subtle hover:bg-surface-muted'
+              : day.isToday
+                ? 'bg-primary-light text-primary font-semibold hover:bg-primary-light'
+                : 'text-text hover:bg-surface-muted',
         ]"
       >
-        <span class="leading-none">{{ day.dayNumber }}</span>
+        <span class="leading-none text-inherit">{{ day.dayNumber }}</span>
         <span
           v-if="day.eventsCount > 0"
           :class="[
             'absolute bottom-1 w-3.5 h-[2.5px] rounded-full',
-            day.isSelected ? 'bg-white' : 'bg-rose-600',
+            day.isSelected ? 'bg-text-inverse' : 'bg-primary',
           ]"
         />
       </button>
     </div>
 
     <!-- Divider -->
-    <div class="h-px bg-slate-100 dark:bg-slate-800 my-4" />
+    <div class="h-px bg-border-muted my-4" />
 
     <!-- Interactive Reservations Header -->
     <div class="flex items-center justify-between mb-3">
       <div class="flex items-center gap-2 min-w-0">
-        <h4 class="text-sm font-bold text-slate-900 dark:text-white m-0 tracking-tight truncate">
+        <h4 class="text-sm font-bold text-text m-0 tracking-tight truncate">
           {{ reservationSectionTitle }}
         </h4>
         <span
-          class="text-[10.5px] font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/60 dark:text-rose-400 px-1.5 py-0.5 rounded-md flex-shrink-0"
+          class="text-[10.5px] font-semibold text-primary bg-primary-light px-1.5 py-0.5 rounded-md flex-shrink-0"
         >
           {{ selectedDateLabel }}
         </span>
@@ -408,7 +420,7 @@ function navigateToReservations() {
       <button
         type="button"
         @click="navigateToReservations"
-        class="text-xs font-semibold text-rose-600 hover:text-rose-700 dark:text-rose-400 hover:underline cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
+        class="text-xs font-semibold text-primary hover:text-primary-dark hover:underline cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
       >
         View all →
       </button>
@@ -433,7 +445,7 @@ function navigateToReservations() {
       </template>
       <div
         v-else-if="upcomingReservations.length === 0"
-        class="flex flex-col items-center justify-center gap-1.5 p-6 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40 rounded-xl"
+        class="flex flex-col items-center justify-center gap-1.5 p-6 text-center text-xs text-muted bg-surface-lighter rounded-xl"
       >
         <svg
           width="24"
@@ -442,7 +454,7 @@ function navigateToReservations() {
           fill="none"
           stroke="currentColor"
           stroke-width="1.8"
-          class="text-slate-400"
+          class="text-subtle"
         >
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
@@ -457,21 +469,21 @@ function navigateToReservations() {
         v-for="item in upcomingReservations"
         :key="item.id"
         @click="navigateToReservations"
-        class="flex items-center gap-2.5 p-2.5 rounded-xl bg-white dark:bg-slate-800/70 border border-slate-200/80 dark:border-slate-700/80 cursor-pointer hover:bg-indigo-50/40 hover:border-indigo-300 dark:hover:bg-slate-800 transition-all shadow-2xs"
+        class="flex items-center gap-2.5 p-2.5 rounded-xl bg-surface border border-border cursor-pointer hover:bg-surface-lighter hover:border-primary/30 transition-all shadow-2xs"
       >
         <UiAvatar :name="item.userName" size="sm" />
 
         <div class="flex flex-col flex-1 min-w-0">
-          <span class="text-xs font-semibold text-slate-900 dark:text-white truncate leading-snug">
+          <span class="text-xs font-semibold text-text truncate leading-snug">
             {{ item.userName }}
           </span>
-          <span class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+          <span class="text-[11px] text-muted truncate">
             {{ item.userRole }} • {{ item.plateNumber }}
           </span>
         </div>
 
         <div
-          class="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 rounded-full text-[11px] font-semibold text-slate-600 dark:text-slate-300 flex-shrink-0"
+          class="inline-flex items-center gap-1 px-2 py-1 bg-surface-lighter border border-border rounded-full text-[11px] font-semibold text-text-secondary flex-shrink-0"
         >
           <svg
             width="12"

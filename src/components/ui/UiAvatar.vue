@@ -10,7 +10,10 @@ const props = defineProps<{
 
 const initials = computed(() => {
   if (!props.name) return 'U'
-  const parts = props.name.trim().replace(/^(Dr\.|Prof\.|Engr\.)\s+/i, '').split(' ')
+  const parts = props.name
+    .trim()
+    .replace(/^(Dr\.|Prof\.|Engr\.)\s+/i, '')
+    .split(' ')
   const p0 = parts[0]
   const p1 = parts[1]
   if (parts.length >= 2 && p0 && p1 && p0[0] && p1[0]) {
@@ -23,16 +26,16 @@ const sizeClasses = {
   xs: 'w-6 h-6 text-[10px]',
   sm: 'w-7 h-7 text-xs',
   md: 'w-8 h-8 text-xs',
-  lg: 'w-10 h-10 text-sm'
+  lg: 'w-10 h-10 text-sm',
 }
 </script>
 
 <template>
   <div
     :class="[
-      'inline-flex items-center justify-center font-bold text-white rounded-full flex-shrink-0 select-none shadow-xs tracking-wider',
+      'inline-flex items-center justify-center font-bold text-text-inverse rounded-full flex-shrink-0 select-none shadow-xs tracking-wider',
       sizeClasses[size || 'md'],
-      !bgGradient && !src ? 'bg-indigo-600' : ''
+      !bgGradient && !src ? 'bg-primary' : '',
     ]"
     :style="bgGradient ? { background: bgGradient } : {}"
   >

@@ -32,7 +32,9 @@ const getRowKey = (item: any, index: number): string | number => {
 
 const getNestedValue = (obj: any, path: string) => {
   if (!obj || !path) return undefined
-  return path.split('.').reduce((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), obj)
+  return path
+    .split('.')
+    .reduce((acc, part) => (acc && acc[part] !== undefined ? acc[part] : undefined), obj)
 }
 
 const handleRowClick = (item: any, event: MouseEvent) => {
@@ -44,15 +46,21 @@ const handleRowClick = (item: any, event: MouseEvent) => {
   <div class="w-full overflow-x-auto no-scrollbar">
     <table class="w-full border-collapse text-left whitespace-nowrap">
       <thead>
-        <tr class="border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+        <tr
+          class="border-b border-border text-[11px] font-semibold uppercase tracking-wider text-muted"
+        >
           <th
             v-for="col in columns"
             :key="col.key"
             :style="{ width: col.width }"
             :class="[
               'py-3 px-3.5 sm:px-4 select-none',
-              col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left',
-              col.headerClass || ''
+              col.align === 'center'
+                ? 'text-center'
+                : col.align === 'right'
+                  ? 'text-right'
+                  : 'text-left',
+              col.headerClass || '',
             ]"
           >
             <slot :name="`header-${col.key}`" :column="col">
@@ -61,9 +69,9 @@ const handleRowClick = (item: any, event: MouseEvent) => {
           </th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+      <tbody class="divide-y divide-border-muted text-xs">
         <template v-if="isLoading">
-          <tr v-for="i in (loadingRows || 5)" :key="'skel-' + i">
+          <tr v-for="i in loadingRows || 5" :key="'skel-' + i">
             <td :colspan="columns.length" class="p-4">
               <SkeletonLoader variant="table-row" :columns="columns.length" />
             </td>
@@ -71,7 +79,7 @@ const handleRowClick = (item: any, event: MouseEvent) => {
         </template>
         <template v-else-if="!data || data.length === 0">
           <tr>
-            <td :colspan="columns.length" class="py-12 text-center text-slate-500 dark:text-slate-400 font-medium text-xs">
+            <td :colspan="columns.length" class="py-12 text-center text-muted font-medium text-xs">
               <slot name="empty">
                 {{ emptyText || 'No records found.' }}
               </slot>
@@ -82,19 +90,20 @@ const handleRowClick = (item: any, event: MouseEvent) => {
           <tr
             v-for="(item, index) in data"
             :key="getRowKey(item, index)"
-            :class="[
-              'transition-colors',
-              hover !== false ? 'hover:bg-slate-50/70 dark:hover:bg-slate-800/30' : ''
-            ]"
+            :class="['transition-colors', hover !== false ? 'hover:bg-surface-lighter' : '']"
             @click="(e) => handleRowClick(item, e)"
           >
             <td
               v-for="col in columns"
               :key="col.key"
               :class="[
-                'py-3 px-3.5 sm:px-4 text-slate-700 dark:text-slate-300 font-medium',
-                col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : 'text-left',
-                col.cellClass || ''
+                'py-3 px-3.5 sm:px-4 text-text-secondary font-medium',
+                col.align === 'center'
+                  ? 'text-center'
+                  : col.align === 'right'
+                    ? 'text-right'
+                    : 'text-left',
+                col.cellClass || '',
               ]"
             >
               <slot

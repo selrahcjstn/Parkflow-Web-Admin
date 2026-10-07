@@ -4,10 +4,12 @@ import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 
-const props = defineProps<{
+defineProps<{
   settings: {
     violationRatePerHour: number
     feeCalculationMode: 'per_hour' | 'per_day' | 'one_time' | 'one_time_hourly' | 'no_fee'
+    personnelFreeParkingStart: string
+    personnelFreeParkingEnd: string
     baseFee: number
     isGracePeriodEnabled: boolean
     gracePeriodMinutes: number
@@ -19,6 +21,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'save'): void
+  (
+    e: 'update:personnel-hours',
+    value: { personnelFreeParkingStart: string; personnelFreeParkingEnd: string },
+  ): void
 }>()
 
 const feeCalculationModeOptions = [
@@ -26,21 +32,25 @@ const feeCalculationModeOptions = [
   { label: '₱ Fixed Rate Per Day', value: 'per_day' },
   { label: '₱ One-Time Flat Fee', value: 'one_time' },
   { label: '₱ One-Time Flat Fee + Hourly Surcharge', value: 'one_time_hourly' },
-  { label: 'Free Parking (No Violation Charges)', value: 'no_fee' }
+  { label: 'Free Parking (No Violation Charges)', value: 'no_fee' },
 ]
 </script>
 
 <template>
   <UiCard custom-class="p-6 space-y-5">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+      <div
+        class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400"
+      >
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="12" y1="1" x2="12" y2="23" />
           <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         </svg>
       </div>
       <div>
-        <h3 class="text-sm font-bold text-slate-900 dark:text-white">Overstay Fee & Timing Rules</h3>
+        <h3 class="text-sm font-bold text-slate-900 dark:text-white">
+          Overstay Fee & Timing Rules
+        </h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           Configure overstay penalty mode, rate, grace period, and early entry allowance
         </p>
@@ -66,12 +76,7 @@ const feeCalculationModeOptions = [
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
             Base / Flat Fee (₱)
           </label>
-          <UiInput
-            v-model.number="settings.baseFee"
-            type="number"
-            size="md"
-            min="0"
-          />
+          <UiInput v-model.number="settings.baseFee" type="number" size="md" min="0" />
         </div>
 
         <!-- Hourly Rate -->
@@ -79,16 +84,13 @@ const feeCalculationModeOptions = [
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
             Violation Rate Per Hour (₱)
           </label>
-          <UiInput
-            v-model.number="settings.violationRatePerHour"
-            type="number"
-            size="md"
-            min="0"
-          />
+          <UiInput v-model.number="settings.violationRatePerHour" type="number" size="md" min="0" />
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
+      <div
+        class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800"
+      >
         <!-- Grace Period -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
@@ -132,16 +134,59 @@ const feeCalculationModeOptions = [
         </div>
       </div>
 
+      <section class="space-y-4 border-t border-border pt-4">
+        <div>
+          <h4 class="text-sm font-semibold text-text">Faculty &amp; university staff parking</h4>
+          <p class="mt-1 text-sm leading-relaxed text-muted">
+            Registered faculty and staff may enter anytime with an approved employee ID and vehicle.
+            These free parking hours apply every day, including Sunday. No uploaded schedule is
+            required.
+          </p>
+        </div>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <UiInput
+            :model-value="settings.personnelFreeParkingStart"
+            @update:model-value="
+              emit('update:personnel-hours', {
+                personnelFreeParkingStart: String($event ?? ''),
+                personnelFreeParkingEnd: settings.personnelFreeParkingEnd,
+              })
+            "
+            type="time"
+            label="Free parking starts"
+            required
+          />
+          <UiInput
+            :model-value="settings.personnelFreeParkingEnd"
+            @update:model-value="
+              emit('update:personnel-hours', {
+                personnelFreeParkingStart: settings.personnelFreeParkingStart,
+                personnelFreeParkingEnd: String($event ?? ''),
+              })
+            "
+            type="time"
+            label="Free parking ends"
+            required
+          />
+        </div>
+        <p class="text-sm leading-relaxed text-muted">
+          Outside the free hours, the hourly rate above applies per started hour. An unclosed
+          session keeps accruing charges after its entry-day cutoff until exit, even when the next
+          day's free window opens. Student and visitor rules are unchanged.
+        </p>
+      </section>
+
       <!-- Action Footer -->
       <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-        <UiButton
-          variant="primary"
-          size="sm"
-          :loading="isSaving"
-          @click="emit('save')"
-        >
+        <UiButton variant="primary" size="sm" :loading="isSaving" @click="emit('save')">
           <template #prefix>
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              class="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
               <polyline points="17 21 17 13 7 13 7 21" />
               <polyline points="7 3 7 8 15 8" />

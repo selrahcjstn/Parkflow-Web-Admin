@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 
 const props = withDefaults(
   defineProps<{
+    disabled?: boolean
     totalItems: number
     currentPage?: number
     itemsPerPage?: number
@@ -11,14 +12,16 @@ const props = withDefaults(
   {
     currentPage: 1,
     itemsPerPage: 10,
-    perPageOptions: () => [10, 25, 50, 100]
-  }
+    perPageOptions: () => [10, 25, 50, 100],
+  },
 )
 
 const emit = defineEmits<{
   (e: 'update:currentPage', page: number): void
   (e: 'update:itemsPerPage', size: number): void
 }>()
+
+const selectId = useId()
 
 const totalPages = computed(() => Math.ceil(props.totalItems / props.itemsPerPage) || 1)
 
@@ -53,7 +56,7 @@ const visiblePages = computed(() => {
 })
 
 const goToPage = (page: number) => {
-  if (page < 1 || page > totalPages.value || page === props.currentPage) return
+  if (props.disabled || page < 1 || page > totalPages.value || page === props.currentPage) return
   emit('update:currentPage', page)
 }
 
@@ -66,42 +69,60 @@ const handlePerPageChange = (event: Event) => {
 </script>
 
 <template>
-  <div v-if="totalItems > 0" class="table-pagination">
-    <div class="pagination-info">
+  <div
+    v-if="totalItems > 0"
+    class="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface px-5 py-4"
+  >
+    <div class="text-sm text-muted">
       <span>{{ summaryText }}</span>
     </div>
-    <div class="pagination-controls">
-      <div class="per-page-selector">
-        <label for="perPageSelect">Per page:</label>
-        <select id="perPageSelect" :value="itemsPerPage" class="per-page-select" @change="handlePerPageChange">
+    <div class="flex flex-wrap items-center gap-4">
+      <div class="flex items-center gap-2 text-sm text-muted">
+        <label :for="selectId">Per page:</label>
+        <select
+          :id="selectId"
+          :value="itemsPerPage"
+          :disabled="disabled"
+          class="min-h-9 rounded-sm border border-border bg-surface px-2 text-sm font-medium text-text focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-50"
+          @change="handlePerPageChange"
+        >
           <option v-for="option in perPageOptions" :key="option" :value="option">
             {{ option }}
           </option>
         </select>
       </div>
-      <div class="page-buttons">
+      <div class="flex flex-wrap items-center gap-1">
         <button
-          class="page-btn"
-          :disabled="currentPage === 1"
+          type="button"
+          class="min-h-9 rounded-sm border border-border bg-surface px-3 text-sm font-medium text-text hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+          :disabled="disabled || currentPage === 1"
           @click="goToPage(currentPage - 1)"
           title="Previous Page"
         >
           Prev
         </button>
         <template v-for="(p, index) in visiblePages" :key="index">
-          <span v-if="p === '...'" class="page-ellipsis">...</span>
+          <span v-if="p === '...'" class="px-2 text-sm text-muted">...</span>
           <button
+            type="button"
             v-else
-            class="page-num-btn"
-            :class="{ 'page-num-btn--active': currentPage === p }"
+            :disabled="disabled"
+            :aria-current="currentPage === p ? 'page' : undefined"
+            class="flex min-h-9 min-w-9 items-center justify-center rounded-sm border px-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary disabled:opacity-40"
+            :class="
+              currentPage === p
+                ? 'border-primary bg-primary text-text-inverse'
+                : 'border-border bg-surface text-text hover:border-primary hover:text-primary'
+            "
             @click="goToPage(p as number)"
           >
             {{ p }}
           </button>
         </template>
         <button
-          class="page-btn"
-          :disabled="currentPage === totalPages"
+          type="button"
+          class="min-h-9 rounded-sm border border-border bg-surface px-3 text-sm font-medium text-text hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
+          :disabled="disabled || currentPage === totalPages"
           @click="goToPage(currentPage + 1)"
           title="Next Page"
         >
@@ -111,115 +132,3 @@ const handlePerPageChange = (event: Event) => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.table-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-top: 1px solid var(--color-border, #e2e8f0);
-  background: var(--color-surface, #ffffff);
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.pagination-info {
-  font-size: 13px;
-  color: var(--color-muted, #64748b);
-  font-weight: 500;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.per-page-selector {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  color: var(--color-muted, #64748b);
-}
-
-.per-page-select {
-  padding: 4px 8px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  outline: none;
-}
-
-.per-page-select:focus {
-  border-color: var(--color-primary, #7B1113);
-}
-
-.page-buttons {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.page-btn {
-  padding: 5px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 150ms ease;
-}
-
-.page-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.page-btn:hover:not(:disabled) {
-  border-color: var(--color-primary, #7B1113);
-  color: var(--color-primary, #7B1113);
-}
-
-.page-num-btn {
-  min-width: 30px;
-  height: 30px;
-  padding: 0 6px;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 150ms ease;
-}
-
-.page-num-btn:hover:not(.page-num-btn--active) {
-  border-color: var(--color-primary, #7B1113);
-  color: var(--color-primary, #7B1113);
-}
-
-.page-num-btn--active {
-  background: var(--color-primary, #7B1113) !important;
-  border-color: var(--color-primary, #7B1113) !important;
-  color: #ffffff !important;
-}
-
-.page-ellipsis {
-  font-size: 12px;
-  color: var(--color-muted, #64748b);
-  padding: 0 4px;
-}
-</style>
