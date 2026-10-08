@@ -121,7 +121,7 @@ const getVehicleTypeLabel = (type: any): string => {
 const formatRole = (role: string) => {
   if (!role) return 'Driver'
   if (role === 'UniversityStaff') return 'Faculty'
-  if (role === 'NonAcademicPersonnel') return 'Staff'
+  if (role === 'NonAcademicPersonnel') return 'University Staff'
   if (role === 'Student') return 'Student'
   if (role === 'Visitor') return 'Visitor'
   return role

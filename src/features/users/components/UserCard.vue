@@ -53,11 +53,13 @@ function getIdentifier(u: UserWithDetails): string {
   if (u.student?.studentNumber) return u.student.studentNumber
   if (u.personnel?.idCardNumber) return u.personnel.idCardNumber
   if (u.guard?.assignedGate) return `Gate ${u.guard.assignedGate}`
-  return u.id || 'N/A'
+  if (u.role === 'Guard') return `Gate ${u.guard?.assignedGate || 1}`
+  if (u.role === 'Admin' || (u.role as string) === 'SuperAdmin') return '—'
+  return '—'
 }
 
 function getRoleLabel(role: string): string {
-  if (role === 'UniversityStaff' || role === 'Faculty') return 'Faculty Member'
+  if (role === 'UniversityStaff' || role === 'Faculty') return 'Faculty'
   if (role === 'NonAcademicPersonnel' || role === 'Staff') return 'University Staff'
   if (role === 'Guard') return 'Security Guard'
   if (role === 'Admin') return 'Administrator'
@@ -82,7 +84,10 @@ function getRoleLabel(role: string): string {
           <span class="text-xs text-slate-500 dark:text-slate-400 truncate">
             {{ user.email }}
           </span>
-          <span class="text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+          <span
+            v-if="user.role !== 'Admin' && (user.role as string) !== 'SuperAdmin'"
+            class="text-[11px] font-mono font-medium text-slate-400 dark:text-slate-500 mt-0.5"
+          >
             ID: {{ getIdentifier(user) }}
           </span>
         </div>

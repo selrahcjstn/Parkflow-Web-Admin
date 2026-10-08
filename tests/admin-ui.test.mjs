@@ -66,9 +66,9 @@ test('role filter counts and administrator options update after accounts load', 
     visit(render({}, []))
     return Array.from(options, item => item.label)
   }
-  assert.deepEqual(roleLabels(), ['All Account Types (0)', 'Student (0)', 'Faculty Member (0)', 'University Staff (0)'])
+  assert.deepEqual(roleLabels(), ['All Account Types (0)', 'Student (0)', 'Faculty (0)', 'University Staff (0)'])
   Object.assign(props, { totalCount: 92, studentCount: 64, facultyCount: 22, staffCount: 6 })
-  assert.deepEqual(roleLabels(), ['All Account Types (92)', 'Student (64)', 'Faculty Member (22)', 'University Staff (6)'])
+  assert.deepEqual(roleLabels(), ['All Account Types (92)', 'Student (64)', 'Faculty (22)', 'University Staff (6)'])
   Object.assign(props, { isSuperAdmin: true, guardCount: 3, adminCount: 2 })
   assert.deepEqual(roleLabels().slice(-2), ['Security Guards (3)', 'Administrators (2)'])
   props.studentCount = 65

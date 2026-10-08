@@ -28,7 +28,7 @@ const getVehicleIconType = computed(() => {
 })
 
 const getRoleLabel = (role: string) => {
-  if (role === 'UniversityStaff') return 'Faculty Member'
+  if (role === 'UniversityStaff') return 'Faculty'
   if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role
 }

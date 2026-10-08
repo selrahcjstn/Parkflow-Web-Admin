@@ -15,8 +15,7 @@ const emit = defineEmits<{
 const vehicleTypeOptions = [
   { label: 'All Vehicle Types', value: 'all' },
   { label: 'Cars', value: 'Car' },
-  { label: 'Motorcycles', value: 'Motorcycle' },
-  { label: 'Electric Bikes', value: 'ElectricBike' }
+  { label: 'Motorcycles', value: 'Motorcycle' }
 ]
 </script>
 

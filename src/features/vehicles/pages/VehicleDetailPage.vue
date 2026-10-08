@@ -59,7 +59,7 @@ function getVerificationVariant(status: string | number): 'success' | 'danger' |
 }
 
 function getRoleLabel(role: string): string {
-  if (role === 'UniversityStaff') return 'Faculty Member'
+  if (role === 'UniversityStaff') return 'Faculty'
   if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role || '—'
 }

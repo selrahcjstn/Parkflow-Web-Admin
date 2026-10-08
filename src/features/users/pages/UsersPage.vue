@@ -84,7 +84,7 @@ const adminCount = computed(
 // Dynamic Header Properties
 const headerTitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Student Client Directory'
-  if (selectedRole.value === 'UniversityStaff') return 'Faculty Member Directory'
+  if (selectedRole.value === 'UniversityStaff') return 'Faculty Directory'
   if (selectedRole.value === 'NonAcademicPersonnel') return 'University Staff Directory'
   if (selectedRole.value === 'Guard') return 'Security Guards Directory'
   if (selectedRole.value === 'Admin') return 'System Administrators Directory'
@@ -95,7 +95,7 @@ const headerSubtitle = computed(() => {
   if (selectedRole.value === 'Student')
     return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
   if (selectedRole.value === 'UniversityStaff')
-    return 'Manage faculty member accounts, department assignments, and vehicle clearance.'
+    return 'Manage faculty accounts, department assignments, and vehicle clearance.'
   if (selectedRole.value === 'NonAcademicPersonnel')
     return 'Manage university staff accounts, administrative departments, and vehicle clearance.'
   if (selectedRole.value === 'Guard')
@@ -123,7 +123,7 @@ const stats = computed(() => {
     { title: 'Total Registered', value: total, icon: 'people' },
     { title: 'Students', value: students, icon: 'student' },
     { title: 'Faculty', value: faculty, icon: 'briefcase' },
-    { title: 'Staff (Non-Academic)', value: staff, icon: 'briefcase' },
+    { title: 'University Staff', value: staff, icon: 'briefcase' },
   ]
 
   if (isSuperAdmin.value) {
@@ -168,7 +168,9 @@ const getIdentifier = (user: UserWithDetails) => {
   if (user.student?.studentNumber) return user.student.studentNumber
   if (user.personnel?.idCardNumber) return user.personnel.idCardNumber
   if (user.guard?.assignedGate) return `Gate ${user.guard.assignedGate}`
-  return user.id || 'N/A'
+  if (user.role === 'Guard') return `Gate ${user.guard?.assignedGate || 1}`
+  if (user.role === 'Admin' || (user.role as string) === 'SuperAdmin') return '—'
+  return '—'
 }
 
 const getRoleLabel = (role: UserRole) => {
@@ -176,7 +178,7 @@ const getRoleLabel = (role: UserRole) => {
     case 'Student':
       return 'Student'
     case 'UniversityStaff':
-      return 'Faculty Member'
+      return 'Faculty'
     case 'NonAcademicPersonnel':
       return 'University Staff'
     case 'Guard':
@@ -191,7 +193,7 @@ const getRoleLabel = (role: UserRole) => {
 const userColumns = computed<TableColumn[]>(() => {
   const cols: TableColumn[] = [
     { key: 'client', label: isAdminStaffView.value ? 'Staff Member' : 'Client' },
-    { key: 'identifier', label: 'Client ID' },
+    { key: 'identifier', label: isAdminStaffView.value ? 'Identifier / Post' : 'Client ID' },
     { key: 'role', label: 'Classification' },
   ]
   if (!isAdminStaffView.value) {
