@@ -33,6 +33,31 @@ function component(path, modules = {}, transform = (source) => source) {
 
 const Pagination = component('src/components/ui/TablePagination.vue')
 
+test('Official Parking Pass keeps printing and QR viewing without copy, share or download actions', async () => {
+  for (const zoomed of [false, true]) {
+    const Pass = component('src/features/reservations/pages/ReservationPassPage.vue', {
+      'vue-router': { useRoute: () => ({ params: { id: 'reservation-id' } }), useRouter: () => ({ push() {} }) },
+      '@/api/axios': { default: { get() { throw new Error('Rendering must not fetch') } } },
+      '@/components/ui/SkeletonLoader.vue': { default: component('src/components/ui/SkeletonLoader.vue') },
+      '@/stores/appCache': { cachedReservations: vue.ref([]) },
+    }, source => source
+      .replace('ref<ParkingReservationItem | null>(null)', 'ref<ParkingReservationItem | null>({ referenceNumber: "RES-001", status: 1 })')
+      .replace('const isLoading = ref(true)', 'const isLoading = ref(false)')
+      .replace('const isQrZoomed = ref(false)', `const isQrZoomed = ref(${zoomed})`))
+    const context = {}
+    const html = await renderToString(vue.createSSRApp(Pass), context)
+    const allHtml = html + (context.teleports?.body ?? '')
+    assert.doesNotMatch(allHtml, /Copy Ref|Share Link|Download QR|Download SVG/)
+    assert.match(html, /Print Pass/)
+    assert.match(html, /<img[^>]+create-qr-code/)
+    assert.match(html, /RES-001/)
+    if (zoomed) {
+      assert.match(context.teleports.body, /Gate Optical Scan Code/)
+      assert.match(context.teleports.body, />\s*Close\s*</)
+    }
+  }
+})
+
 test('Visitors keeps search left and pushes campus status and refresh right', () => {
   const source = readFileSync(
     new URL('../src/features/visitors/pages/VisitorsPage.vue', import.meta.url),

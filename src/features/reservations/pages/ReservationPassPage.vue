@@ -13,36 +13,7 @@ const reservationId = computed(() => String(route.params.id || ''))
 const reservation = ref<ParkingReservationItem | null>(null)
 const isLoading = ref(true)
 const fetchError = ref<string | null>(null)
-const isCopied = ref(false)
-const isLinkCopied = ref(false)
 const isQrZoomed = ref(false)
-const toastMessage = ref<{ text: string; type: 'success' | 'error' } | null>(null)
-
-function showToast(text: string, type: 'success' | 'error' = 'success') {
-  toastMessage.value = { text, type }
-  setTimeout(() => {
-    toastMessage.value = null
-  }, 3500)
-}
-
-function copyRef(refNum?: string) {
-  if (!refNum) return
-  navigator.clipboard.writeText(refNum)
-  isCopied.value = true
-  showToast('Permit reference number copied!')
-  setTimeout(() => {
-    isCopied.value = false
-  }, 2000)
-}
-
-function copyPassLink() {
-  navigator.clipboard.writeText(window.location.href)
-  isLinkCopied.value = true
-  showToast('Permit link copied!')
-  setTimeout(() => {
-    isLinkCopied.value = false
-  }, 2000)
-}
 
 function parseReservationEndDateTime(dateStr?: string, endTimeStr?: string): Date | null {
   if (!dateStr) return null
@@ -284,20 +255,6 @@ async function fetchReservation() {
   }
 }
 
-function downloadQrCode() {
-  if (!reservation.value) return
-  const refCode = reservation.value.referenceNumber || 'PARKFLOW-PASS'
-  const qrUrl = getQrImageUrl(refCode, 600)
-
-  const link = document.createElement('a')
-  link.href = qrUrl
-  link.download = `ParkFlow-Pass-${refCode}.svg`
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  showToast('QR code downloaded!')
-}
-
 function printPass() {
   window.print()
 }
@@ -338,37 +295,6 @@ onMounted(() => {
       </div>
 
       <div class="header-actions">
-        <button class="action-btn" @click="copyRef(reservation?.referenceNumber)">
-          <svg v-if="!isCopied" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          <span>{{ isCopied ? 'Copied' : 'Copy Ref' }}</span>
-        </button>
-
-        <button class="action-btn" @click="copyPassLink">
-          <svg v-if="!isLinkCopied" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-          </svg>
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5">
-            <polyline points="20 6 9 17 4 12"/>
-          </svg>
-          <span>{{ isLinkCopied ? 'Link Copied' : 'Share Link' }}</span>
-        </button>
-
-        <button class="action-btn" @click="downloadQrCode">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7 10 12 15 17 10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          <span>Download QR</span>
-        </button>
-
         <button class="action-btn action-btn--primary" @click="printPass">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 6 2 18 2 18 9"/>
@@ -379,16 +305,6 @@ onMounted(() => {
         </button>
       </div>
     </div>
-
-    <!-- Toast Notification -->
-    <Transition name="toast-fade">
-      <div v-if="toastMessage" class="toast-popup" :class="`toast-popup--${toastMessage.type}`">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="20 6 9 17 4 12"/>
-        </svg>
-        <span>{{ toastMessage.text }}</span>
-      </div>
-    </Transition>
 
     <!-- Error State -->
     <div v-if="fetchError" class="not-found-card no-print">
@@ -674,9 +590,6 @@ onMounted(() => {
             />
             <p class="zoom-ref-code font-mono">{{ reservation.referenceNumber }}</p>
             <div class="zoom-modal-footer">
-              <button class="action-btn" @click="downloadQrCode">
-                Download SVG
-              </button>
               <button class="action-btn action-btn--primary" @click="isQrZoomed = false">
                 Close
               </button>
@@ -816,43 +729,6 @@ onMounted(() => {
 
 .action-btn--primary:hover {
   background: var(--btn-primary-hover, #6C0F11);
-}
-
-/* Toast */
-.toast-popup {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 18px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  z-index: 10000;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-.toast-popup--success {
-  background: #059669;
-  color: #ffffff;
-}
-
-.toast-popup--error {
-  background: #dc2626;
-  color: #ffffff;
-}
-
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: all 250ms ease;
-}
-
-.toast-fade-enter-from,
-.toast-fade-leave-to {
-  opacity: 0;
-  transform: translateY(12px);
 }
 
 /* Skeletons & Not Found */
