@@ -12,6 +12,8 @@ const props = defineProps<{
   replyMessage: string
   markAsResolved: boolean
   isSendingReply: boolean
+  isSavingStatus: boolean
+  errorMessage: string
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +22,7 @@ const emit = defineEmits<{
   (e: 'update:replyMessage', val: string): void
   (e: 'update:markAsResolved', val: boolean): void
   (e: 'sendReply'): void
+  (e: 'saveStatus'): void
 }>()
 
 const statusOptions = [
@@ -52,6 +55,9 @@ const formatDate = (dateString?: string) => {
     :is-open="isOpen && !!feedback"
     title="Feedback & Inquiry Details"
     size="md"
+    :show-close="!isSendingReply && !isSavingStatus"
+    :close-on-backdrop="!isSendingReply && !isSavingStatus"
+    :close-on-esc="!isSendingReply && !isSavingStatus"
     @close="emit('close')"
   >
     <div v-if="feedback" class="space-y-4">
@@ -86,15 +92,26 @@ const formatDate = (dateString?: string) => {
       </div>
 
       <!-- Change Status -->
-      <div class="w-48">
+      <div class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end">
         <UiSelect
+          class="sm:w-48"
           :model-value="status"
           label="Workflow Status"
           :options="statusOptions"
           size="sm"
+          :disabled="isSendingReply || isSavingStatus"
           @update:model-value="emit('update:status', $event as typeof props.status)"
         />
+        <UiButton
+          type="button"
+          variant="secondary"
+          size="sm"
+          :loading="isSavingStatus"
+          :disabled="isSendingReply || isSavingStatus"
+          @click="emit('saveStatus')"
+        >Save Status</UiButton>
       </div>
+      <p class="text-xs text-muted">Save Status updates the workflow without sending an email. Sending a reply marks it Reviewed unless you select Resolved.</p>
 
       <!-- Reply Box -->
       <div class="space-y-1.5">
@@ -103,6 +120,7 @@ const formatDate = (dateString?: string) => {
           label="Answer Inquiry & Send Thank You Message"
           placeholder="Type your thank you message, inquiry response, or service resolution details to the user..."
           :rows="3"
+          :disabled="isSendingReply || isSavingStatus"
           @update:model-value="emit('update:replyMessage', String($event))"
         />
       </div>
@@ -123,11 +141,13 @@ const formatDate = (dateString?: string) => {
         <input
           type="checkbox"
           :checked="markAsResolved"
+          :disabled="isSendingReply || isSavingStatus"
           class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
           @change="emit('update:markAsResolved', ($event.target as HTMLInputElement).checked)"
         />
         <span>Mark Feedback as Resolved</span>
       </label>
+      <p v-if="errorMessage" role="alert" class="text-sm text-(--color-danger)">{{ errorMessage }}</p>
     </div>
 
     <template #footer>
@@ -135,7 +155,7 @@ const formatDate = (dateString?: string) => {
         type="button"
         variant="secondary"
         size="md"
-        :disabled="isSendingReply"
+        :disabled="isSendingReply || isSavingStatus"
         @click="emit('close')"
       >
         Cancel
@@ -145,6 +165,7 @@ const formatDate = (dateString?: string) => {
         variant="primary"
         size="md"
         :loading="isSendingReply"
+        :disabled="isSendingReply || isSavingStatus"
         @click="emit('sendReply')"
       >
         Send Reply & Email User

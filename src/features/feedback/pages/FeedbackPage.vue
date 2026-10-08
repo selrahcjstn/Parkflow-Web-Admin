@@ -59,8 +59,10 @@ const isDetailModalOpen = ref(false)
 const activeFeedback = ref<FeedbackItem | null>(null)
 const editStatus = ref<FeedbackStatus>('Pending')
 const replyMessage = ref('')
-const markAsResolved = ref(true)
+const markAsResolved = ref(false)
 const isSendingReply = ref(false)
+const isSavingStatus = ref(false)
+const feedbackError = ref('')
 
 // Pagination State
 const currentPage = ref(1)
@@ -223,35 +225,72 @@ const openDetailModal = (item: FeedbackItem) => {
   activeFeedback.value = item
   editStatus.value = getNormalizedStatus(item)
   replyMessage.value = ''
-  markAsResolved.value = true
+  markAsResolved.value = editStatus.value === 'Resolved'
+  feedbackError.value = ''
   isDetailModalOpen.value = true
 }
 
 const closeDetailModal = () => {
+  if (isSendingReply.value || isSavingStatus.value) return
   isDetailModalOpen.value = false
   activeFeedback.value = null
   replyMessage.value = ''
 }
 
+const updateWorkflowStatus = (status: FeedbackStatus) => {
+  editStatus.value = status
+  markAsResolved.value = status === 'Resolved'
+  feedbackError.value = ''
+}
+
+const updateMarkAsResolved = (resolved: boolean) => {
+  updateWorkflowStatus(resolved ? 'Resolved' : 'Reviewed')
+}
+
+const handleSaveStatus = async () => {
+  if (!activeFeedback.value || isSendingReply.value || isSavingStatus.value) return
+  feedbackError.value = ''
+  isSavingStatus.value = true
+  const targetStatus = editStatus.value
+  try {
+    const response = await api.put(`/feedbacks/${activeFeedback.value.id}/status`, {
+      status: targetStatus === 'Resolved' ? 3 : targetStatus === 'Reviewed' ? 2 : 1,
+    })
+    if (response.data?.isSuccess === false) throw new Error(response.data.message || 'Failed to save status.')
+    activeFeedback.value = { ...activeFeedback.value, status: targetStatus, statusName: targetStatus }
+    showToast('Workflow status saved.', 'success')
+    await fetchFeedbacks()
+  } catch (err: any) {
+    feedbackError.value = err.response?.data?.message || err.message || 'Failed to save status. Please try again.'
+  } finally {
+    isSavingStatus.value = false
+  }
+}
+
 const handleSendReply = async () => {
-  if (!activeFeedback.value) return
+  if (!activeFeedback.value || isSendingReply.value || isSavingStatus.value) return
+  feedbackError.value = ''
+  if (!replyMessage.value.trim()) {
+    feedbackError.value = 'Enter a reply, or use Save Status to update the workflow without sending a message.'
+    return
+  }
 
   isSendingReply.value = true
   const targetId = activeFeedback.value.id
-  const targetStatus = markAsResolved.value ? 'Resolved' : editStatus.value
-
   try {
-    await api.post(`/feedbacks/${targetId}/reply`, {
-      replyMessage: replyMessage.value.trim() || undefined,
-      status: targetStatus === 'Resolved' ? 3 : targetStatus === 'Reviewed' ? 2 : 1,
+    const response = await api.post(`/feedbacks/${targetId}/reply`, {
+      replyMessage: replyMessage.value.trim(),
+      markResolved: markAsResolved.value,
     })
+    if (response.data?.isSuccess === false) throw new Error(response.data.message || 'Failed to send reply.')
 
     showToast('Reply dispatched and notification email sent to user!', 'success')
+    isSendingReply.value = false
     closeDetailModal()
     await fetchFeedbacks()
   } catch (err: any) {
     console.error('Failed to submit reply:', err)
-    showToast(err.response?.data?.message || 'Failed to dispatch reply.', 'danger')
+    feedbackError.value = err.response?.data?.message || err.message || 'Failed to dispatch reply.'
   } finally {
     isSendingReply.value = false
   }
@@ -464,11 +503,14 @@ function handleRefresh() {
       :reply-message="replyMessage"
       :mark-as-resolved="markAsResolved"
       :is-sending-reply="isSendingReply"
-      @update:status="editStatus = $event"
+      :is-saving-status="isSavingStatus"
+      :error-message="feedbackError"
+      @update:status="updateWorkflowStatus"
       @update:reply-message="replyMessage = $event"
-      @update:mark-as-resolved="markAsResolved = $event"
+      @update:mark-as-resolved="updateMarkAsResolved"
       @close="closeDetailModal"
       @send-reply="handleSendReply"
+      @save-status="handleSaveStatus"
     />
 
     <!-- Toast Notifications -->
