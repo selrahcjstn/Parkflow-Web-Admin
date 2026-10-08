@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTextarea from '@/components/ui/UiTextarea.vue'
+import { useAdminNotificationStore } from '@/stores/notification.store'
+import { isAxiosError } from 'axios'
 
 const router = useRouter()
 
@@ -34,6 +36,53 @@ const isSubmitting = ref(false)
 const errorMessage = ref<string | null>(null)
 const successMessage = ref<string | null>(null)
 const existingReservations = ref<any[]>([])
+interface ReservationAvailability {
+  totalCapacity: number
+  allocationPercent: number
+  reservationCapacity: number
+  bookedSlots: number
+  availableSlots: number
+}
+const availability = ref<ReservationAvailability | null>(null)
+const availabilityLoading = ref(true)
+const availabilityError = ref<string | null>(null)
+const capacityUnavailable = computed(() => availabilityLoading.value || !!availabilityError.value
+  || !availability.value || availability.value.availableSlots === 0)
+let availabilityVersion = 0
+let availabilityTimer: ReturnType<typeof setTimeout> | undefined
+let refreshTimer: ReturnType<typeof setInterval> | undefined
+let offReservations: (() => void) | undefined
+
+async function loadAvailability() {
+  const version = ++availabilityVersion
+  availabilityLoading.value = true
+  availabilityError.value = null
+  try {
+    const res = await api.get('/parking-reservations/availability', { params: {
+      date: form.value.reservationDate, startTime: form.value.startTime,
+      endTime: form.value.endTime, type: Number(form.value.type),
+    } })
+    if (version !== availabilityVersion) return
+    if (!res.data?.isSuccess || !res.data.data) throw new Error(res.data?.message || 'Could not check availability.')
+    availability.value = res.data.data
+  } catch (error: unknown) {
+    if (version !== availabilityVersion) return
+    availability.value = null
+    availabilityError.value = isAxiosError<{ message?: string }>(error)
+      ? error.response?.data?.message || 'Could not check reservation availability.'
+      : error instanceof Error ? error.message : 'Could not check reservation availability.'
+  } finally {
+    if (version === availabilityVersion) availabilityLoading.value = false
+  }
+}
+
+watch(() => [form.value.reservationDate, form.value.startTime, form.value.endTime, form.value.type], () => {
+  ++availabilityVersion
+  availability.value = null
+  availabilityLoading.value = true
+  if (availabilityTimer) clearTimeout(availabilityTimer)
+  availabilityTimer = setTimeout(() => void loadAvailability(), 350)
+}, { immediate: true })
 
 const reservationTypeOptions = [
   { label: 'Special Schedule / Event Pass (Full Day Authorization)', value: 1 },
@@ -42,7 +91,7 @@ const reservationTypeOptions = [
 
 async function loadExistingReservations() {
   try {
-    const res = await api.get('/parking-reservations/admin/all')
+    const res = await api.get('/parking-reservations/my')
     const items = res.data?.data || (Array.isArray(res.data) ? res.data : [])
     if (Array.isArray(items)) {
       existingReservations.value = items
@@ -52,6 +101,15 @@ async function loadExistingReservations() {
 
 onMounted(() => {
   loadExistingReservations()
+  const notifications = useAdminNotificationStore()
+  offReservations = notifications.onReservationUpdate(() => void loadAvailability())
+  refreshTimer = setInterval(() => { if (!document.hidden) void loadAvailability() }, 30000)
+})
+onUnmounted(() => {
+  ++availabilityVersion
+  if (availabilityTimer) clearTimeout(availabilityTimer)
+  if (refreshTimer) clearInterval(refreshTimer)
+  offReservations?.()
 })
 
 const existingReservationForSelectedDate = computed(() => {
@@ -99,6 +157,12 @@ function goBack() {
 
 async function handleSubmit() {
   if (isSubmitting.value) return
+  if (capacityUnavailable.value) {
+    errorMessage.value = availability.value?.availableSlots === 0
+      ? 'Fully booked for this time range. Choose another time or date.'
+      : 'Check reservation availability before continuing.'
+    return
+  }
 
   errorMessage.value = null
   successMessage.value = null
@@ -158,7 +222,10 @@ async function handleSubmit() {
     const res = await api.post('/parking-reservations', payload)
     
     if (res.data && (res.data.isSuccess || res.status === 200 || res.status === 201)) {
-      successMessage.value = 'Schedule reservation created successfully.'
+      const capacity = res.data.data?.availability as ReservationAvailability | undefined
+      successMessage.value = capacity
+        ? `Reservation created. Peak bookings for this time: ${capacity.bookedSlots} of ${capacity.reservationCapacity}; ${capacity.availableSlots} spaces available.`
+        : 'Schedule reservation created successfully.'
       setTimeout(() => {
         router.push('/reservations')
       }, 1000)
@@ -166,6 +233,7 @@ async function handleSubmit() {
       errorMessage.value = res.data?.message || 'Failed to create reservation.'
     }
   } catch (err: any) {
+    void loadAvailability()
     errorMessage.value = err.response?.data?.message || err.message || 'An error occurred while creating the reservation.'
   } finally {
     isSubmitting.value = false
@@ -212,6 +280,22 @@ async function handleSubmit() {
     </div>
 
     <!-- Form -->
+    <section class="rounded-card border border-border bg-surface p-5 mb-5 space-y-2" aria-live="polite">
+      <h2 class="text-base font-semibold text-text">Reservation availability</h2>
+      <p v-if="availabilityLoading" class="text-sm text-muted">Checking selected date and time…</p>
+      <template v-else-if="availabilityError">
+        <p class="text-sm text-danger">{{ availabilityError }}</p>
+        <UiButton variant="secondary" size="sm" @click="loadAvailability">Try again</UiButton>
+      </template>
+      <template v-else-if="availability">
+        <p class="text-sm font-medium text-text">{{ availability.reservationCapacity }} reservation spaces · {{ availability.allocationPercent }}% of {{ availability.totalCapacity }} total parking spaces</p>
+        <p class="text-sm text-muted">Peak bookings in this time range: {{ availability.bookedSlots }} / {{ availability.reservationCapacity }}</p>
+        <p class="text-sm font-semibold" :class="availability.availableSlots > 0 ? 'text-success' : 'text-danger'">
+          {{ availability.availableSlots > 0 ? `${availability.availableSlots} spaces available for this time` : 'Fully booked. Choose another time or date.' }}
+        </p>
+        <p class="text-xs text-muted">Pending and approved bookings count. Reservation spaces are included in total capacity, not added to it.</p>
+      </template>
+    </section>
     <form @submit.prevent="handleSubmit" class="form-container">
       <!-- Card 1: Schedule Parameters -->
       <div class="form-card">
@@ -327,7 +411,7 @@ async function handleSubmit() {
         <UiButton type="button" variant="secondary" @click="goBack" :disabled="isSubmitting">
           Cancel
         </UiButton>
-        <UiButton type="submit" variant="primary" :loading="isSubmitting">
+        <UiButton type="submit" variant="primary" :loading="isSubmitting" :disabled="capacityUnavailable">
           Confirm & Reserve Schedule
         </UiButton>
       </div>

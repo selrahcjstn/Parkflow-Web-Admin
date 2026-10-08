@@ -99,6 +99,39 @@ const Confirmation = component('src/components/ui/ConfirmModal.vue', {
   './UiButton.vue': { default: Button },
 })
 
+const CampusCapacity = component('src/features/settings/components/CampusCapacityCard.vue', {
+  '@/components/ui/UiButton.vue': { default: Button },
+  '@/components/ui/UiCard.vue': { default: component('src/components/ui/UiCard.vue') },
+  '@/components/ui/UiInput.vue': { default: component('src/components/ui/UiInput.vue') },
+  '@/components/ui/UiSelect.vue': { default: component('src/components/ui/UiSelect.vue') },
+})
+
+test('Super Admin allocation is a configurable percentage of total capacity, not extra spaces', async () => {
+  const html = await renderToString(vue.createSSRApp(CampusCapacity, { settings: {
+    totalCapacity: 300, reservationAllocationPercent: 30, maxVehiclesPerUser: 5,
+    academicYear: '2026-2027', currentSemester: '1st Semester',
+  } }))
+  assert.match(html, /Reservation allocation \(%\)/)
+  assert.match(html, /90 reservation spaces out of 300 total spaces/)
+  assert.match(html, /min="0" max="100" step="1"/)
+  assert.match(html, /not additional spaces/)
+  const modified = await renderToString(vue.createSSRApp(CampusCapacity, { settings: {
+    totalCapacity: 300, reservationAllocationPercent: 50, maxVehiclesPerUser: 5,
+    academicYear: '2026-2027', currentSemester: '1st Semester',
+  } }))
+  assert.match(modified, /150 reservation spaces out of 300 total spaces/)
+})
+
+test('admin booking checks selected-time availability rather than loading all reservations', () => {
+  const source = readFileSync(new URL('../src/features/reservations/pages/CreateReservationPage.vue', import.meta.url), 'utf8')
+  assert.match(source, /parking-reservations\/availability/)
+  assert.match(source, /parking-reservations\/my/)
+  assert.doesNotMatch(source, /parking-reservations\/admin\/all/)
+  assert.match(source, /:disabled="capacityUnavailable"/)
+  assert.match(source, /availability\.bookedSlots/)
+  assert.match(source, /offReservations\?\.\(\)/)
+})
+
 test('confirmation actions stay in bounded responsive columns and disable during submission', async () => {
   const context = {}
   await renderToString(

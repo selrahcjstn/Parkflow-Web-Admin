@@ -27,6 +27,7 @@ interface SystemSettings {
   currentSemester: string
   lastResetDate?: string
   totalCapacity: number
+  reservationAllocationPercent: number
   maxVehiclesPerUser: number
   maintenanceMode: boolean
   rfidInstantScanEnabled: boolean
@@ -50,6 +51,7 @@ const settings = ref<SystemSettings>({
   academicYear: '2026-2027',
   currentSemester: '1st Semester',
   totalCapacity: 500,
+  reservationAllocationPercent: 30,
   maxVehiclesPerUser: 5,
   maintenanceMode: false,
   rfidInstantScanEnabled: true,
@@ -331,6 +333,7 @@ onMounted(() => {
           <CampusCapacityCard
             :settings="settings"
             :is-saving="isSaving"
+            @update-reservation-allocation="settings.reservationAllocationPercent = $event"
             @save="saveSettings"
             @open-reset-modal="showResetModal = true"
           />
