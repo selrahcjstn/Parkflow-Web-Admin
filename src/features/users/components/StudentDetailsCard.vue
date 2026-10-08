@@ -62,7 +62,7 @@ function onSectionInput(val: string | number) {
       <!-- Client ID / Student Number -->
       <UiInput
         :model-value="studentNumber"
-        label="Client ID (Student Number)"
+        label="Student ID number"
         placeholder="e.g. 202600123"
         :maxlength="10"
         :error="clientIdError || ''"

@@ -21,8 +21,7 @@ const emit = defineEmits<{
 const vehicleTypeOptions = [
   { label: 'All Vehicle Types', value: 'all' },
   { label: 'Car', value: 'Car' },
-  { label: 'Motorcycle', value: 'Motorcycle' },
-  { label: 'E-Bike', value: 'ElectricBike' }
+  { label: 'Motorcycle', value: 'Motorcycle' }
 ]
 
 const statusOptions = [

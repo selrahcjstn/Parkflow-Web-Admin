@@ -6,6 +6,7 @@ const props = defineProps<{
   idCardNumber: string
   department: string
   roleLabel: string
+  idError?: string | null
 }>()
 
 const emit = defineEmits<{
@@ -32,8 +33,9 @@ const emit = defineEmits<{
     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
       <UiInput
         :model-value="idCardNumber"
-        label="Client ID (Employee / Faculty ID)"
+        label="Employee ID number"
         placeholder="e.g. EMP-2026-089"
+        :error="idError || ''"
         required
         @update:model-value="emit('update:idCardNumber', String($event))"
       />

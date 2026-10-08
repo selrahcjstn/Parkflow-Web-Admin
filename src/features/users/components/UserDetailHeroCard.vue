@@ -11,11 +11,13 @@ defineProps<{
 }>()
 
 function getIdentifier(u?: UserWithDetails | null): string {
-  if (!u) return 'N/A'
+  if (!u) return '—'
   if (u.student?.studentNumber) return u.student.studentNumber
   if (u.personnel?.idCardNumber) return u.personnel.idCardNumber
   if (u.guard?.assignedGate) return `Gate ${u.guard.assignedGate}`
-  return u.id || 'N/A'
+  if (u.role === 'Guard') return `Gate ${u.guard?.assignedGate || 1}`
+  if (u.role === 'Admin' || (u.role as string) === 'SuperAdmin') return '—'
+  return '—'
 }
 
 function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger' | 'neutral' {
@@ -72,7 +74,19 @@ function displayStatus(u?: UserWithDetails | null): string {
               {{ getRoleLabel(user.role) }}
             </span>
           </div>
-          <span class="text-xs text-muted font-mono">
+          <span
+            v-if="user.role === 'Admin' || (user.role as string) === 'SuperAdmin'"
+            class="text-xs text-muted font-mono"
+          >
+            System Account: <span class="font-bold text-text-secondary">Administrator</span>
+          </span>
+          <span
+            v-else-if="user.role === 'Guard'"
+            class="text-xs text-muted font-mono"
+          >
+            Security Post: <span class="font-bold text-text-secondary">Gate {{ user.guard?.assignedGate || 1 }}</span>
+          </span>
+          <span v-else class="text-xs text-muted font-mono">
             Client ID: <span class="font-bold text-text-secondary">{{ getIdentifier(user) }}</span>
           </span>
         </div>

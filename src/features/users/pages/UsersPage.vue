@@ -168,7 +168,9 @@ const getIdentifier = (user: UserWithDetails) => {
   if (user.student?.studentNumber) return user.student.studentNumber
   if (user.personnel?.idCardNumber) return user.personnel.idCardNumber
   if (user.guard?.assignedGate) return `Gate ${user.guard.assignedGate}`
-  return user.id || 'N/A'
+  if (user.role === 'Guard') return `Gate ${user.guard?.assignedGate || 1}`
+  if (user.role === 'Admin' || (user.role as string) === 'SuperAdmin') return '—'
+  return '—'
 }
 
 const getRoleLabel = (role: UserRole) => {
@@ -191,7 +193,7 @@ const getRoleLabel = (role: UserRole) => {
 const userColumns = computed<TableColumn[]>(() => {
   const cols: TableColumn[] = [
     { key: 'client', label: isAdminStaffView.value ? 'Staff Member' : 'Client' },
-    { key: 'identifier', label: 'Client ID' },
+    { key: 'identifier', label: isAdminStaffView.value ? 'Identifier / Post' : 'Client ID' },
     { key: 'role', label: 'Classification' },
   ]
   if (!isAdminStaffView.value) {

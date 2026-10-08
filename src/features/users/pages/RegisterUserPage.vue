@@ -276,13 +276,13 @@ const handleInitialSubmit = () => {
   if (form.value.role === 'Student') {
     const studentNum = form.value.studentNumber.trim()
     if (!studentNum) {
-      clientIdFieldError.value = 'Client ID is required.'
-      errorMessage.value = 'Client ID is required.'
+      clientIdFieldError.value = 'Student ID number is required.'
+      errorMessage.value = 'Student ID number is required.'
       return
     }
     if (!STUDENT_ID_REGEX.test(studentNum)) {
-      clientIdFieldError.value = 'Client ID must follow the official student number format (e.g. 2024-00001 or 7-10 digit student ID).'
-      errorMessage.value = 'Client ID must follow the official student number format (e.g. 2024-00001 or 7-10 digit student ID).'
+      clientIdFieldError.value = 'Student ID number must follow the official format (e.g. 2024-00001 or 7-10 digits).'
+      errorMessage.value = 'Student ID number must follow the official format (e.g. 2024-00001 or 7-10 digits).'
       return
     }
 
@@ -299,7 +299,7 @@ const handleInitialSubmit = () => {
     }
   } else if (form.value.role === 'UniversityStaff' || form.value.role === 'NonAcademicPersonnel') {
     if (!form.value.idCardNumber.trim()) {
-      errorMessage.value = 'Client ID (Employee ID) is required.'
+      errorMessage.value = 'Employee ID number is required.'
       return
     }
     if (!form.value.department.trim()) {
@@ -355,6 +355,9 @@ const executeRegistration = async () => {
     console.error('API error during registration:', error)
     confirmModalVisible.value = false
     errorMessage.value = error.response?.data?.message || error.message || 'An error occurred while registering the account.'
+    if (error.response?.status === 409 && /ID number/i.test(errorMessage.value || '')) {
+      clientIdFieldError.value = errorMessage.value
+    }
   } finally {
     isSubmitting.value = false
   }
@@ -425,6 +428,7 @@ const executeRegistration = async () => {
         v-model:id-card-number="form.idCardNumber"
         v-model:department="form.department"
         :role-label="form.role === 'UniversityStaff' ? 'Faculty Member' : 'University Staff'"
+        :id-error="clientIdFieldError"
       />
 
       <!-- Action Toolbar -->

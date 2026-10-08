@@ -102,7 +102,6 @@ const handleSubmit = () => {
                 <select id="vehicleType" v-model="vehicleType" class="form-select" required>
                   <option value="Car">Car</option>
                   <option value="Motorcycle">Motorcycle</option>
-                  <option value="ElectricBike">E-Bike</option>
                 </select>
               </div>
 

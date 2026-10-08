@@ -29,7 +29,6 @@ const vehicleTypeOptions = [
   { label: 'All Vehicle Classes', value: 'all' },
   { label: 'Automobiles (Cars/SUVs)', value: 'cars' },
   { label: 'Motorcycles & Scooters', value: 'motorcycles' },
-  { label: 'Electric Bikes & Scooters', value: 'ebikes' },
 ]
 </script>
 

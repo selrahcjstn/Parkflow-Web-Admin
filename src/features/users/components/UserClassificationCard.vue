@@ -8,11 +8,13 @@ defineProps<{
 }>()
 
 function getIdentifier(u?: UserWithDetails | null): string {
-  if (!u) return 'N/A'
+  if (!u) return '—'
   if (u.student?.studentNumber) return u.student.studentNumber
   if (u.personnel?.idCardNumber) return u.personnel.idCardNumber
   if (u.guard?.assignedGate) return `Gate ${u.guard.assignedGate}`
-  return u.id || 'N/A'
+  if (u.role === 'Guard') return `Gate ${u.guard?.assignedGate || 1}`
+  if (u.role === 'Admin' || (u.role as string) === 'SuperAdmin') return '—'
+  return '—'
 }
 
 function formatYearLevel(level?: number): string {
@@ -106,8 +108,8 @@ function formatYearLevel(level?: number): string {
       class="grid grid-cols-1 sm:grid-cols-2 gap-y-4.5 gap-x-6"
     >
       <div class="flex flex-col gap-1">
-        <span class="text-xs font-medium text-muted">Security ID</span>
-        <span class="text-sm font-mono font-semibold text-text">{{ getIdentifier(user) }}</span>
+        <span class="text-xs font-medium text-muted">Security Role</span>
+        <span class="text-sm font-semibold text-text">Campus Security Guard</span>
       </div>
 
       <div class="flex flex-col gap-1">
@@ -115,6 +117,24 @@ function formatYearLevel(level?: number): string {
         <span class="text-sm font-semibold text-text"
           >Gate {{ user.guard?.assignedGate || 1 }}</span
         >
+      </div>
+    </div>
+
+    <!-- Administrator View -->
+    <div
+      v-else-if="user.role === 'Admin' || (user.role as string) === 'SuperAdmin'"
+      class="grid grid-cols-1 sm:grid-cols-2 gap-y-4.5 gap-x-6"
+    >
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-muted">Administrator Role</span>
+        <span class="text-sm font-semibold text-text">{{
+          (user.role as string) === 'SuperAdmin' ? 'Super Administrator' : 'System Administrator'
+        }}</span>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <span class="text-xs font-medium text-muted">System Clearance</span>
+        <span class="text-sm font-semibold text-text">Full System Privileges</span>
       </div>
     </div>
 

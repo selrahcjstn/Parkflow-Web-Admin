@@ -84,7 +84,7 @@ const isJuniorHigh = computed(() => props.form.yearLevel >= 7 && props.form.year
         <!-- Student specifics -->
         <template v-if="form.role === 'Student'">
           <div class="flex justify-between items-center py-1 border-b border-slate-200/40 dark:border-slate-700/40">
-            <span class="text-slate-500 dark:text-slate-400 font-medium">Client ID</span>
+            <span class="text-slate-500 dark:text-slate-400 font-medium">Student ID number</span>
             <span class="font-bold text-slate-900 dark:text-white">{{ form.studentNumber }}</span>
           </div>
           <div v-if="!isJuniorHigh" class="flex justify-between items-start gap-4 py-1 border-b border-slate-200/40 dark:border-slate-700/40">
