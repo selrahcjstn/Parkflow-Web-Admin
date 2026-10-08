@@ -101,7 +101,7 @@ function getVehicleTypeLabel(type?: string | number): string {
 
 function getRoleLabel(role?: string): string {
   if (!role) return 'Guest User'
-  if (role === 'UniversityStaff') return 'Faculty Member'
+  if (role === 'UniversityStaff') return 'Faculty'
   if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role
 }
@@ -175,7 +175,7 @@ const checkSessionOverstay = (item: any): boolean => {
     item.maxAllowedHours ||
     (item.role === 'Student'
       ? 4
-      : item.role === 'UniversityStaff' || item.role === 'Faculty'
+      : item.role === 'UniversityStaff' || item.role === 'Faculty' || item.role === 'NonAcademicPersonnel' || item.role === 'University Staff'
         ? 8
         : 4)
   return elapsedHours > maxAllowed

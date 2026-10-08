@@ -59,7 +59,7 @@ function selectRole(role: UserRole) {
         </div>
       </div>
 
-      <!-- Faculty Member Option -->
+      <!-- Faculty Option -->
       <div
         class="relative p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between space-y-3"
         :class="modelValue === 'UniversityStaff' ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20' : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50'"
@@ -79,7 +79,7 @@ function selectRole(role: UserRole) {
           </div>
         </div>
         <div>
-          <h4 class="font-semibold text-slate-900 dark:text-white text-sm">Faculty Member</h4>
+          <h4 class="font-semibold text-slate-900 dark:text-white text-sm">Faculty</h4>
           <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Academic teaching faculty with reserved area access</p>
         </div>
       </div>

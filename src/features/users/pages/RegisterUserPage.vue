@@ -427,7 +427,7 @@ const executeRegistration = async () => {
         v-else-if="form.role === 'UniversityStaff' || form.role === 'NonAcademicPersonnel'"
         v-model:id-card-number="form.idCardNumber"
         v-model:department="form.department"
-        :role-label="form.role === 'UniversityStaff' ? 'Faculty Member' : 'University Staff'"
+        :role-label="form.role === 'UniversityStaff' ? 'Faculty' : 'University Staff'"
         :id-error="clientIdFieldError"
       />
 

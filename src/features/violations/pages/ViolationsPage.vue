@@ -243,7 +243,7 @@ const handlePaymentSubmit = async () => {
 const getRoleLabel = (role?: string) => {
   if (!role) return 'Visitor'
   if (role === 'UniversityStaff') return 'Faculty'
-  if (role === 'NonAcademicPersonnel') return 'Staff'
+  if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role
 }
 function handleRefresh() {

@@ -136,7 +136,7 @@ const handleSubmit = () => {
                 <label for="ownerRole">Classification</label>
                 <select id="ownerRole" v-model="ownerRole" class="form-select" required>
                   <option value="Student">Student</option>
-                  <option value="UniversityStaff">Faculty Member</option>
+                  <option value="UniversityStaff">Faculty</option>
                   <option value="NonAcademicPersonnel">University Staff</option>
                 </select>
               </div>

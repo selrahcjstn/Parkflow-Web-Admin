@@ -84,7 +84,7 @@ const adminCount = computed(
 // Dynamic Header Properties
 const headerTitle = computed(() => {
   if (selectedRole.value === 'Student') return 'Student Client Directory'
-  if (selectedRole.value === 'UniversityStaff') return 'Faculty Member Directory'
+  if (selectedRole.value === 'UniversityStaff') return 'Faculty Directory'
   if (selectedRole.value === 'NonAcademicPersonnel') return 'University Staff Directory'
   if (selectedRole.value === 'Guard') return 'Security Guards Directory'
   if (selectedRole.value === 'Admin') return 'System Administrators Directory'
@@ -95,7 +95,7 @@ const headerSubtitle = computed(() => {
   if (selectedRole.value === 'Student')
     return 'Manage registered student accounts, active COR submission verifications, and class schedule parking passes.'
   if (selectedRole.value === 'UniversityStaff')
-    return 'Manage faculty member accounts, department assignments, and vehicle clearance.'
+    return 'Manage faculty accounts, department assignments, and vehicle clearance.'
   if (selectedRole.value === 'NonAcademicPersonnel')
     return 'Manage university staff accounts, administrative departments, and vehicle clearance.'
   if (selectedRole.value === 'Guard')
@@ -123,7 +123,7 @@ const stats = computed(() => {
     { title: 'Total Registered', value: total, icon: 'people' },
     { title: 'Students', value: students, icon: 'student' },
     { title: 'Faculty', value: faculty, icon: 'briefcase' },
-    { title: 'Staff (Non-Academic)', value: staff, icon: 'briefcase' },
+    { title: 'University Staff', value: staff, icon: 'briefcase' },
   ]
 
   if (isSuperAdmin.value) {
@@ -178,7 +178,7 @@ const getRoleLabel = (role: UserRole) => {
     case 'Student':
       return 'Student'
     case 'UniversityStaff':
-      return 'Faculty Member'
+      return 'Faculty'
     case 'NonAcademicPersonnel':
       return 'University Staff'
     case 'Guard':

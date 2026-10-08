@@ -45,7 +45,7 @@ const isSuperAdmin = computed(() => isSuperAdminUser())
 const roleOptions = computed(() => {
   const options = [
     { label: 'Student', value: 'Student' },
-    { label: 'Faculty Member', value: 'UniversityStaff' },
+    { label: 'Faculty', value: 'UniversityStaff' },
     { label: 'University Staff', value: 'NonAcademicPersonnel' },
     { label: 'Security Guard', value: 'Guard' }
   ]

@@ -15,7 +15,8 @@ const pageTitle = computed(() => {
   if (route.path === '/users') {
     const role = route.query.role as string
     if (role === 'Student') return 'Students'
-    if (role === 'NAPA' || role === 'NonAcademicPersonnel') return 'NAP & Faculty'
+    if (role === 'UniversityStaff') return 'Faculty'
+    if (role === 'NAPA' || role === 'NonAcademicPersonnel') return 'University Staff'
     if (role === 'AdminStaff' || role === 'Guard' || role === 'Admin') return 'Staff & Admin'
     return 'Clients'
   }

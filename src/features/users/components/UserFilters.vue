@@ -46,7 +46,7 @@ const vehicleOptions = [
 const roleOptions = computed(() => [
   { label: `All Account Types (${props.totalCount})`, value: 'all' },
   { label: `Student (${props.studentCount})`, value: 'Student' },
-  { label: `Faculty Member (${props.facultyCount})`, value: 'UniversityStaff' },
+  { label: `Faculty (${props.facultyCount})`, value: 'UniversityStaff' },
   { label: `University Staff (${props.staffCount})`, value: 'NonAcademicPersonnel' },
   ...(props.isSuperAdmin
     ? [

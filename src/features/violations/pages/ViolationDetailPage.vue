@@ -41,7 +41,7 @@ const isProcessingPayment = ref(false)
 
 function getRoleLabel(role?: string): string {
   if (!role) return 'Guest'
-  if (role === 'UniversityStaff') return 'Faculty Member'
+  if (role === 'UniversityStaff') return 'Faculty'
   if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role
 }

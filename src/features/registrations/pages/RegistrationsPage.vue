@@ -419,7 +419,7 @@ function openZoom(url: string) {
       <div>
         <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">Client Approvals Portal</h1>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 mb-0 max-w-2xl">
-          Review and verify client account clearance for Students, Staff/Faculty, and Personnel (Schedules, COR proofs, and vehicle clearance).
+          Review Student, Faculty, and University Staff accounts, required documents, and vehicle clearance.
         </p>
       </div>
 

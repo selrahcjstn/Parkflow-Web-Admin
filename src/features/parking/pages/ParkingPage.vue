@@ -256,6 +256,7 @@ function getMustExitByParts(item: ActiveSession): { time: string; date: string }
       ? 4
       : item.role === 'UniversityStaff' ||
           item.role === 'Faculty' ||
+          item.role === 'University Staff' ||
           item.role === 'NonAcademicPersonnel'
         ? 8
         : 4)
@@ -419,7 +420,7 @@ const getVehicleTypeLabel = (type: VehicleType) => {
 }
 
 const getRoleLabel = (role: string) => {
-  if (role === 'UniversityStaff') return 'Faculty Member'
+  if (role === 'UniversityStaff') return 'Faculty'
   if (role === 'NonAcademicPersonnel') return 'University Staff'
   return role
 }
