@@ -10,6 +10,7 @@ const props = defineProps<{
     academicYear: string
     currentSemester: string
     totalCapacity: number
+    reservationAllocationPercent: number
     maxVehiclesPerUser: number
     lastResetDate?: string
   }
@@ -19,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'open-reset-modal'): void
   (e: 'save'): void
+  (e: 'update-reservation-allocation', value: number): void
 }>()
 
 const semesterOptions = [
@@ -26,6 +28,9 @@ const semesterOptions = [
   { label: '2nd Semester', value: '2nd Semester' },
   { label: 'Summer Term / Midyear', value: 'Summer Term' }
 ]
+
+const reservationCapacity = computed(() => Math.floor(Math.max(0, Number(props.settings.totalCapacity))
+  * Math.min(100, Math.max(0, Number(props.settings.reservationAllocationPercent))) / 100))
 
 const formattedResetDate = computed(() => {
   if (!props.settings.lastResetDate) return 'No reset record found'
@@ -113,6 +118,18 @@ const formattedResetDate = computed(() => {
             placeholder="5"
           />
         </div>
+      </div>
+
+      <div class="rounded-card border border-border bg-surface-muted p-4 space-y-3">
+        <UiInput
+          :model-value="settings.reservationAllocationPercent"
+          @update:model-value="emit('update-reservation-allocation', Number($event))"
+          label="Reservation allocation (%)"
+          type="number" min="0" max="100" step="1"
+          hint="Percentage of total campus spaces available for overlapping reservations. 0% disables new reservations."
+        />
+        <p class="text-sm font-semibold text-text">{{ reservationCapacity }} reservation spaces out of {{ settings.totalCapacity }} total spaces</p>
+        <p class="text-xs text-muted">These are included in total parking capacity, not additional spaces. Pending and approved bookings count. Spaces can be reserved again after a booking ends.</p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
