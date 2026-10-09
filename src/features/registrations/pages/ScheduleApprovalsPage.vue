@@ -295,9 +295,9 @@ function handleRefresh() {
       :is-open="isConfirmApproveOpen"
       title="Approve COR & Schedule"
       :message="`Are you sure you want to approve ${itemToActOn?.fullName}'s Certificate of Registration and class schedule?`"
-      confirm-label="Yes, Approve"
-      cancel-label="Cancel"
-      type="success"
+      confirm-text="Yes, Approve"
+      cancel-text="Cancel"
+      variant="success"
       @confirm="handleConfirmApprove"
       @cancel="isConfirmApproveOpen = false"
     />

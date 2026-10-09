@@ -286,9 +286,9 @@ function handleRefresh() {
       :is-open="isConfirmApproveOpen"
       title="Approve Vehicle Registration"
       :message="`Are you sure you want to approve the vehicle ${itemToActOn?.vehiclePlate} for ${itemToActOn?.fullName}?`"
-      confirm-label="Yes, Approve Vehicle"
-      cancel-label="Cancel"
-      type="success"
+      confirm-text="Yes, Approve Vehicle"
+      cancel-text="Cancel"
+      variant="success"
       @confirm="handleConfirmApprove"
       @cancel="isConfirmApproveOpen = false"
     />

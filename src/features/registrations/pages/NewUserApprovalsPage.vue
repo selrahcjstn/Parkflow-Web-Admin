@@ -299,9 +299,9 @@ function handleRefresh() {
       :is-open="isConfirmApproveOpen"
       title="Approve New User Registration"
       :message="`Are you sure you want to approve ${itemToActOn?.fullName}'s registration? This will simultaneously verify their COR, Class Schedule, and Vehicle details in one step.`"
-      confirm-label="Yes, Approve All"
-      cancel-label="Cancel"
-      type="success"
+      confirm-text="Yes, Approve All"
+      cancel-text="Cancel"
+      variant="success"
       @confirm="handleConfirmApprove"
       @cancel="isConfirmApproveOpen = false"
     />

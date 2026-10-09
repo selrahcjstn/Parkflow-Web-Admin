@@ -124,6 +124,28 @@ const Confirmation = component('src/components/ui/ConfirmModal.vue', {
   './UiButton.vue': { default: Button },
 })
 
+test('registration approval dialogs use the shared success check icon and approval labels', async () => {
+  for (const page of ['NewUserApprovalsPage', 'ScheduleApprovalsPage', 'VehicleApprovalsPage']) {
+    const source = readFileSync(new URL(`../src/features/registrations/pages/${page}.vue`, import.meta.url), 'utf8')
+    const approval = source.match(/<ConfirmModal\s+:is-open="isConfirmApproveOpen"[\s\S]*?\/>/)?.[0]
+    assert.ok(approval, `${page} must have an approval confirmation`)
+    assert.match(approval, /\bvariant="success"/, `${page} must use the supported success variant`)
+    const confirmText = approval.match(/\bconfirm-text="([^"]+)"/)?.[1]
+    assert.match(confirmText ?? '', /Approve/)
+    const context = {}
+    await renderToString(vue.createSSRApp(Confirmation, {
+      isOpen: true,
+      title: 'Approve registration',
+      message: 'Confirm approval.',
+      variant: 'success',
+      confirmText,
+    }), context)
+    assert.match(context.teleports.body, /points="20 6 9 17 4 12"/)
+    assert.doesNotMatch(context.teleports.body, /points="3 6 5 6 21 6"/)
+    assert.ok(context.teleports.body.includes(confirmText))
+  }
+})
+
 const CampusCapacity = component('src/features/settings/components/CampusCapacityCard.vue', {
   '@/components/ui/UiButton.vue': { default: Button },
   '@/components/ui/UiCard.vue': { default: component('src/components/ui/UiCard.vue') },
