@@ -7,11 +7,14 @@ import PendingRegistrations from '../components/PendingRegistrations.vue'
 import DashboardCalendar from '../components/DashboardCalendar.vue'
 import RecentFeedbackOverview from '../components/RecentFeedbackOverview.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import api from '@/api/axios'
 
-import { cachedStatsData, cachedActivityData } from '@/stores/appCache'
+import { cachedStatsData, cachedActivityData, type DashboardStatsCache } from '@/stores/appCache'
 
 const isLoading = ref(!cachedStatsData.value)
+const statsError = ref('')
+const isFetching = ref(false)
 
 const formattedDate = computed(() =>
   new Intl.DateTimeFormat('en-US', {
@@ -22,56 +25,70 @@ const formattedDate = computed(() =>
   }).format(new Date())
 )
 
-const statsData = ref(cachedStatsData.value || {
-  totalUsers: 0,
-  activeParking: 0,
-  todayRevenue: 0,
-  violations: 0,
-  maxCapacity: 500
-})
+const statsData = ref<DashboardStatsCache | null>(cachedStatsData.value)
+
+function trend(percent: number | null | undefined, lowerIsBetter = false) {
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) {
+    return { trend: 'No comparison', trendTone: 'neutral' as const, trendUp: undefined }
+  }
+  const direction = percent > 0 ? true : percent < 0 ? false : undefined
+  return {
+    trend: `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`,
+    trendUp: direction,
+    trendTone: direction === undefined ? 'neutral' as const
+      : (lowerIsBetter ? percent < 0 : percent > 0) ? 'positive' as const : 'negative' as const,
+  }
+}
 
 const stats = computed(() => {
-  const occPercent = statsData.value.maxCapacity > 0
-    ? Math.round((statsData.value.activeParking / statsData.value.maxCapacity) * 100)
-    : 0
+  const data = statsData.value
+  if (!data) return []
+  const occPercent = data.maxCapacity > 0
+    ? (data.activeParking / data.maxCapacity) * 100
+    : undefined
+  const comparisonLabel = data.trends?.comparisonDate
+    ? `Compared with ${data.trends.comparisonDate.slice(0, 10)} (Philippine time). Client and charge counts use yesterday's closing records; revenue uses yesterday's total. No comparison is shown when the previous value is zero and the current value is nonzero, or payment dates are missing.`
+    : 'Comparison data is not available. A percentage cannot be calculated against a nonzero value when the previous value is zero.'
 
   return [
     {
       title: 'Registered Clients',
-      value: statsData.value.totalUsers.toLocaleString(),
-      subtitle: 'Permits & driver accounts',
-      trend: '+12.5%',
-      trendUp: true,
-      accentColor: '#2563eb',
-      badgeBg: 'rgba(37, 99, 235, 0.12)'
+      value: data.totalUsers.toLocaleString('en-PH'),
+      subtitle: 'Client accounts, excluding admins and guards',
+      ...trend(data.trends?.registeredClientsPercent),
+      trendLabel: comparisonLabel,
+      accentColor: 'var(--color-info)',
+      badgeBg: 'var(--color-info-bg)'
     },
     {
       title: 'Slot Occupancy',
-      value: `${statsData.value.activeParking} / ${statsData.value.maxCapacity}`,
-      subtitle: `${statsData.value.maxCapacity - statsData.value.activeParking} slots available`,
-      trend: `${occPercent}% full`,
-      trendUp: occPercent < 85,
-      accentColor: '#059669',
-      badgeBg: 'rgba(16, 185, 129, 0.12)',
+      value: `${data.activeParking.toLocaleString('en-PH')} / ${data.maxCapacity.toLocaleString('en-PH')}`,
+      subtitle: `${Math.max(0, data.maxCapacity - data.activeParking).toLocaleString('en-PH')} slots available`,
+      trend: occPercent === undefined ? 'Capacity not set' : `${occPercent.toFixed(1)}% full`,
+      trendLabel: 'Registered and visitor vehicles currently inside divided by total parking capacity.',
+      trendTone: 'neutral' as const,
+      trendUp: undefined,
+      accentColor: 'var(--color-success)',
+      badgeBg: 'var(--color-success-bg)',
       progressPercent: occPercent
     },
     {
       title: 'Daily Revenue',
-      value: `₱${statsData.value.todayRevenue.toLocaleString()}`,
-      subtitle: "Today's logged collections",
-      trend: '+8.1%',
-      trendUp: true,
-      accentColor: '#d97706',
-      badgeBg: 'rgba(245, 158, 11, 0.12)'
+      value: `₱${data.todayRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      subtitle: "Today's recorded payments (Philippine time)",
+      ...trend(data.trends?.revenuePercent),
+      trendLabel: comparisonLabel,
+      accentColor: 'var(--color-warning)',
+      badgeBg: 'var(--color-warning-bg)'
     },
     {
-      title: 'Pending Citations',
-      value: `${statsData.value.violations} Citations`,
-      subtitle: 'Unsettled parking fines',
-      trend: '-3.4%',
-      trendUp: false,
-      accentColor: '#7B1113',
-      badgeBg: 'rgba(123, 17, 19, 0.12)'
+      title: 'Pending Charges',
+      value: data.violations.toLocaleString('en-PH'),
+      subtitle: 'Unpaid parking charges and citations',
+      ...trend(data.trends?.pendingChargesPercent, true),
+      trendLabel: comparisonLabel,
+      accentColor: 'var(--color-primary)',
+      badgeBg: 'var(--color-primary-light)'
     }
   ]
 })
@@ -79,16 +96,26 @@ const stats = computed(() => {
 const activityData = ref<{ day: string; checkIns: number; checkOuts: number }[]>(cachedActivityData.value || [])
 
 const fetchDashboardStats = async () => {
+  if (isFetching.value) return
+  isFetching.value = true
+  statsError.value = ''
+  if (!statsData.value) isLoading.value = true
   try {
     const response = await api.get('/dashboard/summary')
     if (response.data?.isSuccess && response.data?.data) {
       const data = response.data.data
+      const counts = [data.totalUsers, data.activeParking, data.maxCapacity, data.violationsCount]
+      if (!counts.every(value => Number.isSafeInteger(value) && value >= 0) ||
+          typeof data.todayRevenue !== 'number' || !Number.isFinite(data.todayRevenue) || data.todayRevenue < 0) {
+        throw new Error('Invalid dashboard metrics')
+      }
       const newStats = {
         totalUsers: data.totalUsers,
         activeParking: data.activeParking,
         maxCapacity: data.maxCapacity,
         todayRevenue: data.todayRevenue,
-        violations: data.violationsCount
+        violations: data.violationsCount,
+        trends: data.trends
       }
       const newActivity = Array.isArray(data.activityOverLast7Days) ? data.activityOverLast7Days : []
 
@@ -97,10 +124,16 @@ const fetchDashboardStats = async () => {
 
       cachedStatsData.value = newStats
       cachedActivityData.value = newActivity
+    } else {
+      throw new Error('Dashboard metrics could not be loaded')
     }
   } catch (error) {
     console.error('Error loading dashboard stats:', error)
+    statsError.value = statsData.value
+      ? 'Could not update metrics. Last loaded values are shown.'
+      : 'Could not load dashboard metrics. Please try again.'
   } finally {
+    isFetching.value = false
     isLoading.value = false
   }
 }
@@ -125,6 +158,11 @@ onMounted(() => {
       </p>
     </div>
 
+    <div v-if="statsError" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-warning/30 bg-warning-bg p-4 text-sm text-text">
+      <span>{{ statsError }}</span>
+      <UiButton variant="secondary" size="sm" :loading="isFetching" @click="fetchDashboardStats">Retry</UiButton>
+    </div>
+
     <!-- Stats Grid (Full Width Baseline) -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
       <template v-if="isLoading">
@@ -139,6 +177,8 @@ onMounted(() => {
           :subtitle="stat.subtitle"
           :trend="stat.trend"
           :trend-up="stat.trendUp"
+          :trend-tone="stat.trendTone"
+          :trend-label="stat.trendLabel"
           :accent-color="stat.accentColor"
           :badge-bg="stat.badgeBg"
           :progress-percent="stat.progressPercent"
@@ -174,6 +214,10 @@ onMounted(() => {
         </StatsCard>
       </template>
     </div>
+
+    <p v-if="statsData?.trends" class="m-0 text-xs text-muted">
+      Changes vs yesterday (Philippine time). Slot occupancy shows current capacity usage.
+    </p>
 
     <!-- Main Content Area: Chart & Tables on Left, Calendar & Feedback on Right -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

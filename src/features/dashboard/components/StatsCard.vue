@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import UiCard from '@/components/ui/UiCard.vue'
+import { computed } from 'vue'
 
-defineProps<{
+const props = withDefaults(defineProps<{
   title: string
   value: string
   subtitle?: string
-  trend: string
-  trendUp: boolean
+  trend?: string
+  trendUp?: boolean
+  trendTone?: 'positive' | 'negative' | 'neutral'
+  trendLabel?: string
   accentColor: string
   badgeBg: string
   progressPercent?: number
-}>()
+}>(), { trendUp: undefined })
+
+const tone = computed(() => props.trendTone ??
+  (props.trendUp === undefined ? 'neutral' : props.trendUp ? 'positive' : 'negative'))
 </script>
 
 <template>
@@ -25,12 +31,16 @@ defineProps<{
       </div>
 
       <div
+        v-if="trend"
+        :title="trendLabel"
         :class="[
           'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-extrabold leading-none',
-          trendUp ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+          tone === 'positive' ? 'bg-success-bg text-success'
+            : tone === 'negative' ? 'bg-danger-bg text-danger'
+            : 'bg-surface-muted text-muted'
         ]"
       >
-        <span class="text-[11px]">{{ trendUp ? '↑' : '↓' }}</span>
+        <span v-if="trendUp !== undefined" class="text-[11px]" aria-hidden="true">{{ trendUp ? '↑' : '↓' }}</span>
         <span>{{ trend }}</span>
       </div>
     </div>
@@ -55,7 +65,7 @@ defineProps<{
       </div>
       <div v-if="subtitle" class="flex items-center justify-between text-[11.5px]">
         <span class="font-medium text-slate-500 dark:text-slate-400">{{ subtitle }}</span>
-        <span class="font-bold text-slate-700 dark:text-slate-300">{{ progressPercent }}%</span>
+        <span class="font-bold text-slate-700 dark:text-slate-300 tabular-nums">{{ progressPercent.toFixed(1) }}%</span>
       </div>
     </div>
     <div v-else-if="subtitle" class="mt-3">

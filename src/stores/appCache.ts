@@ -6,6 +6,12 @@ export interface DashboardStatsCache {
   todayRevenue: number
   violations: number
   maxCapacity: number
+  trends?: {
+    registeredClientsPercent: number | null
+    revenuePercent: number | null
+    pendingChargesPercent: number | null
+    comparisonDate: string
+  }
 }
 
 export interface ActivityDataItem {
