@@ -2,14 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
-import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTabs, { type TabItem } from '@/components/ui/UiTabs.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import OverstayFeeCard from '../components/OverstayFeeCard.vue'
 import CampusCapacityCard from '../components/CampusCapacityCard.vue'
 import SystemAnnouncementCard from '../components/SystemAnnouncementCard.vue'
-import FeatureTogglesCard from '../components/FeatureTogglesCard.vue'
 
 const router = useRouter()
 
@@ -116,13 +114,6 @@ async function saveSettings() {
   }
 }
 
-async function toggleFeature(
-  key: 'maintenanceMode' | 'rfidInstantScanEnabled' | 'autoApproveVerification',
-) {
-  settings.value[key] = !settings.value[key]
-  await saveSettings()
-}
-
 async function confirmResetStudentSchedules() {
   isResetting.value = true
   try {
@@ -227,30 +218,13 @@ async function deactivateAnnouncement() {
   }
 }
 
-const activeTab = ref<'capacity' | 'billing' | 'announcements' | 'features'>('capacity')
+const activeTab = ref<'capacity' | 'billing' | 'announcements'>('capacity')
 
 const settingsTabs: TabItem[] = [
   { key: 'capacity', label: 'Campus Capacity & Cycle' },
   { key: 'billing', label: 'Rates & Billing Policy' },
   { key: 'announcements', label: 'System Announcements' },
-  { key: 'features', label: 'Feature Flags & Controls' },
 ]
-
-function exportBackupConfig() {
-  const jsonStr = JSON.stringify(settings.value, null, 2)
-  const blob = new Blob([jsonStr], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.setAttribute('href', url)
-  link.setAttribute(
-    'download',
-    `ParkFlow_System_Settings_${new Date().toISOString().split('T')[0]}.json`,
-  )
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  showNotification('System settings backup exported as JSON!', 'success')
-}
 
 onMounted(() => {
   if (isSuperAdmin.value) {
@@ -309,8 +283,7 @@ onMounted(() => {
             System Settings & Customization
           </h1>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage campus capacity, semester transitions, violation billing policies, and feature
-            toggles.
+            Manage campus capacity, semester transitions, billing policies, and system announcements.
           </p>
         </div>
 
@@ -359,15 +332,6 @@ onMounted(() => {
           />
         </div>
 
-        <!-- 4. Feature Toggles & Controls Tab -->
-        <div v-show="activeTab === 'features'">
-          <FeatureTogglesCard
-            :settings="settings"
-            :is-saving="isSaving"
-            @toggle="toggleFeature"
-            @export-backup="exportBackupConfig"
-          />
-        </div>
       </div>
 
       <!-- Reset Student Schedules Confirmation Modal -->

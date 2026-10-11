@@ -68,6 +68,35 @@ test('Visitors keeps search left and pushes campus status and refresh right', ()
   assert.match(source, /class="flex flex-col items-stretch gap-3 sm:flex-row sm:items-end"/)
 })
 const Button = component('src/components/ui/UiButton.vue')
+
+test('settings removes feature controls while retaining the other tabs and saved flag values', async () => {
+  const source = readFileSync(new URL('../src/features/settings/pages/SettingsPage.vue', import.meta.url), 'utf8')
+  const Slot = { setup: (_, { slots }) => () => vue.h('div', slots.default?.()) }
+  const Settings = component('src/features/settings/pages/SettingsPage.vue', {
+    'vue-router': { useRouter: () => ({ replace() {}, push() {} }) },
+    '@/api/axios': { default: {} },
+    '@/utils/auth': { isSuperAdminUser: () => true },
+    '@/components/ui/UiButton.vue': { default: Button },
+    '@/components/ui/UiTabs.vue': { default: component('src/components/ui/UiTabs.vue') },
+    '@/components/ui/ConfirmModal.vue': { default: Slot },
+    '../components/CampusCapacityCard.vue': { default: Slot },
+    '../components/OverstayFeeCard.vue': { default: Slot },
+    '../components/SystemAnnouncementCard.vue': { default: Slot },
+  })
+  const html = await renderToString(vue.createSSRApp(Settings))
+  for (const label of ['Campus Capacity &amp; Cycle', 'Rates &amp; Billing Policy', 'System Announcements', 'Save All Settings']) {
+    assert.ok(html.includes(label), `${label} must remain available`)
+  }
+  assert.doesNotMatch(html, /Feature Flags|Diagnostics|feature toggles|Export System Settings Backup/)
+  assert.doesNotMatch(source, /FeatureTogglesCard|toggleFeature|exportBackupConfig|key: 'features'|activeTab === 'features'/)
+  // Removing controls must not reset backend flags when other settings are saved.
+  for (const flag of ['maintenanceMode', 'rfidInstantScanEnabled', 'autoApproveVerification']) {
+    assert.ok(source.includes(`${flag}: boolean`))
+  }
+  assert.match(source, /\.\.\.response\.data\.data/)
+  assert.match(source, /api\.put\('\/system-settings', settings\.value\)/)
+})
+
 test('role filter counts and administrator options update after accounts load', () => {
   const Filters = component('src/features/users/components/UserFilters.vue', {
     '@/components/ui/UiButton.vue': { default: Button },
