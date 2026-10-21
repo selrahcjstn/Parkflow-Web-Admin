@@ -92,12 +92,13 @@ const filteredNavItems = computed<NavItem[]>(() => {
     ...(isSuperAdmin.value ? [
       { key: 'register-staff', label: 'Register Staff & Admin', path: '/users/create-staff', icon: 'registerStaff' }
     ] : []),
+    { key: 'divider-approvals', label: 'Approvals', icon: '', section: true },
+    { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
     { key: 'divider-2', label: 'Operations', icon: '', section: true },
     { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
     { key: 'visitors', label: 'Visitors', path: '/visitors', icon: 'visitor' },
     { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
     { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
-    { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
     { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
     { key: 'divider-3', label: 'System', icon: '', section: true },
     { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },

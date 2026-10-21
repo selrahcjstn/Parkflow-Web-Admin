@@ -45,7 +45,7 @@ const props = defineProps<{
             {{ pendingCount }}
           </span>
           <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1 block truncate">
-            Pending Approval
+            Unconfirmed (legacy)
           </span>
         </div>
         <div class="w-10 h-10 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 flex-shrink-0">

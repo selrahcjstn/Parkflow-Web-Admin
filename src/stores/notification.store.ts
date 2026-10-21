@@ -19,7 +19,7 @@ export interface AdminNotification {
     | 'schedule_pending'
     | 'vehicle_pending'
     | 'feedback_pending'
-    | 'reservation_pending'
+    | 'reservation_confirmed'
     | 'violation_issued'
     | 'session_activity'
     | 'payment_processed'
@@ -264,34 +264,6 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
         }
       } catch (e) {}
 
-      // 4. Fetch pending Parking Space Reservations
-      try {
-        const resRes = await api.get('/parking-reservations/admin/all')
-        const items = resRes.data?.data || (Array.isArray(resRes.data) ? resRes.data : [])
-        if (Array.isArray(items)) {
-          const pendingRes = items.filter((r: any) => r.status === 'Pending' || r.status === 0)
-          pendingRes.forEach((item: any) => {
-            const refCode = item.referenceNumber || item.id || `res-${item.id}`
-            const rawDate = item.createdAt || item.reservationDate || item.startTime
-            const timeStr = rawDate
-              ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-              : 'Pending Review'
-            addNotification({
-              type: 'reservation_pending',
-              title: 'Parking Reservation Request',
-              subtitle: item.referenceNumber || 'Reservation Request',
-              message: `Reservation [${item.referenceNumber || 'Pending'}] by ${item.userFullName || item.userEmail || 'Applicant'} awaiting admin review.`,
-              timestamp: timeStr,
-              createdAt: rawDate,
-              actionUrl: '/reservations',
-              actionLabel: 'View Reservation',
-              priority: 'high',
-              referenceCode: refCode,
-            })
-          })
-        }
-      } catch (e) {}
-
       // 5. Fetch active unpaid violations
       try {
         const resViolations = await api.get('/violations/history/page/1/50?unpaidOnly=true')
@@ -466,13 +438,13 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       addNotification(
         {
-          type: 'reservation_pending',
-          title: 'New Reservation Request',
+          type: 'reservation_confirmed',
+          title: 'Reservation Confirmed',
           subtitle: refNum,
-          message: `Reservation [${refNum}] submitted by ${applicant} awaiting approval (${timeStr}).`,
+          message: `Reservation [${refNum}] confirmed for ${applicant} (${timeStr}).`,
           timestamp: timeStr,
           actionUrl: '/reservations',
-          actionLabel: 'Review Reservation',
+          actionLabel: 'View Reservation',
           priority: 'high',
           referenceCode: `res-${refNum}-${Date.now()}`,
         },

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { parkingVehicleGroups, type VehicleParkingSettings } from '../types'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -12,6 +13,8 @@ import SystemAnnouncementCard from '../components/SystemAnnouncementCard.vue'
 const router = useRouter()
 
 interface SystemSettings {
+  carParking: VehicleParkingSettings
+  motorcycleParking: VehicleParkingSettings
   violationRatePerHour: number
   feeCalculationMode: 'per_hour' | 'per_day' | 'one_time' | 'one_time_hourly' | 'no_fee'
   personnelFreeParkingStart: string
@@ -36,7 +39,17 @@ import { isSuperAdminUser } from '@/utils/auth'
 
 const isSuperAdmin = computed(() => isSuperAdminUser())
 
+const defaultVehicleParking = (): VehicleParkingSettings => ({
+  totalCapacity: 250,
+  reservationAllocationSlots: 75,
+  violationRatePerHour: 100,
+  baseFee: 50,
+  entryFee: 20,
+  dailyOverstayFee: 100,
+})
 const settings = ref<SystemSettings>({
+  carParking: defaultVehicleParking(),
+  motorcycleParking: defaultVehicleParking(),
   violationRatePerHour: 100,
   feeCalculationMode: 'per_hour',
   baseFee: 50,
@@ -57,9 +70,11 @@ const settings = ref<SystemSettings>({
 })
 
 const isLoading = ref(true)
+const settingsReady = ref(false)
 const isSaving = ref(false)
 const isResetting = ref(false)
 const showResetModal = ref(false)
+const showSaveModal = ref(false)
 
 const toastMessage = ref<string | null>(null)
 const toastType = ref<'success' | 'error'>('success')
@@ -77,30 +92,91 @@ async function loadSettings() {
   try {
     const response = await api.get('/system-settings')
     if (response.data?.isSuccess && response.data?.data) {
+      if (!response.data.data.carParking || !response.data.data.motorcycleParking) {
+        throw new Error(
+          'The connected API is outdated. Restart the updated ParkFlow API before changing system settings.',
+        )
+      }
       settings.value = {
         ...settings.value,
         ...response.data.data,
       }
+      settingsReady.value = true
+    } else {
+      throw new Error(response.data?.message || 'Could not load system settings.')
     }
   } catch (error) {
+    settingsReady.value = false
+    showNotification(
+      error instanceof Error ? error.message : 'Could not load system settings.',
+      'error',
+    )
     console.error('Error fetching system settings:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-async function saveSettings() {
-  if (!Number.isInteger(settings.value.totalCapacity) || settings.value.totalCapacity < 1
-    || !Number.isInteger(settings.value.reservationAllocationSlots)
-    || settings.value.reservationAllocationSlots < 0
-    || settings.value.reservationAllocationSlots > settings.value.totalCapacity) {
-    showNotification('Enter a total capacity of at least 1 and a whole number of reservation spaces between 0 and the total capacity.', 'error')
+function requestSaveSettings() {
+  if (isLoading.value || isSaving.value) return
+  if (!settingsReady.value) {
+    showNotification('Load settings from the updated API before saving.', 'error')
     return
   }
+  for (const group of parkingVehicleGroups) {
+    const parking = settings.value[group.key]
+    if (
+      !Number.isInteger(parking.totalCapacity) ||
+      parking.totalCapacity < 0 ||
+      !Number.isInteger(parking.reservationAllocationSlots) ||
+      parking.reservationAllocationSlots < 0 ||
+      parking.reservationAllocationSlots > parking.totalCapacity ||
+      ![
+        parking.violationRatePerHour,
+        parking.baseFee,
+        parking.entryFee,
+        parking.dailyOverstayFee,
+      ].every((value) => Number.isFinite(value) && value >= 0)
+    ) {
+      showNotification(
+        `${group.label}: enter non-negative spaces and charges. Reservation spaces cannot exceed total spaces for this vehicle type.`,
+        'error',
+      )
+      return
+    }
+  }
+  settings.value.totalCapacity =
+    settings.value.carParking.totalCapacity + settings.value.motorcycleParking.totalCapacity
+  settings.value.reservationAllocationSlots =
+    settings.value.carParking.reservationAllocationSlots +
+    settings.value.motorcycleParking.reservationAllocationSlots
+  if (settings.value.totalCapacity < 1) {
+    showNotification('Configure at least one parking space for the campus.', 'error')
+    return
+  }
+  showSaveModal.value = true
+}
+
+async function saveSettings() {
+  if (!showSaveModal.value || isSaving.value) return
+  showSaveModal.value = false
   isSaving.value = true
   try {
-    const response = await api.put('/system-settings', settings.value)
+    const submitted = { ...settings.value }
+    const response = await api.put('/system-settings', submitted)
     if (response.data?.isSuccess) {
+      if (
+        parkingVehicleGroups.some(
+          (group) =>
+            response.data.data?.[group.key]?.totalCapacity !== submitted[group.key].totalCapacity ||
+            response.data.data?.[group.key]?.reservationAllocationSlots !==
+              submitted[group.key].reservationAllocationSlots,
+        )
+      ) {
+        throw new Error(
+          'The API did not save the requested reservation spaces. Restart the updated API and try again.',
+        )
+      }
       showNotification('System configurations and rate settings saved successfully!', 'success')
       if (response.data.data) {
         settings.value = {
@@ -244,7 +320,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-5xl space-y-5">
+  <div class="space-y-6">
     <!-- Notification Toast -->
     <Transition name="fade">
       <div
@@ -290,14 +366,9 @@ onMounted(() => {
             System Settings
           </h1>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage campus capacity, semester transitions, billing policies, and system announcements.
+            Manage campus capacity, semester transitions, billing policies, and system
+            announcements.
           </p>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <UiButton variant="primary" :loading="isSaving" :disabled="isLoading" @click="saveSettings">
-            Save All Settings
-          </UiButton>
         </div>
       </div>
 
@@ -311,23 +382,40 @@ onMounted(() => {
         <!-- 1. Campus Capacity & Semester Cycle Tab -->
         <div v-show="activeTab === 'capacity'">
           <CampusCapacityCard
-            :disabled="isLoading"
+            :disabled="isLoading || !settingsReady"
             :settings="settings"
-            :is-saving="isSaving"
-            @update-reservation-allocation="settings.reservationAllocationSlots = $event"
-            @save="saveSettings"
             @open-reset-modal="showResetModal = true"
-          />
+          >
+            <template #actions>
+              <UiButton
+                variant="primary"
+                :loading="isSaving"
+                :disabled="isLoading || !settingsReady"
+                @click="requestSaveSettings"
+              >
+                Save settings
+              </UiButton>
+            </template>
+          </CampusCapacityCard>
         </div>
 
         <!-- 2. Rates & Billing Policy Tab -->
         <div v-show="activeTab === 'billing'">
           <OverstayFeeCard
             :settings="settings"
-            :is-saving="isSaving"
             @update:personnel-hours="Object.assign(settings, $event)"
-            @save="saveSettings"
-          />
+          >
+            <template #actions>
+              <UiButton
+                variant="primary"
+                :loading="isSaving"
+                :disabled="isLoading || !settingsReady"
+                @click="requestSaveSettings"
+              >
+                Save settings
+              </UiButton>
+            </template>
+          </OverstayFeeCard>
         </div>
 
         <!-- 3. System Announcement Tab -->
@@ -339,8 +427,19 @@ onMounted(() => {
             @deactivate="deactivateAnnouncement"
           />
         </div>
-
       </div>
+
+      <ConfirmModal
+        :is-open="showSaveModal"
+        title="Save system settings?"
+        message="Please double-check your changes. Saving will apply these settings throughout ParkFlow."
+        confirm-text="Save settings"
+        cancel-text="Cancel"
+        variant="primary"
+        :is-submitting="isSaving"
+        @confirm="saveSettings"
+        @close="showSaveModal = false"
+      />
 
       <!-- Reset Student Schedules Confirmation Modal -->
       <ConfirmModal

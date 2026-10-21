@@ -2,6 +2,10 @@ import { ref, customRef } from 'vue'
 
 export interface DashboardStatsCache {
   totalUsers: number
+  carCount?: number
+  motorcycleCount?: number
+  carCapacity?: number
+  motorcycleCapacity?: number
   activeParking: number
   todayRevenue: number
   violations: number

@@ -27,6 +27,7 @@ const form = ref({
   startTime: '07:00',
   endTime: '23:59',
   reason: '',
+  vehicleType: 0,
   type: 1, // Default to Special Schedule (1) on Admin side
   sendEmail: false,
   notifyEmail: ''
@@ -59,7 +60,7 @@ async function loadAvailability() {
   try {
     const res = await api.get('/parking-reservations/availability', { params: {
       date: form.value.reservationDate, startTime: form.value.startTime,
-      endTime: form.value.endTime, type: Number(form.value.type),
+      endTime: form.value.endTime, type: Number(form.value.type), vehicleType: Number(form.value.vehicleType),
     } })
     if (version !== availabilityVersion) return
     if (!res.data?.isSuccess || !res.data.data) throw new Error(res.data?.message || 'Could not check availability.')
@@ -75,7 +76,7 @@ async function loadAvailability() {
   }
 }
 
-watch(() => [form.value.reservationDate, form.value.startTime, form.value.endTime, form.value.type], () => {
+watch(() => [form.value.reservationDate, form.value.startTime, form.value.endTime, form.value.type, form.value.vehicleType], () => {
   ++availabilityVersion
   availability.value = null
   availabilityLoading.value = true
@@ -111,18 +112,13 @@ onUnmounted(() => {
   offReservations?.()
 })
 
-const existingReservationForSelectedDate = computed(() => {
-  if (!form.value.reservationDate) return null
-  const selected = form.value.reservationDate
+const existingActiveReservation = computed(() => {
+  const now = new Date()
   return existingReservations.value.find((r: any) => {
-    const rDate = (r.reservationDate || '').split('T')[0]
-    return (
-      rDate === selected &&
-      r.status !== 'Cancelled' &&
-      r.status !== 'Rejected' &&
-      r.status !== 2 &&
-      r.status !== 3
-    )
+    if (![0, 1, 'Pending', 'Approved'].includes(r.status)) return false
+    const date = String(r.reservationDate || '').split('T')[0]
+    const end = r.type === 1 || r.type === 'Special' ? '23:59:59' : String(r.endTime || '23:59:59')
+    return new Date(`${date}T${end}+08:00`).getTime() > now.getTime()
   })
 })
 
@@ -140,10 +136,10 @@ watch(
     const todayStr = getTodayDateString()
     if (newDate && newDate <= todayStr) {
       errorMessage.value = 'Reservations must be booked at least 1 day in advance. Same-day reservations are not allowed.'
-    } else if (newDate && existingReservationForSelectedDate.value) {
-      errorMessage.value = `A reservation already exists for ${newDate} (${existingReservationForSelectedDate.value.referenceNumber || 'Active'}). Only one reservation per day is allowed.`
+    } else if (newDate && existingActiveReservation.value) {
+      errorMessage.value = `You already have an active reservation (${existingActiveReservation.value.referenceNumber}). Only one reservation at a time is allowed.`
     } else {
-      if (errorMessage.value && (errorMessage.value.includes('Only one reservation per day') || errorMessage.value.includes('at least 1 day in advance'))) {
+      if (errorMessage.value && (errorMessage.value.includes('Only one reservation at a time') || errorMessage.value.includes('at least 1 day in advance'))) {
         errorMessage.value = null
       }
     }
@@ -177,8 +173,8 @@ async function handleSubmit() {
     return
   }
 
-  if (existingReservationForSelectedDate.value) {
-    errorMessage.value = `You already have an active or pending reservation for ${form.value.reservationDate}. Only one reservation per day is allowed.`
+  if (existingActiveReservation.value) {
+    errorMessage.value = 'You already have an upcoming or active reservation. Cancel it or wait until it ends before booking again.'
     return
   }
 
@@ -208,6 +204,7 @@ async function handleSubmit() {
 
     const payload: Record<string, any> = {
       reservationDate: form.value.reservationDate,
+      vehicleType: Number(form.value.vehicleType),
       startTime: formatTimeWithSec(form.value.startTime),
       endTime: formatTimeWithSec(form.value.endTime),
       reason: form.value.reason.trim(),
@@ -287,12 +284,12 @@ async function handleSubmit() {
         <UiButton variant="secondary" size="sm" @click="loadAvailability">Try again</UiButton>
       </template>
       <template v-else-if="availability">
-        <p class="text-sm font-medium text-text">{{ availability.reservationCapacity }} reservation spaces out of {{ availability.totalCapacity }} total parking spaces</p>
+        <p class="text-sm font-medium text-text">{{ availability.reservationCapacity }} {{ Number(form.vehicleType) === 2 ? 'car' : 'motorcycle' }} reservation spaces out of {{ availability.totalCapacity }} total spaces</p>
         <p class="text-sm text-muted">Peak bookings in this time range: {{ availability.bookedSlots }} / {{ availability.reservationCapacity }}</p>
         <p class="text-sm font-semibold" :class="availability.availableSlots > 0 ? 'text-success' : 'text-danger'">
           {{ availability.availableSlots > 0 ? `${availability.availableSlots} spaces available for this time` : 'Fully booked. Choose another time or date.' }}
         </p>
-        <p class="text-xs text-muted">Pending and approved bookings count. Reservation spaces are included in total capacity, not added to it.</p>
+        <p class="text-xs text-muted">Bookings are confirmed immediately, first come, first served. Maximum: one active reservation per user. Reservation spaces are included in total capacity.</p>
       </template>
     </section>
     <form @submit.prevent="handleSubmit" class="form-container">
@@ -315,6 +312,7 @@ async function handleSubmit() {
 
         <div class="form-grid">
           <div class="full-width">
+            <UiSelect v-model.number="form.vehicleType" label="Vehicle type" :options="[{ label: 'Motorcycle', value: 0 }, { label: 'Car', value: 2 }]" required />
             <UiSelect
               v-model="form.type"
               label="Reservation Classification"
@@ -410,7 +408,7 @@ async function handleSubmit() {
         <UiButton type="button" variant="secondary" @click="goBack" :disabled="isSubmitting">
           Cancel
         </UiButton>
-        <UiButton type="submit" variant="primary" :loading="isSubmitting" :disabled="capacityUnavailable">
+        <UiButton type="submit" variant="primary" :loading="isSubmitting" :disabled="capacityUnavailable || !!existingActiveReservation">
           Confirm & Reserve Schedule
         </UiButton>
       </div>

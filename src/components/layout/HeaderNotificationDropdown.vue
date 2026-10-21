@@ -175,7 +175,7 @@ function getTypeBg(type: string): string {
       return 'bg-emerald-600 text-white'
     case 'feedback_pending':
       return 'bg-amber-500 text-white'
-    case 'reservation_pending':
+    case 'reservation_confirmed':
       return 'bg-purple-600 text-white'
     case 'violation_issued':
       return 'bg-[#7B1113] text-white'
@@ -293,7 +293,7 @@ function getTypeBg(type: string): string {
                 </svg>
 
                 <!-- Reservation Pending -->
-                <svg v-else-if="item.type === 'reservation_pending'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg v-else-if="item.type === 'reservation_confirmed'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="10"/>
                   <polyline points="12 6 12 12 16 14"/>
                 </svg>

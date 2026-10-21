@@ -22,8 +22,8 @@ const emit = defineEmits<{
 }>()
 
 const statusTabs = [
-  { id: 'all', label: 'All Requests', countKey: 'total' as const },
-  { id: 'pending', label: 'Pending', countKey: 'pending' as const },
+  { id: 'all', label: 'All Reservations', countKey: 'total' as const },
+  { id: 'pending', label: 'Unconfirmed (legacy)', countKey: 'pending' as const },
   { id: 'approved', label: 'Active Passes', countKey: 'approved' as const },
   { id: 'done', label: 'Done', countKey: 'done' as const },
   { id: 'rejected', label: 'Declined / Cancelled', countKey: 'rejected' as const },

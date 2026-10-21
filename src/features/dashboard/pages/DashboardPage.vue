@@ -63,7 +63,7 @@ const stats = computed(() => {
     {
       title: 'Slot Occupancy',
       value: `${data.activeParking.toLocaleString('en-PH')} / ${data.maxCapacity.toLocaleString('en-PH')}`,
-      subtitle: `${Math.max(0, data.maxCapacity - data.activeParking).toLocaleString('en-PH')} slots available`,
+      subtitle: `Cars ${data.carCount ?? 0}/${data.carCapacity ?? 0} · Motorcycles ${data.motorcycleCount ?? 0}/${data.motorcycleCapacity ?? 0}`,
       trend: occPercent === undefined ? 'Capacity not set' : `${occPercent.toFixed(1)}% full`,
       trendLabel: 'Registered and visitor vehicles currently inside divided by total parking capacity.',
       trendTone: 'neutral' as const,
@@ -113,6 +113,8 @@ const fetchDashboardStats = async () => {
         totalUsers: data.totalUsers,
         activeParking: data.activeParking,
         maxCapacity: data.maxCapacity,
+        carCount: data.carCount, motorcycleCount: data.motorcycleCount,
+        carCapacity: data.carCapacity, motorcycleCapacity: data.motorcycleCapacity,
         todayRevenue: data.todayRevenue,
         violations: data.violationsCount,
         trends: data.trends

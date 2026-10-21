@@ -7,7 +7,6 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import ReservationFilters from '../components/ReservationFilters.vue'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
@@ -366,65 +365,6 @@ function getNotifyEmailFromNotes(notes?: string | null): string | null {
   return match && match[1] ? match[1].trim() : null
 }
 
-// Approve Modal State
-const isApproveModalOpen = ref(false)
-const reservationToApprove = ref<ParkingReservationItem | null>(null)
-const isApproving = ref(false)
-
-function openApproveModal(item: ParkingReservationItem) {
-  reservationToApprove.value = item
-  isApproveModalOpen.value = true
-}
-
-async function confirmApprove() {
-  if (!reservationToApprove.value) return
-  isApproving.value = true
-  try {
-    const item = reservationToApprove.value
-    await api.post(`/parking-reservations/${item.id}/approve`, { notes: '' })
-    item.status = 'Approved'
-    showToast(`Reservation ${item.referenceNumber} approved successfully.`)
-    isApproveModalOpen.value = false
-    reservationToApprove.value = null
-  } catch (error: any) {
-    showToast(
-      `Failed to approve reservation: ${error.response?.data?.message || error.message}`,
-      'error',
-    )
-  } finally {
-    isApproving.value = false
-  }
-}
-
-// Reject Modal State
-const isRejectModalOpen = ref(false)
-const reservationToReject = ref<ParkingReservationItem | null>(null)
-const isRejecting = ref(false)
-
-function openRejectModal(item: ParkingReservationItem) {
-  reservationToReject.value = item
-  isRejectModalOpen.value = true
-}
-
-async function confirmReject() {
-  if (!reservationToReject.value) return
-  isRejecting.value = true
-  try {
-    const item = reservationToReject.value
-    await api.post(`/parking-reservations/${item.id}/reject`, { notes: '' })
-    item.status = 'Rejected'
-    showToast(`Reservation ${item.referenceNumber} rejected.`, 'error')
-    isRejectModalOpen.value = false
-    reservationToReject.value = null
-  } catch (error: any) {
-    showToast(
-      `Failed to reject reservation: ${error.response?.data?.message || error.message}`,
-      'error',
-    )
-  } finally {
-    isRejecting.value = false
-  }
-}
 function handleRefresh() {
   refreshAdminData()
   void fetchReservations()
@@ -453,12 +393,7 @@ function handleRefresh() {
         <strong class="font-semibold">Failed to load reservations:</strong>
         <span class="ml-1 opacity-90">{{ fetchError }}</span>
       </div>
-      <UiButton
-        size="xs"
-        variant="secondary"
-        @click="handleRefresh"
-        >Retry</UiButton
-      >
+      <UiButton size="xs" variant="secondary" @click="handleRefresh">Retry</UiButton>
     </div>
 
     <!-- Notification Toast -->
@@ -503,8 +438,8 @@ function handleRefresh() {
           Parking Reservations & Schedule Management
         </h1>
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Review user parking schedule requests, approve date passes, and reserve parking slots for
-          campus events.
+          View confirmed parking reservations and entry passes. Spaces are booked first come, first
+          served, with one active reservation per user.
         </p>
       </div>
       <div class="flex items-center gap-3">
@@ -644,22 +579,6 @@ function handleRefresh() {
         <template #cell-actions="{ item }">
           <div class="flex items-center justify-end gap-1.5" @click.stop>
             <button
-              v-if="getStatusKey(item) === 'pending'"
-              class="px-2.5 py-1 rounded-lg bg-emerald-600 text-white font-semibold text-xs hover:bg-emerald-700 transition-colors cursor-pointer border-none"
-              @click="openApproveModal(item)"
-              title="Approve Reservation"
-            >
-              Approve
-            </button>
-            <button
-              v-if="getStatusKey(item) === 'pending'"
-              class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-xs hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
-              @click="openRejectModal(item)"
-              title="Decline Reservation"
-            >
-              Decline
-            </button>
-            <button
               v-if="getStatusKey(item) === 'approved'"
               class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-300 font-semibold text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer border border-indigo-200 dark:border-indigo-800"
               @click="navigateToPass(item)"
@@ -706,31 +625,5 @@ function handleRefresh() {
         :total-items="filteredReservations.length"
       />
     </UiCard>
-
-    <!-- Approve Confirmation Modal -->
-    <ConfirmModal
-      :is-open="isApproveModalOpen"
-      title="Approve Parking Reservation"
-      :message="`Are you sure you want to approve the parking reservation for <strong>${reservationToApprove?.userFullName || 'this applicant'}</strong> (${reservationToApprove?.referenceNumber || ''}) on <strong>${formatReservationDate(reservationToApprove?.reservationDate || '')}</strong>? This will generate their official entry permit pass.`"
-      confirm-text="Approve Reservation"
-      cancel-text="Cancel"
-      variant="success"
-      :is-submitting="isApproving"
-      @confirm="confirmApprove"
-      @close="isApproveModalOpen = false"
-    />
-
-    <!-- Reject Confirmation Modal -->
-    <ConfirmModal
-      :is-open="isRejectModalOpen"
-      title="Decline Parking Reservation"
-      :message="`Are you sure you want to decline the parking reservation for <strong>${reservationToReject?.userFullName || 'this applicant'}</strong> (${reservationToReject?.referenceNumber || ''}) on <strong>${formatReservationDate(reservationToReject?.reservationDate || '')}</strong>?`"
-      confirm-text="Decline Reservation"
-      cancel-text="Cancel"
-      variant="danger"
-      :is-submitting="isRejecting"
-      @confirm="confirmReject"
-      @close="isRejectModalOpen = false"
-    />
   </div>
 </template>

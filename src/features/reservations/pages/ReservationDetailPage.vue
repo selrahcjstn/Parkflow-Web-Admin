@@ -5,7 +5,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import type { ParkingReservationItem, ReservationStatusType } from '../types'
 
@@ -17,8 +16,6 @@ const reservationId = computed(() => String(route.params.id || ''))
 const reservation = ref<ParkingReservationItem | null>(null)
 const isLoading = ref(true)
 const fetchError = ref<string | null>(null)
-const reviewNotes = ref('')
-const isSubmittingAction = ref(false)
 const isCopied = ref(false)
 const toastMessage = ref<{ message: string; type: 'success' | 'error' } | null>(null)
 
@@ -198,7 +195,7 @@ async function fetchReservationDetail() {
       const singleRes = await api.get(`/parking-reservations/${reservationId.value}`)
       if (singleRes.data && singleRes.data.data) {
         reservation.value = singleRes.data.data
-        reviewNotes.value = reservation.value?.adminNotes || ''
+
         isLoading.value = false
         return
       }
@@ -219,7 +216,6 @@ async function fetchReservationDetail() {
     )
     if (match) {
       reservation.value = match
-      reviewNotes.value = match.adminNotes || ''
     } else {
       fetchError.value = 'Reservation record not found.'
     }
@@ -228,45 +224,6 @@ async function fetchReservationDetail() {
       err.response?.data?.message || err.message || 'Failed to fetch reservation details.'
   } finally {
     isLoading.value = false
-  }
-}
-
-const isApproveModalOpen = ref(false)
-const isRejectModalOpen = ref(false)
-
-async function handleApprove() {
-  if (!reservation.value) return
-  isSubmittingAction.value = true
-  try {
-    await api.post(`/parking-reservations/${reservation.value.id}/approve`, {
-      notes: reviewNotes.value,
-    })
-    reservation.value.status = 'Approved'
-    reservation.value.adminNotes = reviewNotes.value
-    showToast(`Reservation ${reservation.value.referenceNumber} approved.`)
-    isApproveModalOpen.value = false
-  } catch (err: any) {
-    showToast(`Failed to approve: ${err.response?.data?.message || err.message}`, 'error')
-  } finally {
-    isSubmittingAction.value = false
-  }
-}
-
-async function handleReject() {
-  if (!reservation.value) return
-  isSubmittingAction.value = true
-  try {
-    await api.post(`/parking-reservations/${reservation.value.id}/reject`, {
-      notes: reviewNotes.value,
-    })
-    reservation.value.status = 'Rejected'
-    reservation.value.adminNotes = reviewNotes.value
-    showToast(`Reservation ${reservation.value.referenceNumber} declined.`, 'error')
-    isRejectModalOpen.value = false
-  } catch (err: any) {
-    showToast(`Failed to decline: ${err.response?.data?.message || err.message}`, 'error')
-  } finally {
-    isSubmittingAction.value = false
   }
 }
 
@@ -590,70 +547,29 @@ onMounted(() => {
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-semibold text-text">Administrative Notes & Actions</h3>
+            <h3 class="text-base font-semibold text-text">Booking details</h3>
             <p class="mt-1 text-sm leading-5 text-muted">
-              Review directives, recorded notes, and approval status
+              Reservations are confirmed automatically when a space is available.
             </p>
           </div>
         </div>
 
-        <div class="space-y-2 mb-5">
-          <label class="block text-sm font-medium text-text">Review Remarks / Internal Notes</label>
-          <textarea
-            v-model="reviewNotes"
-            rows="3"
-            class="w-full rounded-button border border-border bg-surface p-3 text-sm text-text focus:outline-2 focus:outline-primary"
-            :disabled="isDoneOrExpired"
-            placeholder="Enter administration notes, special access instructions, or rejection justification..."
-          ></textarea>
-        </div>
+        <p class="mb-5 text-sm leading-relaxed text-muted">
+          First come, first served. Each user may hold only one upcoming or active reservation at a
+          time.
+        </p>
+        <p v-if="reservation.adminNotes" class="mb-5 whitespace-pre-wrap text-sm text-muted">
+          {{ reservation.adminNotes }}
+        </p>
+        <p v-if="effectiveStatus === 'Pending'" class="mb-5 text-sm text-muted">
+          This older booking is unconfirmed. The user can cancel it and book again to receive an
+          immediate confirmation, subject to availability.
+        </p>
 
         <!-- Action Buttons -->
         <div class="flex flex-wrap items-center gap-3 border-t border-border pt-5">
-          <!-- Pending: Approve and Decline -->
-          <template v-if="effectiveStatus === 'Pending'">
-            <UiButton
-              type="button"
-              variant="danger"
-              :disabled="isSubmittingAction"
-              @click="isRejectModalOpen = true"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-              <span>{{ isSubmittingAction ? 'Processing...' : 'Decline Request' }}</span>
-            </UiButton>
-
-            <UiButton
-              type="button"
-              variant="primary"
-              :disabled="isSubmittingAction"
-              @click="isApproveModalOpen = true"
-            >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-              >
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <span>{{ isSubmittingAction ? 'Processing...' : 'Approve Pass' }}</span>
-            </UiButton>
-          </template>
-
           <!-- Approved: View Official QR Pass -->
-          <template v-else-if="effectiveStatus === 'Approved'">
+          <template v-if="effectiveStatus === 'Approved'">
             <UiButton type="button" variant="primary" @click="goToPass">
               <svg
                 width="15"
@@ -713,31 +629,5 @@ onMounted(() => {
         </div>
       </UiCard>
     </div>
-
-    <!-- Approve Confirmation Modal -->
-    <ConfirmModal
-      :is-open="isApproveModalOpen"
-      title="Approve Parking Pass"
-      :message="`Are you sure you want to approve the parking pass for <strong>${reservation?.userFullName || 'this applicant'}</strong> (${reservation?.referenceNumber || ''}) on <strong>${formatReservationDate(reservation?.reservationDate || '')}</strong>? This will generate their official QR gate entry permit.`"
-      confirm-text="Approve Pass"
-      cancel-text="Cancel"
-      variant="success"
-      :is-submitting="isSubmittingAction"
-      @confirm="handleApprove"
-      @close="isApproveModalOpen = false"
-    />
-
-    <!-- Reject Confirmation Modal -->
-    <ConfirmModal
-      :is-open="isRejectModalOpen"
-      title="Decline Parking Reservation"
-      :message="`Are you sure you want to decline the parking reservation request for <strong>${reservation?.userFullName || 'this applicant'}</strong> (${reservation?.referenceNumber || ''}) on <strong>${formatReservationDate(reservation?.reservationDate || '')}</strong>?`"
-      confirm-text="Decline Request"
-      cancel-text="Cancel"
-      variant="danger"
-      :is-submitting="isSubmittingAction"
-      @confirm="handleReject"
-      @close="isRejectModalOpen = false"
-    />
   </div>
 </template>

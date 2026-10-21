@@ -57,6 +57,7 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
 }
 
 const totalCapacity = ref(500)
+const vehicleOccupancy = ref<{ carCount: number; motorcycleCount: number; carCapacity: number; motorcycleCapacity: number } | null>(null)
 const todaysEntriesCount = ref(0)
 const activeSessions = ref<ActiveSession[]>(cachedActiveSessions.value || [])
 const historySessions = ref<ParkingHistoryItem[]>(cachedHistorySessions.value || [])
@@ -114,12 +115,13 @@ const fetchParkingData = async () => {
     isLoading.value = true
   }
   try {
-    const [activeRes, historyRes, settingsRes] = await Promise.allSettled([
+    const [activeRes, historyRes, settingsRes, countsRes] = await Promise.allSettled([
       api.get(`/parking-logs/active-sessions?parkingCapacity=${totalCapacity.value}`),
       api
         .get('/parking-history/all/page/1/1000')
         .catch(() => api.get('/parking-logs/history/page/1/1000')),
       api.get('/system-settings'),
+      api.get('/parking-logs/session-count'),
     ])
 
     if (
@@ -128,6 +130,10 @@ const fetchParkingData = async () => {
       settingsRes.value.data?.data?.totalCapacity
     ) {
       totalCapacity.value = settingsRes.value.data.data.totalCapacity
+    }
+
+    if (countsRes.status === 'fulfilled' && countsRes.value.data?.isSuccess) {
+      vehicleOccupancy.value = countsRes.value.data.data
     }
 
     if (activeRes.status === 'fulfilled' && activeRes.value.data?.isSuccess) {
@@ -454,6 +460,14 @@ function handleRefresh() {
         <span>{{ toast.message }}</span>
       </div>
     </TransitionGroup>
+
+    <div v-if="vehicleOccupancy" class="grid gap-4 sm:grid-cols-2">
+      <UiCard v-for="group in [{ label: 'Cars', occupied: vehicleOccupancy.carCount, capacity: vehicleOccupancy.carCapacity }, { label: 'Motorcycles', occupied: vehicleOccupancy.motorcycleCount, capacity: vehicleOccupancy.motorcycleCapacity }]" :key="group.label" custom-class="p-4">
+        <p class="text-sm font-medium text-muted">{{ group.label }}</p>
+        <p class="mt-1 text-xl font-semibold text-text">{{ group.occupied }} / {{ group.capacity }}</p>
+        <p class="mt-1 text-xs text-muted">{{ Math.max(0, group.capacity - group.occupied) }} spaces available · includes visitors</p>
+      </UiCard>
+    </div>
 
     <!-- Page Header with Consistent Structure & Refresh Button -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

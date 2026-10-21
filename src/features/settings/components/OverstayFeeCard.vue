@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { parkingVehicleGroups, type VehicleParkingSettings } from '../types'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
-import UiButton from '@/components/ui/UiButton.vue'
 
 defineProps<{
   settings: {
+    carParking: VehicleParkingSettings
+    motorcycleParking: VehicleParkingSettings
     violationRatePerHour: number
     feeCalculationMode: 'per_hour' | 'per_day' | 'one_time' | 'one_time_hourly' | 'no_fee'
     personnelFreeParkingStart: string
@@ -16,11 +18,9 @@ defineProps<{
     isEarlyParkingAllowed: boolean
     earlyParkingMinutes: number
   }
-  isSaving?: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'save'): void
   (
     e: 'update:personnel-hours',
     value: { personnelFreeParkingStart: string; personnelFreeParkingEnd: string },
@@ -70,23 +70,52 @@ const feeCalculationModeOptions = [
         />
       </div>
 
-      <div class="grid max-w-xl grid-cols-1 sm:grid-cols-2 gap-4">
-        <!-- Base Fee -->
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Base / Flat Fee (₱)
-          </label>
-          <UiInput v-model.number="settings.baseFee" type="number" size="md" min="0" />
-        </div>
-
-        <!-- Hourly Rate -->
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Violation Rate Per Hour (₱)
-          </label>
-          <UiInput v-model.number="settings.violationRatePerHour" type="number" size="md" min="0" />
-        </div>
+      <div class="grid gap-4 xl:grid-cols-2">
+        <fieldset
+          v-for="group in parkingVehicleGroups"
+          :key="group.key"
+          class="min-w-0 rounded-lg border border-border p-4"
+        >
+          <legend class="px-1 text-sm font-semibold text-text">
+            {{ group.label }} charges (₱)
+          </legend>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UiInput
+              v-model.number="settings[group.key].violationRatePerHour"
+              label="Hourly overstay rate"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+            <UiInput
+              v-model.number="settings[group.key].baseFee"
+              label="Base / flat fee"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+            <UiInput
+              v-model.number="settings[group.key].entryFee"
+              label="Paid-entry / reservation fee"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+            <UiInput
+              v-model.number="settings[group.key].dailyOverstayFee"
+              label="Daily late / overnight fee"
+              type="number"
+              min="0"
+              step="0.01"
+            />
+          </div>
+        </fieldset>
       </div>
+      <p class="text-xs leading-relaxed text-muted">
+        The paid-entry fee applies to visitors, paid unscheduled entries, and reservations. Regular
+        student schedule access keeps its existing rules. Daily late / overnight fees follow the
+        existing reservation and manual-entry rules.
+      </p>
 
       <div
         class="grid max-w-xl grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800"
@@ -170,31 +199,14 @@ const feeCalculationModeOptions = [
           />
         </div>
         <p class="text-sm leading-relaxed text-muted">
-          Outside the free hours, the hourly rate above applies per started hour. An unclosed
-          session keeps accruing charges after its entry-day cutoff until exit, even when the next
-          day's free window opens. Student and visitor rules are unchanged.
+          Outside the free hours, the matching car or motorcycle hourly rate above applies per
+          started hour. An unclosed session keeps accruing charges after its entry-day cutoff until
+          exit, even when the next day's free window opens. Student and visitor rules are unchanged.
         </p>
       </section>
-
-      <!-- Action Footer -->
-      <div class="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
-        <UiButton variant="primary" size="sm" :loading="isSaving" @click="emit('save')">
-          <template #prefix>
-            <svg
-              class="w-3.5 h-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-          </template>
-          Save Rates & Billing Policy
-        </UiButton>
-      </div>
+    </div>
+    <div v-if="$slots.actions" class="flex justify-end border-t border-border pt-4">
+      <slot name="actions" />
     </div>
   </UiCard>
 </template>

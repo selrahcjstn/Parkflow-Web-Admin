@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { parkingVehicleGroups, type VehicleParkingSettings } from '../types'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
@@ -9,19 +10,16 @@ const props = defineProps<{
   settings: {
     academicYear: string
     currentSemester: string
-    totalCapacity: number
-    reservationAllocationSlots: number
+    carParking: VehicleParkingSettings
+    motorcycleParking: VehicleParkingSettings
     maxVehiclesPerUser: number
     lastResetDate?: string
   }
-  isSaving?: boolean
   disabled?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'open-reset-modal'): void
-  (e: 'save'): void
-  (e: 'update-reservation-allocation', value: number): void
 }>()
 
 const academicYearOptions = computed(() => {
@@ -38,12 +36,13 @@ const semesterOptions = [
   { label: 'Summer / Midyear', value: 'Summer' },
 ]
 
-const allocationError = computed(() => {
-  const slots = props.settings.reservationAllocationSlots
-  return !Number.isInteger(slots) || slots < 0 || slots > props.settings.totalCapacity
-    ? 'Enter a whole number from 0 to the total parking capacity.'
+function allocationError(parking: VehicleParkingSettings) {
+  return !Number.isInteger(parking.reservationAllocationSlots) ||
+    parking.reservationAllocationSlots < 0 ||
+    parking.reservationAllocationSlots > parking.totalCapacity
+    ? 'Enter a whole number from 0 to this vehicle type’s total spaces.'
     : ''
-})
+}
 
 const formattedResetDate = computed(() => {
   if (!props.settings.lastResetDate) return 'No reset record found'
@@ -105,41 +104,47 @@ const formattedResetDate = computed(() => {
           Reservation spaces are included in the campus total.
         </p>
       </div>
-      <div class="max-w-xl space-y-4">
-        <div class="grid gap-4 sm:grid-cols-2">
-          <UiInput
-            v-model.number="settings.totalCapacity"
-            label="Total parking spaces"
-            type="number"
-            min="1"
-            step="1"
-            :disabled="disabled"
-            required
-          />
-          <UiInput
-            :model-value="settings.reservationAllocationSlots"
-            @update:model-value="emit('update-reservation-allocation', Number($event))"
-            label="Reservation spaces"
-            type="number"
-            min="0"
-            :max="settings.totalCapacity"
-            step="1"
-            :error="allocationError"
-            hint="Set to 0 to disable new reservations."
-            :disabled="disabled"
-            required
-          />
+      <div class="space-y-4">
+        <div class="grid gap-4 xl:grid-cols-2">
+          <fieldset
+            v-for="group in parkingVehicleGroups"
+            :key="group.key"
+            class="min-w-0 rounded-lg border border-border p-4"
+          >
+            <legend class="px-1 text-sm font-semibold text-text">{{ group.label }}</legend>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <UiInput
+                v-model.number="settings[group.key].totalCapacity"
+                label="Total parking spaces"
+                type="number"
+                min="0"
+                step="1"
+                :disabled="disabled"
+                required
+              />
+              <UiInput
+                v-model.number="settings[group.key].reservationAllocationSlots"
+                label="Reservation spaces"
+                type="number"
+                min="0"
+                :max="settings[group.key].totalCapacity"
+                step="1"
+                :error="allocationError(settings[group.key])"
+                :disabled="disabled"
+                required
+              />
+            </div>
+            <p class="mt-3 text-xs text-muted">
+              {{ settings[group.key].reservationAllocationSlots }} reservable out of
+              {{ settings[group.key].totalCapacity }} total spaces. Set reservation spaces to 0 to
+              disable reservations for this type.
+            </p>
+          </fieldset>
         </div>
-        <div class="rounded-lg border border-border bg-surface-muted px-3 py-2.5">
-          <p class="text-sm font-medium text-text">
-            {{ settings.reservationAllocationSlots }} reservation spaces out of
-            {{ settings.totalCapacity }} total spaces
-          </p>
-          <p class="mt-1 text-xs leading-relaxed text-muted">
-            Pending and approved bookings count during their time window. A space becomes available
-            again when a booking ends.
-          </p>
-        </div>
+        <p class="text-xs leading-relaxed text-muted">
+          Car and motorcycle spaces are counted separately, including visitor vehicles. Confirmed
+          reservations use the matching vehicle type’s allocation.
+        </p>
         <div class="grid gap-4 sm:grid-cols-2">
           <UiInput
             v-model.number="settings.maxVehiclesPerUser"
@@ -180,17 +185,8 @@ const formattedResetDate = computed(() => {
         </div>
       </div>
     </section>
-
-    <div class="flex justify-end border-t border-border pt-4">
-      <UiButton
-        variant="primary"
-        size="sm"
-        :loading="isSaving"
-        :disabled="disabled || !!allocationError"
-        @click="emit('save')"
-      >
-        Save capacity &amp; term
-      </UiButton>
+    <div v-if="$slots.actions" class="flex justify-end border-t border-border pt-4">
+      <slot name="actions" />
     </div>
   </UiCard>
 </template>
