@@ -217,6 +217,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         <ScheduleEditor
           v-if="activeDocType === 'schedule'"
           :schedules="item.schedules"
+          read-only
           @save="emit('saveSchedule', item, $event)"
         />
 

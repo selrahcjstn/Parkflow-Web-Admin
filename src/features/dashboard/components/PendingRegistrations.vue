@@ -15,21 +15,19 @@ const pendingColumns: TableColumn[] = [
   { key: 'vehicle', label: 'Vehicle' },
   { key: 'action', label: 'Action', align: 'right' }
 ]
-import { cachedRegistrations, cachedSubmissionGuids } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 
 const router = useRouter()
-const isLoading = ref(!cachedRegistrations.value)
+const isLoading = ref(true)
 
-const registrations = reactive<PendingRegistration[]>(cachedRegistrations.value || [])
-const submissionGuids = reactive<Record<number, string>>(cachedSubmissionGuids.value || {})
+const registrations = reactive<PendingRegistration[]>([])
 
 const pendingRegistrations = computed(() => registrations.filter((r) => r.status === 'pending'))
 const pendingCount = computed(() => pendingRegistrations.value.length)
 const displayedRegistrations = computed(() => pendingRegistrations.value.slice(0, 4))
 
 function goToRegistrations() {
-  router.push('/registrations')
+  router.push('/vehicle-approvals')
 }
 
 async function fetchPendingRegistrations() {
@@ -37,33 +35,30 @@ async function fetchPendingRegistrations() {
     isLoading.value = true
   }
   try {
-    const response = await api.get('/cor-submissions')
-    if (response.data?.isSuccess && Array.isArray(response.data?.data)) {
-      const submissions = response.data.data
+    const response = await api.get('/vehicles')
+    const submissions = Array.isArray(response.data) ? response.data : response.data?.data
+    if (Array.isArray(submissions)) {
       registrations.length = 0
       submissions.forEach((sub: any, i: number) => {
         let mappedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
-        if (sub.verificationStatus === 2) mappedStatus = 'approved'
-        if (sub.verificationStatus === 3) mappedStatus = 'rejected'
+        if (sub.verificationStatus === 2 || ['Verified', 'Approved'].includes(sub.verificationStatus)) mappedStatus = 'approved'
+        if (sub.verificationStatus === 3 || sub.verificationStatus === 'Rejected') mappedStatus = 'rejected'
 
         const regId = i + 1
-        submissionGuids[regId] = sub.id
 
         registrations.push({
           id: regId,
-          fullName: sub.fullName || `Student User ${sub.userAccountId ? sub.userAccountId.slice(0, 4).toUpperCase() : regId}`,
-          email: sub.email || `student-${regId}@university.edu`,
-          dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Jun 9, 2026',
-          vehiclePlate: sub.vehiclePlate || 'N/A',
-          vehicleType: sub.vehicleType || 'Student COR',
+          fullName: sub.ownerName || 'Vehicle owner',
+          email: sub.ownerEmail || '',
+          dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '—',
+          vehiclePlate: sub.plateNumber || 'N/A',
+          vehicleType: sub.vehicleType || 'Vehicle',
           status: mappedStatus
         })
       })
-      cachedRegistrations.value = [...registrations]
-      cachedSubmissionGuids.value = { ...submissionGuids }
     }
   } catch (error) {
-    console.error('Error fetching COR submissions:', error)
+    console.error('Error fetching vehicle approvals:', error)
   } finally {
     isLoading.value = false
   }
@@ -98,7 +93,7 @@ onUnmounted(() => {
 <template>
   <UiCard>
     <WidgetHeader
-      title="Pending Registrations"
+      title="Pending Vehicle Approvals"
       :count="pendingCount"
       action-text="View all"
       @action="goToRegistrations"
@@ -109,7 +104,7 @@ onUnmounted(() => {
         :columns="pendingColumns"
         :data="displayedRegistrations"
         :is-loading="isLoading"
-        empty-text="No pending registrations awaiting verification."
+        empty-text="No vehicles awaiting approval."
         @row-click="goToRegistrations"
       >
         <template #cell-applicant="{ item }">

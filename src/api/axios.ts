@@ -36,6 +36,7 @@ api.defaults.adapter = async (config) => {
       refreshAdminData()
     }
   }
+  if (config.url?.startsWith('/verification/')) return transport(config)
   const key = JSON.stringify([config.baseURL, config.url, config.params])
   const response = await cache.read(key, () => transport(config))
   if (token !== localStorage.getItem('parkflow_token'))

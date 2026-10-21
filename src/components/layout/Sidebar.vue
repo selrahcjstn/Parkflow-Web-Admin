@@ -10,8 +10,7 @@ const appStore = useAppStore()
 const collapsed = computed(() => appStore.sidebarCollapsed)
 
 const openDropdowns = ref<Record<string, boolean>>({
-  client: true,
-  approvals: true
+  client: true
 })
 
 const toggleDropdown = (key: string) => {
@@ -59,9 +58,6 @@ watch(
     if (newFullPath.startsWith('/users?role=')) {
       openDropdowns.value['client'] = true
     }
-    if (newFullPath.startsWith('/approvals') || newFullPath.startsWith('/registrations')) {
-      openDropdowns.value['approvals'] = true
-    }
   },
   { immediate: true }
 )
@@ -86,7 +82,7 @@ import { isSuperAdminUser, getStoredUserEmail } from '@/utils/auth'
 const userEmail = computed(() => getStoredUserEmail() || 'admin@parkflow.com')
 const isSuperAdmin = computed(() => isSuperAdminUser())
 
-const filteredNavItems = computed(() => {
+const filteredNavItems = computed<NavItem[]>(() => {
   return [
     { key: 'dashboard', label: 'Dashboard', path: '/dashboard', icon: 'dashboard' },
     { key: 'divider-1', label: 'User Management', icon: '', section: true },
@@ -95,25 +91,16 @@ const filteredNavItems = computed(() => {
     ...(isSuperAdmin.value ? [
       { key: 'register-staff', label: 'Register Staff & Admin', path: '/users/create-staff', icon: 'registerStaff' }
     ] : []),
-    { key: 'divider-approvals', label: 'Approvals & Verification', icon: '', section: true },
-    {
-      key: 'approvals',
-      label: 'Approvals',
-      icon: 'approvals',
-      children: [
-        { label: 'New User Approvals', path: '/approvals/new-users', icon: 'newUser' },
-        { label: 'COR & Schedule Approvals', path: '/approvals/schedules', icon: 'schedule' },
-        { label: 'Vehicle Approvals', path: '/approvals/vehicles', icon: 'vehicle' }
-      ]
-    },
     { key: 'divider-2', label: 'Operations', icon: '', section: true },
     { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
     { key: 'visitors', label: 'Visitors', path: '/visitors', icon: 'visitor' },
     { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
     { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
     { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
+    { key: 'vehicle-approvals', label: 'Vehicle Approvals', path: '/vehicle-approvals', icon: 'approvals' },
     { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
     { key: 'divider-3', label: 'System', icon: '', section: true },
+    { key: 'verification-settings', label: 'Approval Policies', path: '/verification-settings', icon: 'settings' },
     { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },
     ...(isSuperAdmin.value ? [
       { key: 'settings', label: 'System Settings', path: '/settings', icon: 'settings' }

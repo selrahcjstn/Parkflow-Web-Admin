@@ -152,7 +152,7 @@ async function fetchApprovals() {
     const consumedVehIds = new Set<string>()
 
     // 1. Pass 1: Combine Newly Registered Users (User has BOTH pending/active COR and Vehicle registration)
-    corItems.forEach((sub: any, i: number) => {
+    corItems.filter(sub => sub.requiresAdminReview !== false).forEach((sub: any, i: number) => {
       const matchedVeh = vehItems.find((v: any) => {
         if (consumedVehIds.has(String(v.id))) return false
         const matchById = sub.userAccountId && v.ownerId && String(sub.userAccountId) === String(v.ownerId)
@@ -208,7 +208,7 @@ async function fetchApprovals() {
     })
 
     // 2. Pass 2: Standalone COR & Schedule updates (not part of combined registration)
-    corItems.forEach((sub: any, i: number) => {
+    corItems.filter(sub => sub.requiresAdminReview !== false).forEach((sub: any, i: number) => {
       if (consumedCorIds.has(String(sub.id))) return
 
       const mappedStatus = mapVerificationStatus(sub.verificationStatus)
@@ -397,15 +397,6 @@ async function reject(item: ApprovalItem) {
   }
 }
 
-async function saveSchedule(item: ApprovalItem, updatedSchedules: ScheduleItem[]) {
-  item.schedules = updatedSchedules
-  try {
-    const targetGuid = item.corGuid || item.guid
-    await api.put(`/cor-submissions/${targetGuid}/schedules`, updatedSchedules)
-  } catch (err) {
-    console.warn('API update notice, schedules saved locally:', err)
-  }
-}
 
 function openZoom(url: string) {
   selectedZoomImage.value = url
@@ -719,7 +710,6 @@ function openZoom(url: string) {
       @close="isInspectorOpen = false"
       @approve="approve"
       @reject="reject"
-      @save-schedule="saveSchedule"
       @zoom-image="openZoom"
     />
 

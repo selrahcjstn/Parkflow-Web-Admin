@@ -79,6 +79,7 @@ test('settings removes feature controls while retaining the other tabs and saved
     '@/components/ui/UiButton.vue': { default: Button },
     '@/components/ui/UiTabs.vue': { default: component('src/components/ui/UiTabs.vue') },
     '@/components/ui/ConfirmModal.vue': { default: Slot },
+    '../components/VerificationSettingsCard.vue': { default: Slot },
     '../components/CampusCapacityCard.vue': { default: Slot },
     '../components/OverstayFeeCard.vue': { default: Slot },
     '../components/SystemAnnouncementCard.vue': { default: Slot },

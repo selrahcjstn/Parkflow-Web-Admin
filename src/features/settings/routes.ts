@@ -1,4 +1,5 @@
 export default [
+  { path: '/verification-settings', name: 'VerificationSettings', component: () => import('./pages/VerificationSettingsPage.vue'), meta: { title: 'Verification & Approval Settings' } },
   {
     path: '/account-settings',
     name: 'AccountSettings',

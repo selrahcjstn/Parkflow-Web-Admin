@@ -5,6 +5,7 @@ import api from '@/api/axios'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTabs, { type TabItem } from '@/components/ui/UiTabs.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import VerificationSettingsCard from '../components/VerificationSettingsCard.vue'
 import OverstayFeeCard from '../components/OverstayFeeCard.vue'
 import CampusCapacityCard from '../components/CampusCapacityCard.vue'
 import SystemAnnouncementCard from '../components/SystemAnnouncementCard.vue'
@@ -276,6 +277,7 @@ onMounted(() => {
 
     <!-- Main SuperAdmin Settings Form -->
     <template v-else>
+      <VerificationSettingsCard />
       <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

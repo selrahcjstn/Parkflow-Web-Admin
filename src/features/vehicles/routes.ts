@@ -11,8 +11,4 @@ export default [
     component: () => import('./pages/VehicleDetailPage.vue'),
     meta: { title: 'Vehicle Details' }
   },
-  {
-    path: '/vehicle-approvals',
-    redirect: '/approvals/vehicles'
-  }
 ]

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import VerificationReviewPanel from '../components/VerificationReviewPanel.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/api/axios'
 import { formatDocUrl, isPdfDoc, getDocDownloadUrl } from '@/utils/documentUrl'
@@ -97,8 +98,8 @@ async function fetchSubmissions() {
     const rawData = response.data
     const items = Array.isArray(rawData) ? rawData : (rawData?.isSuccess && Array.isArray(rawData?.data) ? rawData.data : (Array.isArray(rawData?.data) ? rawData.data : null))
 
-    if (items && items.length > 0) {
-      const mapped = items.map((s: any) => ({
+    if (items && items.some((s: any) => s.requiresAdminReview !== false)) {
+      const mapped = items.filter((s: any) => s.requiresAdminReview !== false).map((s: any) => ({
         ...s,
         corDocumentUrl: formatDocUrl(s.corDocumentUrl, ''),
         orcrDocumentUrl: formatDocUrl(s.orcrDocumentUrl, ''),
@@ -106,7 +107,7 @@ async function fetchSubmissions() {
       }))
       submissions.value = mapped
       cachedScheduleSubmissions.value = [...mapped]
-    } else if (items && items.length === 0) {
+    } else if (items) {
       submissions.value = []
       cachedScheduleSubmissions.value = []
     }
@@ -252,41 +253,6 @@ function clearAllDays() {
       endTime: '19:00'
     }
   })
-}
-
-async function saveScheduleChanges() {
-  if (!selectedSubmission.value) return
-
-  const updatedSchedules: ScheduleItem[] = []
-  weeklyDays.forEach(day => {
-    const item = scheduleEditForm.value[day]
-    if (item && item.active) {
-      const formattedStart = item.startTime.length === 5 ? `${item.startTime}:00` : item.startTime
-      const formattedEnd = item.endTime.length === 5 ? `${item.endTime}:00` : item.endTime
-      updatedSchedules.push({
-        dayOfWeek: day,
-        startTime: formattedStart,
-        endTime: formattedEnd
-      })
-    }
-  })
-
-  try {
-    await api.put(`/cor-submissions/${selectedSubmission.value.id}/schedules`, updatedSchedules)
-  } catch (err) {
-    console.error('Failed to save schedules via API:', err)
-  }
-
-  selectedSubmission.value.schedules = updatedSchedules
-  if (cachedScheduleSubmissions.value) {
-    const cachedItem = cachedScheduleSubmissions.value.find(s => s.id === selectedSubmission.value?.id)
-    if (cachedItem) cachedItem.schedules = [...updatedSchedules]
-  }
-  isEditingSchedule.value = false
-  scheduleSuccessMsg.value = 'Schedule modifications saved successfully!'
-  setTimeout(() => {
-    scheduleSuccessMsg.value = null
-  }, 3500)
 }
 
 // Approve Modal State
@@ -623,106 +589,23 @@ watch(selectedSubmission, () => {
                 </svg>
                 Weekly Campus Access Schedule
               </h3>
-              <div class="schedule-header-actions">
-                <button v-if="!isEditingSchedule" class="edit-schedule-btn" @click="startEditingSchedule">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                  Edit Schedule
-                </button>
-                <span v-else class="editing-badge">Editing Mode</span>
-              </div>
-            </div>
 
-            <!-- Quick Presets Toolbar (When Editing) -->
-            <div v-if="isEditingSchedule" class="schedule-presets-toolbar">
-              <span class="preset-label">Quick Presets:</span>
-              <button class="preset-btn" @click="applyStandardHours">Standard 7AM-7PM</button>
-              <button class="preset-btn" @click="applyFullWeekAccess">Full Week (Mon-Sun)</button>
-              <button class="preset-btn btn--outline" @click="clearAllDays">Clear All</button>
             </div>
 
             <div class="schedule-table-wrapper">
               <table class="schedule-table">
-                <thead>
-                  <tr>
-                    <th style="width: 25%;">Day</th>
-                    <th style="width: 32%;">Entry Time</th>
-                    <th style="width: 32%;">Exit Time</th>
-                    <th style="width: 11%; text-align: center;">Access</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- READ ONLY MODE -->
-                  <template v-if="!isEditingSchedule">
-                    <tr v-for="dayKey in weeklyDays" :key="`read-${dayKey}`">
-                      <td class="day-name font-bold">{{ dayNames[dayKey] }}</td>
-                      <template v-if="selectedSubmission.schedules?.find(s => s.dayOfWeek === dayKey)">
-                        <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.startTime) }}</td>
-                        <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === dayKey)?.endTime) }}</td>
-                        <td style="text-align: center;">
-                          <UiStatusText variant="success" size="xs">Allowed</UiStatusText>
-                        </td>
-                      </template>
-                      <template v-else>
-                        <td class="text-muted">—</td>
-                        <td class="text-muted">—</td>
-                        <td style="text-align: center;">
-                          <UiStatusText variant="neutral" size="xs">No Access</UiStatusText>
-                        </td>
-                      </template>
-                    </tr>
+                <thead><tr><th>Day</th><th>Entry Time</th><th>Exit Time</th></tr></thead>
+                <tbody><tr v-for="day in weeklyDays" :key="day">
+                  <td class="day-name font-bold">{{ dayNames[day] }}</td>
+                  <template v-if="selectedSubmission.schedules?.find(s => s.dayOfWeek === day)">
+                    <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === day)?.startTime) }}</td>
+                    <td class="time-slot">{{ formatTimeSpan(selectedSubmission.schedules.find(s => s.dayOfWeek === day)?.endTime) }}</td>
                   </template>
-
-                  <!-- EDITING MODE -->
-                  <template v-else>
-                    <tr v-for="dayKey in weeklyDays" :key="`edit-${dayKey}`" :class="{ 'row-disabled': !scheduleEditForm[dayKey]?.active }">
-                      <td class="day-name font-bold">
-                        <label class="day-toggle-label" v-if="scheduleEditForm[dayKey]">
-                          <input type="checkbox" v-model="scheduleEditForm[dayKey].active" class="day-checkbox" />
-                          <span>{{ dayNames[dayKey] }}</span>
-                        </label>
-                      </td>
-                      <td>
-                        <input
-                          v-if="scheduleEditForm[dayKey]"
-                          type="time"
-                          v-model="scheduleEditForm[dayKey].startTime"
-                          :disabled="!scheduleEditForm[dayKey].active"
-                          class="time-picker-input"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          v-if="scheduleEditForm[dayKey]"
-                          type="time"
-                          v-model="scheduleEditForm[dayKey].endTime"
-                          :disabled="!scheduleEditForm[dayKey].active"
-                          class="time-picker-input"
-                        />
-                      </td>
-                      <td style="text-align: center;">
-                        <span class="day-chip" :class="scheduleEditForm[dayKey]?.active ? 'day-chip--active' : 'day-chip--off'">
-                          {{ scheduleEditForm[dayKey]?.active ? 'Active' : 'Off' }}
-                        </span>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
+                  <td v-else colspan="2" class="text-muted">No Classes</td>
+                </tr></tbody>
               </table>
             </div>
-
-            <!-- Schedule Action Buttons (When Editing) -->
-            <div v-if="isEditingSchedule" class="schedule-save-actions">
-              <button class="btn-cancel-schedule" @click="cancelEditingSchedule">Cancel</button>
-              <button class="btn-save-schedule" @click="saveScheduleChanges">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Save Schedule Updates
-              </button>
-            </div>
+            <VerificationReviewPanel :user-id="selectedSubmission.userAccountId" @changed="fetchSubmissions()" />
           </div>
         </div>
       </div>

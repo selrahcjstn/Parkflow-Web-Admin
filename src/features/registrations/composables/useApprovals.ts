@@ -1,5 +1,5 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import api from '@/api/axios'
+import api, { refreshAdminData } from '@/api/axios'
 import type { ApprovalItem, ApprovalCategory, ScheduleItem } from '../types'
 import { formatDocUrl } from '@/utils/documentUrl'
 import { cachedApprovals } from '@/stores/appCache'
@@ -10,484 +10,113 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
   const isLoading = ref(cachedApprovals.value === null)
   const apiErrorNotice = ref<string | null>(null)
   const actionSuccessMsg = ref<string | null>(null)
-
-  function mapVerificationStatus(status: any): 'pending' | 'approved' | 'rejected' {
-    if (
-      status === 2 ||
-      status === '2' ||
-      status === 'Verified' ||
-      status === 'verified' ||
-      status === 'Approved' ||
-      status === 'approved'
-    ) {
-      return 'approved'
-    }
-    if (status === 3 || status === '3' || status === 'Rejected' || status === 'rejected') {
-      return 'rejected'
-    }
-    return 'pending'
+  let unsubscribe: (() => void) | undefined
+  let loading = false
+  let currentRecords: any[] = []
+  function status(value: unknown): ApprovalItem['status'] {
+    if (value === 2 || ['Verified', 'Approved', 'Active'].includes(String(value))) return 'approved'
+    return value === 3 || value === 'Rejected' ? 'rejected' : 'pending'
   }
-
+  const list = (r: any): any[] => Array.isArray(r.data) ? r.data : r.data?.data || []
   async function fetchApprovals() {
-    if (cachedApprovals.value === null) {
-      isLoading.value = true
-    }
-    apiErrorNotice.value = null
-
+    if (loading) return
+    loading = true; apiErrorNotice.value = null
     try {
-      const [corRes, vehRes, userRes] = await Promise.all([
-        api.get('/cor-submissions'),
-        api.get('/vehicles'),
-        api.get('/users'),
+      refreshAdminData()
+      const [corRes, vehicleRes, usersRes, recordsRes] = await Promise.all([
+        categoryFilter === 'Vehicle' ? Promise.resolve({ data: [] }) : api.get('/cor-submissions'),
+        api.get('/vehicles'), api.get('/users'),
+        categoryFilter === 'Vehicle' ? Promise.resolve({ data: [] }) : api.get('/verification/records'),
       ])
-
-      const rawCor = Array.isArray(corRes.data)
-        ? corRes.data
-        : corRes.data?.data && Array.isArray(corRes.data.data)
-          ? corRes.data.data
-          : []
-      const rawVeh = Array.isArray(vehRes.data)
-        ? vehRes.data
-        : vehRes.data?.data && Array.isArray(vehRes.data.data)
-          ? vehRes.data.data
-          : []
-      const rawUsers = Array.isArray(userRes.data)
-        ? userRes.data
-        : userRes.data?.data && Array.isArray(userRes.data.data)
-          ? userRes.data.data
-          : []
-
-      const userMap = new Map<string, any>()
-      rawUsers.forEach((u: any) => {
-        if (u.id) userMap.set(String(u.id).toLowerCase(), u)
-        if (u.guid) userMap.set(String(u.guid).toLowerCase(), u)
-        if (u.userAccountId) userMap.set(String(u.userAccountId).toLowerCase(), u)
-        if (u.email) userMap.set(u.email.toLowerCase(), u)
+      const cors = list(corRes), vehicles = list(vehicleRes), users = list(usersRes), records = list(recordsRes)
+      currentRecords = records
+      const record = (type: string, id: string) => records.find(r => r.type === type && r.subjectId === id)
+      const result: ApprovalItem[] = []
+      const base = (u: any, cor?: any, v?: any): Omit<ApprovalItem, 'id' | 'guid' | 'category' | 'status' | 'verificationStatus'> => ({
+        userId: u?.id || cor?.userAccountId || v?.ownerId,
+        fullName: u?.fullName || cor?.fullName || v?.ownerName || 'Registered user',
+        email: u?.email || cor?.email || v?.ownerEmail || '—', role: u?.role || v?.ownerRole || 'Student',
+        dateApplied: String(cor?.createdAt || v?.createdAt || u?.createdAt || '').split('T')[0] || '',
+        academicTerm: cor?.academicTerm, corGuid: cor?.id, vehicleGuid: v?.id,
+        vehiclePlate: v?.plateNumber || cor?.vehiclePlate || '—', vehicleType: v?.vehicleType ?? cor?.vehicleType ?? '',
+        brand: v?.brand || cor?.brand || '—', corUrl: formatDocUrl(cor?.corDocumentUrl || '', ''),
+        orcrUrl: formatDocUrl(v?.orcrDocumentUrl || cor?.orcrDocumentUrl || '', ''),
+        motorPicUrl: formatDocUrl(v?.vehiclePictureUrl || cor?.motorPictureUrl || '', ''),
+        schedules: (cor?.schedules || []).map((s: any) => ({ dayOfWeek: typeof s.dayOfWeek === 'number' ? s.dayOfWeek :
+          ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(String(s.dayOfWeek).toLowerCase()),
+          startTime: s.startTime, endTime: s.endTime })),
       })
-
-      const combinedList: ApprovalItem[] = []
-      let nextId = 1
-      const consumedCorIds = new Set<string>()
-      const consumedVehIds = new Set<string>()
-
-      // Pre-check: Find user IDs that have had previous rejections
-      const userHasRejectedCor = new Set<string>()
-      rawCor.forEach((c: any) => {
-        const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
-        const corStatusNum =
-          typeof c.verificationStatus === 'number'
-            ? c.verificationStatus
-            : c.verificationStatus === 'Verified'
-              ? 2
-              : c.verificationStatus === 'Rejected'
-                ? 3
-                : 1
-        if (cUserId && corStatusNum === 3) {
-          userHasRejectedCor.add(cUserId)
-        }
-      })
-
-      // Pass 1: Correlate brand-new initial onboarding registrations
-      // Applies strictly if:
-      // 1. User is not active yet
-      // 2. User has no prior rejected COR submission (not resending after rejection)
-      // 3. The COR submission is strictly Pending (status === 1)
-      // 4. The initial primary Vehicle is strictly Pending (status === 1)
-      rawCor.forEach((c: any) => {
-        const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
-        const cEmail = c.email ? c.email.toLowerCase() : ''
-        const corGuid = c.id || c.guid || ''
-
-        const corStatusNum =
-          typeof c.verificationStatus === 'number'
-            ? c.verificationStatus
-            : c.verificationStatus === 'Verified'
-              ? 2
-              : c.verificationStatus === 'Rejected'
-                ? 3
-                : 1
-
-        if (corStatusNum !== 1) return
-        if (cUserId && userHasRejectedCor.has(cUserId)) return
-
-        const user = userMap.get(cUserId) || (cEmail ? userMap.get(cEmail) : null)
-        const userStatusStr = String(user?.status || '').toLowerCase()
-        const isUserActive = userStatusStr === 'active' || user?.status === 1
-        if (isUserActive) return
-
-        // Find user's vehicles
-        const userVehicles = rawVeh.filter((v: any) => {
-          const vOwnerId = v.ownerId ? String(v.ownerId).toLowerCase() : ''
-          const vEmail = v.ownerEmail ? v.ownerEmail.toLowerCase() : ''
-          return (
-            (cUserId && vOwnerId && cUserId === vOwnerId) || (cEmail && vEmail && cEmail === vEmail)
-          )
-        })
-
-        // Pick ONLY a strictly Pending initial vehicle
-        const initialVeh =
-          userVehicles.find((v: any) => {
-            const vGuid = v.id || v.guid || ''
-            const vehStatusNum =
-              typeof v.verificationStatus === 'number'
-                ? v.verificationStatus
-                : v.verificationStatus === 'Verified'
-                  ? 2
-                  : v.verificationStatus === 'Rejected'
-                    ? 3
-                    : 1
-            return !consumedVehIds.has(vGuid) && v.isPrimary && vehStatusNum === 1
-          }) ||
-          userVehicles.find((v: any) => {
-            const vGuid = v.id || v.guid || ''
-            const vehStatusNum =
-              typeof v.verificationStatus === 'number'
-                ? v.verificationStatus
-                : v.verificationStatus === 'Verified'
-                  ? 2
-                  : v.verificationStatus === 'Rejected'
-                    ? 3
-                    : 1
-            return !consumedVehIds.has(vGuid) && vehStatusNum === 1
-          })
-
-        if (initialVeh) {
-          const vehGuid = initialVeh.id || initialVeh.guid || ''
-          consumedCorIds.add(corGuid)
-          consumedVehIds.add(vehGuid)
-
-          const role = user?.role || user?.userRole || initialVeh.ownerRole || 'Student'
-          const fullName =
-            c.fullName || initialVeh.ownerName || user?.fullName || 'Registered Client'
-          const email = c.email || initialVeh.ownerEmail || user?.email || '—'
-
-          combinedList.push({
-            id: nextId++,
-            guid: corGuid || vehGuid,
-            corGuid,
-            vehicleGuid: vehGuid,
-            userId:
-              cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
-            category: 'Registration',
-            fullName,
-            email,
-            role,
-            dateApplied: (c.createdAt || initialVeh.createdAt || new Date().toISOString()).split(
-              'T',
-            )[0],
-            academicTerm: c.academicTerm || 'AY 2026-2027',
-            vehiclePlate: initialVeh.plateNumber || c.vehiclePlate || '—',
-            vehicleType: initialVeh.vehicleType ?? c.vehicleType ?? 'Car',
-            brand: initialVeh.brand || c.brand || '—',
-            corUrl: formatDocUrl(c.corDocumentUrl, ''),
-            orcrUrl: formatDocUrl(initialVeh.orcrDocumentUrl || c.orcrDocumentUrl, ''),
-            motorPicUrl: formatDocUrl(initialVeh.vehiclePictureUrl || c.motorPictureUrl, ''),
-            schedules: (c.schedules || []).map((s: any) => ({
-              dayOfWeek:
-                typeof s.dayOfWeek === 'number'
-                  ? s.dayOfWeek
-                  : [
-                        'sunday',
-                        'monday',
-                        'tuesday',
-                        'wednesday',
-                        'thursday',
-                        'friday',
-                        'saturday',
-                      ].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0
-                    ? [
-                        'sunday',
-                        'monday',
-                        'tuesday',
-                        'wednesday',
-                        'thursday',
-                        'friday',
-                        'saturday',
-                      ].indexOf(String(s.dayOfWeek).toLowerCase())
-                    : Number(s.dayOfWeek) || 0,
-              startTime: s.startTime || '07:00:00',
-              endTime: s.endTime || '19:00:00',
-            })),
-            status: 'pending',
-            verificationStatus: 1,
-          })
-        }
-      })
-
-      // Pass 2: Standalone COR Submissions
-      rawCor.forEach((c: any) => {
-        const corGuid = c.id || c.guid || ''
-        if (consumedCorIds.has(corGuid)) return
-
-        const cUserId = c.userAccountId ? String(c.userAccountId).toLowerCase() : ''
-        const cEmail = c.email ? c.email.toLowerCase() : ''
-        const user = userMap.get(cUserId) || (cEmail ? userMap.get(cEmail) : null)
-
-        combinedList.push({
-          id: nextId++,
-          guid: corGuid,
-          corGuid,
-          userId:
-            cUserId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
-          category: 'Schedule',
-          fullName: c.fullName || user?.fullName || 'Client Applicant',
-          email: c.email || user?.email || '—',
-          role: user?.role || user?.userRole || 'Student',
-          dateApplied: (c.createdAt || new Date().toISOString()).split('T')[0],
-          academicTerm: c.academicTerm || 'AY 2026-2027',
-          vehiclePlate: c.vehiclePlate || '—',
-          vehicleType: c.vehicleType ?? 'Car',
-          brand: c.brand || '—',
-          corUrl: formatDocUrl(c.corDocumentUrl, ''),
-          schedules: (c.schedules || []).map((s: any) => ({
-            dayOfWeek:
-              typeof s.dayOfWeek === 'number'
-                ? s.dayOfWeek
-                : [
-                      'sunday',
-                      'monday',
-                      'tuesday',
-                      'wednesday',
-                      'thursday',
-                      'friday',
-                      'saturday',
-                    ].indexOf(String(s.dayOfWeek).toLowerCase()) >= 0
-                  ? [
-                      'sunday',
-                      'monday',
-                      'tuesday',
-                      'wednesday',
-                      'thursday',
-                      'friday',
-                      'saturday',
-                    ].indexOf(String(s.dayOfWeek).toLowerCase())
-                  : Number(s.dayOfWeek) || 0,
-            startTime: s.startTime || '07:00:00',
-            endTime: s.endTime || '19:00:00',
-          })),
-          status: mapVerificationStatus(c.verificationStatus),
-          verificationStatus: typeof c.verificationStatus === 'number' ? c.verificationStatus : 1,
-        })
-      })
-
-      // Pass 3: Standalone Vehicle Submissions (2nd, 3rd, and all additional/updated vehicles)
-      rawVeh.forEach((v: any) => {
-        const vehGuid = v.id || v.guid || ''
-        if (consumedVehIds.has(vehGuid)) return
-
-        const vOwnerId = v.ownerId ? String(v.ownerId).toLowerCase() : ''
-        const vEmail = v.ownerEmail ? v.ownerEmail.toLowerCase() : ''
-        const user = userMap.get(vOwnerId) || (vEmail ? userMap.get(vEmail) : null)
-
-        const orcr = v.orcrDocumentUrl || v.orcrUrl || ''
-        const motorPic = v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || ''
-
-        combinedList.push({
-          id: nextId++,
-          guid: vehGuid,
-          vehicleGuid: vehGuid,
-          userId:
-            vOwnerId || (user?.id ? String(user.id) : '') || (user?.guid ? String(user.guid) : ''),
-          category: 'Vehicle',
-          fullName: v.ownerName || user?.fullName || 'Vehicle Owner',
-          email: v.ownerEmail || user?.email || '—',
-          role: v.ownerRole || user?.role || 'Student',
-          dateApplied: (v.createdAt || new Date().toISOString()).split('T')[0],
-          vehiclePlate: v.plateNumber || '—',
-          vehicleType: v.vehicleType != null ? v.vehicleType : 'Car',
-          brand: v.brand || '—',
-          orcrUrl: formatDocUrl(orcr, ''),
-          motorPicUrl: formatDocUrl(motorPic, ''),
-          status: mapVerificationStatus(v.verificationStatus),
-          verificationStatus:
-            typeof v.verificationStatus === 'number'
-              ? v.verificationStatus
-              : v.verificationStatus === 'Verified'
-                ? 2
-                : v.verificationStatus === 'Rejected'
-                  ? 3
-                  : 1,
-        })
-      })
-
-      allApprovals.value = combinedList
-      cachedApprovals.value = [...combinedList]
-    } catch (err: any) {
-      console.warn('Backend API warning, could not fetch approval items:', err)
-      apiErrorNotice.value = 'Could not sync live records from server.'
-    } finally {
-      isLoading.value = false
-    }
+      for (const u of users) {
+        if (!u.personnel) continue
+        const account = record('Account', u.id)
+        const cor = cors.find(c => c.userAccountId === u.id)
+        if (!account && !cor) continue
+        const v = vehicles.find(v => v.ownerId === u.id && v.isPrimary) || vehicles.find(v => v.ownerId === u.id)
+        const state = status(account?.status || u.status)
+        result.push({ ...base(u, cor, v), id: 'account-' + u.id, guid: u.id, category: 'Registration', status: state,
+          verificationStatus: state === 'approved' ? 2 : state === 'rejected' ? 3 : 1 })
+      }
+      for (const cor of cors.filter(c => c.requiresAdminReview !== false)) {
+        const u = users.find(u => u.id === cor.userAccountId)
+        const corState = status(record('Cor', cor.id)?.status ?? cor.verificationStatus)
+        const state = corState
+        result.push({ ...base(u, cor), id: cor.id, guid: cor.id, category: 'Schedule', status: state,
+          verificationStatus: state === 'approved' ? 2 : state === 'rejected' ? 3 : 1 })
+      }
+      for (const v of vehicles) {
+        const state = status(v.verificationStatus)
+        result.push({ ...base(users.find(u => u.id === v.ownerId), undefined, v), id: v.id, guid: v.id, category: 'Vehicle',
+          status: state, verificationStatus: state === 'approved' ? 2 : state === 'rejected' ? 3 : 1 })
+      }
+      allApprovals.value = result; cachedApprovals.value = [...result]
+    } catch (error: any) { apiErrorNotice.value = error.response?.data?.message || 'Could not load current approval records.' }
+    finally { loading = false; isLoading.value = false }
   }
-
-  // Real-time SignalR notifications
-  let unsubscribeApprovalUpdates: (() => void) | null = null
-
-  onMounted(() => {
-    fetchApprovals()
-    const notifStore = useAdminNotificationStore()
-    notifStore.initSignalRConnection()
-    unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
-      console.log('[useApprovals] Live approval update received via SignalR -> refreshing...')
-      fetchApprovals()
-    })
-  })
-
-  onUnmounted(() => {
-    if (unsubscribeApprovalUpdates) {
-      unsubscribeApprovalUpdates()
+  async function review(type: string, id: string, value: 'Approved' | 'Rejected', reason: string) {
+    if (type === 'Vehicle') {
+      const response = await api.patch(`/vehicles/${id}/validate`, { verificationStatus: value === 'Approved' ? 2 : 3, rejectionReason: reason })
+      if (!response.data?.isSuccess) throw new Error(response.data?.message || 'Manual vehicle review could not be saved.')
+      return
     }
-  })
-
-  // Filtered by specific category if requested
-  const approvals = computed(() => {
-    if (!categoryFilter || categoryFilter === ('all' as any)) {
-      return allApprovals.value
-    }
-    return allApprovals.value.filter((item) => item.category === categoryFilter)
-  })
-
-  // Action: Approve an item (Handles 1-tap dual approval for Registration, or single approval)
+    const record = currentRecords.find(r => r.type === type && r.subjectId === id)
+    const response = record ? await api.post(`/verification/records/${record.id}/review`, { version: record.version, status: value, reason })
+      : await api.post(`/verification/${type}/${id}/review`, { status: value, reason })
+    if (!response.data?.isSuccess) throw new Error(response.data?.message || 'Review could not be saved.')
+  }
   async function approveItem(item: ApprovalItem) {
+    apiErrorNotice.value = null; actionSuccessMsg.value = null
     try {
-      if (item.category === 'Registration') {
-        const promises: Promise<any>[] = []
-        if (item.corGuid) {
-          promises.push(
-            api.patch(`/cor-submissions/${item.corGuid}/validate`, { verificationStatus: 2 }),
-          )
+      if (item.category === 'Registration') await review('Account', item.userId || item.guid, 'Approved', 'Institutional identity reviewed by an administrator.')
+      else if (item.category === 'Vehicle') await review('Vehicle', item.vehicleGuid || item.guid, 'Approved', 'Ownership documents reviewed by an administrator.')
+      else {
+        const corRecord = currentRecords.find(r => r.type === 'Cor' && r.subjectId === (item.corGuid || item.guid))
+        if (corRecord?.status !== 'Approved') {
+          await review('Cor', item.corGuid || item.guid, 'Approved', 'Document authenticity reviewed by an administrator.')
+          await fetchApprovals()
         }
-        if (item.vehicleGuid) {
-          promises.push(
-            api.patch(`/vehicles/${item.vehicleGuid}/validate`, { verificationStatus: 2 }),
-          )
-        }
-        await Promise.all(promises)
-      } else if (item.category === 'Schedule') {
-        const corId = item.corGuid || item.guid
-        await api.patch(`/cor-submissions/${corId}/validate`, { verificationStatus: 2 })
-      } else if (item.category === 'Vehicle') {
-        const vehId = item.vehicleGuid || item.guid
-        await api.patch(`/vehicles/${vehId}/validate`, { verificationStatus: 2 })
       }
-
-      item.status = 'approved'
-      item.verificationStatus = 2
-      actionSuccessMsg.value = `Successfully approved ${item.fullName}'s ${item.category === 'Registration' ? 'registration' : item.category.toLowerCase()}!`
-      setTimeout(() => {
-        actionSuccessMsg.value = null
-      }, 4000)
-    } catch (err: any) {
-      console.error('Approve failed:', err)
-      // Optimistic update
-      item.status = 'approved'
-      item.verificationStatus = 2
-      actionSuccessMsg.value = `Approved ${item.fullName} (locally synced)`
-      setTimeout(() => {
-        actionSuccessMsg.value = null
-      }, 4000)
-    }
+      await fetchApprovals(); actionSuccessMsg.value = 'Verification decision saved.'
+    } catch (error: any) { await fetchApprovals(); apiErrorNotice.value = error.response?.data?.message || error.message || 'Approval failed. Reload and try again.' }
   }
-
-  // Action: Reject an item
   async function rejectItem(item: ApprovalItem, reason?: string) {
+    apiErrorNotice.value = null; actionSuccessMsg.value = null
     try {
-      if (item.category === 'Registration') {
-        const promises: Promise<any>[] = []
-        if (item.corGuid) {
-          promises.push(
-            api.patch(`/cor-submissions/${item.corGuid}/validate`, {
-              verificationStatus: 3,
-              feedback: reason,
-            }),
-          )
-        }
-        if (item.vehicleGuid) {
-          promises.push(
-            api.patch(`/vehicles/${item.vehicleGuid}/validate`, {
-              verificationStatus: 3,
-              feedback: reason,
-            }),
-          )
-        }
-        await Promise.all(promises)
-      } else if (item.category === 'Schedule') {
-        const corId = item.corGuid || item.guid
-        await api.patch(`/cor-submissions/${corId}/validate`, {
-          verificationStatus: 3,
-          feedback: reason,
-        })
-      } else if (item.category === 'Vehicle') {
-        const vehId = item.vehicleGuid || item.guid
-        await api.patch(`/vehicles/${vehId}/validate`, { verificationStatus: 3, feedback: reason })
-      }
-
-      item.status = 'rejected'
-      item.verificationStatus = 3
-      actionSuccessMsg.value = `Rejected ${item.fullName}'s submission.`
-      setTimeout(() => {
-        actionSuccessMsg.value = null
-      }, 4000)
-    } catch (err: any) {
-      console.error('Reject failed:', err)
-      item.status = 'rejected'
-      item.verificationStatus = 3
-    }
+      await review(item.category === 'Registration' ? 'Account' : item.category === 'Vehicle' ? 'Vehicle' : 'Cor',
+        item.category === 'Registration' ? item.userId || item.guid : item.category === 'Vehicle' ? item.vehicleGuid || item.guid : item.corGuid || item.guid,
+        'Rejected', reason?.trim() || 'Submission rejected by an administrator. Please review your information and documents.')
+      await fetchApprovals(); actionSuccessMsg.value = 'Rejection saved.'
+    } catch (error: any) { apiErrorNotice.value = error.response?.data?.message || error.message || 'Rejection failed.' }
   }
-
-  // Action: Save updated schedule
-  async function saveSchedule(item: ApprovalItem, updatedSchedules: ScheduleItem[]) {
-    try {
-      const corId = item.corGuid || item.guid || item.userId
-      await api.put(`/cor-submissions/${corId}/schedules`, updatedSchedules)
-      item.schedules = [...updatedSchedules]
-
-      // Synchronize in-memory reactive list and cache
-      allApprovals.value.forEach((a) => {
-        if (
-          a.guid === item.guid ||
-          (item.corGuid && a.corGuid === item.corGuid) ||
-          (item.email && a.email && a.email.toLowerCase() === item.email.toLowerCase())
-        ) {
-          a.schedules = [...updatedSchedules]
-        }
-      })
-
-      if (cachedApprovals.value) {
-        cachedApprovals.value.forEach((a) => {
-          if (
-            a.guid === item.guid ||
-            (item.corGuid && a.corGuid === item.corGuid) ||
-            (item.email && a.email && a.email.toLowerCase() === item.email.toLowerCase())
-          ) {
-            a.schedules = [...updatedSchedules]
-          }
-        })
-      }
-
-      actionSuccessMsg.value = `Schedule updated successfully for ${item.fullName}.`
-      setTimeout(() => {
-        actionSuccessMsg.value = null
-      }, 4000)
-    } catch (err: any) {
-      console.error('Save schedule failed:', err)
-      item.schedules = [...updatedSchedules]
-      actionSuccessMsg.value = `Schedule updated (offline mode).`
-      setTimeout(() => {
-        actionSuccessMsg.value = null
-      }, 4000)
-    }
+  async function saveSchedule(_item: ApprovalItem, _schedules: ScheduleItem[]) {
+    apiErrorNotice.value = 'Use Correct schedule from COR in the verification panel after checking the uploaded document.'
   }
-
-  return {
-    allApprovals,
-    approvals,
-    isLoading,
-    apiErrorNotice,
-    actionSuccessMsg,
-    fetchApprovals,
-    approveItem,
-    rejectItem,
-    saveSchedule,
-  }
+  onMounted(() => {
+    void fetchApprovals()
+    const notifications = useAdminNotificationStore()
+    notifications.initSignalRConnection()
+    unsubscribe = notifications.onApprovalUpdate(() => { void fetchApprovals() })
+  })
+  onUnmounted(() => unsubscribe?.())
+  const approvals = computed(() => !categoryFilter || categoryFilter === ('all' as any) ? allApprovals.value : allApprovals.value.filter(i => i.category === categoryFilter))
+  return { allApprovals, approvals, isLoading, apiErrorNotice, actionSuccessMsg, fetchApprovals, approveItem, rejectItem, saveSchedule }
 }

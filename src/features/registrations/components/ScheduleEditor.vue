@@ -10,6 +10,7 @@ export interface ScheduleItem {
 
 const props = defineProps<{
   schedules?: ScheduleItem[]
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -72,6 +73,7 @@ function populateFormFromSchedules(schedList?: ScheduleItem[]) {
 }
 
 function startEditing() {
+  if (props.readOnly) return
   scheduleEditForm.value = populateFormFromSchedules(props.schedules)
   isEditingSchedule.value = true
 }
@@ -144,7 +146,7 @@ function getScheduleForDay(day: number): ScheduleItem | undefined {
       <h4 class="text-sm font-bold text-slate-900 dark:text-white m-0">Weekly Campus Access Hours</h4>
       <div class="flex items-center gap-2">
         <UiButton
-          v-if="!isEditingSchedule"
+          v-if="!isEditingSchedule && !readOnly"
           type="button"
           variant="secondary"
           size="xs"
@@ -153,7 +155,7 @@ function getScheduleForDay(day: number): ScheduleItem | undefined {
           Edit Hours
         </UiButton>
         <UiButton
-          v-else
+          v-else-if="isEditingSchedule && !readOnly"
           type="button"
           variant="success"
           size="xs"
