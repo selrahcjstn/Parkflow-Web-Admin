@@ -189,7 +189,7 @@ const userColumns = computed<TableColumn[]>(() => {
   const cols: TableColumn[] = [
     { key: 'client', label: isAdminStaffView.value ? 'Staff Member' : 'Client' },
     { key: 'identifier', label: isAdminStaffView.value ? 'Identifier / Post' : 'Client ID' },
-    { key: 'role', label: 'Classification' },
+    { key: 'role', label: 'Role' },
   ]
   if (!isAdminStaffView.value) {
     cols.push(
