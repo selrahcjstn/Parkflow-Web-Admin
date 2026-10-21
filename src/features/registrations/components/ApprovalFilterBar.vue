@@ -43,6 +43,7 @@ const roleOptions = [
       />
     </div>
     <div class="flex flex-wrap items-end gap-3 sm:ml-auto">
+      <slot name="filters" />
       <UiSelect
         v-if="showRoleFilter"
         class="w-40"

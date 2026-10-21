@@ -38,7 +38,6 @@ const successMessage = ref<string | null>(null)
 const existingReservations = ref<any[]>([])
 interface ReservationAvailability {
   totalCapacity: number
-  allocationPercent: number
   reservationCapacity: number
   bookedSlots: number
   availableSlots: number
@@ -288,7 +287,7 @@ async function handleSubmit() {
         <UiButton variant="secondary" size="sm" @click="loadAvailability">Try again</UiButton>
       </template>
       <template v-else-if="availability">
-        <p class="text-sm font-medium text-text">{{ availability.reservationCapacity }} reservation spaces · {{ availability.allocationPercent }}% of {{ availability.totalCapacity }} total parking spaces</p>
+        <p class="text-sm font-medium text-text">{{ availability.reservationCapacity }} reservation spaces out of {{ availability.totalCapacity }} total parking spaces</p>
         <p class="text-sm text-muted">Peak bookings in this time range: {{ availability.bookedSlots }} / {{ availability.reservationCapacity }}</p>
         <p class="text-sm font-semibold" :class="availability.availableSlots > 0 ? 'text-success' : 'text-danger'">
           {{ availability.availableSlots > 0 ? `${availability.availableSlots} spaces available for this time` : 'Fully booked. Choose another time or date.' }}

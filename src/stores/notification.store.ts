@@ -225,7 +225,7 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
                 ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : 'Pending Review',
               createdAt: rawDate,
-              actionUrl: '/vehicle-approvals',
+              actionUrl: '/vehicles?status=pending',
               actionLabel: 'Inspect Vehicle',
               priority: 'high',
               referenceCode: refCode,
@@ -449,7 +449,7 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
           subtitle: plate,
           message: `Vehicle [${plate}] (${brand}) was registered and is awaiting admin approval (${timeStr}).`,
           timestamp: timeStr,
-          actionUrl: '/vehicle-approvals',
+          actionUrl: '/vehicles?status=pending',
           actionLabel: 'Inspect Vehicle',
           priority: 'high',
           referenceCode: `veh-${plate}-${Date.now()}`,

@@ -59,7 +59,7 @@ const feeCalculationModeOptions = [
 
     <div class="space-y-4">
       <!-- Fee Calculation Mode -->
-      <div>
+      <div class="max-w-md">
         <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
           Fee Calculation Mode
         </label>
@@ -70,7 +70,7 @@ const feeCalculationModeOptions = [
         />
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid max-w-xl grid-cols-1 sm:grid-cols-2 gap-4">
         <!-- Base Fee -->
         <div>
           <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -89,7 +89,7 @@ const feeCalculationModeOptions = [
       </div>
 
       <div
-        class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800"
+        class="grid max-w-xl grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800"
       >
         <!-- Grace Period -->
         <div class="space-y-2">
@@ -143,7 +143,7 @@ const feeCalculationModeOptions = [
             required.
           </p>
         </div>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="grid max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
           <UiInput
             :model-value="settings.personnelFreeParkingStart"
             @update:model-value="

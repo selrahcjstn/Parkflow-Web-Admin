@@ -135,12 +135,7 @@ const stats = computed(() => {
 
 const displayStatus = (user: UserWithDetails): string => {
   if (user.status === 'Suspended') return 'Suspended'
-  if (user.role === 'Student') {
-    if (user.corVerificationStatus === 'Verified') return 'Approved'
-    if (user.corVerificationStatus === 'Pending') return 'Pending'
-    if (user.corVerificationStatus === 'Rejected') return 'Rejected'
-    if (user.corVerificationStatus === 'NotSubmitted') return 'NotSubmitted'
-  }
+  if (user.role === 'Student') return user.status === 'Active' ? 'Approved' : 'Pending'
   if (user.status === 'Active') return 'Approved'
   if (user.status === 'PendingVerification') return 'Pending'
   return user.status || 'Approved'
@@ -225,7 +220,9 @@ const filteredUsers = computed(() => {
     const matchesRole = selectedRole.value === 'all' || user.role === selectedRole.value
 
     const userStatus = displayStatus(user)
-    const matchesStatus =
+    const matchesStatus = user.role === 'Student'
+      ? selectedStatus.value === 'all' || userStatus === selectedStatus.value || selectedStatus.value === 'Verified' && userStatus === 'Approved'
+      : (
       selectedStatus.value === 'all' ||
       userStatus === selectedStatus.value ||
       (selectedStatus.value === 'Approved' &&
@@ -246,6 +243,7 @@ const filteredUsers = computed(() => {
         (userStatus === 'NotSubmitted' || user.corVerificationStatus === 'NotSubmitted')) ||
       (selectedStatus.value === 'Suspended' &&
         (userStatus === 'Suspended' || user.status === 'Suspended'))
+      )
 
     const hasVehicles = user.vehicles && user.vehicles.length > 0
     const matchesVehicle =
@@ -703,28 +701,9 @@ function handleRefresh() {
 
         <template #cell-actions="{ item }">
           <div class="inline-flex items-center gap-1.5" @click.stop>
-            <!-- Quick Approve / Reject for Student Pending -->
-            <div
-              v-if="item.role === 'Student' && displayStatus(item) === 'Pending'"
-              class="flex items-center gap-1 mr-1"
-            >
-              <button
-                type="button"
-                title="Approve Registration"
-                @click="handleApproveUser(item)"
-                class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px] hover:bg-emerald-700 transition-colors cursor-pointer border-none"
-              >
-                Approve
-              </button>
-              <button
-                type="button"
-                title="Reject Registration"
-                @click="handleRejectUser(item)"
-                class="px-2.5 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-[11px] hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80"
-              >
-                Reject
-              </button>
-            </div>
+            <button v-if="item.role === 'Student' && displayStatus(item) === 'Pending'"
+              type="button" class="px-2.5 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px] cursor-pointer"
+              @click="router.push('/vehicles?status=pending')">Review Vehicle</button>
 
             <!-- Edit Icon -->
             <button

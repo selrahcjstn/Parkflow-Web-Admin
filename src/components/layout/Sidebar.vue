@@ -47,6 +47,7 @@ const isGroupActive = (item: NavItem) => {
     if (item.key === 'settings') {
       return route.path.startsWith('/settings')
     }
+    if (item.key === 'vehicles') return route.path === '/vehicles' || route.path.startsWith('/vehicles/')
     return route.path === item.path
   }
   return item.children.some((child) => isSubActive(child.path))
@@ -97,10 +98,8 @@ const filteredNavItems = computed<NavItem[]>(() => {
     { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
     { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
     { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
-    { key: 'vehicle-approvals', label: 'Vehicle Approvals', path: '/vehicle-approvals', icon: 'approvals' },
     { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
     { key: 'divider-3', label: 'System', icon: '', section: true },
-    { key: 'verification-settings', label: 'Approval Policies', path: '/verification-settings', icon: 'settings' },
     { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },
     ...(isSuperAdmin.value ? [
       { key: 'settings', label: 'System Settings', path: '/settings', icon: 'settings' }

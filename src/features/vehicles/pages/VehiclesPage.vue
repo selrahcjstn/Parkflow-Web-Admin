@@ -1,436 +1,378 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import type { Vehicle } from '../types'
-import UiCard from '@/components/ui/UiCard.vue'
-import UiButton from '@/components/ui/UiButton.vue'
-import UiTable, { type TableColumn } from '@/components/ui/UiTable.vue'
-import TablePagination from '@/components/ui/TablePagination.vue'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import VehicleFilters from '../components/VehicleFilters.vue'
 import api, { refreshAdminData } from '@/api/axios'
-import { cachedVehicleApprovals, cachedVehicles } from '@/stores/appCache'
-import { useAdminNotificationStore } from '@/stores/notification.store'
+import { ref, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
+import { getVehicleTypeLabel } from '@/utils/vehicleType'
+import { getRoleLabel } from '@/utils/role'
+import { useApprovals } from '../../registrations/composables/useApprovals'
+import type { ApprovalItem } from '../../registrations/types'
+import ApprovalFilterBar from '../../registrations/components/ApprovalFilterBar.vue'
+import ApprovalTable from '../../registrations/components/ApprovalTable.vue'
+import ApprovalInspectorModal from '../../registrations/components/ApprovalInspectorModal.vue'
+import DocumentZoomModal from '../../registrations/components/DocumentZoomModal.vue'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+import TablePagination from '@/components/ui/TablePagination.vue'
 
+const {
+  approvals,
+  isLoading,
+  apiErrorNotice,
+  actionSuccessMsg,
+  fetchApprovals,
+  approveItem,
+  rejectItem,
+} = useApprovals('Vehicle')
+
+const route = useRoute()
 const router = useRouter()
+const statusFromRoute = () => ['pending', 'approved', 'rejected'].includes(String(route.query.status)) ? String(route.query.status) as 'pending' | 'approved' | 'rejected' : 'all'
 
-const vehicleColumns: TableColumn[] = [
-  { key: 'vehicle', label: 'Plate Number' },
-  { key: 'vehicleType', label: 'Vehicle Type' },
-  { key: 'brand', label: 'Brand & Model' },
-  { key: 'owner', label: 'Owner Name' },
-  { key: 'role', label: 'Role' },
-  { key: 'vstatus', label: 'Status' },
-  { key: 'actions', label: 'Actions', align: 'right' },
-]
-
-// Toast type
-interface Toast {
-  id: number
-  message: string
-  type: 'success' | 'info' | 'warning'
-}
-
-const toasts = ref<Toast[]>([])
-const nextToastId = ref(1)
-
-const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
-  const id = nextToastId.value++
-  toasts.value.push({ id, message, type })
-  setTimeout(() => {
-    toasts.value = toasts.value.filter((t) => t.id !== id)
-  }, 4000)
-}
-
-const notifStore = useAdminNotificationStore()
-let unsubscribeApprovalUpdates: (() => void) | null = null
-
-const isLoading = ref(cachedVehicles.value === null)
-
-// Vehicles list with reactive cache
-const vehicles = ref<Vehicle[]>(cachedVehicles.value || [])
-
-const fetchVehicles = async () => {
-  if (cachedVehicles.value === null) {
-    isLoading.value = true
-  }
-  try {
-    const response = await api.get('/vehicles')
-    const rawData = response.data
-    const items = Array.isArray(rawData)
-      ? rawData
-      : rawData?.isSuccess && Array.isArray(rawData?.data)
-        ? rawData.data
-        : Array.isArray(rawData?.data)
-          ? rawData.data
-          : null
-
-    if (items) {
-      cachedVehicleApprovals.value = items
-      const mapped = items.map((v: any, index: number) => {
-        const rawId = v.id ?? v.vehicleId ?? v.guid ?? v.vehicleGuid
-        const safeId = rawId ? String(rawId) : `veh-${index + 1}`
-        return {
-          id: safeId,
-          rawId: rawId ? String(rawId) : undefined,
-          plateNumber: v.plateNumber || 'N/A',
-          brand: v.brand || 'N/A',
-          qrCodeHash: v.qrCodeHash || `QR-${safeId.slice(0, 6).toUpperCase()}`,
-          vehicleType:
-            v.vehicleType === 0
-              ? 'Motorcycle'
-              : v.vehicleType === 1
-                ? 'ElectricBike'
-                : v.vehicleType === 2
-                  ? 'Car'
-                  : v.vehicleType || 'Motorcycle',
-          status: 'Active',
-          isPrimary: Boolean(v.isPrimary),
-          ownerName: cleanOwnerName(
-            v.ownerName || v.ownerFullName || v.fullName || v.ownerEmail || 'Unassigned',
-          ),
-          ownerRole: v.ownerRole || 'Student',
-          verificationStatus:
-            typeof v.verificationStatus === 'number'
-              ? v.verificationStatus
-              : v.verificationStatus === 'Approved' || v.verificationStatus === 'Verified'
-                ? 2
-                : v.verificationStatus === 'Rejected'
-                  ? 3
-                  : 1,
-        }
-      })
-      vehicles.value = mapped
-      cachedVehicles.value = [...mapped]
-    }
-  } catch (error) {
-    console.error('Error fetching vehicles:', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchVehicles()
-  unsubscribeApprovalUpdates = notifStore.onApprovalUpdate(() => {
-    fetchVehicles()
-  })
-})
-
-onUnmounted(() => {
-  if (unsubscribeApprovalUpdates) {
-    unsubscribeApprovalUpdates()
-  }
-})
-
-// Clean & Format helpers
-function cleanOwnerName(name?: string) {
-  if (!name || !name.trim()) return 'Unassigned'
-  const parts = name.split(/\s+/).filter(Boolean)
-  const uniqueParts = parts.filter((item, index) => parts.indexOf(item) === index)
-  return uniqueParts.join(' ')
-}
-
-// Search & Filters State
+// Filter and View State
 const searchQuery = ref('')
-const filterType = ref<string>('all')
-
-// Stats computations
-const totalCount = computed(() => vehicles.value.length)
-const carsCount = computed(() => vehicles.value.filter((v) => v.vehicleType === 'Car').length)
-const motoCount = computed(
-  () => vehicles.value.filter((v) => v.vehicleType === 'Motorcycle').length,
-)
-const ebikesCount = computed(
-  () => vehicles.value.filter((v) => v.vehicleType === 'ElectricBike').length,
-)
-
-// Filtered Vehicles
-const filteredVehicles = computed(() => {
-  return vehicles.value.filter((vehicle) => {
-    const matchesSearch =
-      vehicle.plateNumber.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      vehicle.brand.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      vehicle.ownerName.toLowerCase().includes(searchQuery.value.toLowerCase())
-
-    const matchesType = filterType.value === 'all' || vehicle.vehicleType === filterType.value
-
-    return matchesSearch && matchesType
-  })
-})
+const selectedStatusTab = ref<'all' | 'pending' | 'approved' | 'rejected'>(statusFromRoute())
+const selectedVehicleType = ref('all')
+const selectedRole = ref('all')
 
 // Pagination State
 const currentPage = ref(1)
-const itemsPerPage = ref(10)
+const itemsPerPage = ref(9)
 
-watch([searchQuery, filterType], () => {
-  currentPage.value = 1
+// Modal State
+const inspectorItem = ref<ApprovalItem | null>(null)
+const isInspectorOpen = ref(false)
+const selectedZoomImage = ref<string | null>(null)
+
+// Confirmation Modal State
+const isConfirmApproveOpen = ref(false)
+const isConfirmRejectOpen = ref(false)
+const itemToActOn = ref<ApprovalItem | null>(null)
+const rejectFeedbackReason = ref('')
+const isReviewing = ref(false)
+const vehicleToDelete = ref<ApprovalItem | null>(null)
+const isDeleting = ref(false)
+
+// Computed counts
+const totalCount = computed(() => approvals.value.length)
+const pendingCount = computed(() => approvals.value.filter((r) => r.status === 'pending').length)
+const approvedCount = computed(() => approvals.value.filter((r) => r.status === 'approved').length)
+const rejectedCount = computed(() => approvals.value.filter((r) => r.status === 'rejected').length)
+
+// Filtered items
+const filteredApprovals = computed(() => {
+  return approvals.value.filter((item) => {
+    const q = (searchQuery.value || '').toLowerCase().trim()
+    const matchesQuery =
+      !q ||
+      (item.fullName || '').toLowerCase().includes(q) ||
+      (item.email || '').toLowerCase().includes(q) ||
+      (item.vehiclePlate || '').toLowerCase().includes(q) ||
+      (item.brand || '').toLowerCase().includes(q) ||
+      (item.role || '').toLowerCase().includes(q)
+
+    const matchesStatus =
+      selectedStatusTab.value === 'all' || item.status === selectedStatusTab.value
+
+    const matchesRole =
+      selectedRole.value === 'all' || getRoleLabel(item.role) === getRoleLabel(selectedRole.value)
+
+    const matchesType = selectedVehicleType.value === 'all' || getVehicleTypeLabel(item.vehicleType) === selectedVehicleType.value
+    return matchesQuery && matchesStatus && matchesRole && matchesType
+  })
 })
 
-const paginatedVehicles = computed(() => {
+const totalPages = computed(
+  () => Math.ceil(filteredApprovals.value.length / itemsPerPage.value) || 1,
+)
+
+const paginatedApprovals = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage.value
-  return filteredVehicles.value.slice(start, start + itemsPerPage.value)
+  return filteredApprovals.value.slice(start, start + itemsPerPage.value)
 })
 
-// Delete confirmation state
-const vehicleToDelete = ref<Vehicle | null>(null)
-const isDeleteConfirmOpen = ref(false)
-const isDeletingVehicle = ref(false)
+watch(() => route.query.status, () => { selectedStatusTab.value = statusFromRoute() })
+watch([searchQuery, selectedStatusTab, selectedRole, selectedVehicleType], () => { currentPage.value = 1 })
+watch(totalPages, pages => { currentPage.value = Math.min(currentPage.value, pages) })
 
-const openDeleteConfirm = (vehicle: Vehicle) => {
-  vehicleToDelete.value = vehicle
-  isDeleteConfirmOpen.value = true
+// Actions
+function openInspector(item: ApprovalItem) {
+  inspectorItem.value = item
+  isInspectorOpen.value = true
 }
 
-const confirmDeleteVehicle = async () => {
-  if (!vehicleToDelete.value || isDeletingVehicle.value) return
-  const target = vehicleToDelete.value
-  const targetId = target.rawId || target.id
-  isDeletingVehicle.value = true
-  try {
-    const response = await api.delete(`/vehicles/${encodeURIComponent(targetId)}`)
-    if (response.data?.isSuccess === false)
-      throw new Error(response.data.message || 'Could not remove vehicle.')
-    vehicles.value = vehicles.value.filter((vehicle) => vehicle.id !== target.id)
-    cachedVehicles.value = [...vehicles.value]
-    isDeleteConfirmOpen.value = false
-    vehicleToDelete.value = null
-    showToast(`Vehicle ${target.plateNumber} removed.`, 'success')
-  } catch (error: any) {
-    showToast(
-      error.response?.data?.message ||
-        error.message ||
-        'Could not remove vehicle. Please try again.',
-      'warning',
-    )
-  } finally {
-    isDeletingVehicle.value = false
+function closeInspector() {
+  isInspectorOpen.value = false
+  inspectorItem.value = null
+}
+
+function promptApprove(item: ApprovalItem) {
+  itemToActOn.value = item
+  isConfirmApproveOpen.value = true
+}
+
+async function handleConfirmApprove() {
+  if (itemToActOn.value && !isReviewing.value) {
+    isReviewing.value = true
+    try { await approveItem(itemToActOn.value) } finally { isReviewing.value = false }
+    isConfirmApproveOpen.value = false
+    itemToActOn.value = null
+    closeInspector()
   }
 }
 
-const getRoleLabel = (role: string) => {
-  if (role === 'UniversityStaff') return 'Faculty'
-  if (role === 'NonAcademicPersonnel') return 'University Staff'
-  return role
+function promptReject(item: ApprovalItem) {
+  itemToActOn.value = item
+  rejectFeedbackReason.value = ''
+  isConfirmRejectOpen.value = true
 }
 
-const getVehicleTypeLabel = (type: string) => {
-  if (type === 'Car') return 'Car'
-  if (type === 'Motorcycle') return 'Motorcycle'
-  if (type === 'ElectricBike') return 'E-Bike'
-  return type
+async function handleConfirmReject() {
+  if (itemToActOn.value && !isReviewing.value) {
+    isReviewing.value = true
+    try { await rejectItem(itemToActOn.value, rejectFeedbackReason.value) } finally { isReviewing.value = false }
+    isConfirmRejectOpen.value = false
+    itemToActOn.value = null
+    closeInspector()
+  }
 }
 function handleRefresh() {
   refreshAdminData()
-  void fetchVehicles()
+  void fetchApprovals()
+}
+async function deleteVehicle() {
+  if (!vehicleToDelete.value || isDeleting.value) return
+  isDeleting.value = true
+  apiErrorNotice.value = null
+  try {
+    const response = await api.delete(`/vehicles/admin/${encodeURIComponent(vehicleToDelete.value.vehicleGuid || vehicleToDelete.value.guid)}`)
+    if (response.data?.isSuccess === false) throw new Error(response.data.message || 'Could not remove vehicle.')
+    vehicleToDelete.value = null
+    closeInspector()
+    await fetchApprovals()
+    actionSuccessMsg.value = 'Vehicle removed.'
+  } catch (error: any) {
+    apiErrorNotice.value = error.response?.data?.message || error.message || 'Could not remove vehicle.'
+    vehicleToDelete.value = null
+  } finally { isDeleting.value = false }
 }
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Toast Notifications -->
-    <TransitionGroup
-      enter-active-class="transition-opacity duration-200"
-      leave-active-class="transition-opacity duration-150"
-      enter-from-class="opacity-0"
-      leave-to-class="opacity-0"
-    >
-      <div
-        v-for="toast in toasts"
-        :key="toast.id"
-        class="fixed top-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold shadow-xl text-white transition-all"
-        :class="
-          toast.type === 'warning'
-            ? 'bg-amber-600'
-            : toast.type === 'info'
-              ? 'bg-blue-600'
-              : 'bg-emerald-600'
-        "
-      >
-        <span>{{ toast.message }}</span>
-      </div>
-    </TransitionGroup>
-
-    <!-- Page Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
-        <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-          Registered Vehicle Directory
+        <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight m-0">
+          Vehicles
         </h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          Inspect active vehicle plate records, pass statuses, and owner profiles across campus
-          gates.
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          Manage registered vehicles and review their OR/CR documents and vehicle photos.
         </p>
       </div>
-
-      <div class="flex items-center gap-3"></div>
     </div>
 
-    <!-- Stats Grid -->
-
-    <!-- Filters Bar (Frameless / Borderless) -->
-    <div class="flex flex-col items-stretch gap-3 xl:flex-row xl:items-end">
-      <div class="min-w-0 flex-1">
-        <VehicleFilters v-model:search-query="searchQuery" v-model:filter-type="filterType" />
-      </div>
-      <UiButton variant="secondary" :loading="isLoading" @click="handleRefresh">
-        <template #prefix>
-          <svg
-            class="w-4 h-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
+    <!-- Alert Notices -->
+    <div
+      v-if="actionSuccessMsg"
+      class="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-sm font-medium flex items-center justify-between transition-all"
+    >
+      <div class="flex items-center gap-2">
+        <svg
+          class="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
             stroke-width="2"
-          >
-            <polyline points="23 4 23 10 17 10" />
-            <polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-          </svg>
-        </template>
-        Refresh
-      </UiButton>
+            d="M5 13l4 4L19 7"
+          />
+        </svg>
+        <span>{{ actionSuccessMsg }}</span>
+      </div>
+      <button
+        type="button"
+        class="text-blue-700 hover:text-blue-900 dark:text-blue-300 border-none bg-transparent cursor-pointer font-bold"
+        @click="actionSuccessMsg = null"
+      >
+        ✕
+      </button>
     </div>
 
-    <!-- Vehicles Table Card -->
-    <UiCard custom-class="p-0 overflow-hidden">
-      <UiTable
-        :columns="vehicleColumns"
-        :data="paginatedVehicles"
-        :is-loading="isLoading"
-        :loading-rows="6"
-        empty-text="No registered vehicles found matching your criteria."
+    <div
+      v-if="apiErrorNotice"
+      class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-sm font-medium flex items-center justify-between"
+    >
+      <div class="flex items-center gap-2">
+        <svg
+          class="w-5 h-5 text-amber-600 flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+          />
+        </svg>
+        <span>{{ apiErrorNotice }}</span>
+      </div>
+      <button
+        type="button"
+        class="text-amber-700 hover:text-amber-900 border-none bg-transparent cursor-pointer font-bold"
+        @click="apiErrorNotice = null"
       >
-        <template #cell-vehicle="{ item }">
-          <div class="flex items-center gap-3">
-            <div
-              class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex-shrink-0"
-            >
-              <svg
-                v-if="item.vehicleType === 'Car'"
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <rect x="3" y="11" width="18" height="6" rx="2" />
-                <path d="M5 17h14" />
-                <circle cx="7" cy="17" r="2" />
-                <circle cx="17" cy="17" r="2" />
-                <path d="M6 11l1.5-4.5h9L18 11" />
-              </svg>
-              <svg
-                v-else-if="item.vehicleType === 'Motorcycle'"
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="5" cy="18" r="3" />
-                <circle cx="19" cy="18" r="3" />
-                <path d="M12 18V8h4" />
-                <path d="M5 18h14" opacity="0.3" />
-              </svg>
-              <svg
-                v-else
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="6" cy="19" r="3" />
-                <circle cx="17" cy="19" r="3" />
-                <path d="M17 19h-7V10h4" />
-                <path d="M12 10L9 7h4" />
-              </svg>
-            </div>
-            <span class="font-mono font-bold text-slate-900 dark:text-white text-xs">{{
-              item.plateNumber
-            }}</span>
-          </div>
-        </template>
+        ✕
+      </button>
+    </div>
 
-        <template #cell-vehicleType="{ item }">
-          <span class="text-xs text-slate-700 dark:text-slate-300 font-medium">{{
-            getVehicleTypeLabel(item.vehicleType)
-          }}</span>
-        </template>
+    <!-- Stats Overview -->
 
-        <template #cell-brand="{ item }">
-          <span class="text-xs text-slate-700 dark:text-slate-300">{{ item.brand }}</span>
-        </template>
+    <!-- Filter Bar -->
+    <ApprovalFilterBar
+      v-model:search-query="searchQuery"
+      v-model:selected-role="selectedRole"
+      :total-count="totalCount"
+      :pending-count="pendingCount"
+      :approved-count="approvedCount"
+      :rejected-count="rejectedCount"
+      :is-loading="isLoading"
+      show-role-filter
+      @refresh="handleRefresh"
+    >
+      <template #filters>
+        <UiSelect v-model="selectedStatusTab" label="Status" class="w-40" :options="[
+          { label: `All (${totalCount})`, value: 'all' }, { label: `Pending (${pendingCount})`, value: 'pending' },
+          { label: `Approved (${approvedCount})`, value: 'approved' }, { label: `Rejected (${rejectedCount})`, value: 'rejected' }
+        ]" />
+        <UiSelect v-model="selectedVehicleType" label="Vehicle type" class="w-40" :options="[
+          { label: 'All types', value: 'all' }, { label: 'Motorcycle', value: 'Motorcycle' },
+          { label: 'Car', value: 'Car' }, { label: 'E-Bike', value: 'E-Bike' }
+        ]" />
+      </template>
+    </ApprovalFilterBar>
 
-        <template #cell-owner="{ item }">
-          <span
-            class="font-semibold text-slate-900 dark:text-white text-xs truncate max-w-[160px] inline-block"
-            :title="item.ownerName"
-          >
-            {{ item.ownerName }}
-          </span>
-        </template>
-
-        <template #cell-role="{ item }">
-          <span class="text-xs text-slate-600 dark:text-slate-400">{{
-            getRoleLabel(item.ownerRole)
-          }}</span>
-        </template>
-
-        <template #cell-vstatus="{ item }">
-          <span
-            v-if="item.verificationStatus === 2"
-            class="text-xs font-bold text-emerald-600 dark:text-emerald-400"
-          >
-            Approved
-          </span>
-          <span
-            v-else-if="item.verificationStatus === 3"
-            class="text-xs font-bold text-rose-600 dark:text-rose-400"
-          >
-            Rejected
-          </span>
-          <span v-else class="text-xs font-bold text-amber-600 dark:text-amber-400"> Pending </span>
-        </template>
-
-        <template #cell-actions="{ item }">
-          <div class="flex items-center justify-end gap-1.5" @click.stop>
-            <button
-              class="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-semibold transition-colors cursor-pointer border-none"
-              @click="router.push('/vehicles/' + item.id)"
-              title="Inspect Vehicle Details"
-            >
-              Inspect
-            </button>
-            <button
-              class="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-xs font-semibold transition-colors cursor-pointer border border-rose-200 dark:border-rose-900"
-              @click="openDeleteConfirm(item)"
-              title="Delete Vehicle"
-            >
-              Delete
-            </button>
-          </div>
-        </template>
-      </UiTable>
-
-      <TablePagination
-        v-model:current-page="currentPage"
-        v-model:items-per-page="itemsPerPage"
-        :total-items="filteredVehicles.length"
+    <!-- Main Content Area -->
+    <div v-if="isLoading" class="space-y-3">
+      <div
+        v-for="n in 6"
+        :key="n"
+        class="h-12 animate-pulse rounded-button bg-(--color-surface-muted) motion-reduce:animate-none"
+        aria-hidden="true"
       />
-    </UiCard>
+    </div>
 
-    <!-- Delete Confirmation Modal using Reusable ConfirmModal -->
+    <div
+      v-else-if="filteredApprovals.length === 0"
+      class="p-12 text-center rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
+    >
+      <div
+        class="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4 text-slate-400"
+      >
+        <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M19 14l-7 7m0 0l-7-7m7 7V3"
+          />
+        </svg>
+      </div>
+      <h3 class="text-base font-bold text-slate-900 dark:text-white">
+        No Vehicles Found
+      </h3>
+      <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
+        No vehicles match your current filters.
+      </p>
+    </div>
+
+    <div v-else>
+      <!-- Table View -->
+      <div>
+        <ApprovalTable
+          :items="paginatedApprovals"
+          @inspect="openInspector"
+          @approve="promptApprove"
+          @reject="promptReject"
+        >
+          <template #extra-actions="{ item }">
+            <UiButton variant="secondary" size="xs" @click="router.push('/vehicles/' + item.guid)">Details</UiButton>
+            <UiButton variant="danger" size="xs" @click="vehicleToDelete = item">Delete</UiButton>
+          </template>
+        </ApprovalTable>
+      </div>
+
+      <!-- Pagination -->
+      <div class="mt-6">
+        <TablePagination
+          v-if="filteredApprovals.length > itemsPerPage"
+          :total-items="filteredApprovals.length"
+          v-model:current-page="currentPage"
+          v-model:items-per-page="itemsPerPage"
+        />
+      </div>
+    </div>
+
+    <!-- Document Inspector Modal -->
+    <ApprovalInspectorModal
+      :item="inspectorItem"
+      :is-open="isInspectorOpen"
+      @close="closeInspector"
+      @approve="promptApprove"
+      @reject="promptReject"
+      @zoom-image="selectedZoomImage = $event"
+    />
+
+    <!-- Document Image Zoom Modal -->
+    <DocumentZoomModal :image-url="selectedZoomImage" @close="selectedZoomImage = null" />
+
+    <!-- Approve Confirmation Dialog -->
     <ConfirmModal
-      :is-open="isDeleteConfirmOpen"
-      title="Delete Registered Vehicle?"
-      :message="`Are you sure you want to delete vehicle <strong class='font-mono text-slate-900 dark:text-white font-bold'>${vehicleToDelete?.plateNumber}</strong> (${vehicleToDelete?.brand || ''}) belonging to <strong>${vehicleToDelete?.ownerName}</strong>? This action cannot be undone.`"
-      confirm-text="Yes, Delete Vehicle"
+      :is-open="isConfirmApproveOpen"
+      title="Approve Vehicle Registration"
+      :message="`Are you sure you want to approve the vehicle ${itemToActOn?.vehiclePlate} for ${itemToActOn?.fullName}?`"
+      confirm-text="Yes, Approve Vehicle"
+      cancel-text="Cancel"
+      variant="success"
+      @confirm="handleConfirmApprove"
+      :is-submitting="isReviewing"
+      @close="isConfirmApproveOpen = false"
+    />
+
+    <!-- Reject Confirmation Dialog -->
+    <ConfirmModal
+      :is-open="isConfirmRejectOpen"
+      title="Reject Vehicle Submission"
+      :message="`Are you sure you want to reject the vehicle submission for ${itemToActOn?.fullName}?`"
+      confirm-text="Reject Vehicle"
       cancel-text="Cancel"
       variant="danger"
-      :is-submitting="isDeletingVehicle"
-      @confirm="confirmDeleteVehicle"
-      @close="isDeleteConfirmOpen = false"
-    />
+      :is-submitting="isReviewing"
+      @confirm="handleConfirmReject"
+      @close="isConfirmRejectOpen = false"
+    >
+      <div class="mt-3">
+        <label class="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+          Reason for rejection / feedback:
+        </label>
+        <textarea
+          v-model="rejectFeedbackReason"
+          rows="3"
+          class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500"
+          placeholder="e.g. Expired OR/CR, unclear plate number photo..."
+        ></textarea>
+      </div>
+    </ConfirmModal>
+    <ConfirmModal :is-open="!!vehicleToDelete" title="Delete Vehicle?"
+      message="This permanently removes the selected vehicle."
+      confirm-text="Delete Vehicle" variant="danger" :is-submitting="isDeleting"
+      @confirm="deleteVehicle" @close="vehicleToDelete = null">
+      <p class="text-sm text-slate-600 dark:text-slate-300">{{ vehicleToDelete?.vehiclePlate }} — {{ vehicleToDelete?.fullName }}</p>
+    </ConfirmModal>
   </div>
 </template>

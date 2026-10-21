@@ -41,12 +41,7 @@ function formatStatusText(status?: string): string {
 function displayStatus(u?: UserWithDetails | null): string {
   if (!u) return 'NotSubmitted'
   if (u.status === 'Suspended') return 'Suspended'
-  if (u.role === 'Student') {
-    if (u.corVerificationStatus === 'Verified') return 'Approved'
-    if (u.corVerificationStatus === 'Pending') return 'Pending'
-    if (u.corVerificationStatus === 'Rejected') return 'Rejected'
-    if (u.corVerificationStatus === 'NotSubmitted') return 'NotSubmitted'
-  }
+  if (u.role === 'Student') return u.status === 'Active' ? 'Approved' : 'Pending'
   if (u.status === 'Active') return 'Approved'
   if (u.status === 'PendingVerification') return 'Pending'
   return u.status || 'Approved'

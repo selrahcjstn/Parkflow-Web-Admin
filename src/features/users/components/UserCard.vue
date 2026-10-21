@@ -20,12 +20,7 @@ const emit = defineEmits<{
 
 function displayStatus(u: UserWithDetails): string {
   if (u.status === 'Suspended') return 'Suspended'
-  if (u.role === 'Student') {
-    if (u.corVerificationStatus === 'Verified') return 'Approved'
-    if (u.corVerificationStatus === 'Pending') return 'Pending'
-    if (u.corVerificationStatus === 'Rejected') return 'Rejected'
-    if (u.corVerificationStatus === 'NotSubmitted') return 'NotSubmitted'
-  }
+  if (u.role === 'Student') return u.status === 'Active' ? 'Approved' : 'Pending'
   if (u.status === 'Active') return 'Approved'
   if (u.status === 'PendingVerification') return 'Pending'
   return u.status || 'Approved'
@@ -121,25 +116,8 @@ function getRoleLabel(role: string): string {
       </button>
 
       <div class="flex items-center gap-1">
-        <!-- Quick Approve / Reject for Student Pending -->
-        <template v-if="user.role === 'Student' && displayStatus(user) === 'Pending'">
-          <button
-            type="button"
-            title="Approve Registration"
-            @click="emit('approve', user)"
-            class="px-2 py-1 rounded-md bg-emerald-600 text-white font-semibold text-[11px] hover:bg-emerald-700 transition-colors cursor-pointer border-none mr-1"
-          >
-            Approve
-          </button>
-          <button
-            type="button"
-            title="Reject Registration"
-            @click="emit('reject', user)"
-            class="px-2 py-1 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 font-semibold text-[11px] hover:bg-rose-100 transition-colors cursor-pointer border border-rose-200/80 mr-1"
-          >
-            Reject
-          </button>
-        </template>
+        <RouterLink v-if="user.role === 'Student' && displayStatus(user) === 'Pending'"
+          to="/vehicles?status=pending" class="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px] no-underline">Review Vehicle</RouterLink>
 
         <button
           type="button"

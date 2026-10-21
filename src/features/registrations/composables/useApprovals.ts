@@ -2,7 +2,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api, { refreshAdminData } from '@/api/axios'
 import type { ApprovalItem, ApprovalCategory, ScheduleItem } from '../types'
 import { formatDocUrl } from '@/utils/documentUrl'
-import { cachedApprovals } from '@/stores/appCache'
+import { cachedApprovals, cachedVehicleApprovals } from '@/stores/appCache'
 import { useAdminNotificationStore } from '@/stores/notification.store'
 
 export function useApprovals(categoryFilter?: ApprovalCategory) {
@@ -29,6 +29,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         categoryFilter === 'Vehicle' ? Promise.resolve({ data: [] }) : api.get('/verification/records'),
       ])
       const cors = list(corRes), vehicles = list(vehicleRes), users = list(usersRes), records = list(recordsRes)
+      if (categoryFilter === 'Vehicle') cachedVehicleApprovals.value = [...vehicles]
       currentRecords = records
       const record = (type: string, id: string) => records.find(r => r.type === type && r.subjectId === id)
       const result: ApprovalItem[] = []

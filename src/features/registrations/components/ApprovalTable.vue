@@ -130,6 +130,7 @@ const columns: TableColumn[] = [
               Reject
             </UiButton>
           </template>
+          <slot name="extra-actions" :item="item" />
         </div>
       </template>
     </UiTable>

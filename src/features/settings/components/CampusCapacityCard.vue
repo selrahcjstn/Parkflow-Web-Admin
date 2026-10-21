@@ -10,11 +10,12 @@ const props = defineProps<{
     academicYear: string
     currentSemester: string
     totalCapacity: number
-    reservationAllocationPercent: number
+    reservationAllocationSlots: number
     maxVehiclesPerUser: number
     lastResetDate?: string
   }
   isSaving?: boolean
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -23,193 +24,173 @@ const emit = defineEmits<{
   (e: 'update-reservation-allocation', value: number): void
 }>()
 
+const academicYearOptions = computed(() => {
+  const year = new Date().getFullYear()
+  const years = new Set(Array.from({ length: 8 }, (_, i) => `${year - 2 + i}-${year - 1 + i}`))
+  // Keep an existing configured year selectable even outside the rolling range.
+  if (/^\d{4}-\d{4}$/.test(props.settings.academicYear)) years.add(props.settings.academicYear)
+  return [...years].sort().map((value) => ({ label: value, value }))
+})
+
 const semesterOptions = [
   { label: '1st Semester', value: '1st Semester' },
   { label: '2nd Semester', value: '2nd Semester' },
-  { label: 'Summer Term / Midyear', value: 'Summer Term' }
+  { label: 'Summer / Midyear', value: 'Summer' },
 ]
 
-const reservationCapacity = computed(() => Math.floor(Math.max(0, Number(props.settings.totalCapacity))
-  * Math.min(100, Math.max(0, Number(props.settings.reservationAllocationPercent))) / 100))
+const allocationError = computed(() => {
+  const slots = props.settings.reservationAllocationSlots
+  return !Number.isInteger(slots) || slots < 0 || slots > props.settings.totalCapacity
+    ? 'Enter a whole number from 0 to the total parking capacity.'
+    : ''
+})
 
 const formattedResetDate = computed(() => {
   if (!props.settings.lastResetDate) return 'No reset record found'
-  try {
-    const d = new Date(props.settings.lastResetDate)
-    if (isNaN(d.getTime())) return props.settings.lastResetDate
-    return d.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    })
-  } catch {
-    return props.settings.lastResetDate
-  }
+  const date = new Date(props.settings.lastResetDate)
+  if (isNaN(date.getTime())) return props.settings.lastResetDate
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  })
 })
 </script>
 
 <template>
-  <UiCard custom-class="p-6 space-y-5">
-    <!-- Header with BulSU Red Badge -->
-    <div class="flex items-center justify-between gap-3">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 flex items-center justify-center text-[#7B1113] dark:text-[#E25C65]">
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-sm font-bold text-slate-900 dark:text-white">Campus Capacity & Semester Cycle</h3>
-          <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Manage overall parking bay capacity, vehicle quotas, and academic term schedules
-          </p>
-        </div>
-      </div>
+  <UiCard custom-class="p-4 sm:p-6">
+    <div class="border-b border-border pb-4">
+      <h3 class="text-base font-semibold text-text">Campus capacity &amp; academic term</h3>
+      <p class="mt-1 text-sm text-muted">
+        Set parking limits and the academic term required for student CORs.
+      </p>
     </div>
 
-    <!-- Active Term & Capacity Status Overview Bar -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
-      <div class="flex flex-col">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Academic Year</span>
-        <span class="font-bold text-slate-900 dark:text-white">{{ settings.academicYear || 'Not Set' }}</span>
+    <section
+      class="grid gap-4 border-b border-border py-5 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-8"
+    >
+      <div>
+        <h4 class="text-sm font-semibold text-text">Academic term</h4>
+        <p class="mt-1 text-xs leading-relaxed text-muted">
+          Uploaded CORs must match both selections.
+        </p>
       </div>
-      <div class="flex flex-col">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active Term</span>
-        <span class="font-bold text-[#7B1113] dark:text-[#E25C65]">{{ settings.currentSemester || '1st Semester' }}</span>
+      <div class="grid max-w-xl gap-4 sm:grid-cols-2">
+        <UiSelect
+          v-model="settings.academicYear"
+          label="Academic year"
+          :options="academicYearOptions"
+          :disabled="disabled"
+          required
+        />
+        <UiSelect
+          v-model="settings.currentSemester"
+          label="Current semester"
+          :options="semesterOptions"
+          :disabled="disabled"
+          required
+        />
       </div>
-      <div class="flex flex-col">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bay Capacity</span>
-        <span class="font-bold text-slate-900 dark:text-white">{{ settings.totalCapacity || 500 }} Slots</span>
-      </div>
-    </div>
+    </section>
 
-    <div class="space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <!-- Total Capacity -->
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Total Campus Bay Capacity
-          </label>
+    <section
+      class="grid gap-4 border-b border-border py-5 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-8"
+    >
+      <div>
+        <h4 class="text-sm font-semibold text-text">Parking capacity</h4>
+        <p class="mt-1 text-xs leading-relaxed text-muted">
+          Reservation spaces are included in the campus total.
+        </p>
+      </div>
+      <div class="max-w-xl space-y-4">
+        <div class="grid gap-4 sm:grid-cols-2">
           <UiInput
             v-model.number="settings.totalCapacity"
+            label="Total parking spaces"
             type="number"
-            size="md"
-            min="10"
-            placeholder="500"
+            min="1"
+            step="1"
+            :disabled="disabled"
+            required
+          />
+          <UiInput
+            :model-value="settings.reservationAllocationSlots"
+            @update:model-value="emit('update-reservation-allocation', Number($event))"
+            label="Reservation spaces"
+            type="number"
+            min="0"
+            :max="settings.totalCapacity"
+            step="1"
+            :error="allocationError"
+            hint="Set to 0 to disable new reservations."
+            :disabled="disabled"
+            required
           />
         </div>
-
-        <!-- Max Vehicles per user -->
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Max Vehicles Per User
-          </label>
+        <div class="rounded-lg border border-border bg-surface-muted px-3 py-2.5">
+          <p class="text-sm font-medium text-text">
+            {{ settings.reservationAllocationSlots }} reservation spaces out of
+            {{ settings.totalCapacity }} total spaces
+          </p>
+          <p class="mt-1 text-xs leading-relaxed text-muted">
+            Pending and approved bookings count during their time window. A space becomes available
+            again when a booking ends.
+          </p>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
           <UiInput
             v-model.number="settings.maxVehiclesPerUser"
+            label="Maximum vehicles per user"
             type="number"
-            size="md"
             min="1"
-            placeholder="5"
+            step="1"
+            :disabled="disabled"
           />
         </div>
       </div>
+    </section>
 
-      <div class="rounded-card border border-border bg-surface-muted p-4 space-y-3">
-        <UiInput
-          :model-value="settings.reservationAllocationPercent"
-          @update:model-value="emit('update-reservation-allocation', Number($event))"
-          label="Reservation allocation (%)"
-          type="number" min="0" max="100" step="1"
-          hint="Percentage of total campus spaces available for overlapping reservations. 0% disables new reservations."
-        />
-        <p class="text-sm font-semibold text-text">{{ reservationCapacity }} reservation spaces out of {{ settings.totalCapacity }} total spaces</p>
-        <p class="text-xs text-muted">These are included in total parking capacity, not additional spaces. Pending and approved bookings count. Spaces can be reserved again after a booking ends.</p>
+    <section class="grid gap-4 py-5 lg:grid-cols-[190px_minmax(0,1fr)] lg:gap-8">
+      <div>
+        <h4 class="text-sm font-semibold text-text">Semester transition</h4>
+        <p class="mt-1 text-xs leading-relaxed text-muted">Start a new COR submission cycle.</p>
       </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <!-- Academic Year -->
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Academic Year
-          </label>
-          <UiInput
-            v-model="settings.academicYear"
-            type="text"
-            placeholder="e.g. 2026-2027"
-            size="md"
-          />
-        </div>
-
-        <!-- Current Semester -->
-        <div>
-          <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-            Current Academic Term
-          </label>
-          <UiSelect
-            v-model="settings.currentSemester"
-            :options="semesterOptions"
-            size="md"
-          />
-        </div>
-      </div>
-
-      <!-- Semester Reset Callout -->
-      <div class="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
-        <div class="space-y-1">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-bold text-amber-900 dark:text-amber-200">Semester Transition Reset</span>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200/60 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200">Term Action</span>
-          </div>
-          <p class="text-[11px] text-amber-700 dark:text-amber-300">
-            Resets all student class schedule records and COR clearance states for the new semester cycle.
+      <div
+        class="max-w-xl rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30"
+      >
+        <p class="text-xs leading-relaxed text-amber-800 dark:text-amber-200">
+          Resets student schedule and COR clearance states. Students will need to upload their COR
+          for the new semester.
+        </p>
+        <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <p class="text-xs text-amber-700 dark:text-amber-300">
+            Last reset: {{ formattedResetDate }}
           </p>
-          <div class="flex items-center gap-1.5 text-[10.5px] text-amber-800 dark:text-amber-400 font-medium pt-0.5">
-            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <span>Last Term Reset: <strong>{{ formattedResetDate }}</strong></span>
-          </div>
+          <UiButton
+            variant="danger"
+            size="sm"
+            :disabled="disabled"
+            @click="emit('open-reset-modal')"
+          >
+            Reset schedules
+          </UiButton>
         </div>
-        <UiButton
-          variant="danger"
-          size="sm"
-          @click="emit('open-reset-modal')"
-        >
-          <template #prefix>
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-            </svg>
-          </template>
-          Reset Schedules
-        </UiButton>
       </div>
+    </section>
 
-      <!-- Card Action Footer -->
-      <div class="pt-2 flex justify-end">
-        <UiButton
-          variant="primary"
-          size="sm"
-          :loading="isSaving"
-          @click="emit('save')"
-        >
-          <template #prefix>
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-          </template>
-          Save Capacity & Term
-        </UiButton>
-      </div>
+    <div class="flex justify-end border-t border-border pt-4">
+      <UiButton
+        variant="primary"
+        size="sm"
+        :loading="isSaving"
+        :disabled="disabled || !!allocationError"
+        @click="emit('save')"
+      >
+        Save capacity &amp; term
+      </UiButton>
     </div>
   </UiCard>
 </template>

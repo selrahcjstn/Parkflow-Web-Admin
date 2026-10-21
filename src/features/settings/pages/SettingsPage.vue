@@ -5,7 +5,6 @@ import api from '@/api/axios'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTabs, { type TabItem } from '@/components/ui/UiTabs.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import VerificationSettingsCard from '../components/VerificationSettingsCard.vue'
 import OverstayFeeCard from '../components/OverstayFeeCard.vue'
 import CampusCapacityCard from '../components/CampusCapacityCard.vue'
 import SystemAnnouncementCard from '../components/SystemAnnouncementCard.vue'
@@ -26,7 +25,7 @@ interface SystemSettings {
   currentSemester: string
   lastResetDate?: string
   totalCapacity: number
-  reservationAllocationPercent: number
+  reservationAllocationSlots: number
   maxVehiclesPerUser: number
   maintenanceMode: boolean
   rfidInstantScanEnabled: boolean
@@ -50,7 +49,7 @@ const settings = ref<SystemSettings>({
   academicYear: '2026-2027',
   currentSemester: '1st Semester',
   totalCapacity: 500,
-  reservationAllocationPercent: 30,
+  reservationAllocationSlots: 150,
   maxVehiclesPerUser: 5,
   maintenanceMode: false,
   rfidInstantScanEnabled: true,
@@ -91,6 +90,13 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
+  if (!Number.isInteger(settings.value.totalCapacity) || settings.value.totalCapacity < 1
+    || !Number.isInteger(settings.value.reservationAllocationSlots)
+    || settings.value.reservationAllocationSlots < 0
+    || settings.value.reservationAllocationSlots > settings.value.totalCapacity) {
+    showNotification('Enter a total capacity of at least 1 and a whole number of reservation spaces between 0 and the total capacity.', 'error')
+    return
+  }
   isSaving.value = true
   try {
     const response = await api.put('/system-settings', settings.value)
@@ -238,7 +244,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="mx-auto w-full max-w-5xl space-y-5">
     <!-- Notification Toast -->
     <Transition name="fade">
       <div
@@ -277,12 +283,11 @@ onMounted(() => {
 
     <!-- Main SuperAdmin Settings Form -->
     <template v-else>
-      <VerificationSettingsCard />
       <!-- Page Header -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-            System Settings & Customization
+            System Settings
           </h1>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
             Manage campus capacity, semester transitions, billing policies, and system announcements.
@@ -290,7 +295,7 @@ onMounted(() => {
         </div>
 
         <div class="flex items-center gap-3">
-          <UiButton variant="primary" :loading="isSaving" @click="saveSettings">
+          <UiButton variant="primary" :loading="isSaving" :disabled="isLoading" @click="saveSettings">
             Save All Settings
           </UiButton>
         </div>
@@ -306,9 +311,10 @@ onMounted(() => {
         <!-- 1. Campus Capacity & Semester Cycle Tab -->
         <div v-show="activeTab === 'capacity'">
           <CampusCapacityCard
+            :disabled="isLoading"
             :settings="settings"
             :is-saving="isSaving"
-            @update-reservation-allocation="settings.reservationAllocationPercent = $event"
+            @update-reservation-allocation="settings.reservationAllocationSlots = $event"
             @save="saveSettings"
             @open-reset-modal="showResetModal = true"
           />

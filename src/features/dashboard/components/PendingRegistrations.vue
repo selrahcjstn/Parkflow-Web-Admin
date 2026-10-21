@@ -27,7 +27,7 @@ const pendingCount = computed(() => pendingRegistrations.value.length)
 const displayedRegistrations = computed(() => pendingRegistrations.value.slice(0, 4))
 
 function goToRegistrations() {
-  router.push('/vehicle-approvals')
+  router.push('/vehicles?status=pending')
 }
 
 async function fetchPendingRegistrations() {
