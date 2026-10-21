@@ -22,6 +22,10 @@ export interface ApprovalItem {
   vehicleType: string | number
   brand: string
   corUrl?: string
+  licenseUrl?: string
+  profilePhotoUrl?: string
+  licenseStatus?: number | string
+  licenseRejectionReason?: string
   orcrUrl?: string
   motorPicUrl?: string
   schedules?: ScheduleItem[]

@@ -165,9 +165,9 @@ const feeCalculationModeOptions = [
 
       <section class="space-y-4 border-t border-border pt-4">
         <div>
-          <h4 class="text-sm font-semibold text-text">Faculty &amp; university staff parking</h4>
+          <h4 class="text-sm font-semibold text-text">University staff parking</h4>
           <p class="mt-1 text-sm leading-relaxed text-muted">
-            Registered faculty and staff may enter anytime with an approved employee ID and vehicle.
+            Faculty are exempt from all parking charges. Other university staff may enter anytime with an approved employee ID, license and vehicle.
             These free parking hours apply every day, including Sunday. No uploaded schedule is
             required.
           </p>

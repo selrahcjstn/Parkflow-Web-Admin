@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
+import api from '@/api/axios'
 import type { ApprovalItem, ScheduleItem } from '../types'
 import ScheduleEditor from './ScheduleEditor.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -22,7 +23,26 @@ const emit = defineEmits<{
   (e: 'zoomImage', url: string): void
 }>()
 
-const activeDocType = ref<'schedule' | 'cor' | 'orcr' | 'motorPic'>('cor')
+const activeDocType = ref<'schedule' | 'cor' | 'orcr' | 'motorPic' | 'license' | 'profilePhoto'>('cor')
+
+const privateLicenseUrl = ref('')
+const licenseLoading = ref(false)
+const licenseError = ref('')
+let licenseRequest = 0
+async function loadLicense() {
+  const request = ++licenseRequest
+  privateLicenseUrl.value = ''; licenseError.value = ''
+  if (!props.isOpen || !props.item?.licenseUrl?.startsWith('private-uploads/')) return
+  licenseLoading.value = true
+  try {
+    const result = await api.get('/files/document/url', { params: { url: props.item.licenseUrl } })
+    if (request === licenseRequest) privateLicenseUrl.value = result.data.url || ''
+  } catch { if (request === licenseRequest) licenseError.value = 'Could not open the license. Refresh the document and try again.' }
+  finally { if (request === licenseRequest) licenseLoading.value = false }
+}
+watch([() => props.isOpen, () => props.item?.licenseUrl, activeDocType], () => { void loadLicense() }, { immediate: true })
+const activeUrl = computed(() => activeDocType.value === 'license' ? (props.item?.licenseUrl?.startsWith('private-uploads/') ? privateLicenseUrl.value : props.item?.licenseUrl) : activeDocType.value === 'profilePhoto' ? props.item?.profilePhotoUrl : activeDocType.value === 'cor' ? props.item?.corUrl : activeDocType.value === 'orcr' ? props.item?.orcrUrl : props.item?.motorPicUrl)
+const activeLabel = computed(() => activeDocType.value === 'license' ? 'Driver’s license' : activeDocType.value === 'profilePhoto' ? 'Profile photo' : activeDocType.value === 'orcr' ? 'OR/CR document' : 'Vehicle photo')
 
 watch(
   () => props.item,
@@ -101,6 +121,11 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         </div>
       </div>
 
+      <div v-if="item.category === 'Vehicle'" class="text-sm text-slate-600 dark:text-slate-300">
+        Review the driver’s valid license and face photo with the OR/CR and vehicle photo before approval.
+        <p v-if="!item.licenseUrl || !item.profilePhotoUrl" class="mt-1 text-amber-700 dark:text-amber-300">The driver must submit the missing license or profile photo before approval and entry.</p>
+        <p v-if="item.licenseRejectionReason" class="mt-1 text-red-700 dark:text-red-300">License review: {{ item.licenseRejectionReason }}</p>
+      </div>
       <!-- Document Tabs Switcher -->
       <div class="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 flex-wrap">
         <template v-if="item.category === 'Registration'">
@@ -183,6 +208,8 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         </template>
 
         <template v-else-if="item.category === 'Vehicle'">
+          <UiButton :variant="activeDocType === 'license' ? 'primary' : 'secondary'" size="sm" @click="activeDocType = 'license'">Driver’s license</UiButton>
+          <UiButton :variant="activeDocType === 'profilePhoto' ? 'primary' : 'secondary'" size="sm" @click="activeDocType = 'profilePhoto'">Profile photo</UiButton>
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
@@ -213,25 +240,29 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
       <!-- Preview Display Box -->
       <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 p-4 min-h-[340px]">
+        <div v-if="activeDocType === 'license' && (licenseLoading || licenseError)" class="p-6 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+          <p>{{ licenseLoading ? 'Loading private license…' : licenseError }}</p>
+          <UiButton v-if="licenseError" variant="secondary" size="sm" @click="loadLicense">Refresh document</UiButton>
+        </div>
         <!-- 1. Schedule editor -->
         <ScheduleEditor
-          v-if="activeDocType === 'schedule'"
+          v-else-if="activeDocType === 'schedule'"
           :schedules="item.schedules"
           read-only
           @save="emit('saveSchedule', item, $event)"
         />
 
         <!-- 2. COR or PDF Document Preview -->
-        <div v-else-if="activeDocType === 'cor' || (activeDocType === 'orcr' && isPdfDoc(item.orcrUrl))" class="space-y-3">
-          <template v-if="(activeDocType === 'cor' ? item.corUrl : item.orcrUrl)">
+        <div v-else-if="activeDocType === 'cor' || isPdfDoc(activeUrl)" class="space-y-3">
+          <template v-if="activeUrl">
             <iframe
-              :src="activeDocType === 'cor' ? item.corUrl : item.orcrUrl"
+              :src="activeUrl"
               class="w-full h-[400px] rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
               title="Verification PDF Document"
             ></iframe>
             <div class="flex items-center justify-end gap-2">
               <a
-                :href="activeDocType === 'cor' ? item.corUrl : item.orcrUrl"
+                :href="activeUrl"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="px-3 py-1.5 rounded-lg bg-[#7B1113] hover:bg-[#6C0F11] text-white text-xs font-semibold transition-colors no-underline"
@@ -239,7 +270,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
                 Open in New Tab
               </a>
               <a
-                :href="getDocDownloadUrl(activeDocType === 'cor' ? item.corUrl : item.orcrUrl)"
+                :href="getDocDownloadUrl(activeUrl)"
                 download
                 class="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-colors no-underline"
               >
@@ -257,12 +288,12 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
         <!-- 3. Image preview (OR/CR or Vehicle Photo) -->
         <div v-else class="flex flex-col items-center justify-center p-4">
-          <template v-if="(activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl)">
+          <template v-if="activeUrl">
             <img
-              :src="activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl"
-              :alt="activeDocType === 'orcr' ? 'OR/CR Receipt' : 'Vehicle Photo'"
+              :src="activeUrl"
+              :alt="activeLabel"
               class="max-h-[380px] max-w-full object-contain rounded-xl shadow-md cursor-pointer hover:opacity-95 transition-opacity"
-              @click="emit('zoomImage', (activeDocType === 'orcr' ? item.orcrUrl : item.motorPicUrl) || '')"
+              @click="emit('zoomImage', activeUrl || '')"
             />
             <p class="text-xs text-slate-400 mt-2">Click image to view full resolution</p>
           </template>
@@ -270,7 +301,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             <svg class="w-12 h-12 mb-2 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <span class="text-sm font-medium">{{ activeDocType === 'orcr' ? 'No OR/CR Document Uploaded' : 'No Vehicle Photo Uploaded' }}</span>
+            <span class="text-sm font-medium">No {{ activeLabel }} uploaded</span>
           </div>
         </div>
       </div>
@@ -302,6 +333,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             type="button"
             variant="success"
             size="md"
+            :disabled="item.category === 'Vehicle' && (!item.licenseUrl || !item.profilePhotoUrl || !item.orcrUrl || !item.motorPicUrl)"
             @click="emit('approve', item)"
           >
             Approve & Verify

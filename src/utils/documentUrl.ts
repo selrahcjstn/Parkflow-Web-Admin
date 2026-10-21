@@ -10,6 +10,7 @@
 export function isPdfDoc(url?: string): boolean {
   if (!url) return false
   const lower = url.toLowerCase().trim()
+  if (lower.includes("format=image")) return false
   return (
     lower.endsWith('.pdf') ||
     lower.includes('/raw/upload/') ||

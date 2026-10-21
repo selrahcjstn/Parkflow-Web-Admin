@@ -41,6 +41,8 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         academicTerm: cor?.academicTerm, corGuid: cor?.id, vehicleGuid: v?.id,
         vehiclePlate: v?.plateNumber || cor?.vehiclePlate || '—', vehicleType: v?.vehicleType ?? cor?.vehicleType ?? '',
         brand: v?.brand || cor?.brand || '—', corUrl: formatDocUrl(cor?.corDocumentUrl || '', ''),
+        licenseUrl: v?.driversLicenseUrl?.startsWith('private-uploads/') ? v.driversLicenseUrl : formatDocUrl(v?.driversLicenseUrl || '', ''), profilePhotoUrl: formatDocUrl(v?.profilePictureUrl || '', ''),
+        licenseStatus: v?.licenseStatus, licenseRejectionReason: v?.licenseRejectionReason,
         orcrUrl: formatDocUrl(v?.orcrDocumentUrl || cor?.orcrDocumentUrl || '', ''),
         motorPicUrl: formatDocUrl(v?.vehiclePictureUrl || cor?.motorPictureUrl || '', ''),
         schedules: (cor?.schedules || []).map((s: any) => ({ dayOfWeek: typeof s.dayOfWeek === 'number' ? s.dayOfWeek :
@@ -65,7 +67,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           verificationStatus: state === 'approved' ? 2 : state === 'rejected' ? 3 : 1 })
       }
       for (const v of vehicles) {
-        const state = status(v.verificationStatus)
+        const state = status(v.verificationStatus) === 'approved' && (!v.driversLicenseUrl || !v.profilePictureUrl || ![2, 'Verified'].includes(v.licenseStatus)) ? 'pending' : status(v.verificationStatus)
         result.push({ ...base(users.find(u => u.id === v.ownerId), undefined, v), id: v.id, guid: v.id, category: 'Vehicle',
           status: state, verificationStatus: state === 'approved' ? 2 : state === 'rejected' ? 3 : 1 })
       }
@@ -88,7 +90,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
     apiErrorNotice.value = null; actionSuccessMsg.value = null
     try {
       if (item.category === 'Registration') await review('Account', item.userId || item.guid, 'Approved', 'Institutional identity reviewed by an administrator.')
-      else if (item.category === 'Vehicle') await review('Vehicle', item.vehicleGuid || item.guid, 'Approved', 'Ownership documents reviewed by an administrator.')
+      else if (item.category === 'Vehicle') await review('Vehicle', item.vehicleGuid || item.guid, 'Approved', 'Valid driver’s license, profile photo and vehicle ownership documents reviewed by an administrator.')
       else {
         const corRecord = currentRecords.find(r => r.type === 'Cor' && r.subjectId === (item.corGuid || item.guid))
         if (corRecord?.status !== 'Approved') {

@@ -167,7 +167,7 @@ async function deleteVehicle() {
           Vehicles
         </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Manage registered vehicles and review their OR/CR documents and vehicle photos.
+          Review driver’s licenses, profile photos, OR/CR documents and vehicle photos.
         </p>
       </div>
     </div>
@@ -252,7 +252,7 @@ async function deleteVehicle() {
         ]" />
         <UiSelect v-model="selectedVehicleType" label="Vehicle type" class="w-40" :options="[
           { label: 'All types', value: 'all' }, { label: 'Motorcycle', value: 'Motorcycle' },
-          { label: 'Car', value: 'Car' }, { label: 'E-Bike', value: 'E-Bike' }
+          { label: 'Car', value: 'Car' }
         ]" />
       </template>
     </ApprovalFilterBar>
@@ -335,7 +335,7 @@ async function deleteVehicle() {
     <ConfirmModal
       :is-open="isConfirmApproveOpen"
       title="Approve Vehicle Registration"
-      :message="`Are you sure you want to approve the vehicle ${itemToActOn?.vehiclePlate} for ${itemToActOn?.fullName}?`"
+      :message="`Confirm that you checked the valid driver’s license, profile photo, OR/CR and vehicle photo for ${itemToActOn?.fullName}, vehicle ${itemToActOn?.vehiclePlate}. Approval also verifies this driver’s license.`"
       confirm-text="Yes, Approve Vehicle"
       cancel-text="Cancel"
       variant="success"
