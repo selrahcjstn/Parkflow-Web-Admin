@@ -21,7 +21,7 @@ const violColumns: TableColumn[] = [
   { key: 'owner', label: 'Owner' },
   { key: 'role', label: 'Role' },
   { key: 'type', label: 'Violation Type' },
-  { key: 'fine', label: 'Penalty Fine' },
+  { key: 'fine', label: 'Penalty' },
   { key: 'issuedAt', label: 'Issued At' },
   { key: 'status', label: 'Status' },
   { key: 'actions', label: 'Actions', align: 'right' },
