@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import UiCard from '@/components/ui/UiCard.vue'
 import UiAvatar from '@/components/ui/UiAvatar.vue'
-import UiBadge from '@/components/ui/UiBadge.vue'
 import UiStatusText from '@/components/ui/UiStatusText.vue'
 import type { UserWithDetails } from '../types'
 import { getRoleLabel } from '@/utils/role'
@@ -91,9 +90,6 @@ function displayStatus(u?: UserWithDetails | null): string {
         <UiStatusText :variant="getStatusBadgeVariant(displayStatus(user))" size="sm">
           {{ formatStatusText(displayStatus(user)) }}
         </UiStatusText>
-        <UiBadge v-if="user.status === 'Suspended'" variant="danger" size="sm">
-          Account Suspended
-        </UiBadge>
       </div>
     </div>
   </UiCard>

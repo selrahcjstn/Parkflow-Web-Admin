@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/api/axios'
+import { updateUserStatus } from '../services/userStatus.service'
 import { cachedUsers } from '@/stores/appCache'
 import type { UserWithDetails, AccountStatus } from '../types'
 import { getRoleLabel } from '@/utils/role'
@@ -161,52 +162,16 @@ onMounted(async () => {
   isLoading.value = true
   errorMessage.value = null
 
-  // 1. Check history.state.user passed via router.push
-  const stateUser = history.state?.user
-  if (stateUser) {
-    user.value = mapRawUser(stateUser)
-    await loadCorAndSchedulesFallback()
-    isLoading.value = false
-    return
-  }
-
-  // 2. Check cachedUsers
-  if (cachedUsers.value && cachedUsers.value.length > 0) {
-    const found = cachedUsers.value.find((x: any) => String(x.id) === userId.value)
-    if (found) {
-      user.value = mapRawUser(found)
-      await loadCorAndSchedulesFallback()
-      isLoading.value = false
-      return
-    }
-  }
-
-  // 3. Fallback API Request
+  // Always load the persisted account rather than stale navigation state.
   try {
     const response = await api.get(`/users/${userId.value}`)
-    const data =
-      response.data?.isSuccess && response.data?.data ? response.data.data : response.data
-    if (data) {
-      user.value = mapRawUser(data)
-      await loadCorAndSchedulesFallback()
-    } else {
-      const listRes = await api.get('/users')
-      const list = Array.isArray(listRes.data?.data)
-        ? listRes.data.data
-        : Array.isArray(listRes.data)
-          ? listRes.data
-          : []
-      const match = list.find((u: any) => String(u.id) === userId.value)
-      if (match) {
-        user.value = mapRawUser(match)
-        await loadCorAndSchedulesFallback()
-      } else {
-        errorMessage.value = 'User record not found.'
-      }
-    }
+    if (!response.data?.isSuccess || !response.data.data)
+      throw new Error(response.data?.message || 'User record not found.')
+    user.value = mapRawUser(response.data.data)
+    await loadCorAndSchedulesFallback()
   } catch (err: any) {
     console.error('Error loading user details:', err)
-    errorMessage.value = err.response?.data?.message || 'Failed to load user record details.'
+    errorMessage.value = err.response?.data?.message || err.message || 'Failed to load user record details.'
   } finally {
     isLoading.value = false
   }
@@ -247,24 +212,22 @@ async function confirmStatusChange() {
   const newStatus = targetStatusToApply.value
 
   try {
-    await api.put(`/users/${user.value.id}/status`, { status: newStatus })
-    user.value.status = newStatus
+    const savedStatus = await updateUserStatus(user.value.id, newStatus)
+    user.value.status = savedStatus
 
     if (cachedUsers.value) {
       const idx = cachedUsers.value.findIndex((u: any) => String(u.id) === String(user.value?.id))
       if (idx !== -1) {
-        cachedUsers.value[idx] = { ...cachedUsers.value[idx], status: newStatus }
+        cachedUsers.value[idx] = { ...cachedUsers.value[idx], status: savedStatus }
       }
     }
 
     showToast(
-      `Account status updated to ${newStatus}.`,
-      newStatus === 'Active' ? 'success' : 'error',
+      `Account status updated to ${savedStatus === 'PendingVerification' ? 'Pending Verification' : savedStatus}.`,
+      'success',
     )
   } catch (err: any) {
-    console.warn('Status update API error, updating state locally:', err)
-    user.value.status = newStatus
-    showToast(`Account status set to ${newStatus}.`, newStatus === 'Active' ? 'success' : 'error')
+    showToast(err.response?.data?.message || err.message || 'Could not update account status.', 'error')
   } finally {
     isUpdatingStatus.value = false
     isStatusConfirmOpen.value = false
@@ -379,7 +342,7 @@ async function confirmStatusChange() {
       :message="
         targetStatusToApply === 'Suspended'
           ? `Are you sure you want to suspend account clearance for <strong>${user?.fullName || 'this user'}</strong>? They will be restricted from gate entry.`
-          : `Are you sure you want to reactivate clearance for <strong>${user?.fullName || 'this user'}</strong>?`
+          : `Are you sure you want to reactivate <strong>${user?.fullName || 'this user'}</strong>? Incomplete verification will restore Pending Verification.`
       "
       :confirm-text="targetStatusToApply === 'Suspended' ? 'Suspend Account' : 'Activate Account'"
       :confirm-variant="targetStatusToApply === 'Suspended' ? 'danger' : 'primary'"
