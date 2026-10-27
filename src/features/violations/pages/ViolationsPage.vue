@@ -263,7 +263,7 @@ function handleRefresh() {
           Collections & Violation Logs
         </h1>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 mb-0 max-w-2xl">
-          Track overstay citations, campus parking infractions, and process penalty settlements.
+          Historical records are read-only. Parking is free for all users.
         </p>
       </div>
 
@@ -400,7 +400,8 @@ function handleRefresh() {
               type="button"
               class="order-first p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
               aria-label="Process settlement"
-              title="Process Settlement"
+              title="Historical records are read-only"
+              disabled
               @click="openPaymentModal(item)"
             >
               <svg

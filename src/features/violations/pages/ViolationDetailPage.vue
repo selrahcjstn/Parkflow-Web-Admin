@@ -254,6 +254,8 @@ const handlePaymentSubmit = async () => {
           <UiButton
             v-if="violation && violation.settlementStatus === 'Unpaid'"
             variant="primary"
+            disabled
+            title="Historical records are read-only"
             @click="openPaymentModal"
           >
             <svg
@@ -652,6 +654,8 @@ const handlePaymentSubmit = async () => {
               <span v-else class="block break-words text-sm font-medium text-text">
                 <button
                   class="inline-flex min-h-10 items-center gap-2 text-sm font-semibold text-primary hover:underline"
+                  disabled
+                  title="Historical records are read-only"
                   @click="openPaymentModal"
                 >
                   Process Payment &rarr;

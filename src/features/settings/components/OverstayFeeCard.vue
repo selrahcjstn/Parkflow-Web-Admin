@@ -1,18 +1,11 @@
 <script setup lang="ts">
-import { parkingVehicleGroups, type VehicleParkingSettings } from '../types'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiInput from '@/components/ui/UiInput.vue'
-import UiSelect from '@/components/ui/UiSelect.vue'
 
 defineProps<{
   settings: {
-    carParking: VehicleParkingSettings
-    motorcycleParking: VehicleParkingSettings
-    violationRatePerHour: number
-    feeCalculationMode: 'per_hour' | 'per_day' | 'one_time' | 'one_time_hourly' | 'no_fee'
     personnelFreeParkingStart: string
     personnelFreeParkingEnd: string
-    baseFee: number
     isGracePeriodEnabled: boolean
     gracePeriodMinutes: number
     isEarlyParkingAllowed: boolean
@@ -27,13 +20,6 @@ const emit = defineEmits<{
   ): void
 }>()
 
-const feeCalculationModeOptions = [
-  { label: '₱ Rate Per Hour (Standard Overstay)', value: 'per_hour' },
-  { label: '₱ Fixed Rate Per Day', value: 'per_day' },
-  { label: '₱ One-Time Flat Fee', value: 'one_time' },
-  { label: '₱ One-Time Flat Fee + Hourly Surcharge', value: 'one_time_hourly' },
-  { label: 'Free Parking (No Violation Charges)', value: 'no_fee' },
-]
 </script>
 
 <template>
@@ -43,80 +29,21 @@ const feeCalculationModeOptions = [
         class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400"
       >
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="1" x2="12" y2="23" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
         </svg>
       </div>
       <div>
         <h3 class="text-sm font-bold text-slate-900 dark:text-white">
-          Overstay Fee & Timing Rules
+          Parking Timing Rules
         </h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Configure overstay penalty mode, rate, grace period, and early entry allowance
+          Configure exit grace, early entry allowance and staff timing windows
         </p>
       </div>
     </div>
 
     <div class="space-y-4">
-      <!-- Fee Calculation Mode -->
-      <div class="max-w-md">
-        <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-          Fee Calculation Mode
-        </label>
-        <UiSelect
-          v-model="settings.feeCalculationMode"
-          :options="feeCalculationModeOptions"
-          size="md"
-        />
-      </div>
-
-      <div class="grid gap-4 xl:grid-cols-2">
-        <fieldset
-          v-for="group in parkingVehicleGroups"
-          :key="group.key"
-          class="min-w-0 rounded-lg border border-border p-4"
-        >
-          <legend class="px-1 text-sm font-semibold text-text">
-            {{ group.label }} charges (₱)
-          </legend>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <UiInput
-              v-model.number="settings[group.key].violationRatePerHour"
-              label="Hourly overstay rate"
-              type="number"
-              min="0"
-              step="0.01"
-            />
-            <UiInput
-              v-model.number="settings[group.key].baseFee"
-              label="Base / flat fee"
-              type="number"
-              min="0"
-              step="0.01"
-            />
-            <UiInput
-              v-model.number="settings[group.key].entryFee"
-              label="Paid-entry / reservation fee"
-              type="number"
-              min="0"
-              step="0.01"
-            />
-            <UiInput
-              v-model.number="settings[group.key].dailyOverstayFee"
-              label="Daily late / overnight fee"
-              type="number"
-              min="0"
-              step="0.01"
-            />
-          </div>
-        </fieldset>
-      </div>
-      <p class="text-xs leading-relaxed text-muted">
-        The paid-entry fee applies to visitors, paid unscheduled entries, and reservations. Regular
-        student schedule access keeps its existing rules. Daily late / overnight fees follow the
-        existing reservation and manual-entry rules.
-      </p>
-
       <div
         class="grid max-w-xl grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100 dark:border-slate-800"
       >
@@ -167,8 +94,8 @@ const feeCalculationModeOptions = [
         <div>
           <h4 class="text-sm font-semibold text-text">University staff parking</h4>
           <p class="mt-1 text-sm leading-relaxed text-muted">
-            Faculty are exempt from all parking charges. Other university staff may enter anytime with an approved employee ID, license and vehicle.
-            These free parking hours apply every day, including Sunday. No uploaded schedule is
+            Faculty and university staff may enter anytime with an approved employee ID, license and vehicle.
+            These staff timing hours apply every day, including Sunday. No uploaded schedule is
             required.
           </p>
         </div>
@@ -182,7 +109,7 @@ const feeCalculationModeOptions = [
               })
             "
             type="time"
-            label="Free parking starts"
+            label="Staff window starts"
             required
           />
           <UiInput
@@ -194,14 +121,12 @@ const feeCalculationModeOptions = [
               })
             "
             type="time"
-            label="Free parking ends"
+            label="Staff window ends"
             required
           />
         </div>
         <p class="text-sm leading-relaxed text-muted">
-          Outside the free hours, the matching car or motorcycle hourly rate above applies per
-          started hour. An unclosed session keeps accruing charges after its entry-day cutoff until
-          exit, even when the next day's free window opens. Student and visitor rules are unchanged.
+          Parking is free for everyone. Staff timing windows remain available for operational tracking.
         </p>
       </section>
     </div>

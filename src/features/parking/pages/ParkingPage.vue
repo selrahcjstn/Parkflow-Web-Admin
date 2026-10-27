@@ -19,7 +19,6 @@ const activeColumns: TableColumn[] = [
   { key: 'entryTime', label: 'Entry Time' },
   { key: 'mustExitBy', label: 'Must Exit By' },
   { key: 'duration', label: 'Duration' },
-  { key: 'fee', label: 'Estimated Fee' },
   { key: 'status', label: 'Status' },
   { key: 'actions', label: 'Actions', align: 'right' },
 ]
@@ -30,7 +29,6 @@ const historyColumns: TableColumn[] = [
   { key: 'role', label: 'Role' },
   { key: 'timeSlot', label: 'Entry → Exit Time' },
   { key: 'duration', label: 'Duration' },
-  { key: 'fee', label: 'Fee' },
   { key: 'method', label: 'Method' },
   { key: 'status', label: 'Status' },
   { key: 'actions', label: 'Actions', align: 'right' },
@@ -368,12 +366,7 @@ const checkoutConfirmMessage = computed(() => {
   const owner = checkoutTargetSession.value.ownerName
     ? ` (${checkoutTargetSession.value.ownerName})`
     : ''
-  const amount = (checkoutTargetSession.value as any).amount
-  const feeText =
-    amount != null && Number(amount) > 0
-      ? `<br/><span style="display:inline-block; margin-top:8px; font-size:13px;" class="text-amber-600 dark:text-amber-400 font-semibold">Estimated Overstay / Parking Fee: ₱${Number(amount).toFixed(2)}</span>`
-      : ''
-  return `Are you sure you want to manually checkout vehicle <strong class="font-mono text-slate-900 dark:text-white font-bold">${plate}</strong>${owner}?<br/><span class="text-xs text-slate-500">This will record the vehicle's exit at the campus gate and finalize the active parking session.</span>${feeText}`
+  return `Are you sure you want to manually checkout vehicle <strong class="font-mono text-slate-900 dark:text-white font-bold">${plate}</strong>${owner}?<br/><span class="text-xs text-slate-500">This will record the vehicle's exit at the campus gate and finalize the active parking session.</span>`
 })
 
 const handleManualCheckout = (session: ActiveSession | ParkingHistoryItem) => {
@@ -400,11 +393,7 @@ const executeManualCheckout = async () => {
     })
 
     if (response.data && response.data.isSuccess) {
-      const fee =
-        response.data.data?.penaltyFee != null && response.data.data.penaltyFee > 0
-          ? `₱${response.data.data.penaltyFee.toFixed(2)}`
-          : 'Free'
-      showToast(`Vehicle ${plate} checked out successfully. Fee: ${fee}`, 'success')
+      showToast(`Vehicle ${plate} checked out successfully.`, 'success')
       isConfirmCheckoutOpen.value = false
       checkoutTargetSession.value = null
       await fetchParkingData()
@@ -639,11 +628,6 @@ function handleRefresh() {
           }}</span>
         </template>
 
-        <template #cell-fee="{ item }">
-          <span class="font-bold text-slate-900 dark:text-white text-xs">
-            {{ item.amount > 0 ? `₱${item.amount.toFixed(2)}` : 'Free' }}
-          </span>
-        </template>
 
         <template #cell-status="{ item }">
           <UiStatusText :variant="getStatusVariant(item.status)" size="xs">
@@ -772,11 +756,6 @@ function handleRefresh() {
           }}</span>
         </template>
 
-        <template #cell-fee="{ item }">
-          <span class="font-bold text-slate-900 dark:text-white text-xs">
-            {{ item.amount > 0 ? `₱${item.amount.toFixed(2)}` : 'Free' }}
-          </span>
-        </template>
 
         <template #cell-method="{ item }">
           <span class="text-xs text-slate-600 dark:text-slate-400">{{

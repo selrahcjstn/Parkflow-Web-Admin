@@ -1,6 +1,6 @@
 # ParkFlow — Implementation Report
 
-Date: 2026-10-28. Source: `C:/Users/Allen/Desktop/Python/campus-equipment-system/Audit_Report_v1.md`, with the subsequently confirmed business rules. Only Phase 1 is implemented. No dependencies installed, database migrations applied, or historical records deleted.
+Date: 2026-10-28. Source: `C:/Users/Allen/Desktop/Python/campus-equipment-system/Audit_Report_v1.md`, with the subsequently confirmed business rules. Phases 1 and 2 are implemented. No dependencies installed, database migrations applied, or historical records deleted.
 
 ## Phase 1 — Completed
 
@@ -44,13 +44,55 @@ Paths below are relative to their project roots under `C:/Users/Allen/Desktop/`.
 - Deploy API and admin changes together: the status endpoint's `data` changed from an ID string to `{ id, status }`. New admin code rejects the legacy response instead of guessing a status.
 - The broader COR/verification test failures above remain. Their failing code paths are unchanged; no full-suite pass is claimed. An existing nullable warning appeared while compiling the backend test project during the broader run.
 
+## Phase 2 — Completed
+
+**Audit ID:** A-R4. Fee-free workflows are implemented; historical records and schema remain intact.
+
+### Changes implemented
+
+- Removed registered/manual/visitor checkout charge creation and fee computation. Registered checkout still completes reservations and saves exit timestamps atomically; visitor checkout retains status concurrency protection. Shared checkout timing preserves existing deadlines, exit grace and operational overstay hours.
+- Removed unpaid-balance restrictions from QR/student scans, registered/manual entry, reservation creation and reservation scanning. Existing account/document, schedule, reservation, duplicate-session and capacity checks remain. Previously eligible unscheduled manual-entry exceptions no longer require fee acceptance; other schedule restrictions remain.
+- Live session amounts and compatibility fee fields are zero; checkout settlement is `NotRequired`. Legacy fee modes/rates cannot re-enable charges. Monetary compatibility fields and no-op calculator signatures remain until Phase 3; their former calculation formulas are removed. Stored historical charge amounts are still returned by historical queries, without inventing fees for new sessions.
+- Removed live fee estimates, notices, fee consent/retries and payment-based QR suppression from mobile. Removed admin rate controls and operational financial displays. Retained early-entry and exit-grace settings. Existing payment-history/Collections views remain for Phase 3; admin settlement controls are disabled and the payment endpoint now rejects mutations, keeping historical records read-only.
+
+### Files changed
+
+All paths are relative to the project roots identified in Phase 1.
+
+| Project | Files / affected groups |
+|---|---|
+| API | `ParkFlow.API/Controllers/SystemSettingsController.cs`; `ParkFlow.Application/Common/SystemSettingsStore.cs`; `Features/History/Queries/GetParkingHistoryHandler.cs`; ParkingLogs command handlers `CreateParkingLog`, `CreateManualParkingLog`, `ExitParkingLog`, `ExitManualParkingLog`; DTOs `CreateParkingLogResponse`, `ExitParkingLogResponse`; query handlers `GetActiveParkingSession`, `GetActiveSessionByVehicleId`, `VerifyStudentScan`; services `ActiveSessionTiming`, `PersonnelParkingPolicy`, `ViolationService`; reservation handlers `CreateReservation`, `VerifyReservationScan`; violation handler `ProcessViolationPayment`; visitor handlers `CreateVisitorEntry`, `ExitVisitorSession`, `GetPlateLookup`; interfaces `IParkingLogRepository`, `IVisitorRepository`; persistence repositories `ParkingLogRepository`, `VisitorRepository`. Feature paths are under `ParkFlow.Application/Features/`. |
+| API tests | Under `Test/Features/`: ParkingLogs `NoParkingFeesTests` (new), `EarlyStudentManualEntryTests`, `ExitManualParkingLogTests`, `GetSessionCountTests`, `PersonnelParkingPolicyTests`, `PersonnelSessionTests`, `VerifyStudentScanTests`; Reservations `CreateReservationRestrictionTests`; Visitors `VisitorChargePersistenceTests`, `VisitorEntryTests`; Vehicles `VehicleCommandTests`; Violations `ActiveViolationsTests`. Several changes only update repository test doubles for the charge-free persistence contract. |
+| Admin | `src/features/parking/pages/ParkingPage.vue`, `ParkingSessionDetailPage.vue`; `src/features/settings/pages/SettingsPage.vue`; `src/features/settings/components/OverstayFeeCard.vue`; `src/features/violations/pages/ViolationsPage.vue`, `ViolationDetailPage.vue`; this report. |
+| Mobile | `app/(guard)/manual-input.tsx`, `manual-pass.tsx`, `manual-exit.tsx`; `features/qr/pages/ScanConfirmedPage.tsx`, `ScanConflictPage.tsx`; `features/session/components/SessionDetailSheet.tsx`; `features/user/components/ActiveSessionTimer.tsx`, `QRCodeDisplay.tsx`; `features/violation/store/violation.store.ts`; `features/schedule/pages/UserSchedulePage.tsx`; `features/schedule/components/PersonnelParkingHours.tsx`; `features/account/pages/ScheduleSetupPage.tsx`; `features/account/components/schedule/ScheduleViewMode.tsx`; `tests/manual-entry-ui.test.mjs`, `manual-exit-charge.test.mjs`. |
+
+### Verification actually executed
+
+| Check | Actual result |
+|---|---|
+| API targeted `dotnet test Test/Test.csproj --no-restore` | **50 passed**, 0 failed/skipped. Filter covered `NoParkingFeesTests`, `ExitManualParkingLogTests`, `VisitorChargePersistenceTests`, `PersonnelParkingPolicyTests`, `EarlyStudentManualEntryTests`, visitor exit/historical payment cases and reservation creation with historical balances. Rebuilt all API projects successfully. |
+| Coverage within those checks | Registered QR/manual and visitor checkout without charge creation; historical records not modified; visitor concurrent exit rejection; legacy rates unable to restore fees; entry/reservations with historical balances; document/schedule restrictions retained; Manila exit-grace boundary and overnight overstay tracking. Uses in-process handlers/repositories or recording contexts, not a live database. |
+| API broader regression comparison | Committed Phase 1 API baseline `53f9866`, tested in an isolated temporary worktree: **74 passed / 56 failed**. Same affected class scope after Phase 2 plus new tests: **89 passed / 47 failed**, 136 total. Every remaining failed case also failed in that baseline; no newly failing case. Remaining failures include legacy paid-flow expectations, incomplete driver-document fixtures, count/staff assumptions and unsupported test-double operations. Existing nullable warning in `VerificationStoreTests.cs` remains. No full-suite pass claimed. |
+| Mobile interaction/contracts | `node --test tests/manual-entry-ui.test.mjs tests/manual-exit-charge.test.mjs tests/manual-network.test.mjs tests/reservation-vehicle-labels.test.mjs`: **50 passed**. Updated fixture mocks for existing driver-document components. Covers confirmation/cancel/stale-plate/duplicate-submit handling, fee-free visitor/registered exit, no payment submission, transport failures and Phase 1 vehicle labels. Free exit events also bypass the legacy client charge/violation store without fetching historical balances. |
+| Mobile type check | `node node_modules/typescript/bin/tsc --noEmit`: **passed**. |
+| Admin build and core regression checks | `npm run build`: **passed**, including type checking. `node --test tests/account-status.test.mjs tests/cache.test.mjs`: **15 passed**. Build emitted installed-dependency warnings. |
+| Additional admin verification-settings check | **15 passed / 2 failed** when combined with the core checks. The two failures expect three verification toggles in the unchanged `VerificationSettingsCard.vue`, which renders two; unrelated to fee/timing controls. |
+| Source review | Reviewed affected files/direct consumers and checked for remaining operational charge creation or payment gates. No production parking/visitor/reservation handler creates a new charge. Whitespace checks passed, accounting for existing Windows line endings. |
+
+### Database requirements, unverified scenarios and risks
+
+- **No migration is required or applied in Phase 2.** No historical records were deleted, marked paid, waived or otherwise rewritten. Legacy entities/mappings remain for the separately approved Phase 3 deletion plan.
+- Live database transactions, a running API with real authentication/QR hardware, device layouts and end-to-end capacity changes were **not executed**. The database recording-context tests validate intended writes/concurrency handling without connecting to a database. Native/Expo packaging was not run.
+- Roll out the API, admin and mobile updates together. Older clients may still display historical balances or suppress QR display locally. Historical interfaces/endpoints remain pending Phase 3 removal, with payment mutation disabled now.
+- The broader baseline failures above remain outside the passing focused checks. Phase 1's separately recorded verification-test limitations also remain.
+
 ## Remaining phases
 
 | Phase | Audit IDs | Status | Files/changes | Migration requirements | Verification / remaining work |
 |---|---|---|---|---|---|
-| 2 — Remove all fees | A-R4 | Not Started | None | Not assessed in this phase; historical data must remain unchanged | Not executed; registered/visitor fee-free checkout remains for Phase 2. |
+| 2 — Remove all fees | A-R4 | Completed | See Phase 2 above | None; historical data preserved | Focused checks passed; live environment unverified. |
 | 3 — Remove payment history and violations | A-R1, A-R2 | Not Started | None | Prepare relationship review, explicit deletion plan and destructive migration; approval required before irreversible deletion | Not executed; UI, endpoints, reports, notifications and records remain for Phase 3. |
 | 4 — Remove early-entry grace | A-R3 | Not Started | None | Assess obsolete settings/contracts while preserving exit grace | Not executed; exact Asia/Manila entry boundaries and exit grace remain for Phase 4. |
 | 5 — Visitor/vehicle redesign | A-R5, A-R6 | Not Started | None | Preserve legacy associations while adding visitor vehicles and vehicle-linked sessions | Not executed; normalized-plate retrieval, independent sessions, concurrency and capacity remain for Phase 5. |
 
-Stopped after Phase 1 as requested. Phase 2 requires the user's next approval.
+Stopped after Phase 2. Phase 3 requires the user's next approval; no destructive deletion or migration has been performed.

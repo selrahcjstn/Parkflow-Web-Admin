@@ -403,11 +403,7 @@ const executeManualCheckout = async () => {
     })
 
     if (response.data && response.data.isSuccess) {
-      const fee =
-        response.data.data?.penaltyFee != null && response.data.data.penaltyFee > 0
-          ? `₱${response.data.data.penaltyFee.toFixed(2)}`
-          : 'Free'
-      showToast(`Vehicle ${plate} checked out successfully. Final Fee: ${fee}`, 'success')
+      showToast(`Vehicle ${plate} checked out successfully.`, 'success')
       isConfirmCheckoutOpen.value = false
 
       // Update current session view
@@ -416,7 +412,7 @@ const executeManualCheckout = async () => {
         ...session.value,
         status: 'Exited',
         checkOutTime: exitTimeStr,
-        charge: fee,
+        charge: 'Free',
       } as ParkingHistoryItem
 
       // Invalidate cache
@@ -906,85 +902,7 @@ const executeManualCheckout = async () => {
           </div>
         </UiCard>
 
-        <!-- CARD 4: Financials & Penalty Costs -->
-        <UiCard custom-class="p-6">
-          <div class="mb-5 flex items-start gap-3 border-b border-border pb-4">
-            <div
-              class="flex size-10 shrink-0 items-center justify-center rounded-button bg-primary-light text-primary"
-            >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </div>
-            <div>
-              <h3 class="text-base font-semibold text-text">Financials &amp; Penalty Costs</h3>
-              <p class="mt-1 text-sm leading-5 text-muted">
-                Applicable parking fees, penalty computation, and settlement status
-              </p>
-            </div>
-          </div>
 
-          <div class="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
-            <div class="min-w-0 space-y-1">
-              <span class="block text-sm text-muted">{{
-                isActive ? 'Estimated Fee' : 'Charged Fee'
-              }}</span>
-              <span
-                class="block break-words text-sm font-medium text-text font-mono text-lg font-bold"
-                :class="
-                  isActive &&
-                  (session as ActiveSession).amount &&
-                  (session as ActiveSession).amount! > 0
-                    ? 'text-danger'
-                    : 'text-success'
-                "
-              >
-                <template v-if="isActive">
-                  {{
-                    (session as ActiveSession).amount && (session as ActiveSession).amount! > 0
-                      ? `₱${Number((session as ActiveSession).amount).toFixed(2)}`
-                      : '₱0.00 (Free Pass)'
-                  }}
-                </template>
-                <template v-else>
-                  {{ (session as ParkingHistoryItem).charge || 'Free' }}
-                </template>
-              </span>
-            </div>
-
-            <div class="min-w-0 space-y-1">
-              <span class="block text-sm text-muted">Overstay Fine Rate</span>
-              <span class="block break-words text-sm font-medium text-text"
-                >₱20.00 / hour post-schedule</span
-              >
-            </div>
-
-            <div class="min-w-0 space-y-1">
-              <span class="block text-sm text-muted">Billing Status</span>
-              <span
-                class="block break-words text-sm text-text font-semibold"
-                :class="session.status === 'Overstay' ? 'text-danger' : 'text-success'"
-              >
-                {{ session.status === 'Overstay' ? 'Overstay Penalty Incurred' : 'Compliant' }}
-              </span>
-            </div>
-
-            <div class="min-w-0 space-y-1">
-              <span class="block text-sm text-muted">Payment Method</span>
-              <span class="block break-words text-sm font-medium text-text"
-                >Campus Gate Clearance (Cashless / Desk)</span
-              >
-            </div>
-          </div>
-        </UiCard>
       </div>
     </div>
 

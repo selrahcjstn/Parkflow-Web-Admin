@@ -42,17 +42,17 @@ const isSuperAdmin = computed(() => isSuperAdminUser())
 const defaultVehicleParking = (): VehicleParkingSettings => ({
   totalCapacity: 250,
   reservationAllocationSlots: 75,
-  violationRatePerHour: 100,
-  baseFee: 50,
-  entryFee: 20,
-  dailyOverstayFee: 100,
+  violationRatePerHour: 0,
+  baseFee: 0,
+  entryFee: 0,
+  dailyOverstayFee: 0,
 })
 const settings = ref<SystemSettings>({
   carParking: defaultVehicleParking(),
   motorcycleParking: defaultVehicleParking(),
-  violationRatePerHour: 100,
-  feeCalculationMode: 'per_hour',
-  baseFee: 50,
+  violationRatePerHour: 0,
+  feeCalculationMode: 'no_fee',
+  baseFee: 0,
   personnelFreeParkingStart: '05:00',
   personnelFreeParkingEnd: '21:00',
   isGracePeriodEnabled: true,
@@ -130,16 +130,10 @@ function requestSaveSettings() {
       parking.totalCapacity < 0 ||
       !Number.isInteger(parking.reservationAllocationSlots) ||
       parking.reservationAllocationSlots < 0 ||
-      parking.reservationAllocationSlots > parking.totalCapacity ||
-      ![
-        parking.violationRatePerHour,
-        parking.baseFee,
-        parking.entryFee,
-        parking.dailyOverstayFee,
-      ].every((value) => Number.isFinite(value) && value >= 0)
+      parking.reservationAllocationSlots > parking.totalCapacity
     ) {
       showNotification(
-        `${group.label}: enter non-negative spaces and charges. Reservation spaces cannot exceed total spaces for this vehicle type.`,
+        `${group.label}: enter non-negative spaces. Reservation spaces cannot exceed total spaces for this vehicle type.`,
         'error',
       )
       return
