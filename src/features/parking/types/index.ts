@@ -19,8 +19,6 @@ export interface ActiveSession {
   maximumExitTime?: string
   maxAllowedHours?: number
   overstayHours?: number
-  amount?: number
-  fee?: string
 }
 
 export interface ParkingHistoryItem {
@@ -34,7 +32,6 @@ export interface ParkingHistoryItem {
   checkInTime: string
   checkOutTime: string
   duration: string
-  charge: string
   status: ParkingStatus
   method: EntryMethod
 }

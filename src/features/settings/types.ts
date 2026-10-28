@@ -1,10 +1,6 @@
 export interface VehicleParkingSettings {
   totalCapacity: number
   reservationAllocationSlots: number
-  violationRatePerHour: number
-  baseFee: number
-  entryFee: number
-  dailyOverstayFee: number
 }
 
 export const parkingVehicleGroups = [

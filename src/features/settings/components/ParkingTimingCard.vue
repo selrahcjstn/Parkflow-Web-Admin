@@ -8,8 +8,6 @@ defineProps<{
     personnelFreeParkingEnd: string
     isGracePeriodEnabled: boolean
     gracePeriodMinutes: number
-    isEarlyParkingAllowed: boolean
-    earlyParkingMinutes: number
   }
 }>()
 
@@ -38,7 +36,7 @@ const emit = defineEmits<{
           Parking Timing Rules
         </h3>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-          Configure exit grace, early entry allowance and staff timing windows
+          Configure exit grace and staff timing windows
         </p>
       </div>
     </div>
@@ -51,7 +49,7 @@ const emit = defineEmits<{
         <div class="space-y-2">
           <div class="flex items-center justify-between">
             <label class="text-xs font-bold text-slate-700 dark:text-slate-300">
-              Grace Period (Minutes)
+              Exit Grace Period (Minutes)
             </label>
             <input
               v-model="settings.isGracePeriodEnabled"
@@ -68,26 +66,6 @@ const emit = defineEmits<{
           />
         </div>
 
-        <!-- Early Parking -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="text-xs font-bold text-slate-700 dark:text-slate-300">
-              Early Entry Window (Minutes)
-            </label>
-            <input
-              v-model="settings.isEarlyParkingAllowed"
-              type="checkbox"
-              class="w-4 h-4 rounded text-[#7B1113] focus:ring-[#7B1113] cursor-pointer"
-            />
-          </div>
-          <UiInput
-            v-model.number="settings.earlyParkingMinutes"
-            type="number"
-            size="md"
-            min="0"
-            :disabled="!settings.isEarlyParkingAllowed"
-          />
-        </div>
       </div>
 
       <section class="space-y-4 border-t border-border pt-4">

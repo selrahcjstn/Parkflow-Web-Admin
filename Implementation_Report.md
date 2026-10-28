@@ -86,13 +86,84 @@ All paths are relative to the project roots identified in Phase 1.
 - Roll out the API, admin and mobile updates together. Older clients may still display historical balances or suppress QR display locally. Historical interfaces/endpoints remain pending Phase 3 removal, with payment mutation disabled now.
 - The broader baseline failures above remain outside the passing focused checks. Phase 1's separately recorded verification-test limitations also remain.
 
+## Phase 3 — Partial
+
+**Audit IDs:** A-R1, A-R2; closes a remaining A-R4 feedback-invoice path. Application changes and migration preparation are implemented. Historical deletion awaits database verification and explicit approval.
+
+**Local checkpoint before this phase:** API `e211efa`, admin `abf3f0f`, mobile `9645dc6` (Phase 2). Nothing pushed. Phase 3 changes remain uncommitted.
+
+### Changes implemented / files changed
+
+| Project | Files / affected groups and result |
+|---|---|
+| API | Removed `Controllers/ViolationController.cs`, `Features/Violations/`, `IViolationRepository`, persistence repository/configuration, domain `Violation` and settlement/type enums; removed `IViolationService`/`ViolationService` and DI/handler dependencies. Paths retain their project prefixes from Phase 2. |
+| API | Updated parking/visitor entry, exit, lookup and active-session DTOs/consumers; removed compatibility amounts, settlement fields, fee-consent contracts and monetary settings. `Features/History/Queries/GetParkingHistoryHandler.cs` retains parking records and computes operational overstay using shared `ActiveSessionTiming`, batch schedules/reservations and exit grace. Special reservations retain their zero-overstay checkout behavior. Dashboard DTOs/repository no longer query financial totals. |
+| API | Updated `Infrastructure/Services/NotificationService.cs`, `Persistence/Repositories/UserNotificationRepository.cs`, `UserAccountRepository.cs`; no financial event dispatch or violation dependency remains. Retired financial messages are hidden before pagination/unread counts, while operational exit notifications remain. |
+| API | Removed optional fee-invoice creation from `Domain/Entities/Feedback.cs`, `Controllers/FeedbackController.cs`, reply command/handler and feedback DTO/history mapper. Feedback messages, replies, resolution and notifications remain. Added migration `20261027202102_RemovePaymentAndViolationHistory` (including designer/snapshot) and `docs/phase-3-deletion-plan.md`. |
+| API tests | Adapted affected parking/reservation/visitor/dashboard constructors and contracts. Retired deleted-feature assertions and moved reused operational doubles to `Test/Support/ParkingTestDoubles.cs`. Added `RetiredFinancialFeaturesTests`; visitor persistence and reservation access tests now use operational names. |
+| Admin | Removed `src/features/violations/`, Collections navigation/routes, report ledger and obsolete financial insights. Updated dashboard cards/recent activity, report metrics/CSV/print output, parking DTOs/details, notification store/dropdown, settings contracts and cache. Renamed `OverstayFeeCard.vue` to `ParkingTimingCard.vue`; early-entry and exit-grace controls remain. Removed feedback invoice DTO fields. Updated cache/dashboard tests; added operational CSV coverage. |
+| Mobile | Removed violation/payment pages, routes, stores, receipt/settlement UI and API/SignalR consumers. Updated history page/store/service/details to parking-only, user/guard dashboards, QR/session/visitor contracts, auth cleanup, notifications/cache/preferences and related help copy. Removed feedback invoice card/DTO fields and obsolete financial types/formatter. Added `tests/retired-financial-features.test.mjs`; adapted affected dialog/button checks. |
+
+### Verification actually executed
+
+| Check | Actual result |
+|---|---|
+| API `dotnet test Test/Test.csproj --no-restore` with focused class/method filter | **64 passed**, 0 failed/skipped. Builds API and test projects. Covers registered/manual/visitor free checkout, visitor concurrent exit rejection, reservation/document validation, Manila exit-grace boundaries, retained history/timestamps, operational dashboard/notification queries, removal of financial contracts/endpoints, feedback replies, migration operations and snapshot consistency. Existing nullable warning in `VerificationStoreTests.cs:214` remains. |
+| Broader API parking selection | **81 passed / 10 failed**, 91 total. All 10 failed test names also failed in the saved Phase 2 run. Failures cover three incomplete visitor entry fixtures, two reservation-message assertions and five existing personnel/timing assumptions. Two initially failing rewritten reservation-access fixtures were corrected to supply approved driver/vehicle documents and pass in the focused run. No full-suite pass claimed. |
+| EF migration SQL generation | `dotnet ef migrations script 20261021104419_AddDriverDocumentsAndDurableSettings 20261027202102_RemovePaymentAndViolationHistory ...`: passed. Reviewed generated transaction, approval/FK/trigger guards, financial notification purge, one child-table drop and four invoice-column drops; no `CASCADE` or protected-table deletion. **Generated only; SQL was not executed.** |
+| Admin build / regression checks | `npm run build`: passed (installed SignalR annotation warnings). Account-status, cache, dashboard/report and feedback-workflow Node suites: **35 passed**. Exercises operational metrics, CSV export and feedback actions without financial endpoints. |
+| Mobile type / focused checks | `node node_modules/typescript/bin/tsc --noEmit`: passed. Manual-entry, manual-exit, network, vehicle-label and retired-financial-feature Node suites: **53 passed**. Covers parking history/pagination, filtered server/cached financial notifications and operational exit/reservation invalidation. |
+| Additional mobile dialog/button suites | **29 passed / 4 failed**. Four failures reproduced using committed test versions against unchanged dependent components: one reservation callback fixture lacks `getActiveReservation`; three button expectations disagree with existing foreground/theme classes. Obsolete fee-consent/settlement tests were retired; no UI fixes outside this phase were made. |
+| Source/contract review | No remaining live financial endpoints, charge/invoice creation, Collections/payment/violation screens or financial DTO consumers found. Retired-message filters and migration/history source retain identifying strings intentionally. Vehicle enum values, authentication, QR verification, reservations, capacity checks and early/exit-grace settings were preserved. |
+
+### Database requirements, unverified scenarios and risks
+
+- **No migration or historical deletion applied.** Prepared deletion removes `Violations`, four `Feedbacks.Invoice*` columns and clearly financial notifications; feedback rows/replies and all operational parking/account/visitor/vehicle/reservation records are retained. Prior migrations remain as schema history.
+- Reviewed committed EF relationships: violations are children of parking logs/visitor sessions; notifications are children of accounts. Actual database catalog access was attempted but did not succeed. Live foreign keys, triggers, row counts, backup restoration and migration rehearsal remain required; the plan includes read-only inspection queries and protected-key comparisons.
+- Startup currently auto-applies migrations through `SuperAdminSeeder`. The new migration **refuses execution without an explicit PostgreSQL session approval option**, and aborts on unexpected incoming financial FKs or custom notification triggers. A pending migration deliberately blocks startup. Coordinate deployment after target review, disposable rehearsal, verified backup and explicit irreversible-deletion approval. `Down` refuses to imply recovery of deleted history; restore the verified backup instead.
+- Coordinated API/admin/mobile rollout is required: financial endpoints/fields and feedback invoice request fields are removed. Older clients may still call deleted endpoints or show cached financial UI.
+- No live authenticated API, shared/production database, device/native build, deployed notification delivery, complete QR/reservation/entry/exit/capacity workflow or visual layout verification was executed. Early-entry changes and boundary checks are recorded separately in Phase 4 below.
+
+## Phase 4 — Completed
+
+**Audit ID:** A-R3. Configured early-entry grace is removed from application rules and both clients. Exit grace remains configurable and functional. Phase 3's destructive migration remains unapplied. Phase 4 changes are uncommitted; nothing was pushed.
+
+### Changes implemented / files changed
+
+| Project | Files / affected groups |
+|---|---|
+| API | `Common/SystemSettingsStore.cs`: removed early-entry properties, defaults, copying and update parameters. Legacy JSON properties are ignored; subsequent settings saves omit them. `ParkingLogs/Services/ScheduleService.cs`, `IScheduleService.cs`, `ReservationSessionWindow.cs`: schedule and normal-reservation entry windows start at their exact start time. `ParkingService.cs` / `IParkingService.cs`: removed the unused entry-grace calculation contract; exit-grace methods remain. Feature paths are under `ParkFlow.Application/Features/`. |
+| API | Parking-log entry/manual-entry and student-scan handlers; reservation scan and cancellation handlers: removed early-minute subtraction. Cancellation closes at the exact normal reservation start; special-pass cancellation still closes at Manila midnight. Added optional built-in `TimeProvider` clocks for deterministic handler boundary tests, defaulting to system UTC. Removed misleading hardcoded “30m grace” entry-window text. |
+| API | `ParkingTimeHelper.cs` now identifies `Asia/Manila` explicitly. Updated direct session-window consumers in `ActiveSessionTiming.cs`, active-session lookup and both exit handlers for the simplified contract. Updated affected parking-service/schedule test doubles and existing timing tests. Added `Test/Features/Reservations/NoEarlyEntryGraceTests.cs`. |
+| Admin | `src/features/settings/pages/SettingsPage.vue`, `components/ParkingTimingCard.vue`: removed early-entry controls/defaults/contracts and labeled the retained control **Exit Grace Period**. Moved the affected settings render check from `tests/admin-ui.test.mjs` to isolated `tests/parking-timing.test.mjs`, covering enabled/disabled exit grace and retained staff time controls. |
+| Mobile | `services/system-settings.service.ts`; `features/account/pages/ScheduleSetupPage.tsx`, `SchedulePage.old.tsx`; `features/account/components/schedule/ScheduleViewMode.tsx`; `features/schedule/pages/UserSchedulePage.tsx`; `features/qr/types/qr-scan.types.ts`: removed early-entry fields, badges, fallback minutes and obsolete QR type field. Retained exit-grace displays and schedule editing. Added `tests/parking-timing.test.mjs`. |
+
+The separate guard-controlled manual student entry exception remains available as an unscheduled manual session. Staff/faculty access and special-pass same-day eligibility retain their existing policies. Vehicle enum values, QR verification, document checks, capacity validation, fee-free checkout and operational timestamps were preserved.
+
+### Verification actually executed
+
+| Check | Actual result |
+|---|---|
+| API focused `dotnet test Test/Test.csproj --no-restore` selection | **61 passed**, 0 failed/skipped, including **32 new boundary/contract cases**. Builds the API and test projects; the existing nullable warning at `VerificationStoreTests.cs:214` remains. |
+| Boundary coverage | Actual reservation scan, reservation QR/vehicle QR entry, manual reservation entry, student scan and cancellation handlers with fixed clocks; one tick before/at/after start, inclusive end and one tick after end, Manila midnight, normal/special cancellation rules, exact class start, ignored legacy early-setting JSON and enabled/disabled exit grace. Existing fee-free registered/visitor exit and migration/contract tests also passed. These are in-process tests, without a running API/database. |
+| Broader API selection | **118 passed / 27 failed**, 145 total, before the final disabled-exit-grace case was added. Seventeen failed names match failures in saved Phase 2/3 runs. Ten cases renamed during Phase 3 are not directly comparable by name; their observed failures involve incomplete driver-document fixtures or an entry/read-only double rejecting checkout. Remaining failures include visitor fixtures, reservation-message wording and older personnel/timing expectations. No full-suite pass or blanket regression-free claim. |
+| Admin | `npm run build`: passed, including type checking, with existing installed SignalR annotation warnings. Account-status, cache, dashboard/report, feedback-workflow and parking-timing Node suites: **37 passed**. The original monolithic `admin-ui` module could not load because its existing capacity-component mock lacks `../types`; the relevant timing render test was isolated and passed. |
+| Mobile | `node node_modules/typescript/bin/tsc --noEmit`: passed. Manual-entry/exit, network, vehicle-label, retired-financial-feature and parking-timing Node suites: **55 passed**. New render checks verify exit-grace enabled/disabled display and unchanged schedule-edit action, with legacy early-window values ignored. |
+| Source/contracts | Reviewed changes against the pre-Phase-4 snapshot. No early-setting/override or entry-grace contract references remain in live API/admin/mobile code. Intentional legacy-input test strings remain. Exit-grace settings/calculations and Phase 3's no-charge model remain. |
+
+### Database requirements, unverified scenarios and risks
+
+- **No Phase 4 schema migration is required or applied.** Existing settings JSON may still contain retired keys until the next normal save; they cannot enable early entry. No parking, reservation, visitor or historical financial records were rewritten/deleted.
+- **Pre-deployment review required for legacy early arrivals:** parking logs do not persist their reservation association or original timing policy. A session admitted before its reservation start under the former grace window will no longer match that reservation using the new strict window. Exit deadline selection/reservation completion and derived historical overstay can consequently differ. Identify and close affected active sessions under the previous release before rollout; review historical timing impact. No guessed associations or automatic data backfill were introduced. Multi-window schedule history has the same lack of stored policy/version information.
+- No live database, authenticated HTTP/device/native build, deployed settings persistence, or real QR/capacity workflow was exercised. Full production rollout remains gated by Phase 3's backup/schema review and explicit destructive-deletion approval; its startup migration approval guard is unchanged.
+
 ## Remaining phases
 
 | Phase | Audit IDs | Status | Files/changes | Migration requirements | Verification / remaining work |
 |---|---|---|---|---|---|
 | 2 — Remove all fees | A-R4 | Completed | See Phase 2 above | None; historical data preserved | Focused checks passed; live environment unverified. |
-| 3 — Remove payment history and violations | A-R1, A-R2 | Not Started | None | Prepare relationship review, explicit deletion plan and destructive migration; approval required before irreversible deletion | Not executed; UI, endpoints, reports, notifications and records remain for Phase 3. |
-| 4 — Remove early-entry grace | A-R3 | Not Started | None | Assess obsolete settings/contracts while preserving exit grace | Not executed; exact Asia/Manila entry boundaries and exit grace remain for Phase 4. |
+| 3 — Remove payment history and violations | A-R1, A-R2 | Partial | Application removals and guarded migration prepared; see above | Unapplied; live schema review, backup/rehearsal and explicit deletion approval required | Focused checks passed; baseline failures and live-environment limits recorded above. |
+| 4 — Remove early-entry grace | A-R3 | Completed | See Phase 4 above | No schema change; legacy settings keys ignored | Focused checks passed; legacy early-session matching requires pre-deployment review. |
 | 5 — Visitor/vehicle redesign | A-R5, A-R6 | Not Started | None | Preserve legacy associations while adding visitor vehicles and vehicle-linked sessions | Not executed; normalized-plate retrieval, independent sessions, concurrency and capacity remain for Phase 5. |
 
-Stopped after Phase 2. Phase 3 requires the user's next approval; no destructive deletion or migration has been performed.
+Stopped after Phase 4. Phase 5 requires the user's next approval. Historical deletion remains unapplied and requires separate approval after database verification; review the legacy timing risk above before any rollout.

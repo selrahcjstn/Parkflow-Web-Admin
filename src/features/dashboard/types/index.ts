@@ -10,7 +10,6 @@ export interface ParkingLog {
   vehiclePlate: string
   ownerName: string
   duration: string
-  charge: string
   status: string
 }
 

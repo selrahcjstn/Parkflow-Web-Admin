@@ -53,7 +53,7 @@ function getRolePermissions(role: string): string[] {
       'Full user management',
       'System customization controls',
       'Approval workflows and escalations',
-      'Collections and violation management'
+      'Parking operations management'
     ]
   }
 

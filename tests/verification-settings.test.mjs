@@ -28,9 +28,9 @@ async function render(superAdmin) {
   app.component('RouterLink', { setup: (_, { slots }) => () => vue.h('a', slots.default?.()) })
   return renderToString(app)
 }
-test('Super Admin sees three approval toggles, manual vehicle guidance and no daily hour limit', async () => {
+test('Super Admin sees two approval toggles, manual vehicle guidance and no daily hour limit', async () => {
   const html = await render(true)
-  assert.equal((html.match(/type="checkbox"/g) || []).length, 3)
+  assert.equal((html.match(/type="checkbox"/g) || []).length, 2)
   assert.doesNotMatch(html, /<fieldset[^>]*disabled/)
   assert.doesNotMatch(html, /type="checkbox"[^>]*checked/)
   assert.match(html, /Save approval policies/)
@@ -40,7 +40,7 @@ test('Super Admin sees three approval toggles, manual vehicle guidance and no da
 })
 test('regular Admin can inspect policy values but cannot edit or save them', async () => {
   const html = await render(false)
-  assert.equal((html.match(/type="checkbox"/g) || []).length, 3)
+  assert.equal((html.match(/type="checkbox"/g) || []).length, 2)
   assert.match(html, /<fieldset[^>]*disabled/)
   assert.doesNotMatch(html, /Save approval policies/)
   assert.match(html, /Only the Super Admin can change them/)

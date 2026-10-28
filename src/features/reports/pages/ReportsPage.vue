@@ -5,7 +5,6 @@ import UiTabs from '@/components/ui/UiTabs.vue'
 import ReportFilters from '../components/ReportFilters.vue'
 import ReportOverviewTab from '../components/ReportOverviewTab.vue'
 import ReportActivityTab from '../components/ReportActivityTab.vue'
-import ReportViolationsTab from '../components/ReportViolationsTab.vue'
 import ReportVehiclesTab from '../components/ReportVehiclesTab.vue'
 import PrintableReportView from '../components/PrintableReportView.vue'
 
@@ -28,7 +27,7 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'succ
 }
 
 // Active Tab State
-const activeTab = ref<'overview' | 'activity' | 'violations' | 'vehicles'>('overview')
+const activeTab = ref<'overview' | 'activity' | 'vehicles'>('overview')
 
 // Global Filters State
 const dateRange = ref('7d')
@@ -40,7 +39,6 @@ const exportingPDF = ref(false)
 
 // Raw Backend Data State
 const isLoading = ref(false)
-const rawViolations = ref<any[]>([])
 const rawVehicles = ref<any[]>([])
 const rawParkingLogs = ref<any[]>([])
 const activeSessions = ref<any[]>([])
@@ -52,18 +50,13 @@ const lastSyncTime = ref<string>('Just now')
 const fetchReportsData = async () => {
   isLoading.value = true
   try {
-    const [violationsRes, vehiclesRes, historyLogsRes, allHistoryRes, activeRes, settingsRes] = await Promise.allSettled([
-      api.get('/violations/history/page/1/1000'),
+    const [vehiclesRes, historyLogsRes, allHistoryRes, activeRes, settingsRes] = await Promise.allSettled([
       api.get('/vehicles'),
       api.get('/parking-logs/history/page/1/1000'),
       api.get('/parking-history/all/page/1/1000'),
       api.get('/parking-logs/active-sessions'),
       api.get('/system-settings')
     ])
-
-    if (violationsRes.status === 'fulfilled' && violationsRes.value.data?.isSuccess) {
-      rawViolations.value = violationsRes.value.data.data?.items || violationsRes.value.data.data || []
-    }
 
     if (vehiclesRes.status === 'fulfilled') {
       const data = vehiclesRes.value.data?.data || vehiclesRes.value.data || []
@@ -259,7 +252,7 @@ const allGateActivity = computed(() => {
 
   // 2. Completed historical parking logs
   rawParkingLogs.value.forEach((l: any) => {
-    const isOverstay = Number(l.overstayHours) > 0 || String(l.status || '').toLowerCase().includes('over') || Boolean(l.hasViolation)
+    const isOverstay = Number(l.overstayHours) > 0 || String(l.status || '').toLowerCase().includes('over')
     const dur = computeSessionDuration({ ...l, isActive: false })
     list.push({
       sessionId: l.sessionId || l.id || `hist-${l.plateNumber}-${l.entryTime}`,
@@ -292,14 +285,6 @@ const scopedParkingLogs = computed(() => {
   })
 })
 
-const scopedViolations = computed(() => {
-  return rawViolations.value.filter((v: any) => {
-    const dateMatch = isWithinDateRange(v.issuedAt || v.createdAt)
-    const typeMatch = matchesVehicleType(v.vehicleType)
-    return dateMatch && typeMatch
-  })
-})
-
 const scopedVehicles = computed(() => {
   return rawVehicles.value.filter((veh: any) => {
     return matchesVehicleType(veh.vehicleType)
@@ -309,12 +294,12 @@ const scopedVehicles = computed(() => {
 // Dynamic Graph & Calculations
 const hourlyOccupancyPoints = computed(() => {
   const baseData = [20, 35, 80, 94, 75, 55, 30]
-  if (!scopedParkingLogs.value.length && !scopedViolations.value.length) {
+  if (!scopedParkingLogs.value.length) {
     return baseData
   }
 
   const hoursCount: number[] = [0, 0, 0, 0, 0, 0, 0]
-  const allEvents = [...scopedParkingLogs.value, ...scopedViolations.value]
+  const allEvents = scopedParkingLogs.value
 
   allEvents.forEach((item: any) => {
     const rawDate = item.entryTime || item.issuedAt || item.createdAt
@@ -405,11 +390,6 @@ const vehiclePieData = computed(() => {
 })
 
 // Dynamic Summary Calculations
-const totalRevenueAmount = computed(() => {
-  return scopedViolations.value
-    .filter((v: any) => v.settlementStatus === 'Settled' || v.settlementStatus === 'Paid' || v.isPaid)
-    .reduce((sum: number, v: any) => sum + (Number(v.penaltyFee) || 0), 0)
-})
 
 const peakOccupancyFormatted = computed(() => {
   const peakVal = Math.max(...hourlyOccupancyPoints.value, 45)
@@ -455,13 +435,7 @@ const stats = computed(() => [
     icon: 'duration',
     gradient: 'linear-gradient(135deg, #8b5cf6, #a78bfa)'
   },
-  {
-    title: 'Settled Fines Collection',
-    value: `₱${totalRevenueAmount.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    subtitle: `${scopedViolations.value.length} Citations Recorded`,
-    icon: 'revenue',
-    gradient: 'linear-gradient(135deg, #10b981, #34d399)'
-  }
+
 ])
 
 const hourlyTrafficData = computed(() => [
@@ -477,7 +451,6 @@ const hourlyTrafficData = computed(() => [
 const reportTabs = computed(() => [
   { key: 'overview', label: 'Executive Overview' },
   { key: 'activity', label: 'Gate Activity & Logs', count: scopedParkingLogs.value.length },
-  { key: 'violations', label: 'Citations Ledger', count: scopedViolations.value.length },
   { key: 'vehicles', label: 'Vehicle Fleet', count: scopedVehicles.value.length }
 ])
 
@@ -492,19 +465,7 @@ const triggerExport = (format: 'csv' | 'pdf') => {
       let rows: any[][] = []
       let fileName = 'ParkFlow_Report'
 
-      if (activeTab.value === 'violations' || activeTab.value === 'overview') {
-        fileName = 'ParkFlow_Citations_Audit'
-        headers = ['Citation Reference', 'Plate Number', 'Driver / Owner', 'Infraction Type', 'Penalty Fee', 'Settlement Status', 'Date Issued']
-        rows = scopedViolations.value.map((v: any) => [
-          `"${v.referenceNumber || ''}"`,
-          `"${v.plateNumber || ''}"`,
-          `"${(v.firstName || '') + ' ' + (v.lastName || '') || v.ownerName || 'Driver'}"`,
-          `"${v.violationType || ''}"`,
-          `"${v.penaltyFee || 0}"`,
-          `"${(v.settlementStatus === 'Settled' || v.isPaid) ? 'Paid' : 'Unpaid'}"`,
-          `"${v.issuedAt ? new Date(v.issuedAt).toLocaleString() : ''}"`
-        ])
-      } else if (activeTab.value === 'activity') {
+      if (activeTab.value === 'activity' || activeTab.value === 'overview') {
         fileName = 'ParkFlow_Gate_Activity_Logs'
         headers = ['Session ID', 'Plate Number', 'Driver / Owner', 'Role', 'Vehicle Type', 'Entry Time', 'Exit Time', 'Duration', 'Entry Method', 'Status']
         rows = scopedParkingLogs.value.map((l: any) => [
@@ -565,23 +526,9 @@ const printableSummary = computed(() => ({
   totalEntries: scopedParkingLogs.value.length || activeSessions.value.length,
   peakOccupancy: peakOccupancyFormatted.value,
   avgDuration: avgDurationFormatted.value,
-  totalRevenue: `₱${totalRevenueAmount.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-  totalViolations: scopedViolations.value.length,
   activeParked: activeSessions.value.length,
   totalVehicles: scopedVehicles.value.length
 }))
-
-const printableViolations = computed(() => {
-  return scopedViolations.value.map((v: any) => ({
-    ref: v.referenceNumber || 'N/A',
-    plate: v.plateNumber || 'N/A',
-    driver: (v.firstName || '') + ' ' + (v.lastName || '') || v.ownerName || 'Driver',
-    type: v.violationType || 'Violation',
-    status: (v.settlementStatus === 'Settled' || v.isPaid) ? 'Paid' : 'Unpaid',
-    amount: Number(v.penaltyFee) || 0,
-    date: formatDate(v.issuedAt || v.createdAt)
-  }))
-})
 
 const printableRecentLogs = computed(() => {
   return scopedParkingLogs.value.slice(0, 12).map((l: any) => ({
@@ -683,14 +630,6 @@ const vehicleTypeScopeLabel = computed(() => {
       />
     </div>
 
-    <!-- TAB 3: CITATIONS LEDGER -->
-    <div v-else-if="activeTab === 'violations'" class="no-print">
-      <ReportViolationsTab
-        :items="scopedViolations"
-        :is-loading="isLoading"
-      />
-    </div>
-
     <!-- TAB 4: CAMPUS VEHICLE FLEET -->
     <div v-else-if="activeTab === 'vehicles'" class="no-print">
       <ReportVehiclesTab
@@ -710,7 +649,6 @@ const vehicleTypeScopeLabel = computed(() => {
         :summary="printableSummary"
         :hourly-traffic="hourlyTrafficData"
         :vehicle-breakdown="vehiclePieData"
-        :violations="printableViolations"
         :recent-logs="printableRecentLogs"
       />
     </div>

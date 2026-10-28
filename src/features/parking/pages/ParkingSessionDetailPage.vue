@@ -223,13 +223,7 @@ function mapActive(item: any): ActiveSession {
     maximumExitTime: item.maximumExitTime,
     maxAllowedHours: item.maxAllowedHours,
     overstayHours: item.overstayHours,
-    amount: item.amount,
-    fee:
-      item.amount != null
-        ? item.amount > 0
-          ? `₱${Number(item.amount).toFixed(2)}`
-          : '₱0.00'
-        : undefined,
+
   }
 }
 
@@ -242,8 +236,6 @@ function mapHistory(item: any): ParkingHistoryItem {
     durationStr = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`
   }
 
-  const chargeStr =
-    item.hasViolation && item.violationFee > 0 ? `₱${Number(item.violationFee).toFixed(2)}` : 'Free'
 
   const rawMethod = (item.entryMethod || item.method || item.entryType || '')
     .toString()
@@ -282,7 +274,7 @@ function mapHistory(item: any): ParkingHistoryItem {
     checkInTime: item.entryTime,
     checkOutTime: item.exitTime || '',
     duration: durationStr,
-    charge: chargeStr,
+
     status: 'Exited' as ParkingStatus,
     method: entryMethodVal,
   }
@@ -412,7 +404,7 @@ const executeManualCheckout = async () => {
         ...session.value,
         status: 'Exited',
         checkOutTime: exitTimeStr,
-        charge: 'Free',
+
       } as ParkingHistoryItem
 
       // Invalidate cache

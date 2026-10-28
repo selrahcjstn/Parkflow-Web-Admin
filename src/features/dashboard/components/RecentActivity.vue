@@ -14,7 +14,6 @@ const activityColumns: TableColumn[] = [
   { key: 'vehicle', label: 'Vehicle' },
   { key: 'owner', label: 'Owner' },
   { key: 'duration', label: 'Duration' },
-  { key: 'charge', label: 'Charge' },
   { key: 'status', label: 'Status' }
 ]
 
@@ -51,7 +50,6 @@ onMounted(async () => {
           vehiclePlate: session.plateNumber || 'N/A',
           ownerName: session.firstName && session.lastName ? `${session.firstName} ${session.lastName}` : 'Unknown Owner',
           duration: session.totalParkingHours || '0h',
-          charge: `₱${(session.amount || 0).toLocaleString()}`,
           status: isOverstay ? 'Overstay' : (session.status || 'Parked')
         }
       })
@@ -62,9 +60,9 @@ onMounted(async () => {
     console.error('Error fetching active parking logs:', error)
     if (!cachedParkingLogs.value) {
       logs.value = [
-        { id: 1, vehiclePlate: 'ABC-1234', ownerName: 'Juan Dela Cruz', duration: '1h 45m', charge: '₱40', status: 'Parked' },
-        { id: 2, vehiclePlate: 'XYZ-9876', ownerName: 'Maria Santos', duration: '2h 10m', charge: '₱60', status: 'Parked' },
-        { id: 3, vehiclePlate: 'NKN-4581', ownerName: 'Christian Reyes', duration: '4h 30m', charge: '₱120', status: 'Overstay' }
+        { id: 1, vehiclePlate: 'ABC-1234', ownerName: 'Juan Dela Cruz', duration: '1h 45m', status: 'Parked' },
+        { id: 2, vehiclePlate: 'XYZ-9876', ownerName: 'Maria Santos', duration: '2h 10m', status: 'Parked' },
+        { id: 3, vehiclePlate: 'NKN-4581', ownerName: 'Christian Reyes', duration: '4h 30m', status: 'Overstay' }
       ]
     }
   } finally {
@@ -103,9 +101,6 @@ onMounted(async () => {
           <span class="text-slate-500 dark:text-slate-400 font-medium text-xs">{{ item.duration }}</span>
         </template>
 
-        <template #cell-charge="{ item }">
-          <span class="font-bold text-slate-900 dark:text-white text-xs">{{ item.charge }}</span>
-        </template>
 
         <template #cell-status="{ item }">
           <UiStatusText :variant="getStatusVariant(item.status)" size="xs">

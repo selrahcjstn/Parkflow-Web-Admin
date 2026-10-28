@@ -4,7 +4,6 @@ import authRoutes from '@/features/auth/routes'
 import dashboardRoutes from '@/features/dashboard/routes'
 import usersRoutes from '@/features/users/routes'
 import parkingRoutes from '@/features/parking/routes'
-import violationsRoutes from '@/features/violations/routes'
 import vehiclesRoutes from '@/features/vehicles/routes'
 import reportsRoutes from '@/features/reports/routes'
 import registrationsRoutes from '@/features/registrations/routes'
@@ -27,7 +26,6 @@ const router = createRouter({
         ...reservationsRoutes,
         ...usersRoutes,
         ...parkingRoutes,
-        ...violationsRoutes,
         ...vehiclesRoutes,
         ...visitorsRoutes,
         ...feedbackRoutes,

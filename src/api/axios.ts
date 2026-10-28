@@ -2,12 +2,10 @@ import axios, { type AxiosResponse } from 'axios'
 import { createRequestCache } from './requestCache'
 import { resetAppCache, syncCacheOwner } from '@/stores/appCache'
 
-// Using '/api' allows Vite's dev server proxy to forward requests to the local backend (http://localhost:5044) in dev,
-// and vercel.json / reverse-proxy to forward to http://54.90.173.98:5000 in production.
-const defaultBaseUrl = '/api'
+import { API_URL } from './config'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || defaultBaseUrl,
+  baseURL: API_URL,
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 })

@@ -1,3 +1,5 @@
+import { API_URL, SERVER_BASE_URL } from '@/api/config'
+
 /**
  * Utility for formatting document URLs and ensuring reliable viewing
  * in ParkFlow Web Admin.
@@ -42,25 +44,25 @@ export function formatDocUrl(url?: string, fallback: string = ''): string {
 
   // If already proxied, keep as is
   if (trimmed.includes('/files/document')) {
-    return trimmed
+    try {
+      const signed = new URL(trimmed, SERVER_BASE_URL)
+      if (signed.origin !== new URL(SERVER_BASE_URL).origin || signed.username || signed.password || signed.pathname !== '/api/files/document') return fallback
+      return signed.toString()
+    } catch { return fallback }
   }
 
   // Route PDF documents through proxy endpoint
   if (isPdfDoc(trimmed)) {
-    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
+    const apiBase = API_URL
     return `${apiBase}/files/document?url=${encodeURIComponent(trimmed)}`
   }
 
   // Standard web images can load directly
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
-    return trimmed
-  }
+  if (trimmed.startsWith('http://')) return `${API_URL}/files/document?url=${encodeURIComponent(trimmed)}`
+  if (trimmed.startsWith('https://') || trimmed.startsWith('data:')) return trimmed
 
   // Local relative path (e.g. "uploads/...")
-  const isProduction = import.meta.env.PROD
-  const defaultBase = isProduction ? window.location.origin : 'http://localhost:5044'
-  const baseURL = import.meta.env.VITE_API_BASE_URL || defaultBase
-  const rootDomain = baseURL.replace(/\/api\/?$/, '')
+  const rootDomain = SERVER_BASE_URL
   return `${rootDomain}/${trimmed.replace(/^\//, '')}`
 }
 

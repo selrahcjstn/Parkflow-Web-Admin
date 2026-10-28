@@ -158,7 +158,6 @@ const fetchParkingData = async () => {
               : s.totalParkingHours
                 ? `${s.totalParkingHours}`
                 : '0h 0m',
-          amount: s.amount ?? s.penaltyFee ?? s.violationFee ?? 0,
           status: isOverstay ? 'Overstay' : s.status || 'Parked',
           maxAllowedHours: s.maxAllowedHours || 8,
           maximumExitTime: s.maximumExitTime,
@@ -190,11 +189,9 @@ const fetchParkingData = async () => {
             : s.totalParkingHours
               ? `${s.totalParkingHours}h`
               : '0h',
-        amount: s.penaltyFee ?? s.violationFee ?? s.amount ?? 0,
         method: s.entryMethod || s.method || 'QrCode',
         status:
           (s.overstayHours != null && Number(s.overstayHours) > 0) ||
-          s.hasViolation ||
           String(s.status || '')
             .toLowerCase()
             .includes('over')

@@ -7,13 +7,9 @@ export interface DashboardStatsCache {
   carCapacity?: number
   motorcycleCapacity?: number
   activeParking: number
-  todayRevenue: number
-  violations: number
   maxCapacity: number
   trends?: {
     registeredClientsPercent: number | null
-    revenuePercent: number | null
-    pendingChargesPercent: number | null
     comparisonDate: string
   }
 }
@@ -39,7 +35,6 @@ export interface ParkingLogCacheItem {
   vehiclePlate: string
   ownerName: string
   duration: string
-  charge: string
   status: string
 }
 
@@ -114,5 +109,4 @@ export const cachedScheduleSubmissions = snapshot<any[] | null>(null)
 export const cachedVehicleApprovals = snapshot<any[] | null>(null)
 export const cachedActiveSessions = snapshot<any[] | null>(null)
 export const cachedHistorySessions = snapshot<any[] | null>(null)
-export const cachedViolations = snapshot<any[] | null>(null)
 export const cachedVehicles = snapshot<any[] | null>(null)

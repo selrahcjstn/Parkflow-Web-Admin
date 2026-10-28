@@ -13,7 +13,19 @@ import TablePagination from '@/components/ui/TablePagination.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
 
+type VisitorVehicle = {
+  id: string
+  visitorId: string
+  plateNumber: string
+  brand: string
+  vehicleType: number
+  isInside: boolean
+  activeSessionId?: string
+  entryTime?: string
+  totalVisits: number
+}
 type Visitor = {
+  vehicles?: VisitorVehicle[]
   id: string
   fullName: string
   plateNumber: string
@@ -25,6 +37,10 @@ type Visitor = {
   isInside: boolean
 }
 type Visit = {
+  visitorVehicleId?: string
+  plateNumber?: string
+  brand?: string
+  vehicleType?: number
   id: string
   entryTime: string
   exitTime?: string
@@ -44,6 +60,8 @@ const visits = ref<Visit[]>([])
 const search = ref('')
 const term = ref('')
 const statusFilter = ref('all')
+const selectedVehicleId = ref('')
+const vehicleOptions = computed(() => [{ label: 'All vehicles', value: '' }, ...(detail.value?.vehicles || []).map(v => ({ label: v.plateNumber, value: v.id }))])
 const page = ref(1)
 const pageSize = ref(10)
 const totalCount = ref(0)
@@ -74,7 +92,7 @@ const date = (value?: string) => {
 }
 const columns = [
   { key: 'fullName', label: 'Visitor' },
-  { key: 'plateNumber', label: 'Plate number' },
+  { key: 'plateNumber', label: 'Plate numbers' },
   { key: 'vehicle', label: 'Vehicle' },
   { key: 'contactNumber', label: 'Contact number' },
   { key: 'lastVisit', label: 'Last visit' },
@@ -83,6 +101,7 @@ const columns = [
   { key: 'action', label: 'Action' },
 ]
 const historyColumns = [
+  { key: 'vehicle', label: 'Vehicle' },
   { key: 'entryTime', label: 'Entry' },
   { key: 'exitTime', label: 'Exit' },
   { key: 'purpose', label: 'Purpose / destination' },
@@ -105,6 +124,7 @@ async function load() {
         params: {
           page: page.value,
           pageSize: pageSize.value,
+          ...(id.value ? { visitorVehicleId: selectedVehicleId.value || undefined } : {}),
           ...(!id.value
             ? {
                 search: term.value || undefined,
@@ -150,15 +170,16 @@ function searchVisitors() {
   else term.value = search.value.trim()
 }
 watch(
-  [id, page, pageSize, term, statusFilter],
-  ([nextId, , size, query, status], [oldId, , oldSize, oldQuery, oldStatus]) => {
+  [id, page, pageSize, term, statusFilter, selectedVehicleId],
+  ([nextId, , size, query, status, vehicleId], [oldId, , oldSize, oldQuery, oldStatus, oldVehicleId]) => {
     if (nextId !== oldId) {
+      selectedVehicleId.value = ''
       detail.value = null
       visitors.value = []
       visits.value = []
       totalCount.value = 0
     }
-    if (nextId !== oldId || size !== oldSize || query !== oldQuery || status !== oldStatus) {
+    if (nextId !== oldId || size !== oldSize || query !== oldQuery || status !== oldStatus || vehicleId !== oldVehicleId) {
       if (page.value !== 1) {
         page.value = 1
         return
@@ -287,10 +308,10 @@ onUnmounted(() => {
       <dl class="mt-5 grid gap-5 border-t border-border pt-5 sm:grid-cols-2 lg:grid-cols-3">
         <div
           v-for="field in [
-            { label: 'Plate number', value: detail.plateNumber },
+            { label: 'Registered vehicles', value: detail.vehicles?.length ?? 1 },
             {
               label: 'Vehicle',
-              value: detail.brand + ' · ' + getVehicleTypeLabel(detail.vehicleType),
+              value: detail.vehicles?.map(v => v.plateNumber).join(', ') || detail.plateNumber,
             },
             { label: 'Contact number', value: detail.contactNumber || 'Not provided' },
             { label: 'Total visits', value: detail.totalVisits },
@@ -302,12 +323,23 @@ onUnmounted(() => {
           <dd class="mt-1 break-words text-sm font-medium">{{ field.value }}</dd>
         </div>
       </dl>
+      <div class="mt-5 grid gap-3 sm:grid-cols-2" aria-label="Visitor vehicles">
+        <div v-for="vehicle in detail.vehicles || []" :key="vehicle.id" class="rounded-button border border-border p-4">
+          <div class="flex items-center justify-between gap-3">
+            <span class="font-semibold">{{ vehicle.plateNumber }}</span>
+            <UiStatusText :variant="vehicle.isInside ? 'success' : 'neutral'">{{ vehicle.isInside ? 'On campus' : 'Outside campus' }}</UiStatusText>
+          </div>
+          <p class="mt-1 text-sm text-muted">{{ vehicle.brand }} · {{ getVehicleTypeLabel(vehicle.vehicleType) }}</p>
+          <p class="mt-1 text-sm text-muted">{{ vehicle.totalVisits }} visits<span v-if="vehicle.entryTime"> · Entered {{ date(vehicle.entryTime) }}</span></p>
+        </div>
+      </div>
     </UiCard>
 
     <UiCard v-if="!id || detail || loading" custom-class="p-0 overflow-hidden">
       <div v-if="id" class="border-b border-border px-5 py-4">
         <h2 class="text-base font-semibold">Visit history</h2>
-        <p class="mt-1 text-sm text-muted">Most recent visits first.</p>
+        <p class="mt-1 text-sm text-muted">Most recent visits first, with the vehicle used for each visit.</p>
+        <UiSelect v-model="selectedVehicleId" :options="vehicleOptions" label="Vehicle history" class="mt-3" />
       </div>
       <UiTable
         v-if="!id"
@@ -320,11 +352,12 @@ onUnmounted(() => {
           ><span class="font-semibold text-text">{{ item.fullName }}</span></template
         >
         <template #cell-plateNumber="{ item }"
-          ><span class="font-semibold text-text">{{ item.plateNumber }}</span></template
+          ><span class="font-semibold text-text">{{ item.vehicles?.map((v: VisitorVehicle) => v.plateNumber).join(', ') || item.plateNumber }}</span></template
         >
         <template #cell-vehicle="{ item }">
-          <div class="text-text">{{ item.brand }}</div>
-          <div class="mt-1 text-muted">{{ getVehicleTypeLabel(item.vehicleType) }}</div>
+          <div v-for="vehicle in item.vehicles || [item]" :key="vehicle.id" class="text-text">
+            {{ vehicle.brand }} · {{ getVehicleTypeLabel(vehicle.vehicleType) }}
+          </div>
         </template>
         <template #cell-contactNumber="{ item }">{{ item.contactNumber || '—' }}</template>
         <template #cell-lastVisit="{ item }">{{ date(item.lastVisit) }}</template>
@@ -349,6 +382,10 @@ onUnmounted(() => {
         :is-loading="loading"
         empty-text="No campus visits recorded."
       >
+        <template #cell-vehicle="{ item }">
+          <div class="font-semibold">{{ item.plateNumber || 'Not recorded' }}</div>
+          <div class="mt-1 text-muted">{{ item.brand }} · {{ getVehicleTypeLabel(item.vehicleType) }}</div>
+        </template>
         <template #cell-entryTime="{ item }">{{ date(item.entryTime) }}</template>
         <template #cell-exitTime="{ item }">
           <span :class="item.status === 'Inside' ? 'text-success' : 'text-text'">{{
