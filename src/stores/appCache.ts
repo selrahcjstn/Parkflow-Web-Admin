@@ -7,13 +7,9 @@ export interface DashboardStatsCache {
   carCapacity?: number
   motorcycleCapacity?: number
   activeParking: number
-  todayRevenue: number
-  violations: number
   maxCapacity: number
   trends?: {
     registeredClientsPercent: number | null
-    revenuePercent: number | null
-    pendingChargesPercent: number | null
     comparisonDate: string
   }
 }
@@ -39,7 +35,6 @@ export interface ParkingLogCacheItem {
   vehiclePlate: string
   ownerName: string
   duration: string
-  charge: string
   status: string
 }
 
@@ -102,6 +97,7 @@ export function syncCacheOwner(token: string | null) {
   }
 }
 export const cachedStatsData = snapshot<DashboardStatsCache | null>(null)
+export const cachedViolations = snapshot<any[] | null>(null)
 export const cachedActivityData = snapshot<ActivityDataItem[] | null>(null)
 export const cachedRegistrations = snapshot<PendingRegistrationCacheItem[] | null>(null)
 export const cachedSubmissionGuids = ref<Record<number, string>>({})
@@ -114,5 +110,4 @@ export const cachedScheduleSubmissions = snapshot<any[] | null>(null)
 export const cachedVehicleApprovals = snapshot<any[] | null>(null)
 export const cachedActiveSessions = snapshot<any[] | null>(null)
 export const cachedHistorySessions = snapshot<any[] | null>(null)
-export const cachedViolations = snapshot<any[] | null>(null)
 export const cachedVehicles = snapshot<any[] | null>(null)

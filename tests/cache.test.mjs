@@ -87,7 +87,6 @@ test('restored pages do not expose grid mode or approval/operation metrics', () 
     ['parking', 'ParkingPage', 'ParkingStats'],
     ['vehicles', 'VehiclesPage', 'VehicleStats'],
     ['reservations', 'ReservationsPage', 'ReservationStats'],
-    ['violations', 'ViolationsPage', 'ViolationStats'],
   ]) {
     assert.ok(
       !readFileSync(
@@ -162,7 +161,9 @@ test('an old Authorization header cannot read or populate the new account cache'
     require: (name) =>
       name === 'axios'
         ? { __esModule: true, default: axios }
-        : name === './requestCache'
+        : name === './config'
+          ? { API_URL: '/api' }
+          : name === './requestCache'
           ? { createRequestCache }
           : { resetAppCache() {}, syncCacheOwner() {} },
   })

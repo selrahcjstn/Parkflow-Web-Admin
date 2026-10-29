@@ -5,6 +5,11 @@ export interface VehicleParkingSettings {
   baseFee: number
   entryFee: number
   dailyOverstayFee: number
+  studentEntryFee: number
+  facultyEntryFee: number
+  personnelEntryFee: number
+  visitorFee: number
+  vipEntryFee: number
 }
 
 export const parkingVehicleGroups = [

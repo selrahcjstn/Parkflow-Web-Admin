@@ -11,8 +11,6 @@ const props = defineProps<{
     totalEntries: number
     peakOccupancy: string
     avgDuration: string
-    totalRevenue: string
-    totalViolations: number
     activeParked: number
     totalVehicles: number
   }
@@ -30,15 +28,6 @@ const props = defineProps<{
     motoPct: number
     ebikePct: number
   }
-  violations: Array<{
-    ref: string
-    plate: string
-    driver: string
-    type: string
-    status: string
-    amount: number
-    date: string
-  }>
   recentLogs: Array<{
     plate: string
     driver: string
@@ -103,7 +92,7 @@ const props = defineProps<{
         1. Executive Performance Summary
       </h3>
 
-      <div class="grid grid-cols-4 gap-2.5">
+      <div class="grid grid-cols-3 gap-2.5">
         <div class="p-3 bg-white border border-slate-200 rounded-lg">
           <span class="text-[10px] text-slate-500 uppercase font-semibold block">Total Logged Entries</span>
           <span class="text-lg font-black text-slate-900 block mt-0.5">{{ summary.totalEntries }}</span>
@@ -122,11 +111,7 @@ const props = defineProps<{
           <span class="text-[10px] text-slate-500 font-medium">Per Session</span>
         </div>
 
-        <div class="p-3 bg-white border border-slate-200 rounded-lg">
-          <span class="text-[10px] text-slate-500 uppercase font-semibold block">Settled Fines Collection</span>
-          <span class="text-lg font-black text-emerald-600 block mt-0.5">{{ summary.totalRevenue }}</span>
-          <span class="text-[10px] text-slate-500 font-medium">{{ summary.totalViolations }} Citations Recorded</span>
-        </div>
+
       </div>
     </div>
 
@@ -194,41 +179,6 @@ const props = defineProps<{
           </tbody>
         </table>
       </div>
-    </div>
-
-    <!-- Section 3: Recent Citations & Revenue Ledger -->
-    <div class="mb-6">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-700 pb-1.5 mb-2.5 border-b border-slate-200 flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full bg-[#7B1113]"></span>
-        4. Citations & Overstay Ledger Audit
-      </h3>
-      <table class="w-full text-xs border-collapse">
-        <thead>
-          <tr class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-            <th class="py-1.5 px-2 text-left">Citation Ref</th>
-            <th class="py-1.5 px-2 text-left">Plate No.</th>
-            <th class="py-1.5 px-2 text-left">Driver / Owner</th>
-            <th class="py-1.5 px-2 text-left">Infraction Type</th>
-            <th class="py-1.5 px-2 text-center">Settlement</th>
-            <th class="py-1.5 px-2 text-right">Penalty Fee</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="!violations.length" class="border-b border-slate-100">
-            <td colspan="6" class="py-3 text-center text-slate-400 italic">No violation citations recorded for this reporting period.</td>
-          </tr>
-          <tr v-for="v in violations.slice(0, 8)" :key="v.ref" class="border-b border-slate-100">
-            <td class="py-1.5 px-2 font-mono font-bold text-slate-800">{{ v.ref }}</td>
-            <td class="py-1.5 px-2 font-mono">{{ v.plate }}</td>
-            <td class="py-1.5 px-2">{{ v.driver }}</td>
-            <td class="py-1.5 px-2 font-medium">{{ v.type }}</td>
-            <td class="py-1.5 px-2 text-center font-bold" :class="v.status === 'Paid' || v.status === 'Settled' ? 'text-emerald-600' : 'text-amber-600'">
-              {{ v.status }}
-            </td>
-            <td class="py-1.5 px-2 text-right font-bold text-slate-900">₱{{ Number(v.amount).toFixed(2) }}</td>
-          </tr>
-        </tbody>
-      </table>
     </div>
 
     <!-- Official Sign-off & Verification -->

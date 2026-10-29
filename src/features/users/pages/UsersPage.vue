@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { updateUserStatus } from '../services/userStatus.service'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { UserWithDetails, UserRole, AccountStatus } from '../types'
@@ -417,14 +418,12 @@ const handleRejectUser = async (user: UserWithDetails) => {
 
 const handleUpdateStatus = async (userId: string, newStatus: AccountStatus) => {
   try {
-    const response = await api.put(`/users/${userId}/status`, { status: newStatus })
-    if (!response.data?.isSuccess)
-      throw new Error(response.data?.message || 'Could not update account.')
+    const savedStatus = await updateUserStatus(userId, newStatus)
     const index = users.value.findIndex((user) => String(user.id) === String(userId))
     if (index !== -1 && users.value[index])
-      users.value[index] = { ...users.value[index], status: newStatus }
+      users.value[index] = { ...users.value[index], status: savedStatus }
     cachedUsers.value = [...users.value]
-    showToast(`Account status updated to ${newStatus}.`, 'success')
+    showToast(`Account status updated to ${savedStatus === 'PendingVerification' ? 'Pending Verification' : savedStatus}.`, 'success')
   } catch (error: any) {
     showToast(
       error.response?.data?.message ||
@@ -758,7 +757,7 @@ function handleRefresh() {
             <button
               v-else
               type="button"
-              title="Verify / Unsuspend Account"
+              title="Reactivate Account"
               @click="openStatusConfirm(item, 'Active')"
               class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
             >

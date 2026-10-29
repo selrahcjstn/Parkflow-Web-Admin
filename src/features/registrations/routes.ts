@@ -1,4 +1,5 @@
 export default [
+  { path: '/employee-verification', name: 'EmployeeVerification', component: () => import('./pages/VerificationPage.vue') },
   {
     path: '/vehicle-approvals',
     name: 'VehicleApprovals',

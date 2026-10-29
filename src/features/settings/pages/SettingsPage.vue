@@ -6,24 +6,21 @@ import api from '@/api/axios'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTabs, { type TabItem } from '@/components/ui/UiTabs.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
-import OverstayFeeCard from '../components/OverstayFeeCard.vue'
+import ParkingTimingCard from '../components/ParkingTimingCard.vue'
+import FinancialSettingsCard from '../components/FinancialSettingsCard.vue'
 import CampusCapacityCard from '../components/CampusCapacityCard.vue'
 import SystemAnnouncementCard from '../components/SystemAnnouncementCard.vue'
 
 const router = useRouter()
 
 interface SystemSettings {
+  feeCalculationMode: string
   carParking: VehicleParkingSettings
   motorcycleParking: VehicleParkingSettings
-  violationRatePerHour: number
-  feeCalculationMode: 'per_hour' | 'per_day' | 'one_time' | 'one_time_hourly' | 'no_fee'
   personnelFreeParkingStart: string
   personnelFreeParkingEnd: string
-  baseFee: number
   isGracePeriodEnabled: boolean
   gracePeriodMinutes: number
-  isEarlyParkingAllowed: boolean
-  earlyParkingMinutes: number
   academicYear: string
   currentSemester: string
   lastResetDate?: string
@@ -40,25 +37,19 @@ import { isSuperAdminUser } from '@/utils/auth'
 const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const defaultVehicleParking = (): VehicleParkingSettings => ({
+  violationRatePerHour: 0, baseFee: 0, entryFee: 0, dailyOverstayFee: 0,
+  studentEntryFee: 0, facultyEntryFee: 0, personnelEntryFee: 0, visitorFee: 0, vipEntryFee: 0,
   totalCapacity: 250,
   reservationAllocationSlots: 75,
-  violationRatePerHour: 100,
-  baseFee: 50,
-  entryFee: 20,
-  dailyOverstayFee: 100,
 })
 const settings = ref<SystemSettings>({
+  feeCalculationMode: 'per_hour',
   carParking: defaultVehicleParking(),
   motorcycleParking: defaultVehicleParking(),
-  violationRatePerHour: 100,
-  feeCalculationMode: 'per_hour',
-  baseFee: 50,
   personnelFreeParkingStart: '05:00',
   personnelFreeParkingEnd: '21:00',
   isGracePeriodEnabled: true,
   gracePeriodMinutes: 15,
-  isEarlyParkingAllowed: true,
-  earlyParkingMinutes: 15,
   academicYear: '2026-2027',
   currentSemester: '1st Semester',
   totalCapacity: 500,
@@ -125,21 +116,19 @@ function requestSaveSettings() {
   }
   for (const group of parkingVehicleGroups) {
     const parking = settings.value[group.key]
+    if (Object.values(parking).some(value => !Number.isFinite(value) || value < 0)) {
+      showNotification(`${group.label}: enter non-negative spaces and fees.`, 'error')
+      return
+    }
     if (
       !Number.isInteger(parking.totalCapacity) ||
       parking.totalCapacity < 0 ||
       !Number.isInteger(parking.reservationAllocationSlots) ||
       parking.reservationAllocationSlots < 0 ||
-      parking.reservationAllocationSlots > parking.totalCapacity ||
-      ![
-        parking.violationRatePerHour,
-        parking.baseFee,
-        parking.entryFee,
-        parking.dailyOverstayFee,
-      ].every((value) => Number.isFinite(value) && value >= 0)
+      parking.reservationAllocationSlots > parking.totalCapacity
     ) {
       showNotification(
-        `${group.label}: enter non-negative spaces and charges. Reservation spaces cannot exceed total spaces for this vehicle type.`,
+        `${group.label}: enter non-negative spaces. Reservation spaces cannot exceed total spaces for this vehicle type.`,
         'error',
       )
       return
@@ -177,7 +166,7 @@ async function saveSettings() {
           'The API did not save the requested reservation spaces. Restart the updated API and try again.',
         )
       }
-      showNotification('System configurations and rate settings saved successfully!', 'success')
+      showNotification('System settings saved successfully!', 'success')
       if (response.data.data) {
         settings.value = {
           ...settings.value,
@@ -301,11 +290,11 @@ async function deactivateAnnouncement() {
   }
 }
 
-const activeTab = ref<'capacity' | 'billing' | 'announcements'>('capacity')
+const activeTab = ref<'capacity' | 'timing' | 'announcements'>('capacity')
 
 const settingsTabs: TabItem[] = [
   { key: 'capacity', label: 'Campus Capacity & Cycle' },
-  { key: 'billing', label: 'Rates & Billing Policy' },
+  { key: 'timing', label: 'Parking Timing Rules' },
   { key: 'announcements', label: 'System Announcements' },
 ]
 
@@ -349,7 +338,7 @@ onMounted(() => {
         SuperAdmin Access Restricted
       </h2>
       <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md">
-        System configurations, rate settings, and semester resets are restricted exclusively to
+        System configurations, timing settings, and semester resets are restricted exclusively to
         <strong>Super Administrators</strong>.
       </p>
       <UiButton variant="primary" @click="router.push('/dashboard')">
@@ -366,7 +355,7 @@ onMounted(() => {
             System Settings
           </h1>
           <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Manage campus capacity, semester transitions, billing policies, and system
+            Manage campus capacity, semester transitions, parking timing rules, and system
             announcements.
           </p>
         </div>
@@ -399,9 +388,10 @@ onMounted(() => {
           </CampusCapacityCard>
         </div>
 
-        <!-- 2. Rates & Billing Policy Tab -->
-        <div v-show="activeTab === 'billing'">
-          <OverstayFeeCard
+        <!-- 2. Parking Timing Tab -->
+        <div v-show="activeTab === 'timing'">
+          <FinancialSettingsCard :settings="settings" class="mb-6" />
+          <ParkingTimingCard
             :settings="settings"
             @update:personnel-hours="Object.assign(settings, $event)"
           >
@@ -415,7 +405,7 @@ onMounted(() => {
                 Save settings
               </UiButton>
             </template>
-          </OverstayFeeCard>
+          </ParkingTimingCard>
         </div>
 
         <!-- 3. System Announcement Tab -->

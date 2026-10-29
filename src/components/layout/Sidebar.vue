@@ -98,7 +98,8 @@ const filteredNavItems = computed<NavItem[]>(() => {
     { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
     { key: 'visitors', label: 'Visitors', path: '/visitors', icon: 'visitor' },
     { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
-    { key: 'collections', label: 'Collections', path: '/violations', icon: 'violations' },
+    { key: 'collections', label: 'Collections & Penalties', path: '/violations', icon: 'parking' },
+    { key: 'employee-verification', label: 'Employee Verification', path: '/employee-verification', icon: 'calendar' },
     { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
     { key: 'divider-3', label: 'System', icon: '', section: true },
     { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },
@@ -238,11 +239,7 @@ const userInitials = computed(() => {
                   <line x1="8" y1="2" x2="8" y2="6" />
                   <line x1="3" y1="10" x2="21" y2="10" />
                 </svg>
-                <!-- Collections icon -->
-                <svg v-else-if="item.icon === 'violations'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z" />
-                  <path d="M13 5v14" stroke-dasharray="2 2" />
-                </svg>
+
                 <!-- Vehicles icon -->
                 <svg v-else-if="item.icon === 'vehicles'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M5 17h14" />

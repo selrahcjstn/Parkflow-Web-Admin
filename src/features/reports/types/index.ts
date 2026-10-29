@@ -1,8 +1,6 @@
 export interface ReportSummary {
   peakOccupancy: string
   avgDuration: string
-  totalViolations: number
-  totalRevenue: string
 }
 
 export interface AIInsight {

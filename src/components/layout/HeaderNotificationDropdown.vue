@@ -177,12 +177,8 @@ function getTypeBg(type: string): string {
       return 'bg-amber-500 text-white'
     case 'reservation_confirmed':
       return 'bg-purple-600 text-white'
-    case 'violation_issued':
-      return 'bg-[#7B1113] text-white'
     case 'session_activity':
       return 'bg-sky-600 text-white'
-    case 'payment_processed':
-      return 'bg-teal-600 text-white'
     default:
       return 'bg-slate-700 text-white'
   }
@@ -298,12 +294,7 @@ function getTypeBg(type: string): string {
                   <polyline points="12 6 12 12 16 14"/>
                 </svg>
 
-                <!-- Violation Alert -->
-                <svg v-else-if="item.type === 'violation_issued'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="10.29 3.86 1.82 18 12 21 22.18 18 13.71 3.86 10.29 3.86"/>
-                  <line x1="12" y1="9" x2="12" y2="13"/>
-                  <line x1="12" y1="17" x2="12.01" y2="17"/>
-                </svg>
+
 
                 <!-- Session Activity -->
                 <svg v-else-if="item.type === 'session_activity'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -311,11 +302,7 @@ function getTypeBg(type: string): string {
                   <path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>
                 </svg>
 
-                <!-- Payment Processed -->
-                <svg v-else-if="item.type === 'payment_processed'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="2" y="5" width="20" height="14" rx="2" />
-                  <line x1="2" y1="10" x2="22" y2="10" />
-                </svg>
+
 
                 <!-- Default / System Notice -->
                 <svg v-else class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

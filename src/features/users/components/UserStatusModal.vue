@@ -18,11 +18,11 @@ const emit = defineEmits<{
 <template>
   <ConfirmModal
     :is-open="isOpen"
-    :title="targetStatus === 'Suspended' ? 'Suspend Client Account' : 'Verify & Unsuspend Account'"
+    :title="targetStatus === 'Suspended' ? 'Suspend Client Account' : 'Reactivate Account'"
     :message="
       targetStatus === 'Suspended'
         ? `Are you sure you want to suspend account access for <strong class='text-slate-900 dark:text-white font-bold'>${user?.fullName || ''}</strong>?<br/><span class='text-xs text-slate-500'>The user will immediately be prevented from reserving slots and accessing campus gates.</span>`
-        : `Are you sure you want to restore active clearance for <strong class='text-slate-900 dark:text-white font-bold'>${user?.fullName || ''}</strong>?<br/><span class='text-xs text-slate-500'>Account access and vehicle parking permissions will be reinstated.</span>`
+        : `Are you sure you want to reactivate <strong class='text-slate-900 dark:text-white font-bold'>${user?.fullName || ''}</strong>?<br/><span class='text-xs text-slate-500'>Accounts with incomplete verification will return to Pending Verification.</span>`
     "
     :confirm-text="targetStatus === 'Suspended' ? 'Suspend Account' : 'Activate Account'"
     cancel-text="Cancel"

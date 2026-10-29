@@ -69,10 +69,36 @@ test('Visitors keeps search left and pushes campus status and refresh right', ()
 })
 const Button = component('src/components/ui/UiButton.vue')
 
+test('fee editor renders independent zero-priced vehicle categories without early-entry controls', async () => {
+  const Slot = { setup: (_, { slots }) => () => vue.h('section', slots.default?.()) }
+  const Input = { props: ['modelValue', 'type', 'min'], setup: props => () => vue.h('input', { value: props.modelValue, type: props.type, min: props.min }) }
+  const Fee = component('src/features/settings/components/FinancialSettingsCard.vue', {
+    '@/components/ui/UiCard.vue': { default: Slot }, '@/components/ui/UiInput.vue': { default: Input },
+    '../types': { parkingVehicleGroups: [{ key: 'carParking', label: 'Cars' }, { key: 'motorcycleParking', label: 'Motorcycles' }] },
+  })
+  const rates = Object.fromEntries(['entryFee','studentEntryFee','facultyEntryFee','personnelEntryFee','visitorFee','vipEntryFee','violationRatePerHour','baseFee','dailyOverstayFee'].map(key => [key, 0]))
+  const html = await renderToString(vue.createSSRApp(Fee, { settings: { carParking: {...rates}, motorcycleParking: {...rates}, feeCalculationMode: 'per_hour' } }))
+  assert.match(html, /Cars/); assert.match(html, /Motorcycles/)
+  assert.equal((html.match(/type="number"/g) || []).length, 18)
+  assert.equal((html.match(/value="0"/g) || []).length, 18)
+  assert.doesNotMatch(html, /Early Grace|earlyParkingMinutes/)
+})
+
+test('account details retain document verification without a duplicate account-status badge', async () => {
+  const Slot = { setup: (_, { slots }) => () => vue.h('div', slots.default?.()) }
+  const Info = component('src/features/users/components/UserAccountInfoCard.vue', {
+    '@/components/ui/UiCard.vue': { default: Slot }, '@/components/ui/UiBadge.vue': { default: Slot },
+  })
+  const html = await renderToString(vue.createSSRApp(Info, { user: { status: 'Suspended', corVerificationStatus: 'Verified', createdAt: '2026-10-29T00:00:00Z' } }))
+  assert.match(html, /COR Verification Status/)
+  assert.doesNotMatch(html, /Account Status|Account Suspended|>Suspended</)
+})
+
 test('settings removes feature controls while retaining the other tabs and saved flag values', async () => {
   const source = readFileSync(new URL('../src/features/settings/pages/SettingsPage.vue', import.meta.url), 'utf8')
   const Slot = { setup: (_, { slots }) => () => vue.h('div', slots.default?.()) }
   const Settings = component('src/features/settings/pages/SettingsPage.vue', {
+    '../types': { parkingVehicleGroups: [{ key: 'carParking', label: 'Cars' }, { key: 'motorcycleParking', label: 'Motorcycles' }] },
     'vue-router': { useRouter: () => ({ replace() {}, push() {} }) },
     '@/api/axios': { default: {} },
     '@/utils/auth': { isSuperAdminUser: () => true },
@@ -81,11 +107,12 @@ test('settings removes feature controls while retaining the other tabs and saved
     '@/components/ui/ConfirmModal.vue': { default: Slot },
     '../components/VerificationSettingsCard.vue': { default: Slot },
     '../components/CampusCapacityCard.vue': { default: Slot },
-    '../components/OverstayFeeCard.vue': { default: Slot },
+    '../components/ParkingTimingCard.vue': { default: Slot },
+    '../components/FinancialSettingsCard.vue': { default: Slot },
     '../components/SystemAnnouncementCard.vue': { default: Slot },
   })
   const html = await renderToString(vue.createSSRApp(Settings))
-  for (const label of ['Campus Capacity &amp; Cycle', 'Rates &amp; Billing Policy', 'System Announcements', 'Save All Settings']) {
+  for (const label of ['Campus Capacity &amp; Cycle', 'Parking Timing Rules', 'System Announcements']) {
     assert.ok(html.includes(label), `${label} must remain available`)
   }
   assert.doesNotMatch(html, /Feature Flags|Diagnostics|feature toggles|Export System Settings Backup/)
@@ -95,7 +122,8 @@ test('settings removes feature controls while retaining the other tabs and saved
     assert.ok(source.includes(`${flag}: boolean`))
   }
   assert.match(source, /\.\.\.response\.data\.data/)
-  assert.match(source, /api\.put\('\/system-settings', settings\.value\)/)
+  assert.match(source, /const submitted = \{ \.\.\.settings\.value \}/)
+  assert.match(source, /api\.put\('\/system-settings', submitted\)/)
 })
 
 test('role filter counts and administrator options update after accounts load', () => {
@@ -129,27 +157,6 @@ test('role filter counts and administrator options update after accounts load', 
   props.studentCount = 65
   assert.equal(roleLabels()[1], 'Student (65)')
 })
-const SettingsCard = component('src/features/settings/components/OverstayFeeCard.vue', {
-  '@/components/ui/UiButton.vue': { default: Button },
-  '@/components/ui/UiCard.vue': { default: component('src/components/ui/UiCard.vue') },
-  '@/components/ui/UiInput.vue': { default: component('src/components/ui/UiInput.vue') },
-  '@/components/ui/UiSelect.vue': { default: component('src/components/ui/UiSelect.vue') },
-})
-
-test('settings uses labeled time fields and explains daily faculty/staff and overnight rules', async () => {
-  const html = await renderToString(vue.createSSRApp(SettingsCard, { settings: {
-    violationRatePerHour: 100, feeCalculationMode: 'per_hour', baseFee: 50,
-    gracePeriodMinutes: 15, isGracePeriodEnabled: true, earlyParkingMinutes: 15,
-    isEarlyParkingAllowed: true, personnelFreeParkingStart: '05:00', personnelFreeParkingEnd: '21:00',
-  } }))
-  assert.match(html, /Free parking starts/)
-  assert.match(html, /Free parking ends/)
-  assert.equal([...html.matchAll(/type="time"/g)].length, 2)
-  assert.match(html, /value="05:00"/)
-  assert.match(html, /value="21:00"/)
-  assert.match(html, /including Sunday/)
-  assert.match(html, /unclosed session keeps accruing charges/)
-})
 const Confirmation = component('src/components/ui/ConfirmModal.vue', {
   './UiButton.vue': { default: Button },
 })
@@ -177,26 +184,27 @@ test('registration approval dialogs use the shared success check icon and approv
 })
 
 const CampusCapacity = component('src/features/settings/components/CampusCapacityCard.vue', {
+  '../types': { parkingVehicleGroups: [{ key: 'carParking', label: 'Cars' }, { key: 'motorcycleParking', label: 'Motorcycles' }] },
   '@/components/ui/UiButton.vue': { default: Button },
   '@/components/ui/UiCard.vue': { default: component('src/components/ui/UiCard.vue') },
   '@/components/ui/UiInput.vue': { default: component('src/components/ui/UiInput.vue') },
   '@/components/ui/UiSelect.vue': { default: component('src/components/ui/UiSelect.vue') },
 })
 
-test('Super Admin allocation is a configurable percentage of total capacity, not extra spaces', async () => {
-  const html = await renderToString(vue.createSSRApp(CampusCapacity, { settings: {
-    totalCapacity: 300, reservationAllocationPercent: 30, maxVehiclesPerUser: 5,
-    academicYear: '2026-2027', currentSemester: '1st Semester',
-  } }))
-  assert.match(html, /Reservation allocation \(%\)/)
-  assert.match(html, /90 reservation spaces out of 300 total spaces/)
-  assert.match(html, /min="0" max="100" step="1"/)
-  assert.match(html, /not additional spaces/)
+test('Super Admin allocation uses separate absolute reservation spaces within each vehicle capacity', async () => {
+  const settings = { carParking: { totalCapacity: 300, reservationAllocationSlots: 90 },
+    motorcycleParking: { totalCapacity: 200, reservationAllocationSlots: 0 }, maxVehiclesPerUser: 5,
+    academicYear: '2026-2027', currentSemester: '1st Semester' }
+  const html = await renderToString(vue.createSSRApp(CampusCapacity, { settings }))
+  assert.match(html, /Reservation spaces/)
+  assert.match(html, /90 reservable out of\s*300 total spaces/)
+  assert.match(html, /0 reservable out of\s*200 total spaces/)
+  assert.match(html, /Car and motorcycle spaces are counted separately/)
+  assert.doesNotMatch(html, /Reservation allocation \(.*%/)
   const modified = await renderToString(vue.createSSRApp(CampusCapacity, { settings: {
-    totalCapacity: 300, reservationAllocationPercent: 50, maxVehiclesPerUser: 5,
-    academicYear: '2026-2027', currentSemester: '1st Semester',
+    ...settings, carParking: { totalCapacity: 300, reservationAllocationSlots: 150 },
   } }))
-  assert.match(modified, /150 reservation spaces out of 300 total spaces/)
+  assert.match(modified, /150 reservable out of\s*300 total spaces/)
 })
 
 test('admin booking checks selected-time availability rather than loading all reservations', () => {
@@ -204,7 +212,7 @@ test('admin booking checks selected-time availability rather than loading all re
   assert.match(source, /parking-reservations\/availability/)
   assert.match(source, /parking-reservations\/my/)
   assert.doesNotMatch(source, /parking-reservations\/admin\/all/)
-  assert.match(source, /:disabled="capacityUnavailable"/)
+  assert.match(source, /:disabled="capacityUnavailable \|\| !!existingActiveReservation"/)
   assert.match(source, /availability\.bookedSlots/)
   assert.match(source, /offReservations\?\.\(\)/)
 })

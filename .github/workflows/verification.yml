@@ -1,0 +1,31 @@
+name: Admin Verification
+
+on:
+  push:
+    branches: [main, 'release/phase-4-5-*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Build validation only. These reserved synthetic hosts are never deployed.
+      VITE_API_URL: https://api.example.invalid/api
+      VITE_SIGNALR_HUB_URL: https://api.example.invalid/hubs/notifications
+      VITE_BACKEND_URL: https://api.example.invalid
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Required admin contract and interaction checks
+        run: node --test tests/*.test.mjs
+      - name: Production build and type check
+        run: npm run build

@@ -106,7 +106,7 @@ const getEntryMethod = computed(() => {
 
             <!-- Session Timing Block -->
             <div class="info-section">
-              <h4 class="section-title">Session Timing & Costs</h4>
+              <h4 class="section-title">Session Timing</h4>
               <div class="details-grid">
                 <div class="detail-item">
                   <span class="detail-label">Entry Time</span>
@@ -124,16 +124,7 @@ const getEntryMethod = computed(() => {
                   <span class="detail-label">Must Exit By</span>
                   <span class="detail-value font-semibold">{{ new Date((session as ActiveSession).maximumExitTime!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) }}, {{ new Date((session as ActiveSession).maximumExitTime!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}</span>
                 </div>
-                <div class="detail-item" v-if="isActive">
-                  <span class="detail-label">Estimated Fee</span>
-                  <span class="detail-value cost-value" :class="{ 'cost-danger': Number((session as ActiveSession).amount ?? 0) > 0 }">
-                    {{ Number((session as ActiveSession).amount ?? 0) > 0 ? `₱${Number((session as ActiveSession).amount).toFixed(2)}` : '₱0.00' }}
-                  </span>
-                </div>
-                <div class="detail-item" v-if="!isActive">
-                  <span class="detail-label">Parking Fee</span>
-                  <span class="detail-value cost-value">{{ (session as ParkingHistoryItem).charge }}</span>
-                </div>
+
               </div>
             </div>
           </div>

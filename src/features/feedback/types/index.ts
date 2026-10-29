@@ -17,13 +17,9 @@ export interface FeedbackItem {
   statusName?: FeedbackStatus
   adminNotes?: string | null
   
-  // Admin Reply & Invoice Fields
+  // Admin Reply Fields
   adminReplyMessage?: string | null
   adminRepliedAt?: string | null
-  invoiceNumber?: string | null
-  invoiceAmount?: number | null
-  invoiceDescription?: string | null
-  invoiceStatus?: string | null
   hoursSinceSubmitted?: number
 
   createdAt: string

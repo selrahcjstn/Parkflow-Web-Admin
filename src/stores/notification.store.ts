@@ -1,3 +1,4 @@
+import { HUB_URL } from '@/api/config'
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr'
@@ -9,7 +10,6 @@ import {
   cachedVehicleApprovals,
   cachedReservations,
   cachedVehicles,
-  cachedViolations,
   cachedFeedbacks,
 } from '@/stores/appCache'
 
@@ -20,9 +20,7 @@ export interface AdminNotification {
     | 'vehicle_pending'
     | 'feedback_pending'
     | 'reservation_confirmed'
-    | 'violation_issued'
     | 'session_activity'
-    | 'payment_processed'
     | 'system'
   title: string
   subtitle: string
@@ -70,7 +68,6 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
     cachedVehicleApprovals.value = null
     cachedVehicles.value = null
     cachedReservations.value = null
-    cachedViolations.value = null
     cachedFeedbacks.value = null
     approvalListeners.forEach((listener) => {
       try {
@@ -264,38 +261,6 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
         }
       } catch (e) {}
 
-      // 5. Fetch active unpaid violations
-      try {
-        const resViolations = await api.get('/violations/history/page/1/50?unpaidOnly=true')
-        const items =
-          resViolations.data?.data?.items ||
-          (Array.isArray(resViolations.data?.data)
-            ? resViolations.data.data
-            : Array.isArray(resViolations.data)
-              ? resViolations.data
-              : [])
-        if (Array.isArray(items)) {
-          const unpaid = items.filter((v: any) => !v.isPaid && v.settlementStatus !== 'Settled')
-          unpaid.slice(0, 5).forEach((item: any) => {
-            const refCode = item.referenceNumber || item.violationId || item.id
-            const rawDate = item.issuedAt || item.createdAt
-            addNotification({
-              type: 'violation_issued',
-              title: 'Active Overstay Violation Citation',
-              subtitle: item.violationType || 'Overstay Citation',
-              message: `Vehicle [${item.plateNumber}] citation unpaid. Fine Amount: ₱${Number(item.penaltyFee || item.amount || 100).toFixed(2)}.`,
-              timestamp: rawDate
-                ? new Date(rawDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : 'Active Alert',
-              createdAt: rawDate,
-              actionUrl: '/violations',
-              actionLabel: 'Manage Citation',
-              priority: 'high',
-              referenceCode: refCode,
-            })
-          })
-        }
-      } catch (e) {}
     } catch (err) {
       console.error('Error fetching admin notifications:', err)
     } finally {
@@ -315,16 +280,10 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
   function initSignalRConnection() {
     if (hubConnection) return
 
-    const apiUrl = new URL(api.defaults.baseURL || '/api', window.location.origin)
-    const defaultHubUrl = import.meta.env.VITE_BACKEND_URL
-      ? `${import.meta.env.VITE_BACKEND_URL.replace(/\/$/, '')}/hubs/notifications`
-      : new URL('/hubs/notifications', apiUrl.origin).toString()
-    const hubUrl = import.meta.env.VITE_SIGNALR_HUB_URL || defaultHubUrl
-
     const token = localStorage.getItem('parkflow_token') || ''
 
     hubConnection = new HubConnectionBuilder()
-      .withUrl(hubUrl, {
+      .withUrl(HUB_URL, {
         accessTokenFactory: () => token,
       })
       .withAutomaticReconnect([0, 2000, 5000, 10000])
@@ -365,49 +324,9 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
       )
     })
 
-    hubConnection.on('ExitResponse', (data: any) => {
-      const plate = data?.plateNumber || data?.PlateNumber || 'Vehicle'
-      const brand = data?.brand || data?.Brand || ''
-      const isViolation = Boolean(data?.isViolation || data?.IsViolation)
-      const guardName = data?.guardName || data?.GuardName || data?.issuedBy || data?.IssuedBy || ''
-      const vehicleStr = brand ? `${brand} [${plate}]` : `[${plate}]`
-      const guardStr = guardName ? ` | Issued by Guard: ${guardName}` : ''
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      if (isViolation) {
-        addNotification(
-          {
-            type: 'violation_issued',
-            title: 'Gate Overstay Violation Triggered',
-            subtitle: 'Guard Scanner Alert',
-            message: `Overstay citation generated for vehicle ${vehicleStr} upon exit attempt (${timeStr})${guardStr}.`,
-            timestamp: timeStr,
-            actionUrl: '/violations',
-            actionLabel: 'View Violation',
-            priority: 'high',
-            referenceCode: `violation-${plate}-${Date.now()}`,
-          },
-          true,
-        )
-      }
-    })
 
-    hubConnection.on('PaymentProcessed', (data: any) => {
-      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      addNotification(
-        {
-          type: 'payment_processed',
-          title: 'Violation Citation Settled',
-          subtitle: 'Payment Verified',
-          message: `Payment of ₱${Number(data?.amount || 0).toFixed(2)} processed for citation ${data?.referenceNumber || ''} (${timeStr}).`,
-          timestamp: timeStr,
-          actionUrl: '/violations',
-          actionLabel: 'View Settlement',
-          priority: 'medium',
-          referenceCode: `pay-${data?.referenceNumber || Date.now()}-${Date.now()}`,
-        },
-        true,
-      )
-    })
+
+
 
     hubConnection.on('VehicleSubmitted', (data: any) => {
       console.log('[SignalR Admin] VehicleSubmitted received:', data)

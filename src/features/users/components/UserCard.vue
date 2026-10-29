@@ -145,7 +145,7 @@ function getRoleLabel(role: string): string {
         <button
           v-else
           type="button"
-          title="Verify / Unsuspend Account"
+          title="Reactivate Account"
           @click="emit('toggleStatus', user, 'Active')"
           class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors cursor-pointer border-none bg-transparent"
         >

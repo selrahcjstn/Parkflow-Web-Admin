@@ -27,7 +27,7 @@ const formattedDate = computed(() =>
 
 const statsData = ref<DashboardStatsCache | null>(cachedStatsData.value)
 
-function trend(percent: number | null | undefined, lowerIsBetter = false) {
+function trend(percent: number | null | undefined) {
   if (typeof percent !== 'number' || !Number.isFinite(percent)) {
     return { trend: 'No comparison', trendTone: 'neutral' as const, trendUp: undefined }
   }
@@ -36,7 +36,7 @@ function trend(percent: number | null | undefined, lowerIsBetter = false) {
     trend: `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`,
     trendUp: direction,
     trendTone: direction === undefined ? 'neutral' as const
-      : (lowerIsBetter ? percent < 0 : percent > 0) ? 'positive' as const : 'negative' as const,
+      : percent > 0 ? 'positive' as const : 'negative' as const,
   }
 }
 
@@ -47,7 +47,7 @@ const stats = computed(() => {
     ? (data.activeParking / data.maxCapacity) * 100
     : undefined
   const comparisonLabel = data.trends?.comparisonDate
-    ? `Compared with ${data.trends.comparisonDate.slice(0, 10)} (Philippine time). Client and charge counts use yesterday's closing records; revenue uses yesterday's total. No comparison is shown when the previous value is zero and the current value is nonzero, or payment dates are missing.`
+    ? `Compared with ${data.trends.comparisonDate.slice(0, 10)} (Philippine time). Client counts use yesterday's closing records. No comparison is shown when the previous value is zero and the current value is nonzero.`
     : 'Comparison data is not available. A percentage cannot be calculated against a nonzero value when the previous value is zero.'
 
   return [
@@ -72,24 +72,8 @@ const stats = computed(() => {
       badgeBg: 'var(--color-success-bg)',
       progressPercent: occPercent
     },
-    {
-      title: 'Daily Revenue',
-      value: `₱${data.todayRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      subtitle: "Today's recorded payments (Philippine time)",
-      ...trend(data.trends?.revenuePercent),
-      trendLabel: comparisonLabel,
-      accentColor: 'var(--color-warning)',
-      badgeBg: 'var(--color-warning-bg)'
-    },
-    {
-      title: 'Pending Charges',
-      value: data.violations.toLocaleString('en-PH'),
-      subtitle: 'Unpaid parking charges and citations',
-      ...trend(data.trends?.pendingChargesPercent, true),
-      trendLabel: comparisonLabel,
-      accentColor: 'var(--color-primary)',
-      badgeBg: 'var(--color-primary-light)'
-    }
+
+
   ]
 })
 
@@ -104,9 +88,8 @@ const fetchDashboardStats = async () => {
     const response = await api.get('/dashboard/summary')
     if (response.data?.isSuccess && response.data?.data) {
       const data = response.data.data
-      const counts = [data.totalUsers, data.activeParking, data.maxCapacity, data.violationsCount]
-      if (!counts.every(value => Number.isSafeInteger(value) && value >= 0) ||
-          typeof data.todayRevenue !== 'number' || !Number.isFinite(data.todayRevenue) || data.todayRevenue < 0) {
+      const counts = [data.totalUsers, data.activeParking, data.maxCapacity]
+      if (!counts.every(value => Number.isSafeInteger(value) && value >= 0)) {
         throw new Error('Invalid dashboard metrics')
       }
       const newStats = {
@@ -115,8 +98,6 @@ const fetchDashboardStats = async () => {
         maxCapacity: data.maxCapacity,
         carCount: data.carCount, motorcycleCount: data.motorcycleCount,
         carCapacity: data.carCapacity, motorcycleCapacity: data.motorcycleCapacity,
-        todayRevenue: data.todayRevenue,
-        violations: data.violationsCount,
         trends: data.trends
       }
       const newActivity = Array.isArray(data.activityOverLast7Days) ? data.activityOverLast7Days : []
@@ -166,9 +147,9 @@ onMounted(() => {
     </div>
 
     <!-- Stats Grid (Full Width Baseline) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
       <template v-if="isLoading">
-        <SkeletonLoader v-for="i in 4" :key="`skel-stat-${i}`" variant="rect" height="148px" />
+        <SkeletonLoader v-for="i in 2" :key="`skel-stat-${i}`" variant="rect" height="148px" />
       </template>
       <template v-else>
         <StatsCard
@@ -198,19 +179,6 @@ onMounted(() => {
               <rect x="3" y="3" width="18" height="18" rx="4" />
               <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
               <circle cx="16" cy="15" r="1.5" fill="currentColor" />
-            </svg>
-            <!-- Daily Revenue Icon -->
-            <svg v-else-if="i === 2" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="4" width="20" height="16" rx="3" />
-              <line x1="2" y1="10" x2="22" y2="10" />
-              <path d="M6 15h2" />
-              <circle cx="16" cy="15" r="1.5" fill="currentColor" />
-            </svg>
-            <!-- Pending Citations Icon -->
-            <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <circle cx="12" cy="16" r="1" fill="currentColor" />
             </svg>
           </template>
         </StatsCard>
