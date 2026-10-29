@@ -104,7 +104,7 @@ const emit = defineEmits<{
           />
         </div>
         <p class="text-sm leading-relaxed text-muted">
-          Parking is free for everyone. Staff timing windows remain available for operational tracking.
+          Fees are configured separately above. Staff timing windows and exit grace remain available for operational tracking.
         </p>
       </section>
     </div>

@@ -98,6 +98,8 @@ const filteredNavItems = computed<NavItem[]>(() => {
     { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
     { key: 'visitors', label: 'Visitors', path: '/visitors', icon: 'visitor' },
     { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
+    { key: 'collections', label: 'Collections & Penalties', path: '/violations', icon: 'parking' },
+    { key: 'employee-verification', label: 'Employee Verification', path: '/employee-verification', icon: 'calendar' },
     { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
     { key: 'divider-3', label: 'System', icon: '', section: true },
     { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },

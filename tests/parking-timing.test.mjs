@@ -54,6 +54,6 @@ test(`settings retains ${enabled ? 'enabled' : 'disabled'} exit grace and staff 
   assert.ok(numberInput)
   assert.equal(/\sdisabled(?=[\s=>])/.test(numberInput), !enabled)
   assert.doesNotMatch(html, /Early Entry|earlyParking|early entry allowance/)
-  assert.match(html, /Parking is free for everyone/)
+  assert.match(html, /Fees are configured separately/)
 })
 }

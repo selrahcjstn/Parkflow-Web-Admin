@@ -97,6 +97,7 @@ export function syncCacheOwner(token: string | null) {
   }
 }
 export const cachedStatsData = snapshot<DashboardStatsCache | null>(null)
+export const cachedViolations = snapshot<any[] | null>(null)
 export const cachedActivityData = snapshot<ActivityDataItem[] | null>(null)
 export const cachedRegistrations = snapshot<PendingRegistrationCacheItem[] | null>(null)
 export const cachedSubmissionGuids = ref<Record<number, string>>({})

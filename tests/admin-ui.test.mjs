@@ -69,6 +69,31 @@ test('Visitors keeps search left and pushes campus status and refresh right', ()
 })
 const Button = component('src/components/ui/UiButton.vue')
 
+test('fee editor renders independent zero-priced vehicle categories without early-entry controls', async () => {
+  const Slot = { setup: (_, { slots }) => () => vue.h('section', slots.default?.()) }
+  const Input = { props: ['modelValue', 'type', 'min'], setup: props => () => vue.h('input', { value: props.modelValue, type: props.type, min: props.min }) }
+  const Fee = component('src/features/settings/components/FinancialSettingsCard.vue', {
+    '@/components/ui/UiCard.vue': { default: Slot }, '@/components/ui/UiInput.vue': { default: Input },
+    '../types': { parkingVehicleGroups: [{ key: 'carParking', label: 'Cars' }, { key: 'motorcycleParking', label: 'Motorcycles' }] },
+  })
+  const rates = Object.fromEntries(['entryFee','studentEntryFee','facultyEntryFee','personnelEntryFee','visitorFee','vipEntryFee','violationRatePerHour','baseFee','dailyOverstayFee'].map(key => [key, 0]))
+  const html = await renderToString(vue.createSSRApp(Fee, { settings: { carParking: {...rates}, motorcycleParking: {...rates}, feeCalculationMode: 'per_hour' } }))
+  assert.match(html, /Cars/); assert.match(html, /Motorcycles/)
+  assert.equal((html.match(/type="number"/g) || []).length, 18)
+  assert.equal((html.match(/value="0"/g) || []).length, 18)
+  assert.doesNotMatch(html, /Early Grace|earlyParkingMinutes/)
+})
+
+test('account details retain document verification without a duplicate account-status badge', async () => {
+  const Slot = { setup: (_, { slots }) => () => vue.h('div', slots.default?.()) }
+  const Info = component('src/features/users/components/UserAccountInfoCard.vue', {
+    '@/components/ui/UiCard.vue': { default: Slot }, '@/components/ui/UiBadge.vue': { default: Slot },
+  })
+  const html = await renderToString(vue.createSSRApp(Info, { user: { status: 'Suspended', corVerificationStatus: 'Verified', createdAt: '2026-10-29T00:00:00Z' } }))
+  assert.match(html, /COR Verification Status/)
+  assert.doesNotMatch(html, /Account Status|Account Suspended|>Suspended</)
+})
+
 test('settings removes feature controls while retaining the other tabs and saved flag values', async () => {
   const source = readFileSync(new URL('../src/features/settings/pages/SettingsPage.vue', import.meta.url), 'utf8')
   const Slot = { setup: (_, { slots }) => () => vue.h('div', slots.default?.()) }
@@ -83,6 +108,7 @@ test('settings removes feature controls while retaining the other tabs and saved
     '../components/VerificationSettingsCard.vue': { default: Slot },
     '../components/CampusCapacityCard.vue': { default: Slot },
     '../components/ParkingTimingCard.vue': { default: Slot },
+    '../components/FinancialSettingsCard.vue': { default: Slot },
     '../components/SystemAnnouncementCard.vue': { default: Slot },
   })
   const html = await renderToString(vue.createSSRApp(Settings))

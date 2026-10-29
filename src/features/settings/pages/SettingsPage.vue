@@ -7,12 +7,14 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiTabs, { type TabItem } from '@/components/ui/UiTabs.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import ParkingTimingCard from '../components/ParkingTimingCard.vue'
+import FinancialSettingsCard from '../components/FinancialSettingsCard.vue'
 import CampusCapacityCard from '../components/CampusCapacityCard.vue'
 import SystemAnnouncementCard from '../components/SystemAnnouncementCard.vue'
 
 const router = useRouter()
 
 interface SystemSettings {
+  feeCalculationMode: string
   carParking: VehicleParkingSettings
   motorcycleParking: VehicleParkingSettings
   personnelFreeParkingStart: string
@@ -35,10 +37,13 @@ import { isSuperAdminUser } from '@/utils/auth'
 const isSuperAdmin = computed(() => isSuperAdminUser())
 
 const defaultVehicleParking = (): VehicleParkingSettings => ({
+  violationRatePerHour: 0, baseFee: 0, entryFee: 0, dailyOverstayFee: 0,
+  studentEntryFee: 0, facultyEntryFee: 0, personnelEntryFee: 0, visitorFee: 0, vipEntryFee: 0,
   totalCapacity: 250,
   reservationAllocationSlots: 75,
 })
 const settings = ref<SystemSettings>({
+  feeCalculationMode: 'per_hour',
   carParking: defaultVehicleParking(),
   motorcycleParking: defaultVehicleParking(),
   personnelFreeParkingStart: '05:00',
@@ -111,6 +116,10 @@ function requestSaveSettings() {
   }
   for (const group of parkingVehicleGroups) {
     const parking = settings.value[group.key]
+    if (Object.values(parking).some(value => !Number.isFinite(value) || value < 0)) {
+      showNotification(`${group.label}: enter non-negative spaces and fees.`, 'error')
+      return
+    }
     if (
       !Number.isInteger(parking.totalCapacity) ||
       parking.totalCapacity < 0 ||
@@ -381,6 +390,7 @@ onMounted(() => {
 
         <!-- 2. Parking Timing Tab -->
         <div v-show="activeTab === 'timing'">
+          <FinancialSettingsCard :settings="settings" class="mb-6" />
           <ParkingTimingCard
             :settings="settings"
             @update:personnel-hours="Object.assign(settings, $event)"

@@ -21,7 +21,12 @@ const message = ref('')
 const busy = ref<string | null>(null)
 const reason = ref<Record<string, string>>({})
 const audits = ref<{ id: string; createdAt: string; actorId?: string; action: string; details: string }[]>([])
-const visible = computed(() => records.value.filter(r => r.type !== 'Schedule' && (!props.userId || r.userAccountId === props.userId) && (history.value || r.isCurrent) && (type.value === 'All' || r.type === type.value)))
+const visible = computed(() => records.value.filter(r => (!props.userId || r.userAccountId === props.userId) && (history.value || r.isCurrent) && (type.value === 'All' || r.type === type.value)))
+const employeeSchedules = ref<{ id: string; name: string }[]>([])
+async function queueSchedule(id: string) {
+  try { await api.post(`/verification/employee-schedules/${id}/queue`); await load() }
+  catch (error: any) { message.value = error.response?.data?.message || 'Could not queue employee schedule.' }
+}
 let interval: ReturnType<typeof setInterval> | undefined
 let loading = false
 async function load() {
@@ -33,8 +38,11 @@ async function load() {
     {
       const [users, cors] = await Promise.all([api.get('/users'), api.get('/cor-submissions')])
       const list = (r: any) => Array.isArray(r.data) ? r.data : r.data?.data || []
+      const employees = new Set(list(users).filter((u: any) => ['UniversityStaff', 'NonAcademicPersonnel', 'Faculty', 2, 3].includes(u.role)).map((u: any) => u.id || u.userAccountId))
       for (const u of list(users)) names.value[u.id || u.userAccountId] = u.fullName || `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email
-      for (const c of list(cors)) documents.value[c.id] = c.corDocumentUrl
+      for (const c of list(cors)) { documents.value[c.id] = c.corDocumentUrl; documents.value['schedule:' + c.id] = c.employeeScheduleDocumentUrl }
+      employeeSchedules.value = list(cors).filter((c: any) => employees.has(c.userAccountId) && c.employeeScheduleDocumentUrl && !records.value.some(r => r.subjectId === c.id && r.type === 'Schedule' && r.isCurrent))
+        .map((c: any) => ({ id: c.id, name: names.value[c.userAccountId] || 'Employee' }))
     }
   } catch (error: any) { message.value = error.response?.data?.message || 'Verification results could not be loaded.' }
   finally { loading = false }
@@ -64,10 +72,11 @@ onUnmounted(() => clearInterval(interval))
 
 <template>
   <section class="space-y-4">
+    <UiButton v-for="schedule in employeeSchedules" :key="schedule.id" variant="secondary" @click="queueSchedule(schedule.id)">Review schedule: {{ schedule.name }}</UiButton>
     <div class="flex flex-wrap items-center gap-3">
       <h2 class="text-lg font-bold text-slate-900 dark:text-white">Verification results</h2>
       <label class="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-2"><input v-model="history" type="checkbox" />Include past submissions</label>
-      <select v-model="type" aria-label="Verification type" class="p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm dark:text-slate-200"><option>All</option><option>Account</option><option>Cor</option></select>
+      <select v-model="type" aria-label="Verification type" class="p-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm dark:text-slate-200"><option>All</option><option>Account</option><option>Cor</option><option>Schedule</option></select>
       <UiButton variant="secondary" @click="load">Refresh</UiButton>
       <UiButton v-if="!userId" variant="secondary" @click="audit()">Policy audit history</UiButton>
     </div>
@@ -82,7 +91,7 @@ onUnmounted(() => clearInterval(interval))
       <p class="text-sm text-slate-600 dark:text-slate-300">{{ record.reason }}</p>
       <p class="text-xs text-slate-500">{{ record.method || 'Awaiting verification' }} · {{ record.ocrOutcome || 'No OCR outcome' }} · {{ new Date(record.verifiedAt || record.createdAt).toLocaleString() }}<span v-if="record.reviewerId"> · Reviewer {{ record.reviewerId }}</span></p>
       <p v-if="record.extractedFieldsJson" class="text-xs text-slate-600 dark:text-slate-300">{{ fields(record) }}</p>
-      <a v-if="record.isCurrent && documents[record.subjectId]" :href="formatDocUrl(documents[record.subjectId]!)" target="_blank" rel="noopener" class="text-sm text-indigo-600">Open submitted document</a>
+      <a v-if="record.isCurrent && documents[(record.type === 'Schedule' ? 'schedule:' : '') + record.subjectId]" :href="formatDocUrl(documents[(record.type === 'Schedule' ? 'schedule:' : '') + record.subjectId]!)" target="_blank" rel="noopener" class="text-sm text-indigo-600">Open submitted document</a>
       <div v-if="record.isCurrent" class="flex flex-wrap gap-2">
         <input v-model="reason[record.id]" :aria-label="`Review reason for ${record.type}`" placeholder="Review reason" maxlength="1000" class="flex-1 min-w-48 border border-slate-300 dark:border-slate-600 rounded-lg p-2 bg-transparent text-sm dark:text-slate-200" />
         <UiButton variant="primary" :disabled="busy !== null || record.status === 'Processing'" @click="review(record, 'Approved')">Approve</UiButton>

@@ -83,14 +83,6 @@ function formatStatusText(status?: string): string {
         </div>
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <span class="text-xs font-medium text-muted">Account Status</span>
-        <div>
-          <UiBadge :variant="getStatusBadgeVariant(user.status)" size="xs">
-            {{ formatStatusText(user.status) }}
-          </UiBadge>
-        </div>
-      </div>
     </div>
   </UiCard>
 </template>
