@@ -410,12 +410,26 @@ function handleRefresh() {
 
         <template #cell-message="{ item }">
           <div class="flex flex-col gap-1 max-w-sm">
-            <p
-              class="text-xs text-slate-700 dark:text-slate-300 truncate m-0"
-              :title="getMessageText(item)"
-            >
-              {{ getMessageText(item) }}
-            </p>
+            <div class="flex items-center gap-1.5">
+              <p
+                class="text-xs text-slate-700 dark:text-slate-300 truncate m-0 flex-1"
+                :title="getMessageText(item)"
+              >
+                {{ getMessageText(item) }}
+              </p>
+              <span
+                v-if="item.attachmentUrl"
+                class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 flex-shrink-0"
+                title="Includes attached screenshot/evidence"
+              >
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                Evidence
+              </span>
+            </div>
             <span
               v-if="item.adminReplyMessage"
               class="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center gap-1"
