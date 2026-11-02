@@ -10,6 +10,7 @@ import DocumentZoomModal from '../components/DocumentZoomModal.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import TablePagination from '@/components/ui/TablePagination.vue'
+import UiSelect from '@/components/ui/UiSelect.vue'
 
 const {
   approvals,
@@ -64,7 +65,10 @@ const filteredApprovals = computed(() => {
       selectedStatusTab.value === 'all' || item.status === selectedStatusTab.value
 
     const matchesRole =
-      selectedRole.value === 'all' || item.role.toLowerCase() === selectedRole.value.toLowerCase()
+      selectedRole.value === 'all' ||
+      item.role.toLowerCase() === selectedRole.value.toLowerCase() ||
+      (selectedRole.value === 'Staff' && ['staff', 'nonacademicpersonnel', 'university staff'].includes(item.role.toLowerCase())) ||
+      (selectedRole.value === 'Faculty' && ['faculty', 'universitystaff', 'facultymember'].includes(item.role.toLowerCase()))
 
     return matchesQuery && matchesStatus && matchesRole
   })
@@ -141,11 +145,10 @@ function handleRefresh() {
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold text-slate-900 dark:text-white tracking-tight m-0">
-          New User Approvals
+          Employee Approvals
         </h1>
         <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Review 3-in-1 initial registration packages (COR, Class Schedule, and Vehicle OR/CR) for
-          new accounts with one-tap dual verification.
+          Review employee registrations, ID cards, driver documents and vehicle registrations for staff approval.
         </p>
       </div>
     </div>
@@ -222,7 +225,21 @@ function handleRefresh() {
       :is-loading="isLoading"
       show-role-filter
       @refresh="handleRefresh"
-    />
+    >
+      <template #filters>
+        <UiSelect
+          v-model="selectedStatusTab"
+          label="Status"
+          class="w-40"
+          :options="[
+            { label: `All (${totalCount})`, value: 'all' },
+            { label: `Pending (${pendingCount})`, value: 'pending' },
+            { label: `Approved (${approvedCount})`, value: 'approved' },
+            { label: `Rejected (${rejectedCount})`, value: 'rejected' }
+          ]"
+        />
+      </template>
+    </ApprovalFilterBar>
 
     <!-- Main Content Area -->
     <div v-if="isLoading" class="space-y-3">
@@ -251,10 +268,10 @@ function handleRefresh() {
         </svg>
       </div>
       <h3 class="text-base font-bold text-slate-900 dark:text-white">
-        No New User Registrations Found
+        No Employee Applications Found
       </h3>
       <p class="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-1">
-        There are currently no new registration applications matching your current filter criteria.
+        There are currently no employee registration applications matching your current filter criteria.
       </p>
     </div>
 
@@ -297,9 +314,9 @@ function handleRefresh() {
     <!-- Approve Confirmation Dialog -->
     <ConfirmModal
       :is-open="isConfirmApproveOpen"
-      title="Approve New User Registration"
-      :message="`Are you sure you want to approve ${itemToActOn?.fullName}'s registration? This will simultaneously verify their COR, Class Schedule, and Vehicle details in one step.`"
-      confirm-text="Yes, Approve All"
+      title="Approve Employee Registration"
+      :message="`Are you sure you want to approve ${itemToActOn?.fullName}'s employee registration? This will activate their employee account, driver documents and vehicle details.`"
+      confirm-text="Yes, Approve"
       cancel-text="Cancel"
       variant="success"
       @confirm="handleConfirmApprove"
@@ -309,8 +326,8 @@ function handleRefresh() {
     <!-- Reject Confirmation Dialog -->
     <ConfirmModal
       :is-open="isConfirmRejectOpen"
-      title="Reject Registration"
-      :message="`Are you sure you want to reject the registration for ${itemToActOn?.fullName}? You can provide a feedback reason below.`"
+      title="Reject Employee Application"
+      :message="`Are you sure you want to reject the application for ${itemToActOn?.fullName}? You can provide a feedback reason below.`"
       confirm-label="Reject Submission"
       cancel-label="Cancel"
       type="danger"

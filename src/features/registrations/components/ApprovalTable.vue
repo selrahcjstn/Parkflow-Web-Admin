@@ -9,6 +9,7 @@ import { getRoleLabel } from '@/utils/role'
 defineProps<{
   items: ApprovalItem[]
   showCategory?: boolean
+  inspectLabel?: string
 }>()
 
 const emit = defineEmits<{
@@ -67,7 +68,7 @@ const columns: TableColumn[] = [
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <span>COR</span>
+            <span>{{ ['UniversityStaff', 'NonAcademicPersonnel', 'Faculty', 2, 3].includes(item.role) ? 'Emp ID' : 'COR' }}</span>
           </span>
           <span v-if="item.schedules && item.schedules.length > 0" class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-semibold text-slate-600 dark:text-slate-300">
             <svg class="w-2.5 h-2.5 text-slate-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -112,7 +113,7 @@ const columns: TableColumn[] = [
             size="xs"
             @click="emit('inspect', item)"
           >
-            Inspect
+            {{ inspectLabel || 'Details' }}
           </UiButton>
           <template v-if="item.status === 'pending'">
             <UiButton
@@ -128,6 +129,24 @@ const columns: TableColumn[] = [
               @click="emit('reject', item)"
             >
               Reject
+            </UiButton>
+          </template>
+          <template v-else-if="item.status === 'approved'">
+            <UiButton
+              variant="danger"
+              size="xs"
+              @click="emit('reject', item)"
+            >
+              Reject
+            </UiButton>
+          </template>
+          <template v-else-if="item.status === 'rejected'">
+            <UiButton
+              variant="success"
+              size="xs"
+              @click="emit('approve', item)"
+            >
+              Approve
             </UiButton>
           </template>
           <slot name="extra-actions" :item="item" />

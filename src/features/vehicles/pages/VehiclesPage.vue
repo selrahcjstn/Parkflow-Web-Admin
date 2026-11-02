@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import api, { refreshAdminData } from '@/api/axios'
+import { refreshAdminData } from '@/api/axios'
 import { ref, computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import UiButton from '@/components/ui/UiButton.vue'
+import { useRoute } from 'vue-router'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import { getVehicleTypeLabel } from '@/utils/vehicleType'
 import { getRoleLabel } from '@/utils/role'
@@ -26,7 +25,6 @@ const {
 } = useApprovals('Vehicle')
 
 const route = useRoute()
-const router = useRouter()
 const statusFromRoute = () => ['pending', 'approved', 'rejected'].includes(String(route.query.status)) ? String(route.query.status) as 'pending' | 'approved' | 'rejected' : 'all'
 
 // Filter and View State
@@ -50,8 +48,6 @@ const isConfirmRejectOpen = ref(false)
 const itemToActOn = ref<ApprovalItem | null>(null)
 const rejectFeedbackReason = ref('')
 const isReviewing = ref(false)
-const vehicleToDelete = ref<ApprovalItem | null>(null)
-const isDeleting = ref(false)
 
 // Computed counts
 const totalCount = computed(() => approvals.value.length)
@@ -139,22 +135,6 @@ async function handleConfirmReject() {
 function handleRefresh() {
   refreshAdminData()
   void fetchApprovals()
-}
-async function deleteVehicle() {
-  if (!vehicleToDelete.value || isDeleting.value) return
-  isDeleting.value = true
-  apiErrorNotice.value = null
-  try {
-    const response = await api.delete(`/vehicles/admin/${encodeURIComponent(vehicleToDelete.value.vehicleGuid || vehicleToDelete.value.guid)}`)
-    if (response.data?.isSuccess === false) throw new Error(response.data.message || 'Could not remove vehicle.')
-    vehicleToDelete.value = null
-    closeInspector()
-    await fetchApprovals()
-    actionSuccessMsg.value = 'Vehicle removed.'
-  } catch (error: any) {
-    apiErrorNotice.value = error.response?.data?.message || error.message || 'Could not remove vehicle.'
-    vehicleToDelete.value = null
-  } finally { isDeleting.value = false }
 }
 </script>
 
@@ -296,15 +276,11 @@ async function deleteVehicle() {
       <div>
         <ApprovalTable
           :items="paginatedApprovals"
+          inspect-label="Details"
           @inspect="openInspector"
           @approve="promptApprove"
           @reject="promptReject"
-        >
-          <template #extra-actions="{ item }">
-            <UiButton variant="secondary" size="xs" @click="router.push('/vehicles/' + item.guid)">Details</UiButton>
-            <UiButton variant="danger" size="xs" @click="vehicleToDelete = item">Delete</UiButton>
-          </template>
-        </ApprovalTable>
+        />
       </div>
 
       <!-- Pagination -->
@@ -367,12 +343,6 @@ async function deleteVehicle() {
           placeholder="e.g. Expired OR/CR, unclear plate number photo..."
         ></textarea>
       </div>
-    </ConfirmModal>
-    <ConfirmModal :is-open="!!vehicleToDelete" title="Delete Vehicle?"
-      message="This permanently removes the selected vehicle."
-      confirm-text="Delete Vehicle" variant="danger" :is-submitting="isDeleting"
-      @confirm="deleteVehicle" @close="vehicleToDelete = null">
-      <p class="text-sm text-slate-600 dark:text-slate-300">{{ vehicleToDelete?.vehiclePlate }} — {{ vehicleToDelete?.fullName }}</p>
     </ConfirmModal>
   </div>
 </template>

@@ -83,7 +83,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             <div class="flex items-center gap-2">
               <h3 class="text-base font-bold text-slate-900 dark:text-white m-0">{{ item.fullName }}</h3>
               <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
-                {{ item.category === 'Registration' ? 'New User Registration' : item.category }}
+                {{ item.category === 'Registration' ? (['UniversityStaff', 'NonAcademicPersonnel', 'Faculty', 2, 3].includes(item.role) ? 'Employee Registration' : 'New User Registration') : item.category }}
               </span>
             </div>
             <p class="text-xs text-slate-500 dark:text-slate-400 m-0">{{ item.email }} • Applied {{ item.dateApplied }}</p>
@@ -98,7 +98,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
     <div v-if="item" class="space-y-5">
       <!-- Top Overview Grid -->
-      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
+      <div class="grid grid-cols-2 sm:grid-cols-6 gap-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/60 text-xs">
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Role</span>
           <span class="font-semibold text-slate-900 dark:text-white">{{ getRoleLabel(item.role) }}</span>
@@ -118,6 +118,12 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Vehicle Type</span>
           <span class="font-semibold text-slate-900 dark:text-white">{{ item.vehicleType != null && item.vehicleType !== '' ? getVehicleTypeLabel(item.vehicleType) : '—' }}</span>
+        </div>
+        <div>
+          <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Pass Type</span>
+          <span class="font-semibold" :class="item.isPrimary ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-600 dark:text-slate-400'">
+            {{ item.isPrimary ? 'Primary Pass' : 'Secondary Pass' }}
+          </span>
         </div>
       </div>
 
@@ -139,7 +145,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <span>1. COR Document</span>
+            <span>{{ ['UniversityStaff', 'NonAcademicPersonnel', 'Faculty', 2, 3].includes(item.role) ? '1. Employee ID / Document' : '1. COR Document' }}</span>
           </button>
           <button
             type="button"
@@ -320,16 +326,16 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
 
         <div class="flex items-center gap-2">
           <UiButton
-            v-if="item.status === 'pending'"
+            v-if="item.status === 'pending' || item.status === 'approved'"
             type="button"
             variant="danger"
             size="md"
             @click="emit('reject', item)"
           >
-            Reject Request
+            {{ item.status === 'approved' ? 'Reject Vehicle' : 'Reject Request' }}
           </UiButton>
           <UiButton
-            v-if="item.status === 'pending'"
+            v-if="item.status === 'pending' || item.status === 'rejected'"
             type="button"
             variant="success"
             size="md"

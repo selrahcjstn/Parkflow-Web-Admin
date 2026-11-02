@@ -21,6 +21,7 @@ export interface ApprovalItem {
   vehiclePlate: string
   vehicleType: string | number
   brand: string
+  isPrimary?: boolean
   corUrl?: string
   licenseUrl?: string
   profilePhotoUrl?: string

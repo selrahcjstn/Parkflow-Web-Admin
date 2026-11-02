@@ -47,6 +47,9 @@ const isGroupActive = (item: NavItem) => {
     if (item.key === 'settings') {
       return route.path.startsWith('/settings')
     }
+    if (item.key === 'employee-approvals') {
+      return route.path === '/employee-approvals' || route.path.startsWith('/employee-approvals/')
+    }
     if (item.key === 'vehicles') return route.path === '/vehicles' || route.path.startsWith('/vehicles/')
     return route.path === item.path
   }
@@ -93,13 +96,13 @@ const filteredNavItems = computed<NavItem[]>(() => {
       { key: 'register-staff', label: 'Register Staff & Admin', path: '/users/create-staff', icon: 'registerStaff' }
     ] : []),
     { key: 'divider-approvals', label: 'Approvals', icon: '', section: true },
+    { key: 'employee-approvals', label: 'Employee Approvals', path: '/employee-approvals', icon: 'employee-approvals' },
     { key: 'vehicles', label: 'Vehicles', path: '/vehicles', icon: 'vehicles' },
     { key: 'divider-2', label: 'Operations', icon: '', section: true },
     { key: 'parking', label: 'Parking', path: '/parking', icon: 'parking' },
     { key: 'visitors', label: 'Visitors', path: '/visitors', icon: 'visitor' },
     { key: 'reservations', label: 'Reservations', path: '/reservations', icon: 'calendar' },
     { key: 'collections', label: 'Collections & Penalties', path: '/violations', icon: 'parking' },
-    { key: 'employee-verification', label: 'Employee Verification', path: '/employee-verification', icon: 'calendar' },
     { key: 'feedback', label: 'Feedback & Suggestions', path: '/feedback', icon: 'feedback' },
     { key: 'divider-3', label: 'System', icon: '', section: true },
     { key: 'reports', label: 'Reports', path: '/reports', icon: 'reports' },
@@ -238,6 +241,13 @@ const userInitials = computed(() => {
                   <line x1="16" y1="2" x2="16" y2="6" />
                   <line x1="8" y1="2" x2="8" y2="6" />
                   <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+
+                <!-- Employee Approvals icon -->
+                <svg v-else-if="item.icon === 'employee-approvals'" class="w-4.5 h-4.5 flex-shrink-0" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <polyline points="16 11 18 13 22 9" />
                 </svg>
 
                 <!-- Vehicles icon -->

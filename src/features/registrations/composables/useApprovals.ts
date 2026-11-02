@@ -40,7 +40,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         dateApplied: String(cor?.createdAt || v?.createdAt || u?.createdAt || '').split('T')[0] || '',
         academicTerm: cor?.academicTerm, corGuid: cor?.id, vehicleGuid: v?.id,
         vehiclePlate: v?.plateNumber || cor?.vehiclePlate || '—', vehicleType: v?.vehicleType ?? cor?.vehicleType ?? '',
-        brand: v?.brand || cor?.brand || '—', corUrl: formatDocUrl(cor?.corDocumentUrl || '', ''),
+        brand: v?.brand || cor?.brand || '—', isPrimary: Boolean(v?.isPrimary), corUrl: formatDocUrl(cor?.corDocumentUrl || '', ''),
         licenseUrl: v?.driversLicenseUrl?.startsWith('private-uploads/') ? v.driversLicenseUrl : formatDocUrl(v?.driversLicenseUrl || '', ''), profilePhotoUrl: formatDocUrl(v?.profilePictureUrl || '', ''),
         licenseStatus: v?.licenseStatus, licenseRejectionReason: v?.licenseRejectionReason,
         orcrUrl: formatDocUrl(v?.orcrDocumentUrl || cor?.orcrDocumentUrl || '', ''),
