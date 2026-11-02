@@ -10,7 +10,13 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   const isDev = mode === 'development'
-  const release = !isDev ? resolveAdminEndpoints(env.VITE_API_URL, 'https://build.example.invalid', false, env.VITE_SIGNALR_HUB_URL) : null
+  const apiUrl = env.VITE_API_URL && /^https:\/\//i.test(env.VITE_API_URL)
+    ? env.VITE_API_URL
+    : (isDev ? '/api' : 'https://api.example.invalid/api')
+  const hubUrl = env.VITE_SIGNALR_HUB_URL && env.VITE_SIGNALR_HUB_URL.startsWith(new URL(apiUrl).origin)
+    ? env.VITE_SIGNALR_HUB_URL
+    : undefined
+  const release = !isDev ? resolveAdminEndpoints(apiUrl, 'https://build.example.invalid', false, hubUrl) : null
   const backendTarget = release?.serverUrl || env.VITE_BACKEND_URL || 'http://localhost:5044'
 
   return {
