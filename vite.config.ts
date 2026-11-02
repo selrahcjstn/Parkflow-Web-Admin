@@ -3,21 +3,17 @@ import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
-import { resolveAdminEndpoints } from './src/api/endpointPolicy'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
+  // Default targets:
+  // Development -> http://localhost:5044 (local .NET API)
+  // Production / Prod-API -> http://54.90.173.98:5000 (AWS EC2 backend)
   const isDev = mode === 'development'
-  const apiUrl = env.VITE_API_URL && /^https:\/\//i.test(env.VITE_API_URL)
-    ? env.VITE_API_URL
-    : (isDev ? '/api' : 'https://api.example.invalid/api')
-  const hubUrl = env.VITE_SIGNALR_HUB_URL && env.VITE_SIGNALR_HUB_URL.startsWith(new URL(apiUrl).origin)
-    ? env.VITE_SIGNALR_HUB_URL
-    : undefined
-  const release = !isDev ? resolveAdminEndpoints(apiUrl, 'https://build.example.invalid', false, hubUrl) : null
-  const backendTarget = release?.serverUrl || env.VITE_BACKEND_URL || 'http://localhost:5044'
+  const defaultBackend = isDev ? 'http://localhost:5044' : 'http://54.90.173.98:5000'
+  const backendTarget = env.VITE_BACKEND_URL || defaultBackend
 
   return {
     plugins: [vue(), vueDevTools(), tailwindcss()],
@@ -32,13 +28,13 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backendTarget,
           changeOrigin: true,
-          secure: !isDev,
+          secure: false,
         },
         '/hubs': {
           target: backendTarget,
           changeOrigin: true,
           ws: true,
-          secure: !isDev,
+          secure: false,
         },
       },
     },
