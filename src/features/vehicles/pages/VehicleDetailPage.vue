@@ -75,10 +75,11 @@ function cleanOwnerName(name?: string): string {
 function mapRawVehicle(v: any) {
   const vehPic = v.vehiclePictureUrl || v.vehiclePhotoUrl || v.photoUrl || null
   const orcrDoc = v.orcrDocumentUrl || v.orcrUrl || v.documentUrl || null
+  const isEb = v.vehicleType === 1 || v.vehicleType === '1' || v.vehicleType === 'ElectricBike' || v.vehicleType === 'E-Bike'
 
   return {
     id: String(v.id ?? v.vehicleId ?? v.guid ?? v.vehicleGuid ?? ''),
-    plateNumber: v.plateNumber || 'N/A',
+    plateNumber: v.plateNumber || (isEb ? 'No Plate (E-Bike)' : 'N/A'),
     brand: v.brand || '—',
     vehicleType: v.vehicleType,
     verificationStatus: typeof v.verificationStatus === 'number' ? v.verificationStatus : 1,
@@ -450,7 +451,7 @@ function goBack() {
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
-                <span>No OR/CR document uploaded</span>
+                <span>{{ (vehicle.vehicleType === 1 || vehicle.vehicleType === '1' || vehicle.vehicleType === 'ElectricBike' || vehicle.vehicleType === 'E-Bike') ? 'OR/CR document is not required for E-bikes.' : 'No OR/CR document uploaded' }}</span>
               </div>
             </div>
 

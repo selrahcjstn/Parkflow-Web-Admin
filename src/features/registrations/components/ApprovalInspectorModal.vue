@@ -41,8 +41,13 @@ async function loadLicense() {
   finally { if (request === licenseRequest) licenseLoading.value = false }
 }
 watch([() => props.isOpen, () => props.item?.licenseUrl, activeDocType], () => { void loadLicense() }, { immediate: true })
+const isEBike = computed(() => {
+  const t = props.item?.vehicleType
+  return t === 1 || t === '1' || t === 'ElectricBike' || t === 'E-Bike'
+})
+
 const activeUrl = computed(() => activeDocType.value === 'license' ? (props.item?.licenseUrl?.startsWith('private-uploads/') ? privateLicenseUrl.value : props.item?.licenseUrl) : activeDocType.value === 'profilePhoto' ? props.item?.profilePhotoUrl : activeDocType.value === 'cor' ? props.item?.corUrl : activeDocType.value === 'orcr' ? props.item?.orcrUrl : props.item?.motorPicUrl)
-const activeLabel = computed(() => activeDocType.value === 'license' ? 'Driver’s license' : activeDocType.value === 'profilePhoto' ? 'Profile photo' : activeDocType.value === 'orcr' ? 'OR/CR document' : 'Vehicle photo')
+const activeLabel = computed(() => activeDocType.value === 'license' ? 'Driver’s license' : activeDocType.value === 'profilePhoto' ? 'Profile photo' : activeDocType.value === 'orcr' ? 'OR/CR document' : (isEBike.value ? 'E-Bike photo' : 'Vehicle photo'))
 
 watch(
   () => props.item,
@@ -51,7 +56,8 @@ watch(
       if (newItem.category === 'Schedule') {
         activeDocType.value = 'schedule'
       } else if (newItem.category === 'Vehicle') {
-        activeDocType.value = 'orcr'
+        const isEb = newItem.vehicleType === 1 || newItem.vehicleType === '1' || newItem.vehicleType === 'ElectricBike' || newItem.vehicleType === 'E-Bike'
+        activeDocType.value = isEb ? 'motorPic' : 'orcr'
       } else {
         activeDocType.value = 'cor'
       }
@@ -109,7 +115,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         </div>
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Vehicle Plate</span>
-          <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate || '—' }}</span>
+          <span class="font-mono font-bold text-slate-900 dark:text-white">{{ item.vehiclePlate || (isEBike ? 'No Plate (E-Bike)' : '—') }}</span>
         </div>
         <div>
           <span class="text-slate-400 dark:text-slate-500 text-[10px] uppercase font-bold tracking-wider block">Vehicle Brand</span>
@@ -128,7 +134,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
       </div>
 
       <div v-if="item.category === 'Vehicle'" class="text-sm text-slate-600 dark:text-slate-300">
-        Review the driver’s valid license and face photo with the OR/CR and vehicle photo before approval.
+        Review the driver’s valid license and face photo with the {{ isEBike ? 'e-bike photo' : 'OR/CR and vehicle photo' }} before approval.
         <p v-if="!item.licenseUrl || !item.profilePhotoUrl" class="mt-1 text-amber-700 dark:text-amber-300">The driver must submit the missing license or profile photo before approval and entry.</p>
         <p v-if="item.licenseRejectionReason" class="mt-1 text-red-700 dark:text-red-300">License review: {{ item.licenseRejectionReason }}</p>
       </div>
@@ -219,18 +225,6 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
           <button
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
-            :class="activeDocType === 'orcr' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
-            @click="activeDocType = 'orcr'"
-          >
-            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-            </svg>
-            <span>OR/CR Document</span>
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'motorPic' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
             @click="activeDocType = 'motorPic'"
           >
@@ -239,7 +233,20 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
             </svg>
-            <span>Vehicle Photo</span>
+            <span>{{ isEBike ? 'E-Bike Photo' : 'Vehicle Photo' }}</span>
+          </button>
+          <button
+            v-if="!isEBike || item.orcrUrl"
+            type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
+            :class="activeDocType === 'orcr' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
+            @click="activeDocType = 'orcr'"
+          >
+            <svg class="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+            </svg>
+            <span>{{ isEBike ? 'OR/CR (Optional)' : 'OR/CR Document' }}</span>
           </button>
         </template>
       </div>

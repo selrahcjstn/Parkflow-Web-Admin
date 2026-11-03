@@ -48,7 +48,7 @@ const columns: TableColumn[] = [
       <template #cell-details="{ item }">
         <div class="space-y-0.5 text-xs">
           <div class="flex items-center gap-1.5">
-            <span class="font-mono font-bold text-slate-800 dark:text-slate-200">{{ item.vehiclePlate }}</span>
+            <span class="font-mono font-bold text-slate-800 dark:text-slate-200">{{ item.vehiclePlate || (item.vehicleType === 1 || item.vehicleType === '1' || item.vehicleType === 'ElectricBike' || item.vehicleType === 'E-Bike' ? 'No Plate (E-Bike)' : '—') }}</span>
             <span class="text-slate-500">• {{ getVehicleTypeLabel(item.vehicleType) }}</span>
           </div>
           <div v-if="item.brand && item.brand !== '—'" class="text-[11px] text-slate-500 dark:text-slate-400">

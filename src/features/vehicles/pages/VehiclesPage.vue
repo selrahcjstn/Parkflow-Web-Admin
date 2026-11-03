@@ -232,6 +232,7 @@ function handleRefresh() {
         ]" />
         <UiSelect v-model="selectedVehicleType" label="Vehicle type" class="w-40" :options="[
           { label: 'All types', value: 'all' }, { label: 'Motorcycle', value: 'Motorcycle' },
+          { label: 'E-Bike', value: 'E-Bike' },
           { label: 'Car', value: 'Car' }
         ]" />
       </template>
