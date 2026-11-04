@@ -191,7 +191,7 @@ async function fetchApprovals() {
           role: sub.userRole || matchedVeh.ownerRole || 'Student',
           dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
           academicTerm: sub.academicTerm || 'AY 2026-2027',
-          vehiclePlate: matchedVeh.plateNumber || sub.vehiclePlate || 'ABC 1234',
+          vehiclePlate: matchedVeh.plateNumber || sub.vehiclePlate || (matchedVeh.vehicleType === 1 || sub.vehicleType === 1 ? 'No Plate (E-Bike)' : '—'),
           vehicleType: getVehicleTypeLabel(matchedVeh.vehicleType ?? sub.vehicleType),
           brand: matchedVeh.brand || sub.brand || 'Vehicle',
           corUrl: formatDocUrl(cor, ''),
@@ -226,7 +226,7 @@ async function fetchApprovals() {
         role: sub.userRole || 'Student',
         dateApplied: sub.createdAt ? new Date(sub.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
         academicTerm: sub.academicTerm || 'AY 2026-2027',
-        vehiclePlate: sub.vehiclePlate || sub.plateNumber || 'N/A',
+        vehiclePlate: sub.vehiclePlate || sub.plateNumber || (sub.vehicleType === 1 ? 'No Plate (E-Bike)' : '—'),
         vehicleType: getVehicleTypeLabel(sub.vehicleType),
         brand: sub.brand || 'Vehicle',
         corUrl: formatDocUrl(cor, ''),
@@ -260,7 +260,7 @@ async function fetchApprovals() {
         role: veh.ownerRole || veh.role || 'Student',
         dateApplied: veh.createdAt ? new Date(veh.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Today',
         academicTerm: 'AY 2026-2027',
-        vehiclePlate: veh.plateNumber || 'XYZ 789',
+        vehiclePlate: veh.plateNumber || (veh.vehicleType === 1 ? 'No Plate (E-Bike)' : '—'),
         vehicleType: getVehicleTypeLabel(veh.vehicleType),
         brand: veh.brand || 'Vehicle',
         corUrl: '',
@@ -316,14 +316,17 @@ const approveModalMessage = computed(() => {
   if (!itemToApprove.value) return ''
   const item = itemToApprove.value
   if (item.category === 'Registration') {
+    const isEb = item.vehicleType === 'Electric Bike' || item.vehicleType === 1 || item.vehicleType === '1'
     const vType = item.vehicleType ? ` - ${item.vehicleType}` : ''
-    const plate = item.vehiclePlate ? `<strong>${item.vehiclePlate}</strong>` : 'their vehicle'
+    const plate = item.vehiclePlate && item.vehiclePlate !== '—' ? `<strong>${item.vehiclePlate}</strong>` : (isEb ? 'their e-bike' : 'their vehicle')
     const brand = item.brand ? ` (${item.brand}${vType})` : ''
-    return `Are you sure you want to approve all 3 verification documents (COR, Class Schedule, OR/CR & Vehicle Photo) for new applicant <strong>${item.fullName || 'this applicant'}</strong> with ${plate}${brand}?<br><br>This will verify their COR, schedule, and vehicle simultaneously in one tap.`
+    const docSummary = isEb ? 'registration documents (Employee/COR Document, and E-Bike Photo)' : 'all 3 verification documents (COR, Class Schedule, OR/CR & Vehicle Photo)'
+    return `Are you sure you want to approve ${docSummary} for new applicant <strong>${item.fullName || 'this applicant'}</strong> with ${plate}${brand}?<br><br>This will verify their documents and vehicle simultaneously in one tap.`
   }
   if (item.category === 'Vehicle') {
+    const isEb = item.vehicleType === 'Electric Bike' || item.vehicleType === 1 || item.vehicleType === '1'
     const vType = item.vehicleType ? ` - ${item.vehicleType}` : ''
-    const plate = item.vehiclePlate ? `<strong>${item.vehiclePlate}</strong>` : 'this vehicle'
+    const plate = item.vehiclePlate && item.vehiclePlate !== '—' ? `<strong>${item.vehiclePlate}</strong>` : (isEb ? 'this e-bike' : 'this vehicle')
     const brand = item.brand ? ` (${item.brand}${vType})` : ''
     return `Are you sure you want to approve and verify vehicle ${plate}${brand} owned by <strong>${item.fullName || 'this applicant'}</strong>?<br><br>This will grant verified status and allow campus parking entry.`
   }

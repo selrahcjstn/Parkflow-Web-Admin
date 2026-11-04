@@ -134,8 +134,10 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
       </div>
 
       <div v-if="item.category === 'Vehicle'" class="text-sm text-slate-600 dark:text-slate-300">
-        Review the driver’s valid license and face photo with the {{ isEBike ? 'e-bike photo' : 'OR/CR and vehicle photo' }} before approval.
-        <p v-if="!item.licenseUrl || !item.profilePhotoUrl" class="mt-1 text-amber-700 dark:text-amber-300">The driver must submit the missing license or profile photo before approval and entry.</p>
+        Review the driver’s {{ isEBike ? 'face photo and e-bike photo' : 'valid license, face photo, OR/CR and vehicle photo' }} before approval.
+        <p v-if="(!isEBike && !item.licenseUrl) || !item.profilePhotoUrl" class="mt-1 text-amber-700 dark:text-amber-300">
+          The driver must submit the missing {{ !item.profilePhotoUrl ? 'profile photo' : 'license' }} before approval and entry.
+        </p>
         <p v-if="item.licenseRejectionReason" class="mt-1 text-red-700 dark:text-red-300">License review: {{ item.licenseRejectionReason }}</p>
       </div>
       <!-- Document Tabs Switcher -->
@@ -166,6 +168,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             <span>2. Class Schedule</span>
           </button>
           <button
+            v-if="!isEBike || item.orcrUrl"
             type="button"
             class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border"
             :class="activeDocType === 'orcr' ? 'bg-[#7B1113] text-white border-[#7B1113]' : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'"
@@ -188,7 +191,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
             </svg>
-            <span>4. Vehicle Photo</span>
+            <span>{{ isEBike ? '3. E-Bike Photo' : '4. Vehicle Photo' }}</span>
           </button>
         </template>
 
@@ -220,7 +223,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
         </template>
 
         <template v-else-if="item.category === 'Vehicle'">
-          <UiButton :variant="activeDocType === 'license' ? 'primary' : 'secondary'" size="sm" @click="activeDocType = 'license'">Driver’s license</UiButton>
+          <UiButton v-if="!isEBike || item.licenseUrl" :variant="activeDocType === 'license' ? 'primary' : 'secondary'" size="sm" @click="activeDocType = 'license'">Driver’s license</UiButton>
           <UiButton :variant="activeDocType === 'profilePhoto' ? 'primary' : 'secondary'" size="sm" @click="activeDocType = 'profilePhoto'">Profile photo</UiButton>
           <button
             type="button"
@@ -346,7 +349,7 @@ function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger
             type="button"
             variant="success"
             size="md"
-            :disabled="item.category === 'Vehicle' && (!item.licenseUrl || !item.profilePhotoUrl || !item.orcrUrl || !item.motorPicUrl)"
+            :disabled="item.category === 'Vehicle' && (!item.profilePhotoUrl || (!isEBike && (!item.licenseUrl || !item.orcrUrl)) || !item.motorPicUrl)"
             @click="emit('approve', item)"
           >
             Approve & Verify

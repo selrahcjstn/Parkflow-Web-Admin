@@ -366,7 +366,7 @@ function closeZoom() {
             @click="selectVehicle(item)"
           >
             <div class="applicant-card-header">
-              <span class="applicant-name">{{ item.plateNumber }}</span>
+              <span class="applicant-name">{{ item.plateNumber || (item.vehicleType === 1 ? 'No Plate (E-Bike)' : '—') }}</span>
               <span
                 class="status-chip"
                 :class="{
@@ -445,8 +445,12 @@ function closeZoom() {
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                 <polyline points="14 2 14 8 20 8"/>
               </svg>
-              <p class="font-semibold text-xs text-slate-600 dark:text-slate-300">No OR/CR Document</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">No document has been uploaded for this vehicle.</p>
+              <p class="font-semibold text-xs text-slate-600 dark:text-slate-300">
+                {{ selectedVehicle.vehicleType === 1 ? 'OR/CR Not Required' : 'No OR/CR Document' }}
+              </p>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                {{ selectedVehicle.vehicleType === 1 ? 'Electric bikes (E-Bikes) do not require LTO OR/CR documentation.' : 'No document has been uploaded for this vehicle.' }}
+              </p>
             </div>
           </div>
 
@@ -459,7 +463,7 @@ function closeZoom() {
                   <circle cx="8.5" cy="8.5" r="1.5"/>
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
-                Proof of Vehicle (Photo)
+                {{ selectedVehicle.vehicleType === 1 ? 'E-Bike Photo' : 'Proof of Vehicle (Photo)' }}
               </h3>
               <a
                 v-if="selectedVehicle.vehiclePictureUrl"
@@ -495,8 +499,12 @@ function closeZoom() {
                 <circle cx="17" cy="17" r="2" />
                 <path d="M6 11l1.5-4.5h9L18 11" />
               </svg>
-              <p class="font-semibold text-xs text-slate-600 dark:text-slate-300">No Vehicle Photo</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">No photograph has been uploaded for this vehicle.</p>
+              <p class="font-semibold text-xs text-slate-600 dark:text-slate-300">
+                {{ selectedVehicle.vehicleType === 1 ? 'No E-Bike Photo' : 'No Vehicle Photo' }}
+              </p>
+              <p class="text-[11px] text-slate-400 mt-0.5">
+                {{ selectedVehicle.vehicleType === 1 ? 'No photograph has been uploaded for this e-bike.' : 'No photograph has been uploaded for this vehicle.' }}
+              </p>
             </div>
           </div>
         </div>
@@ -526,7 +534,7 @@ function closeZoom() {
           <div class="info-grid">
             <div class="info-item">
               <span class="info-label">Plate Number</span>
-              <span class="info-value font-plate">{{ selectedVehicle.plateNumber }}</span>
+              <span class="info-value font-plate">{{ selectedVehicle.plateNumber || (selectedVehicle.vehicleType === 1 ? 'No Plate (E-Bike)' : '—') }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">Brand / Model</span>
@@ -589,7 +597,7 @@ function closeZoom() {
     <ConfirmModal
       :is-open="isApproveModalOpen"
       title="Approve Vehicle Registration"
-      :message="`Are you sure you want to approve and verify vehicle <strong>${itemToApprove?.plateNumber || ''}</strong> (${itemToApprove?.brand || ''} - ${itemToApprove ? getVehicleTypeLabel(itemToApprove.vehicleType) : ''}) owned by <strong>${itemToApprove?.ownerName || 'this applicant'}</strong>?<br><br>This will verify the vehicle and permit campus parking access.`"
+      :message="`Are you sure you want to approve and verify vehicle <strong>${itemToApprove?.plateNumber || (itemToApprove?.vehicleType === 1 ? 'No Plate (E-Bike)' : '')}</strong> (${itemToApprove?.brand || ''} - ${itemToApprove ? getVehicleTypeLabel(itemToApprove.vehicleType) : ''}) owned by <strong>${itemToApprove?.ownerName || 'this applicant'}</strong>?<br><br>This will verify the vehicle and permit campus parking access.`"
       confirm-text="Approve & Verify"
       cancel-text="Cancel"
       variant="success"
