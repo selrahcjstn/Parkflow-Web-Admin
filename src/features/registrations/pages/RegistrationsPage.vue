@@ -167,8 +167,9 @@ async function fetchApprovals() {
         const corStatus = mapVerificationStatus(sub.verificationStatus)
         const vehStatus = mapVerificationStatus(matchedVeh.verificationStatus ?? matchedVeh.approvalStatus)
         
+        const isFacultyOrStaff = sub.userRole === 'Faculty' || sub.userRole === 'UniversityStaff' || sub.userRole === 'NonAcademicPersonnel' || matchedVeh.ownerRole === 'Faculty' || matchedVeh.ownerRole === 'UniversityStaff' || matchedVeh.ownerRole === 'NonAcademicPersonnel'
         let combinedStatus: 'pending' | 'approved' | 'rejected' = 'pending'
-        if (corStatus === 'approved' && vehStatus === 'approved') {
+        if ((corStatus === 'approved' && vehStatus === 'approved') || (isFacultyOrStaff && vehStatus === 'approved')) {
           combinedStatus = 'approved'
         } else if (corStatus === 'rejected' || vehStatus === 'rejected') {
           combinedStatus = 'rejected'

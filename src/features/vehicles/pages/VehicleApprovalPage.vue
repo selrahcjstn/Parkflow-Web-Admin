@@ -180,10 +180,17 @@ async function confirmApprove() {
     })
     if (res.data?.isSuccess || res.status === 200) {
       item.verificationStatus = 2
+      const idx = vehicles.value.findIndex(v => v.id === item.id)
+      if (idx !== -1 && vehicles.value[idx]) {
+        vehicles.value[idx]!.verificationStatus = 2
+      }
+      if (selectedTab.value === 'pending') {
+        const remainingPending = vehicles.value.filter(v => isStatusPending(v.verificationStatus))
+        selectedVehicle.value = remainingPending[0] || null
+      }
     }
   } catch (err) {
     console.error('Error approving vehicle:', err)
-    item.verificationStatus = 2
   } finally {
     if (cachedVehicleApprovals.value) {
       cachedVehicleApprovals.value = [...vehicles.value]
