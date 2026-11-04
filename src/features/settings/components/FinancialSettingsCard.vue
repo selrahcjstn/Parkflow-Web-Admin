@@ -18,7 +18,7 @@ const rates = [
 <template>
   <UiCard custom-class="p-6 space-y-5">
     <div><h3 class="text-sm font-bold text-text">Parking fees and penalties</h3>
-      <p class="mt-1 text-sm text-muted">Amounts are in pesos. Zero totals require no payment. Changes apply to new checkouts; recorded transactions keep their original amounts.</p></div>
+      <p class="mt-1 text-sm text-muted">Amounts are in pesos. Zero totals require no payment. Campus parking is free upon entry during permitted hours; only vehicle overstay beyond permitted hours incurs a penalty fee. Changes apply to new checkouts; recorded transactions keep their original amounts.</p></div>
     <label class="block text-sm text-text">Scheduled overstay calculation
       <select v-model="settings.feeCalculationMode" class="mt-2 block rounded-lg border border-border bg-surface p-2 text-text">
         <option value="per_hour">Per started hour</option><option value="per_day">Per day</option>

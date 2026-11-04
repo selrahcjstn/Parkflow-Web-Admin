@@ -104,7 +104,7 @@ const emit = defineEmits<{
           />
         </div>
         <p class="text-sm leading-relaxed text-muted">
-          Fees are configured separately above. Staff timing windows and exit grace remain available for operational tracking.
+          Campus parking is free upon entry during permitted hours; only vehicle overstay beyond permitted hours incurs a fee. Fees are configured separately above. Staff timing windows and exit grace remain available for operational tracking.
         </p>
       </section>
     </div>
