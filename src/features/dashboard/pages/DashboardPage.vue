@@ -1,217 +1,299 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
-import StatsCard from '../components/StatsCard.vue'
-import ParkingChart from '../components/ParkingChart.vue'
-import RecentActivity from '../components/RecentActivity.vue'
+import { computed } from 'vue'
 import PendingRegistrations from '../components/PendingRegistrations.vue'
 import DashboardCalendar from '../components/DashboardCalendar.vue'
 import RecentFeedbackOverview from '../components/RecentFeedbackOverview.vue'
-import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
-import UiButton from '@/components/ui/UiButton.vue'
-import api from '@/api/axios'
+import KpiCard from '../components/analytics/KpiCard.vue'
+import ChartPanel from '../components/analytics/ChartPanel.vue'
+import ActivityLineChart from '../components/analytics/ActivityLineChart.vue'
+import PeakHoursChart from '../components/analytics/PeakHoursChart.vue'
+import DonutChart, { type DonutItem } from '../components/analytics/DonutChart.vue'
+import StatusStackedBars, { type StatusRow } from '../components/analytics/StatusStackedBars.vue'
+import ApprovalWorkload from '../components/analytics/ApprovalWorkload.vue'
+import OccupancyPanel from '../components/analytics/OccupancyPanel.vue'
+import RecentParkingTable from '../components/analytics/RecentParkingTable.vue'
+import QuickActions from '../components/analytics/QuickActions.vue'
+import DashIcon from '../components/analytics/DashIcon.vue'
+import { useDashboardAnalytics } from '../composables/useDashboardAnalytics'
+import type { ActivityRange } from '../api/dashboard.api'
 
-import { cachedStatsData, cachedActivityData, type DashboardStatsCache } from '@/stores/appCache'
+const { range, summary, overview, activity, refreshAll } = useDashboardAnalytics()
 
-const isLoading = ref(!cachedStatsData.value)
-const statsError = ref('')
-const isFetching = ref(false)
+const RED = '#D22730'
+const GOLD = '#FDB813'
+const SLATE = '#334155'
+const GRAY = '#94a3b8'
 
-const formattedDate = computed(() =>
-  new Intl.DateTimeFormat('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date())
+const number = (value: number | undefined | null) => (value ?? 0).toLocaleString('en-PH')
+
+const dateLabel = new Intl.DateTimeFormat('en-PH', {
+  timeZone: 'Asia/Manila', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+}).format(new Date())
+
+const updatedAt = computed(() =>
+  overview.data.value
+    ? new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }).format(new Date(overview.data.value.generatedAtUtc))
+    : '',
 )
+const refreshing = computed(() => summary.refreshing.value || overview.refreshing.value || activity.refreshing.value)
 
-const statsData = ref<DashboardStatsCache | null>(cachedStatsData.value)
+const ranges: Array<{ id: ActivityRange; label: string }> = [
+  { id: 'today', label: 'Today' },
+  { id: '7d', label: '7 days' },
+  { id: '30d', label: '30 days' },
+]
+const rangeSubtitle = computed(() => ({
+  today: 'Hourly entries and exits today (Philippine time)',
+  '7d': 'Daily entries and exits over the last 7 days',
+  '30d': 'Daily entries and exits over the last 30 days',
+}[range.value]))
 
-function trend(percent: number | null | undefined) {
-  if (typeof percent !== 'number' || !Number.isFinite(percent)) {
-    return { trend: 'No comparison', trendTone: 'neutral' as const, trendUp: undefined }
-  }
-  const direction = percent > 0 ? true : percent < 0 ? false : undefined
+// Registered-client growth vs yesterday's close. Only shown when the API returned a real percentage.
+const clientsDelta = computed(() => {
+  const percent = summary.data.value?.trends?.registeredClientsPercent
+  if (typeof percent !== 'number' || !Number.isFinite(percent)) return {}
   return {
-    trend: `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`,
-    trendUp: direction,
-    trendTone: direction === undefined ? 'neutral' as const
-      : percent > 0 ? 'positive' as const : 'negative' as const,
+    delta: `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`,
+    deltaDirection: percent > 0 ? ('up' as const) : percent < 0 ? ('down' as const) : ('flat' as const),
+    deltaTone: percent > 0 ? ('positive' as const) : percent < 0 ? ('negative' as const) : ('neutral' as const),
   }
-}
+})
 
-const stats = computed(() => {
-  const data = statsData.value
-  if (!data) return []
-  const occPercent = data.maxCapacity > 0
-    ? (data.activeParking / data.maxCapacity) * 100
-    : undefined
-  const comparisonLabel = data.trends?.comparisonDate
-    ? `Compared with ${data.trends.comparisonDate.slice(0, 10)} (Philippine time). Client counts use yesterday's closing records. No comparison is shown when the previous value is zero and the current value is nonzero.`
-    : 'Comparison data is not available. A percentage cannot be calculated against a nonzero value when the previous value is zero.'
+const totalPendingDecisions = computed(() => {
+  const p = overview.data.value?.pending
+  return p ? p.vehicles + p.corSchedules : 0
+})
 
+const vehicleItems = computed<DonutItem[]>(() => {
+  const v = overview.data.value?.vehicles
+  return v ? [
+    { label: 'Motorcycle', value: v.motorcycles, color: RED },
+    { label: 'Car', value: v.cars, color: SLATE },
+    { label: 'E-bike', value: v.electricBikes, color: GOLD },
+  ] : []
+})
+
+const userItems = computed<DonutItem[]>(() => {
+  const a = overview.data.value?.accounts
+  return a ? [
+    { label: 'Students', value: a.students, color: RED },
+    { label: 'Personnel', value: a.personnel, color: GOLD },
+    { label: 'Guards', value: a.guards, color: SLATE },
+    { label: 'Administrators', value: a.admins, color: GRAY },
+  ].filter((item) => item.value > 0) : []
+})
+
+const statusRows = computed<StatusRow[]>(() => {
+  const o = overview.data.value
+  if (!o) return []
   return [
+    { label: 'Vehicles', to: '/vehicles', approved: o.vehicles.approved, pending: o.vehicles.pending, rejected: o.vehicles.rejected },
     {
-      title: 'Registered Clients',
-      value: data.totalUsers.toLocaleString('en-PH'),
-      subtitle: 'Client accounts, excluding admins and guards',
-      ...trend(data.trends?.registeredClientsPercent),
-      trendLabel: comparisonLabel,
-      accentColor: 'var(--color-info)',
-      badgeBg: 'var(--color-info-bg)'
+      label: 'Accounts', to: '/users', approved: o.accounts.active, pending: o.accounts.pendingVerification, rejected: o.accounts.suspended,
+      approvedLabel: 'Active', rejectedLabel: 'Suspended',
     },
-    {
-      title: 'Slot Occupancy',
-      value: `${data.activeParking.toLocaleString('en-PH')} / ${data.maxCapacity.toLocaleString('en-PH')}`,
-      subtitle: `Cars ${data.carCount ?? 0}/${data.carCapacity ?? 0} · Motorcycles ${data.motorcycleCount ?? 0}/${data.motorcycleCapacity ?? 0}`,
-      trend: occPercent === undefined ? 'Capacity not set' : `${occPercent.toFixed(1)}% full`,
-      trendLabel: 'Registered and visitor vehicles currently inside divided by total parking capacity.',
-      trendTone: 'neutral' as const,
-      trendUp: undefined,
-      accentColor: 'var(--color-success)',
-      badgeBg: 'var(--color-success-bg)',
-      progressPercent: occPercent
-    },
-
-
   ]
 })
 
-const activityData = ref<{ day: string; checkIns: number; checkOuts: number }[]>(cachedActivityData.value || [])
-
-const fetchDashboardStats = async () => {
-  if (isFetching.value) return
-  isFetching.value = true
-  statsError.value = ''
-  if (!statsData.value) isLoading.value = true
-  try {
-    const response = await api.get('/dashboard/summary')
-    if (response.data?.isSuccess && response.data?.data) {
-      const data = response.data.data
-      const counts = [data.totalUsers, data.activeParking, data.maxCapacity]
-      if (!counts.every(value => Number.isSafeInteger(value) && value >= 0)) {
-        throw new Error('Invalid dashboard metrics')
-      }
-      const newStats = {
-        totalUsers: data.totalUsers,
-        activeParking: data.activeParking,
-        maxCapacity: data.maxCapacity,
-        carCount: data.carCount, motorcycleCount: data.motorcycleCount,
-        carCapacity: data.carCapacity, motorcycleCapacity: data.motorcycleCapacity,
-        trends: data.trends
-      }
-      const newActivity = Array.isArray(data.activityOverLast7Days) ? data.activityOverLast7Days : []
-
-      statsData.value = newStats
-      activityData.value = newActivity
-
-      cachedStatsData.value = newStats
-      cachedActivityData.value = newActivity
-    } else {
-      throw new Error('Dashboard metrics could not be loaded')
-    }
-  } catch (error) {
-    console.error('Error loading dashboard stats:', error)
-    statsError.value = statsData.value
-      ? 'Could not update metrics. Last loaded values are shown.'
-      : 'Could not load dashboard metrics. Please try again.'
-  } finally {
-    isFetching.value = false
-    isLoading.value = false
-  }
-}
-
-onMounted(() => {
-  if (!cachedStatsData.value) {
-    isLoading.value = true
-  }
-  fetchDashboardStats()
+const hasActivity = computed(() => (activity.data.value?.series ?? []).some((b) => b.entries + b.exits > 0))
+const hasPeakData = computed(() => (activity.data.value?.peakHours ?? []).some((h) => h.entries + h.exits > 0))
+const occupancy = computed(() => {
+  const s = summary.data.value
+  return s && s.maxCapacity > 0 ? Math.min(100, (s.activeParking / s.maxCapacity) * 100) : undefined
+})
+const available = computed(() => {
+  const s = summary.data.value
+  return s && s.maxCapacity > 0 ? Math.max(0, s.maxCapacity - s.activeParking) : undefined
 })
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
-    <!-- Welcome Header -->
-    <div class="flex flex-col gap-1">
-      <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight m-0">
-        Welcome back, Admin
-      </h1>
-      <p class="text-sm font-medium text-slate-500 dark:text-slate-400 m-0">
-        {{ formattedDate }}
-      </p>
-    </div>
-
-    <div v-if="statsError" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-warning/30 bg-warning-bg p-4 text-sm text-text">
-      <span>{{ statsError }}</span>
-      <UiButton variant="secondary" size="sm" :loading="isFetching" @click="fetchDashboardStats">Retry</UiButton>
-    </div>
-
-    <!-- Stats Grid (Full Width Baseline) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
-      <template v-if="isLoading">
-        <SkeletonLoader v-for="i in 2" :key="`skel-stat-${i}`" variant="rect" height="148px" />
-      </template>
-      <template v-else>
-        <StatsCard
-          v-for="(stat, i) in stats"
-          :key="i"
-          :title="stat.title"
-          :value="stat.value"
-          :subtitle="stat.subtitle"
-          :trend="stat.trend"
-          :trend-up="stat.trendUp"
-          :trend-tone="stat.trendTone"
-          :trend-label="stat.trendLabel"
-          :accent-color="stat.accentColor"
-          :badge-bg="stat.badgeBg"
-          :progress-percent="stat.progressPercent"
+    <!-- Header -->
+    <div class="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 class="m-0 text-2xl font-bold tracking-tight text-text">Dashboard</h1>
+        <p class="m-0 mt-1 text-sm text-muted">{{ dateLabel }}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span v-if="updatedAt" class="text-[12.5px] text-muted">Updated {{ updatedAt }}</span>
+        <button
+          type="button"
+          class="inline-flex min-h-9 items-center gap-2 rounded-lg border border-border bg-surface px-3 text-[13px] font-medium text-text transition-colors hover:border-[#D22730]/40 hover:text-[#D22730] disabled:opacity-60"
+          :disabled="refreshing"
+          @click="refreshAll"
         >
-          <template #icon>
-            <!-- Registered Clients Icon -->
-            <svg v-if="i === 0" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            <!-- Slot Occupancy Icon -->
-            <svg v-else-if="i === 1" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="4" />
-              <path d="M9 17V7h4a3 3 0 0 1 0 6H9" />
-              <circle cx="16" cy="15" r="1.5" fill="currentColor" />
-            </svg>
-          </template>
-        </StatsCard>
-      </template>
+          <DashIcon name="refresh" :size="15" :class="refreshing ? 'animate-spin' : ''" />Refresh
+        </button>
+      </div>
     </div>
 
-    <p v-if="statsData?.trends" class="m-0 text-xs text-muted">
-      Changes vs yesterday (Philippine time). Slot occupancy shows current capacity usage.
-    </p>
+    <div v-if="summary.error.value || overview.error.value" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-warning/30 bg-warning-bg p-3 text-sm text-text">
+      <span>{{ overview.error.value || summary.error.value }}</span>
+      <button type="button" class="font-semibold text-[#D22730] hover:underline" @click="refreshAll">Retry</button>
+    </div>
 
-    <!-- Main Content Area: Chart & Tables on Left, Calendar & Feedback on Right -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Left Main Column (2 cols wide on desktop) -->
-      <div class="lg:col-span-2 flex flex-col gap-6 min-w-0">
-        <!-- Parking Chart -->
-        <div class="w-full">
-          <template v-if="isLoading">
-            <SkeletonLoader variant="rect" height="300px" />
+    <!-- Parking operations -->
+    <section aria-labelledby="ops-heading">
+      <h2 id="ops-heading" class="m-0 mb-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Parking operations</h2>
+      <div class="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+        <KpiCard
+          title="Currently parked" icon="parking" tone="brand"
+          :loading="summary.loading.value && !summary.data.value"
+          :value="number(summary.data.value?.activeParking)"
+          :progress="occupancy"
+          :hint="occupancy === undefined ? 'Capacity not configured' : `${occupancy.toFixed(0)}% of ${number(summary.data.value?.maxCapacity)} spaces`"
+          to="/parking"
+        />
+        <KpiCard
+          title="Entries today" icon="log-in" tone="gold"
+          :loading="overview.loading.value && !overview.data.value"
+          :value="number(overview.data.value?.today.entries)"
+          :hint="overview.data.value ? `Yesterday: ${number(overview.data.value.today.yesterdayEntries)} (full day)` : ''"
+        />
+        <KpiCard
+          title="Exits today" icon="log-out"
+          :loading="overview.loading.value && !overview.data.value"
+          :value="number(overview.data.value?.today.exits)"
+          :hint="overview.data.value ? `Yesterday: ${number(overview.data.value.today.yesterdayExits)} (full day)` : ''"
+        />
+        <KpiCard
+          title="Available spaces" icon="check"
+          :loading="summary.loading.value && !summary.data.value"
+          :value="available === undefined ? '—' : number(available)"
+          :hint="available === undefined ? 'Set a capacity in Settings' : 'Capacity minus vehicles inside'"
+        />
+      </div>
+    </section>
+
+    <!-- Registry -->
+    <section aria-labelledby="registry-heading">
+      <h2 id="registry-heading" class="m-0 mb-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Accounts and vehicles</h2>
+      <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-5">
+        <KpiCard
+          title="Registered users" icon="users" tone="slate" to="/users"
+          :loading="overview.loading.value && !overview.data.value"
+          :value="number(overview.data.value?.accounts.total)"
+          :hint="overview.data.value ? `${number(overview.data.value.accounts.students)} students · ${number(overview.data.value.accounts.personnel)} personnel` : ''"
+          v-bind="clientsDelta"
+        />
+        <KpiCard
+          title="Registered vehicles" icon="car" tone="slate" to="/vehicles"
+          :loading="overview.loading.value && !overview.data.value"
+          :value="number(overview.data.value?.vehicles.total)"
+          :hint="overview.data.value ? `${number(overview.data.value.vehicles.motorcycles)} moto · ${number(overview.data.value.vehicles.cars)} car · ${number(overview.data.value.vehicles.electricBikes)} e-bike` : ''"
+        />
+        <KpiCard
+          title="Pending approvals" icon="clock" tone="gold" to="/vehicles?status=pending"
+          :loading="overview.loading.value && !overview.data.value"
+          :value="number(totalPendingDecisions)"
+          :hint="overview.data.value ? `${number(overview.data.value.pending.vehicles)} vehicles · ${number(overview.data.value.pending.corSchedules)} schedules` : ''"
+        />
+        <KpiCard
+          title="Approved vehicles" icon="check" tone="slate" to="/vehicles?status=approved"
+          :loading="overview.loading.value && !overview.data.value"
+          :value="number(overview.data.value?.vehicles.approved)"
+          :hint="overview.data.value && overview.data.value.vehicles.total ? `${((overview.data.value.vehicles.approved / overview.data.value.vehicles.total) * 100).toFixed(0)}% of registered` : ''"
+        />
+        <KpiCard
+          title="Rejected vehicles" icon="x-circle" tone="slate" to="/vehicles?status=rejected"
+          :loading="overview.loading.value && !overview.data.value"
+          :value="number(overview.data.value?.vehicles.rejected)"
+        />
+      </div>
+    </section>
+
+    <!-- Activity + occupancy -->
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div class="xl:col-span-2">
+        <ChartPanel
+          title="Parking activity" :subtitle="rangeSubtitle"
+          :loading="activity.loading.value && !activity.data.value"
+          :error="activity.error.value" :empty="!activity.data.value || !hasActivity"
+          empty-message="No entries or exits were recorded in this period." min-height="300px"
+          @retry="activity.load"
+        >
+          <template #actions>
+            <div class="inline-flex rounded-lg border border-border p-0.5 text-[12.5px]" role="tablist" aria-label="Time range">
+              <button
+                v-for="option in ranges" :key="option.id" type="button" role="tab" :aria-selected="range === option.id"
+                class="min-h-8 rounded-md px-3 font-medium transition-colors"
+                :class="range === option.id ? 'bg-text text-surface' : 'text-muted hover:text-text'"
+                @click="range = option.id"
+              >{{ option.label }}</button>
+            </div>
           </template>
-          <template v-else>
-            <ParkingChart :activity-data="activityData" />
+          <ActivityLineChart v-if="activity.data.value" :series="activity.data.value.series" :granularity="activity.data.value.granularity" />
+          <template #footer>
+            <span v-if="activity.data.value">
+              <b class="text-text tabular-nums">{{ number(activity.data.value.totalEntries) }}</b> entries ·
+              <b class="text-text tabular-nums">{{ number(activity.data.value.totalExits) }}</b> exits in this period, including visitors.
+            </span>
           </template>
-        </div>
+        </ChartPanel>
+      </div>
+      <ChartPanel title="Parking occupancy" subtitle="Vehicles inside against configured capacity" :loading="summary.loading.value && !summary.data.value"
+        :error="summary.error.value" :empty="!summary.data.value" @retry="summary.load">
+        <OccupancyPanel v-if="summary.data.value" :summary="summary.data.value" />
+      </ChartPanel>
+    </div>
 
-        <!-- Recent Activity Table -->
-        <RecentActivity />
+    <!-- Peak hours + approvals -->
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <div class="xl:col-span-2">
+        <ChartPanel
+          title="Peak parking hours"
+          :subtitle="`Busiest hours of the day, last ${activity.data.value?.peakWindowDays ?? 7} days`"
+          :loading="activity.loading.value && !activity.data.value"
+          :error="activity.error.value" :empty="!activity.data.value || !hasPeakData"
+          empty-message="Peak hours appear once entries or exits are recorded." min-height="260px"
+          @retry="activity.load"
+        >
+          <PeakHoursChart v-if="activity.data.value" :hours="activity.data.value.peakHours" />
+        </ChartPanel>
+      </div>
+      <ChartPanel title="Approval workload" subtitle="Items waiting for an admin" :loading="overview.loading.value && !overview.data.value"
+        :error="overview.error.value" :empty="!overview.data.value" @retry="overview.load">
+        <ApprovalWorkload v-if="overview.data.value" :pending="overview.data.value.pending" />
+      </ChartPanel>
+    </div>
 
-        <!-- Pending Registrations -->
+    <!-- Distributions -->
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      <ChartPanel title="Vehicle distribution" subtitle="Registered vehicles by type" :loading="overview.loading.value && !overview.data.value"
+        :error="overview.error.value" :empty="!overview.data.value || overview.data.value.vehicles.total === 0"
+        empty-message="No vehicles are registered yet." @retry="overview.load">
+        <DonutChart :items="vehicleItems" center-label="Vehicles" chart-label="Registered vehicles by type" />
+      </ChartPanel>
+      <ChartPanel title="User distribution" subtitle="Accounts by role" :loading="overview.loading.value && !overview.data.value"
+        :error="overview.error.value" :empty="!overview.data.value || userItems.length === 0"
+        empty-message="No accounts yet." @retry="overview.load">
+        <DonutChart :items="userItems" center-label="Accounts" chart-label="Accounts by role" />
+      </ChartPanel>
+      <div class="lg:col-span-2 xl:col-span-1">
+        <ChartPanel title="Approval status" subtitle="Current state of vehicles and accounts" :loading="overview.loading.value && !overview.data.value"
+          :error="overview.error.value" :empty="!overview.data.value" @retry="overview.load">
+          <StatusStackedBars :rows="statusRows" />
+        </ChartPanel>
+      </div>
+    </div>
+
+    <!-- Activity table + side widgets -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">
+        <ChartPanel auto-height title="Recent parking activity" subtitle="Latest entries and exits, registered and visitor vehicles"
+          :loading="overview.loading.value && !overview.data.value" :error="overview.error.value"
+          :empty="!overview.data.value || overview.data.value.recent.length === 0" empty-message="No parking transactions have been recorded yet."
+          @retry="overview.load">
+          <template #actions>
+            <RouterLink to="/parking" class="text-[13px] font-semibold text-[#D22730] hover:underline">View all</RouterLink>
+          </template>
+          <RecentParkingTable v-if="overview.data.value" :rows="overview.data.value.recent" />
+        </ChartPanel>
         <PendingRegistrations />
       </div>
-
-      <!-- Right Column: Grounded Calendar & Feedback Overview (1 col wide on desktop) -->
-      <div class="flex flex-col gap-6">
+      <div class="flex min-w-0 flex-col gap-6">
+        <QuickActions />
         <DashboardCalendar />
         <RecentFeedbackOverview />
       </div>
