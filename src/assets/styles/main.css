@@ -1,6 +1,20 @@
 @import 'tailwindcss';
 @import './theme.css';
 
+/*
+ * Light mode only.
+ * Tailwind v4's default `dark:` variant follows the OS (`prefers-color-scheme`). Rebind it to a
+ * `.dark` ancestor instead; src/theme/lightTheme.ts guarantees that class is never present, so
+ * every `dark:` utility stays inert regardless of Windows or browser settings.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root,
+html,
+body {
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }

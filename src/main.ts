@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import { enforceLightTheme } from './theme/lightTheme'
 
 import './assets/styles/main.css'
 
@@ -11,8 +12,8 @@ import '@fontsource/inter/600.css'
 import '@fontsource/inter/700.css'
 import '@fontsource/inter/800.css'
 
-// Ensure dark mode is disabled and removed
-document.documentElement.classList.remove('dark')
+// The admin site is light-only; the OS/browser color scheme must have no effect.
+enforceLightTheme()
 
 const app = createApp(App)
 
