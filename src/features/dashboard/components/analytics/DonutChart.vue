@@ -30,7 +30,7 @@ const shown = computed(() => props.items.find((i) => i.label === active.value))
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+  <div class="flex flex-col items-center gap-5">
     <div class="relative shrink-0" :style="{ width: `${SIZE}px`, height: `${SIZE}px` }">
       <svg :width="SIZE" :height="SIZE" :viewBox="`0 0 ${SIZE} ${SIZE}`" role="img" :aria-label="chartLabel" class="-rotate-90">
         <circle :cx="SIZE / 2" :cy="SIZE / 2" :r="radius" fill="none" class="stroke-surface-muted" :stroke-width="STROKE" />
@@ -68,7 +68,7 @@ const shown = computed(() => props.items.find((i) => i.label === active.value))
         @pointerleave="active = null"
       >
         <span class="size-2.5 shrink-0 rounded-full" :style="{ background: item.color }" />
-        <span class="min-w-0 flex-1 truncate text-text-secondary">{{ item.label }}</span>
+        <span class="min-w-0 flex-1 text-text-secondary">{{ item.label }}</span>
         <span class="font-semibold text-text tabular-nums">{{ item.value.toLocaleString('en-PH') }}</span>
         <span class="w-12 text-right text-muted tabular-nums">{{ percent(item.value) }}%</span>
       </li>

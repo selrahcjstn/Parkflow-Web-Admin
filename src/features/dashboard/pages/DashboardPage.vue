@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import PendingRegistrations from '../components/PendingRegistrations.vue'
 import DashboardCalendar from '../components/DashboardCalendar.vue'
-import RecentFeedbackOverview from '../components/RecentFeedbackOverview.vue'
 import KpiCard from '../components/analytics/KpiCard.vue'
 import ChartPanel from '../components/analytics/ChartPanel.vue'
 import ActivityLineChart from '../components/analytics/ActivityLineChart.vue'
@@ -24,7 +23,8 @@ const GOLD = '#FDB813'
 const SLATE = '#334155'
 const GRAY = '#94a3b8'
 
-const number = (value: number | undefined | null) => (value ?? 0).toLocaleString('en-PH')
+// Missing data shows a dash, never a misleading 0.
+const number = (value: number | undefined | null) => (value == null ? '—' : value.toLocaleString('en-PH'))
 
 const dateLabel = new Intl.DateTimeFormat('en-PH', {
   timeZone: 'Asia/Manila', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -61,7 +61,7 @@ const clientsDelta = computed(() => {
 
 const totalPendingDecisions = computed(() => {
   const p = overview.data.value?.pending
-  return p ? p.vehicles + p.corSchedules : 0
+  return p ? p.vehicles + p.corSchedules : undefined
 })
 
 const vehicleItems = computed<DonutItem[]>(() => {
@@ -295,7 +295,6 @@ const available = computed(() => {
       <div class="flex min-w-0 flex-col gap-6">
         <QuickActions />
         <DashboardCalendar />
-        <RecentFeedbackOverview />
       </div>
     </div>
   </div>
