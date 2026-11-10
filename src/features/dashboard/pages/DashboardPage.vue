@@ -99,7 +99,8 @@ const hasActivity = computed(() => (activity.data.value?.series ?? []).some((b) 
 const hasPeakData = computed(() => (activity.data.value?.peakHours ?? []).some((h) => h.entries + h.exits > 0))
 const occupancy = computed(() => {
   const s = summary.data.value
-  return s && s.maxCapacity > 0 ? Math.min(100, (s.activeParking / s.maxCapacity) * 100) : undefined
+  // Not capped: over-capacity must be visible. The progress bar clamps its own width.
+  return s && s.maxCapacity > 0 ? (s.activeParking / s.maxCapacity) * 100 : undefined
 })
 const available = computed(() => {
   const s = summary.data.value
@@ -144,7 +145,7 @@ const available = computed(() => {
           :loading="summary.loading.value && !summary.data.value"
           :value="number(summary.data.value?.activeParking)"
           :progress="occupancy"
-          :hint="occupancy === undefined ? 'Capacity not configured' : `${occupancy.toFixed(0)}% of ${number(summary.data.value?.maxCapacity)} spaces`"
+          :hint="occupancy === undefined ? 'Capacity not configured' : `${occupancy.toFixed(1)}% of ${number(summary.data.value?.maxCapacity)} spaces`"
           to="/parking"
         />
         <KpiCard

@@ -29,89 +29,138 @@ function component(path, modules = {}, inlineTemplate = false, globals = {}) {
   return exports.default
 }
 
-const zeroMetrics = () => ({
-  totalUsers: 0, activeParking: 0, maxCapacity: 500,
-  trends: { registeredClientsPercent: 0, comparisonDate: '2026-10-11T00:00:00' },
-})
-
-function dashboard(initial = zeroMetrics(), get = async () => { throw Error('Offline') }) {
-  const cache = { cachedStatsData: vue.ref(initial), cachedActivityData: vue.ref([]) }
-  const Page = component('src/features/dashboard/pages/DashboardPage.vue', {
-    '@/stores/appCache': cache,
-    '@/api/axios': { default: { get } },
+// Loads a plain TypeScript module (composables, API layer) with explicit mocks, like component() does for SFCs.
+function tsModule(path, modules = {}) {
+  const source = readFileSync(new URL('../' + path, import.meta.url), 'utf8')
+  const code = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  const exports = {}
+  vm.runInNewContext(code, {
+    exports, Date, Number, console: { error() {} },
+    require(name) {
+      if (name === 'vue') return { ...vue, onMounted() {}, onUnmounted() {} }
+      if (name in modules) return { __esModule: true, ...modules[name] }
+      throw Error('Unexpected dependency: ' + name)
+    },
   })
-  return { state: Page.setup({}, { expose() {} }), cache }
+  return exports
 }
 
-test('zero operational metrics use one-decimal percentages without financial cards', () => {
-  const { state } = dashboard()
-  assert.deepEqual(Array.from(state.stats.value, stat => stat.trend), ['0.0%', '0.0% full'])
-  assert.equal(state.stats.value[0].value, '0')
-  assert.deepEqual(Array.from(state.stats.value, stat => stat.title), ['Registered Clients', 'Slot Occupancy'])
-  assert.ok(state.stats.value.every(stat => stat.trendUp === undefined))
+const resource = (data, error = '') => ({
+  data: vue.ref(data), loading: vue.ref(false), refreshing: vue.ref(false), error: vue.ref(error), async load() {},
 })
 
-test('occupancy is calculated without whole-percentage rounding or a directional arrow', () => {
-  const { state } = dashboard({ ...zeroMetrics(), activeParking: 11 })
-  assert.equal(state.stats.value[1].trend, '2.2% full')
-  assert.ok(Math.abs(state.stats.value[1].progressPercent - 2.2) < 0.000001)
-  assert.match(state.stats.value[1].subtitle, /Cars 0\/0/)
-  state.statsData.value.activeParking = 25
-  assert.equal(state.stats.value[1].trend, '5.0% full')
+const summaryOf = (over = {}) => ({
+  totalUsers: 0, activeParking: 0, maxCapacity: 500, ...over,
+  trends: { registeredClientsPercent: 0, comparisonDate: '2026-10-11T00:00:00', ...over.trends },
 })
 
-test('client trend badges follow actual server comparisons', () => {
-  const metrics = zeroMetrics()
-  Object.assign(metrics.trends, { registeredClientsPercent: 37.2 })
-  const { state } = dashboard(metrics)
-  assert.equal(state.stats.value[0].trend, '+37.2%')
-  assert.equal(state.stats.value[0].trendUp, true)
-  assert.match(state.stats.value[0].trendLabel, /2026-10-11/)
+function dashboard({ summary = summaryOf(), overview = null } = {}) {
+  const Page = component('src/features/dashboard/pages/DashboardPage.vue', {
+    '../composables/useDashboardAnalytics': { useDashboardAnalytics: () => ({
+      range: vue.ref('7d'), summary: resource(summary), overview: resource(overview), activity: resource(null), refreshAll() {},
+    }) },
+  })
+  return Page.setup({}, { expose() {} })
+}
+
+function analytics({ cached = null, api } = {}) {
+  const cache = { cachedStatsData: vue.ref(cached) }
+  const module = tsModule('src/features/dashboard/composables/useDashboardAnalytics.ts', {
+    '@/stores/notification.store': { useAdminNotificationStore: () => ({ onApprovalUpdate: () => () => {} }) },
+    '@/stores/appCache': cache,
+    '../api/dashboard.api': api,
+  })
+  return { ...module.useDashboardAnalytics(), cache }
+}
+
+const offlineApi = { dashboardApi: {
+  summary: async () => { throw Error('Offline') }, overview: async () => { throw Error('Offline') }, activity: async () => { throw Error('Offline') },
+} }
+
+test('zero operational metrics show zeros and a 0.0% occupancy, with no financial cards', () => {
+  const state = dashboard()
+  assert.equal(state.occupancy.value, 0)
+  assert.equal(state.number(0), '0')
+  assert.equal(state.available.value, 500)
+  const source = readFileSync(new URL('../src/features/dashboard/pages/DashboardPage.vue', import.meta.url), 'utf8')
+  assert.doesNotMatch(source, /revenue|payment|penalt|collection/i)
+})
+
+test('occupancy keeps decimal precision and is not capped at 100%', () => {
+  const state = dashboard({ summary: summaryOf({ activeParking: 11 }) })
+  assert.ok(Math.abs(state.occupancy.value - 2.2) < 0.000001)
+  assert.equal(state.occupancy.value.toFixed(1), '2.2')
+})
+
+test('client growth badge follows the server comparison and only shows movement when real', () => {
+  const growth = dashboard({ summary: summaryOf({ trends: { registeredClientsPercent: 37.2 } }) }).clientsDelta.value
+  assert.deepEqual({ ...growth }, { delta: '+37.2%', deltaDirection: 'up', deltaTone: 'positive' })
+  const drop = dashboard({ summary: summaryOf({ trends: { registeredClientsPercent: -4.5 } }) }).clientsDelta.value
+  assert.deepEqual({ ...drop }, { delta: '-4.5%', deltaDirection: 'down', deltaTone: 'negative' })
+  const flat = dashboard({ summary: summaryOf({ trends: { registeredClientsPercent: 0 } }) }).clientsDelta.value
+  assert.deepEqual({ ...flat }, { delta: '0.0%', deltaDirection: 'flat', deltaTone: 'neutral' })
 })
 
 test('undefined or missing historical baselines are not shown as fake zero growth', () => {
-  const metrics = zeroMetrics()
-  metrics.trends.registeredClientsPercent = null
-  const { state } = dashboard(metrics)
-  for (const index of [0]) assert.equal(state.stats.value[index].trend, 'No comparison')
-  delete state.statsData.value.trends
-  for (const index of [0]) assert.equal(state.stats.value[index].trend, 'No comparison')
+  assert.deepEqual({ ...dashboard({ summary: summaryOf({ trends: { registeredClientsPercent: null } }) }).clientsDelta.value }, {})
+  const summary = summaryOf()
+  delete summary.trends
+  assert.deepEqual({ ...dashboard({ summary }).clientsDelta.value }, {})
 })
 
 test('unset capacity and over-capacity do not show negative free slots or invalid percentages', () => {
-  const { state } = dashboard({ ...zeroMetrics(), maxCapacity: 0 })
-  assert.equal(state.stats.value[1].trend, 'Capacity not set')
-  assert.equal(state.stats.value[1].progressPercent, undefined)
-  Object.assign(state.statsData.value, { activeParking: 510, maxCapacity: 500 })
-  assert.equal(state.stats.value[1].trend, '102.0% full')
-  assert.ok(Number.isFinite(state.stats.value[1].progressPercent))
+  const unset = dashboard({ summary: summaryOf({ maxCapacity: 0 }) })
+  assert.equal(unset.occupancy.value, undefined)
+  assert.equal(unset.available.value, undefined)
+  const over = dashboard({ summary: summaryOf({ activeParking: 510, maxCapacity: 500 }) })
+  assert.equal(over.occupancy.value.toFixed(1), '102.0')
+  assert.ok(Number.isFinite(over.occupancy.value))
+  assert.equal(over.available.value, 0)
+})
+
+test('missing data shows a dash, never a fabricated zero', () => {
+  const state = dashboard()
+  assert.equal(state.number(undefined), '—')
+  assert.equal(state.number(null), '—')
+  assert.equal(state.number(0), '0')
+  assert.equal(state.totalPendingDecisions.value, undefined)
 })
 
 test('failed metrics request without cache shows an error, not fabricated zero records', async () => {
-  const { state } = dashboard(null)
-  await state.fetchDashboardStats()
-  assert.equal(state.stats.value.length, 0)
-  assert.match(state.statsError.value, /Could not load/)
-  assert.equal(state.isFetching.value, false)
+  const { summary } = analytics({ api: offlineApi })
+  await summary.load()
+  assert.equal(summary.data.value, null)
+  assert.match(summary.error.value, /Offline/)
+  assert.equal(summary.loading.value, false)
+  assert.equal(summary.refreshing.value, false)
 })
 
 test('loaded data and daily comparisons are cached together', async () => {
-  const { state, cache } = dashboard(null, async () => ({ data: { isSuccess: true, data: {
-    totalUsers: 90, activeParking: 10, maxCapacity: 300,
-    trends: { registeredClientsPercent: 12.5, comparisonDate: '2026-10-11' },
-  } } }))
-  await state.fetchDashboardStats()
-  assert.equal(state.stats.value[1].trend, '3.3% full')
+  const data = { totalUsers: 90, activeParking: 10, maxCapacity: 300, trends: { registeredClientsPercent: 12.5, comparisonDate: '2026-10-11' } }
+  const { summary, cache } = analytics({ api: { dashboardApi: { ...offlineApi.dashboardApi, summary: async () => data } } })
+  await summary.load()
+  assert.equal(summary.data.value.totalUsers, 90)
   assert.equal(cache.cachedStatsData.value.trends.registeredClientsPercent, 12.5)
 })
 
-test('malformed API metrics retain last valid records and warn instead of silently inventing counts', async () => {
-  const { state } = dashboard({ ...zeroMetrics(), totalUsers: 42 }, async () => ({
-    data: { isSuccess: true, data: { totalUsers: null } },
-  }))
-  await state.fetchDashboardStats()
-  assert.equal(state.stats.value[0].value, '42')
-  assert.match(state.statsError.value, /Last loaded values/)
+test('malformed API metrics retain last valid records and report an error instead of inventing counts', async () => {
+  const api = tsModule('src/features/dashboard/api/dashboard.api.ts', {
+    '@/api/axios': { default: { get: async () => ({ data: { isSuccess: true, data: { totalUsers: null } } }) } },
+  })
+  const { summary } = analytics({ cached: summaryOf({ totalUsers: 42 }), api })
+  await summary.load()
+  assert.equal(summary.data.value.totalUsers, 42)
+  assert.match(summary.error.value, /Invalid dashboard metrics/)
+})
+
+test('overview and activity requests surface the server message instead of empty data', async () => {
+  const api = tsModule('src/features/dashboard/api/dashboard.api.ts', {
+    '@/api/axios': { default: { get: async () => ({ data: { isSuccess: false, message: 'Forbidden for this role.' } }) } },
+  })
+  await assert.rejects(() => api.dashboardApi.overview(), /Forbidden for this role/)
+  await assert.rejects(() => api.dashboardApi.activity('7d'), /Forbidden for this role/)
 })
 
 const Card = component('src/features/dashboard/components/StatsCard.vue', {

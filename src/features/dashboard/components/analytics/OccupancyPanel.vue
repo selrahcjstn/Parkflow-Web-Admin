@@ -24,7 +24,7 @@ const types = computed(() => [
   <div v-else class="flex flex-col gap-5">
     <div>
       <div class="flex items-end justify-between">
-        <p class="m-0 text-[32px] font-bold leading-none text-text tabular-nums">{{ percent.toFixed(0) }}<span class="text-[18px] text-muted">%</span></p>
+        <p class="m-0 text-[32px] font-bold leading-none text-text tabular-nums">{{ percent.toFixed(1) }}<span class="text-[18px] text-muted">%</span></p>
         <p class="m-0 text-[12.5px] text-muted">{{ over ? 'Over capacity' : 'of spaces in use' }}</p>
       </div>
       <div class="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-surface-muted" role="meter" :aria-valuenow="Math.round(percent)" aria-valuemin="0" aria-valuemax="100" aria-label="Parking occupancy">
