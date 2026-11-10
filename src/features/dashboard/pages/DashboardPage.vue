@@ -133,6 +133,8 @@ const available = computed(() => {
       <button type="button" class="font-semibold text-[#D22730] hover:underline" @click="refreshAll">Retry</button>
     </div>
 
+    <QuickActions />
+
     <!-- Parking operations -->
     <section aria-labelledby="ops-heading">
       <h2 id="ops-heading" class="m-0 mb-3 text-[12px] font-semibold uppercase tracking-wider text-muted">Parking operations</h2>
@@ -280,8 +282,9 @@ const available = computed(() => {
 
     <!-- Activity table + side widgets -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <div class="flex min-w-0 flex-col gap-6 lg:col-span-2">
-        <ChartPanel auto-height title="Recent parking activity" subtitle="Latest entries and exits, registered and visitor vehicles"
+      <!-- Children grow to share any spare height, so both columns end on the same line. -->
+      <div class="flex min-w-0 flex-col gap-6 lg:col-span-2 [&>*]:flex-1">
+        <ChartPanel title="Recent parking activity" subtitle="Latest entries and exits, registered and visitor vehicles"
           :loading="overview.loading.value && !overview.data.value" :error="overview.error.value"
           :empty="!overview.data.value || overview.data.value.recent.length === 0" empty-message="No parking transactions have been recorded yet."
           @retry="overview.load">
@@ -292,8 +295,7 @@ const available = computed(() => {
         </ChartPanel>
         <PendingRegistrations />
       </div>
-      <div class="flex min-w-0 flex-col gap-6">
-        <QuickActions />
+      <div class="flex min-w-0 flex-col [&>*]:flex-1">
         <DashboardCalendar />
       </div>
     </div>
