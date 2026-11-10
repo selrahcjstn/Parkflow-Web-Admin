@@ -20,7 +20,7 @@ function component(path, modules = {}, inlineTemplate = false, globals = {}) {
   vm.runInNewContext(code, {
     exports, Date, Intl, Number, ...globals, console: { error() {} },
     require(name) {
-      if (name === 'vue') return { ...vue, onMounted() {}, onUnmounted() {} }
+      if (name === 'vue') return { ...vue, onMounted() {}, onUnmounted() {}, onErrorCaptured() {} }
       if (name in modules) return { __esModule: true, ...modules[name] }
       if (name.endsWith('.vue')) return { __esModule: true, default: {} }
       throw Error('Unexpected dependency: ' + name)
@@ -39,7 +39,7 @@ function tsModule(path, modules = {}) {
   vm.runInNewContext(code, {
     exports, Date, Number, console: { error() {} },
     require(name) {
-      if (name === 'vue') return { ...vue, onMounted() {}, onUnmounted() {} }
+      if (name === 'vue') return { ...vue, onMounted() {}, onUnmounted() {}, onErrorCaptured() {} }
       if (name in modules) return { __esModule: true, ...modules[name] }
       throw Error('Unexpected dependency: ' + name)
     },
@@ -161,6 +161,22 @@ test('overview and activity requests surface the server message instead of empty
   })
   await assert.rejects(() => api.dashboardApi.overview(), /Forbidden for this role/)
   await assert.rejects(() => api.dashboardApi.activity('7d'), /Forbidden for this role/)
+})
+
+test('recent activity table shows a dash for an invalid date instead of crashing the render', async () => {
+  const Table = component('src/features/dashboard/components/analytics/RecentParkingTable.vue', {}, true)
+  const row = (entryTime, exitTime) => ({ source: 'Registered', identifier: 'ABC 1234', owner: 'Juan', vehicleType: 'Car', entryTime, exitTime, status: 'Inside' })
+  const html = await renderToString(vue.createSSRApp(Table, { rows: [row('not-a-date', null), row('2026-11-10T08:30:00Z', 'also-bad')] }))
+  assert.match(html, /ABC 1234/)
+  // Row 1: invalid entry and empty exit; row 2: invalid exit.
+  assert.equal([...html.matchAll(/>—</g)].length, 3)
+  assert.match(html, /Nov 10/)
+})
+
+test('a widget that fails to render is reported on the dashboard instead of blanking it', () => {
+  const source = readFileSync(new URL('../src/features/dashboard/pages/DashboardPage.vue', import.meta.url), 'utf8')
+  assert.match(source, /onErrorCaptured/)
+  assert.match(source, /Part of the dashboard could not be displayed/)
 })
 
 const Card = component('src/features/dashboard/components/StatsCard.vue', {

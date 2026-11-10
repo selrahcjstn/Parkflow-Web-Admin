@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onErrorCaptured, ref } from 'vue'
 import PendingRegistrations from '../components/PendingRegistrations.vue'
 import DashboardCalendar from '../components/DashboardCalendar.vue'
 import KpiCard from '../components/analytics/KpiCard.vue'
@@ -30,11 +30,23 @@ const dateLabel = new Intl.DateTimeFormat('en-PH', {
   timeZone: 'Asia/Manila', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
 }).format(new Date())
 
-const updatedAt = computed(() =>
-  overview.data.value
-    ? new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }).format(new Date(overview.data.value.generatedAtUtc))
-    : '',
-)
+const timeFormatter = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
+const updatedAt = computed(() => {
+  const generated = overview.data.value?.generatedAtUtc
+  const date = generated ? new Date(generated) : null
+  // Intl throws on an invalid date, so never format one.
+  return date && !Number.isNaN(date.getTime()) ? timeFormatter.format(date) : ''
+})
+
+// One widget throwing while it renders must not take the whole dashboard down. Log what failed
+// (visible in the browser console) and tell the user, instead of leaving them a blank page.
+const widgetFailure = ref(false)
+onErrorCaptured((error, _instance, info) => {
+  console.error('[Dashboard] a widget failed to render:', info, error)
+  widgetFailure.value = true
+  return false
+})
+const reloadPage = () => window.location.reload()
 const refreshing = computed(() => summary.refreshing.value || overview.refreshing.value || activity.refreshing.value)
 
 const ranges: Array<{ id: ActivityRange; label: string }> = [
@@ -132,6 +144,11 @@ const available = computed(() => {
     <div v-if="summary.error.value || overview.error.value" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-warning/30 bg-warning-bg p-3 text-sm text-text">
       <span>{{ overview.error.value || summary.error.value }}</span>
       <button type="button" class="font-semibold text-[#D22730] hover:underline" @click="refreshAll">Retry</button>
+    </div>
+
+    <div v-if="widgetFailure" role="alert" class="flex flex-wrap items-center justify-between gap-3 rounded-card border border-warning/30 bg-warning-bg p-3 text-sm text-text">
+      <span>Part of the dashboard could not be displayed. The rest is unaffected.</span>
+      <button type="button" class="font-semibold text-[#D22730] hover:underline" @click="reloadPage">Reload page</button>
     </div>
 
     <QuickActions />

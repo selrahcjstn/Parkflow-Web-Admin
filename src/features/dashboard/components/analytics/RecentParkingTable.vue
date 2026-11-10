@@ -10,7 +10,12 @@ const formatter = new Intl.DateTimeFormat('en-PH', {
   hour: 'numeric',
   minute: '2-digit',
 })
-const time = (value: string | null) => (value ? formatter.format(new Date(value)) : '—')
+// Intl throws a RangeError for an invalid date, which would break the whole table render.
+const time = (value: string | null) => {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '—' : formatter.format(date)
+}
 </script>
 
 <template>
