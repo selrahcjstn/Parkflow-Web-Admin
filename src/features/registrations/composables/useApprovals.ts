@@ -17,6 +17,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
     if (value === 2 || ['Verified', 'Approved', 'Active'].includes(String(value))) return 'approved'
     return value === 3 || value === 'Rejected' ? 'rejected' : 'pending'
   }
+  const isEBike = (t: unknown) => t === 1 || t === '1' || t === 'ElectricBike' || t === 'E-Bike'
   const list = (r: any): any[] => Array.isArray(r.data) ? r.data : r.data?.data || []
   async function fetchApprovals() {
     if (loading) return
@@ -67,7 +68,9 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
           verificationStatus: state === 'approved' ? 2 : state === 'rejected' ? 3 : 1 })
       }
       for (const v of vehicles) {
-        const state = status(v.verificationStatus) === 'approved' && (!v.driversLicenseUrl || !v.profilePictureUrl || ![2, 'Verified'].includes(v.licenseStatus)) ? 'pending' : status(v.verificationStatus)
+        // E-bikes do not require a driver's license, so only the profile photo gates their approved state.
+        const driverReady = Boolean(v.profilePictureUrl) && (isEBike(v.vehicleType) || (Boolean(v.driversLicenseUrl) && [2, 'Verified'].includes(v.licenseStatus)))
+        const state = status(v.verificationStatus) === 'approved' && !driverReady ? 'pending' : status(v.verificationStatus)
         result.push({ ...base(users.find(u => u.id === v.ownerId), undefined, v), id: v.id, guid: v.id, category: 'Vehicle',
           status: state, verificationStatus: state === 'approved' ? 2 : state === 'rejected' ? 3 : 1 })
       }
@@ -90,7 +93,9 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
     apiErrorNotice.value = null; actionSuccessMsg.value = null
     try {
       if (item.category === 'Registration') await review('Account', item.userId || item.guid, 'Approved', 'Institutional identity reviewed by an administrator.')
-      else if (item.category === 'Vehicle') await review('Vehicle', item.vehicleGuid || item.guid, 'Approved', 'Valid driver’s license, profile photo and vehicle ownership documents reviewed by an administrator.')
+      else if (item.category === 'Vehicle') await review('Vehicle', item.vehicleGuid || item.guid, 'Approved', isEBike(item.vehicleType)
+        ? 'Profile photo and e-bike photo reviewed by an administrator.'
+        : 'Valid driver’s license, profile photo and vehicle ownership documents reviewed by an administrator.')
       else {
         const corRecord = currentRecords.find(r => r.type === 'Cor' && r.subjectId === (item.corGuid || item.guid))
         if (corRecord?.status !== 'Approved') {
