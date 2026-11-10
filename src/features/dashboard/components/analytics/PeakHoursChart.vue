@@ -103,10 +103,14 @@ const labelEvery = computed(() => (slot.value >= 26 ? 1 : slot.value >= 14 ? 2 :
       <template v-else>No {{ metric === 'entries' ? 'arrivals' : 'departures' }} recorded in this period.</template>
     </p>
 
-    <table class="sr-only">
-      <caption>Arrivals and departures by hour</caption>
-      <thead><tr><th scope="col">Hour</th><th scope="col">Arrivals</th><th scope="col">Departures</th></tr></thead>
-      <tbody><tr v-for="h in hours" :key="h.hour"><th scope="row">{{ h.label }}</th><td>{{ h.entries }}</td><td>{{ h.exits }}</td></tr></tbody>
-    </table>
+    <!-- The wrapper must be a div: browsers ignore height/overflow on a <table>, so an sr-only table
+         keeps its full height and stretches the page, which lets the whole window scroll. -->
+    <div class="sr-only">
+      <table>
+        <caption>Arrivals and departures by hour</caption>
+        <thead><tr><th scope="col">Hour</th><th scope="col">Arrivals</th><th scope="col">Departures</th></tr></thead>
+        <tbody><tr v-for="h in hours" :key="h.hour"><th scope="row">{{ h.label }}</th><td>{{ h.entries }}</td><td>{{ h.exits }}</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </template>

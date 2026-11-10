@@ -121,7 +121,10 @@ const available = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <!-- `relative` keeps absolutely positioned descendants (screen-reader tables, tooltips) inside the
+       scrolling content pane. Without it they are placed against the browser window, stretch the
+       document past 100vh, and extra wheel scrolling slides the whole layout out of view. -->
+  <div class="relative flex flex-col gap-6">
     <!-- Header -->
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>

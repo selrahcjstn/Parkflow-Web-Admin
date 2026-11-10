@@ -122,10 +122,14 @@ const tipLeft = computed(() => {
       </div>
     </div>
 
-    <table class="sr-only">
-      <caption>Entries and exits by {{ granularity }}</caption>
-      <thead><tr><th scope="col">{{ granularity === 'hour' ? 'Hour' : 'Day' }}</th><th scope="col">Entries</th><th scope="col">Exits</th></tr></thead>
-      <tbody><tr v-for="b in series" :key="b.key"><th scope="row">{{ b.label }}</th><td>{{ b.entries }}</td><td>{{ b.exits }}</td></tr></tbody>
-    </table>
+    <!-- The wrapper must be a div: browsers ignore height/overflow on a <table>, so an sr-only table
+         keeps its full height and stretches the page, which lets the whole window scroll. -->
+    <div class="sr-only">
+      <table>
+        <caption>Entries and exits by {{ granularity }}</caption>
+        <thead><tr><th scope="col">{{ granularity === 'hour' ? 'Hour' : 'Day' }}</th><th scope="col">Entries</th><th scope="col">Exits</th></tr></thead>
+        <tbody><tr v-for="b in series" :key="b.key"><th scope="row">{{ b.label }}</th><td>{{ b.entries }}</td><td>{{ b.exits }}</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </template>
