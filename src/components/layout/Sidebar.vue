@@ -146,14 +146,14 @@ const userInitials = computed(() => {
       <!-- Logo -->
       <div
         class="flex items-center gap-3 px-4 py-3.5 min-h-[68px] border-b border-slate-100 dark:border-slate-800/80 flex-shrink-0"
-        :class="collapsed ? 'lg:justify-center lg:px-0' : 'justify-start'"
+        :class="collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'justify-start'"
       >
         <div class="w-9 h-9 min-w-[36px] rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden bg-white shadow-xs border border-slate-100 dark:border-slate-800">
           <img src="/parkflow.png" alt="ParkFlow Logo" class="w-8 h-8 object-contain" />
         </div>
         <div
           class="flex flex-col gap-0.5 whitespace-nowrap transition-all duration-200 overflow-hidden"
-          :class="collapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100 w-auto'"
+          :class="collapsed ? 'lg:hidden' : ''"
         >
           <div class="flex items-center gap-1.5">
             <span class="text-[15px] font-extrabold text-slate-900 dark:text-white leading-none tracking-tight">ParkFlow</span>
@@ -171,7 +171,7 @@ const userInitials = computed(() => {
           <div v-if="item.section && !collapsed" class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-4 pt-4 pb-1.5 select-none">
             {{ item.label }}
           </div>
-          <div v-else-if="item.section && collapsed" class="h-[1px] bg-slate-100 dark:bg-slate-800 my-2.5 mx-3.5"></div>
+          <div v-else-if="item.section && collapsed" class="h-[1px] bg-slate-100 dark:bg-slate-800 my-2.5 mx-5"></div>
 
           <!-- Standard Single Link -->
           <router-link
@@ -182,9 +182,11 @@ const userInitials = computed(() => {
           >
             <a
               :href="href"
+              :title="collapsed ? item.label : undefined"
+              :aria-label="item.label"
               class="group relative flex items-center gap-2.5 h-[38px] my-0.5 mx-2.5 rounded-lg text-xs font-medium transition-all border-none w-[calc(100%-20px)] whitespace-nowrap text-left cursor-pointer no-underline"
               :class="[
-                collapsed ? 'lg:justify-center lg:px-0 px-3' : 'px-3',
+                collapsed ? 'lg:justify-center lg:gap-0 lg:px-0 px-3' : 'px-3',
                 isGroupActive(item) ? 'bg-[#7B1113] text-white font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white bg-transparent'
               ]"
               @click="(e) => {
@@ -278,7 +280,7 @@ const userInitials = computed(() => {
               </div>
               <span
                 class="text-[13px] font-medium flex-1 overflow-hidden transition-all duration-200"
-                :class="collapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100 w-auto'"
+                :class="collapsed ? 'lg:hidden' : ''"
               >
                 {{ item.label }}
               </span>
@@ -288,9 +290,11 @@ const userInitials = computed(() => {
           <!-- Dropdown Group (Client, Register) -->
           <div v-else class="flex flex-col">
             <button
+              :title="collapsed ? item.label : undefined"
+              :aria-label="item.label"
               class="group relative flex items-center gap-2.5 h-[38px] my-0.5 mx-2.5 rounded-lg text-xs font-medium transition-all border-none w-[calc(100%-20px)] whitespace-nowrap text-left cursor-pointer"
               :class="[
-                collapsed ? 'lg:justify-center lg:px-0 px-3' : 'px-3',
+                collapsed ? 'lg:justify-center lg:gap-0 lg:px-0 px-3' : 'px-3',
                 isGroupActive(item) ? 'bg-[#7B1113] text-white font-semibold shadow-xs' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white bg-transparent'
               ]"
               @click="toggleDropdown(item.key)"
@@ -318,7 +322,7 @@ const userInitials = computed(() => {
               </div>
               <span
                 class="text-[13px] font-medium flex-1 overflow-hidden transition-all duration-200"
-                :class="collapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100 w-auto'"
+                :class="collapsed ? 'lg:hidden' : ''"
               >
                 {{ item.label }}
               </span>
@@ -389,14 +393,14 @@ const userInitials = computed(() => {
       <!-- User mini-profile at bottom -->
       <div
         class="flex items-center gap-2.5 px-3.5 py-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/80 dark:bg-slate-900/50 flex-shrink-0 min-h-[58px]"
-        :class="collapsed ? 'lg:justify-center lg:px-0' : 'justify-start'"
+        :class="collapsed ? 'lg:justify-center lg:gap-0 lg:px-0' : 'justify-start'"
       >
         <div class="w-8 h-8 min-w-[32px] rounded-full bg-[#7B1113] flex items-center justify-center text-xs font-extrabold text-white flex-shrink-0 tracking-wider">
           {{ userInitials }}
         </div>
         <div
           class="flex flex-col gap-0.5 overflow-hidden whitespace-nowrap transition-all duration-200"
-          :class="collapsed ? 'lg:opacity-0 lg:w-0' : 'opacity-100 w-auto'"
+          :class="collapsed ? 'lg:hidden' : ''"
         >
           <span class="text-[11.5px] font-bold text-slate-900 dark:text-white leading-none">{{ isSuperAdmin ? 'Super Administrator' : 'Administrator' }}</span>
           <span class="text-[10.5px] text-slate-500 dark:text-slate-400 leading-none truncate max-w-[150px]">{{ userEmail }}</span>
