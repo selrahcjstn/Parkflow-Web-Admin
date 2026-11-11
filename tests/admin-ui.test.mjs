@@ -79,8 +79,11 @@ test('fee editor renders independent zero-priced vehicle categories without earl
   const rates = Object.fromEntries(['entryFee','studentEntryFee','facultyEntryFee','personnelEntryFee','visitorFee','vipEntryFee','violationRatePerHour','baseFee','dailyOverstayFee'].map(key => [key, 0]))
   const html = await renderToString(vue.createSSRApp(Fee, { settings: { carParking: {...rates}, motorcycleParking: {...rates}, feeCalculationMode: 'per_hour' } }))
   assert.match(html, /Cars/); assert.match(html, /Motorcycles/)
-  assert.equal((html.match(/type="number"/g) || []).length, 18)
-  assert.equal((html.match(/value="0"/g) || []).length, 18)
+  // Per-hour mode: 1 overstay field + 6 optional entry fees, for each of the two vehicle types.
+  assert.equal((html.match(/type="number"/g) || []).length, 14)
+  assert.equal((html.match(/value="0"/g) || []).length, 14)
+  assert.match(html, /Fee per hour/); assert.doesNotMatch(html, /One-time fee \(₱/)
+  assert.match(html, /pays ₱0/)
   assert.doesNotMatch(html, /Early Grace|earlyParkingMinutes/)
 })
 
