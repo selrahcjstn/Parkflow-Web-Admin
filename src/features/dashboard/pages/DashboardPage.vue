@@ -11,7 +11,6 @@ import StatusStackedBars, { type StatusRow } from '../components/analytics/Statu
 import ApprovalWorkload from '../components/analytics/ApprovalWorkload.vue'
 import OccupancyPanel from '../components/analytics/OccupancyPanel.vue'
 import RecentParkingTable from '../components/analytics/RecentParkingTable.vue'
-import QuickActions from '../components/analytics/QuickActions.vue'
 import DashIcon from '../components/analytics/DashIcon.vue'
 import { useDashboardAnalytics } from '../composables/useDashboardAnalytics'
 import type { ActivityRange } from '../api/dashboard.api'
@@ -153,8 +152,6 @@ const available = computed(() => {
       <span>Part of the dashboard could not be displayed. The rest is unaffected.</span>
       <button type="button" class="font-semibold text-[#D22730] hover:underline" @click="reloadPage">Reload page</button>
     </div>
-
-    <QuickActions />
 
     <!-- Parking operations -->
     <section aria-labelledby="ops-heading">
