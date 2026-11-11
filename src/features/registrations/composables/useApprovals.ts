@@ -12,6 +12,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
   const actionSuccessMsg = ref<string | null>(null)
   let unsubscribe: (() => void) | undefined
   let loading = false
+  let refetchQueued = false
   let currentRecords: any[] = []
   function status(value: unknown): ApprovalItem['status'] {
     if (value === 2 || ['Verified', 'Approved', 'Active'].includes(String(value))) return 'approved'
@@ -20,7 +21,7 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
   const isEBike = (t: unknown) => t === 1 || t === '1' || t === 'ElectricBike' || t === 'E-Bike'
   const list = (r: any): any[] => Array.isArray(r.data) ? r.data : r.data?.data || []
   async function fetchApprovals() {
-    if (loading) return
+    if (loading) { refetchQueued = true; return }
     loading = true; apiErrorNotice.value = null
     try {
       refreshAdminData()
@@ -54,7 +55,9 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
         if (!u.personnel) continue
         const account = record('Account', u.id)
         const cor = cors.find(c => c.userAccountId === u.id)
-        if (!account && !cor) continue
+        // A registered employee awaiting review is always listed, even before a verification record exists.
+        const awaitingReview = ['PendingVerification', 'Pending'].includes(String(u.status))
+        if (!account && !cor && !awaitingReview) continue
         const v = vehicles.find(v => v.ownerId === u.id && v.isPrimary) || vehicles.find(v => v.ownerId === u.id)
         const state = status(account?.status || u.status)
         result.push({ ...base(u, cor, v), id: 'account-' + u.id, guid: u.id, category: 'Registration', status: state,
@@ -76,7 +79,11 @@ export function useApprovals(categoryFilter?: ApprovalCategory) {
       }
       allApprovals.value = result; cachedApprovals.value = [...result]
     } catch (error: any) { apiErrorNotice.value = error.response?.data?.message || 'Could not load current approval records.' }
-    finally { loading = false; isLoading.value = false }
+    finally {
+      loading = false; isLoading.value = false
+      // A realtime update arrived mid-load; load again so a new registration is not missed.
+      if (refetchQueued) { refetchQueued = false; void fetchApprovals() }
+    }
   }
   async function review(type: string, id: string, value: 'Approved' | 'Rejected', reason: string) {
     if (type === 'Vehicle') {

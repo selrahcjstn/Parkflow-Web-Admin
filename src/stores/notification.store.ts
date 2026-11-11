@@ -350,6 +350,27 @@ export const useAdminNotificationStore = defineStore('adminNotification', () => 
       triggerApprovalUpdate(data)
     })
 
+    hubConnection.on('RegistrationSubmitted', (data: any) => {
+      console.log('[SignalR Admin] RegistrationSubmitted received:', data)
+      const name = data?.fullName || data?.FullName || 'A new employee'
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      addNotification(
+        {
+          type: 'vehicle_pending',
+          title: 'New Employee Registration',
+          subtitle: name,
+          message: `${name} registered and is awaiting employee approval (${timeStr}).`,
+          timestamp: timeStr,
+          actionUrl: '/employee-approvals',
+          actionLabel: 'Review Employee',
+          priority: 'high',
+          referenceCode: `reg-${data?.userId || name}-${Date.now()}`,
+        },
+        true,
+      )
+      triggerApprovalUpdate(data)
+    })
+
     hubConnection.on('ReservationSubmitted', (data: any) => {
       console.log('[SignalR Admin] ReservationSubmitted received:', data)
       const refNum = data?.referenceNumber || data?.ReferenceNumber || 'Reservation'
