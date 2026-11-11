@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { isAxiosError } from 'axios'
 import { useRouter } from 'vue-router'
 import api from '@/api/axios'
@@ -13,6 +13,9 @@ const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const isLoading = ref(false)
+// Stays true after a successful login until the dashboard route has loaded, so the screen is never blank.
+const isRedirecting = ref(false)
+const showOverlay = computed(() => isLoading.value || isRedirecting.value)
 const alertMessage = ref('')
 const alertType = ref<'error' | 'success'>('error')
 const isForgotPasswordOpen = ref(false)
@@ -110,11 +113,14 @@ async function handleSubmit() {
         console.warn('Could not extract user details from token', err)
       }
 
-      alertType.value = 'success'
-      alertMessage.value = 'Login successful! Redirecting...'
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 600)
+      isRedirecting.value = true
+      try {
+        await router.push('/dashboard')
+      } catch {
+        isRedirecting.value = false
+        alertType.value = 'error'
+        alertMessage.value = 'Signed in, but the dashboard could not load. Please try again.'
+      }
     } else {
       alertMessage.value = response.data?.message || 'Email or password is incorrect.'
       alertType.value = 'error'
@@ -211,6 +217,15 @@ async function handleSubmit() {
     <UiButton type="submit" size="lg" block :loading="isLoading">{{
       isLoading ? 'Signing in…' : 'Sign In'
     }}</UiButton>
+    <Teleport to="body">
+      <Transition enter-active-class="transition-opacity duration-200" leave-active-class="transition-opacity duration-200" enter-from-class="opacity-0" leave-to-class="opacity-0">
+        <div v-if="showOverlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-white/80 backdrop-blur-sm" role="status" aria-live="polite">
+          <img src="/parkflow.png" alt="" class="size-14 object-contain" />
+          <span class="size-9 animate-spin rounded-full border-[3px] border-primary/15 border-t-primary motion-reduce:animate-none" aria-hidden="true" />
+          <p class="m-0 text-sm font-medium text-text">{{ isRedirecting ? 'Loading your dashboard…' : 'Signing you in…' }}</p>
+        </div>
+      </Transition>
+    </Teleport>
     <ForgotPasswordModal
       :is-open="isForgotPasswordOpen"
       :initial-email="email"
