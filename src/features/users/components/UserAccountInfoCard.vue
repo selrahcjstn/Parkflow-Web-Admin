@@ -1,11 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiBadge from '@/components/ui/UiBadge.vue'
 import type { UserWithDetails } from '../types'
 
-defineProps<{
+const props = defineProps<{
   user: UserWithDetails
 }>()
+
+const isStudent = computed(() => props.user.role === 'Student')
+const isEmployee = computed(() => ['UniversityStaff', 'NonAcademicPersonnel'].includes(props.user.role))
 
 function getStatusBadgeVariant(status?: string): 'success' | 'warning' | 'danger' | 'neutral' {
   if (!status) return 'neutral'
@@ -74,8 +78,9 @@ function formatStatusText(status?: string): string {
         </span>
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <span class="text-xs font-medium text-muted">COR Verification Status</span>
+      <!-- A COR belongs to students only; employees have an ID document and guards have neither. -->
+      <div v-if="isStudent || isEmployee" class="flex flex-col gap-1.5">
+        <span class="text-xs font-medium text-muted">{{ isStudent ? 'COR Verification Status' : 'Employee ID Verification Status' }}</span>
         <div>
           <UiBadge :variant="getStatusBadgeVariant(user.corVerificationStatus)" size="xs">
             {{ formatStatusText(user.corVerificationStatus) }}

@@ -321,8 +321,9 @@ async function confirmStatusChange() {
         <UserClassificationCard :user="user" />
       </div>
 
-      <!-- 3. Certificate of Registration & Approved Parking Schedule -->
+      <!-- 3. Student COR & schedule only: faculty, staff, guards and admins have no COR. -->
       <UserScheduleAndCorCard
+        v-if="user.role === 'Student'"
         :cor-url="user.corDocumentUrl"
         :academic-term="user.academicTerm"
         :cor-status="user.corVerificationStatus"

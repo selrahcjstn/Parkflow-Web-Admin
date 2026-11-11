@@ -92,8 +92,13 @@ test('account details retain document verification without a duplicate account-s
   const Info = component('src/features/users/components/UserAccountInfoCard.vue', {
     '@/components/ui/UiCard.vue': { default: Slot }, '@/components/ui/UiBadge.vue': { default: Slot },
   })
-  const html = await renderToString(vue.createSSRApp(Info, { user: { status: 'Suspended', corVerificationStatus: 'Verified', createdAt: '2026-10-29T00:00:00Z' } }))
+  const html = await renderToString(vue.createSSRApp(Info, { user: { role: 'Student', status: 'Suspended', corVerificationStatus: 'Verified', createdAt: '2026-10-29T00:00:00Z' } }))
   assert.match(html, /COR Verification Status/)
+  // Faculty/staff have no COR and guards have no documents, so the COR row must not appear for them.
+  const staff = await renderToString(vue.createSSRApp(Info, { user: { role: 'UniversityStaff', status: 'Active', corVerificationStatus: 'NotSubmitted', createdAt: '2026-10-29T00:00:00Z' } }))
+  assert.doesNotMatch(staff, /COR Verification Status/); assert.match(staff, /Employee ID Verification Status/)
+  const guard = await renderToString(vue.createSSRApp(Info, { user: { role: 'Guard', status: 'Active', corVerificationStatus: 'NotSubmitted', createdAt: '2026-10-29T00:00:00Z' } }))
+  assert.doesNotMatch(guard, /COR Verification Status|Employee ID Verification Status/)
   assert.doesNotMatch(html, /Account Status|Account Suspended|>Suspended</)
 })
 
