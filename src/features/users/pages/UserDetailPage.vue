@@ -5,7 +5,6 @@ import api from '@/api/axios'
 import { updateUserStatus } from '../services/userStatus.service'
 import { cachedUsers } from '@/stores/appCache'
 import type { UserWithDetails, AccountStatus } from '../types'
-import { getRoleLabel } from '@/utils/role'
 import UiCard from '@/components/ui/UiCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
@@ -187,20 +186,6 @@ function openEdit() {
   }
 }
 
-function openChangePassword() {
-  if (user.value) {
-    router.push({
-      path: '/users/change-password',
-      query: {
-        id: user.value.id,
-        email: user.value.email,
-        name: user.value.fullName,
-        role: getRoleLabel(user.value.role),
-      },
-    })
-  }
-}
-
 function promptToggleStatus(targetStatus: AccountStatus) {
   targetStatusToApply.value = targetStatus
   isStatusConfirmOpen.value = true
@@ -266,7 +251,6 @@ async function confirmStatusChange() {
       :is-loading="isLoading"
       @back="goBack"
       @edit="openEdit"
-      @change-password="openChangePassword"
       @toggle-status="promptToggleStatus"
     />
 
